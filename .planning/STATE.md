@@ -5,37 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
-**Current focus:** All 3 phases complete. Full stack delivered: identity, wallets, trading, leaderboard, web dashboard.
+**Current focus:** Milestone v1.1 Production Launch -- deploy to AWS, add Moltbook skill, add weekly rewards.
 
 ## Current Position
 
-Phase: 3 of 3 (Competition Dashboard)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-02-01 -- Completed 03-02-PLAN.md (Public Web Pages)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-01 — Milestone v1.1 started
 
-Progress: [██████████] 100% (7/7 plans)
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (from v1.0):**
 - Total plans completed: 7
 - Average duration: 4 min
 - Total execution time: 29 min
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Identity and Wallets | 3/3 | 17 min | 6 min |
-| 2. Trading | 2/2 | 7 min | 4 min |
-| 3. Competition Dashboard | 2/2 | 5 min | 3 min |
-
-**Recent Trend:**
-- Last 5 plans: 01-03 (5 min), 02-01 (3 min), 02-02 (4 min), 03-01 (2 min), 03-02 (3 min)
-- Trend: stable, accelerating
-
-*Updated after each plan completion*
 
 ## Accumulated Context
 
@@ -44,50 +30,31 @@ Progress: [██████████] 100% (7/7 plans)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: 3-phase quick-depth structure (Identity+Wallets -> Trading -> Competition Dashboard)
-- [Roadmap]: Auth and Wallets combined into Phase 1 (tightly coupled -- wallet creation requires auth)
-- [Research]: xStocks recommended as primary tokenized stock provider; Jupiter Ultra API for DEX aggregation
-- [Research]: Turnkey or Crossmint recommended for custodial key management (HSM/MPC)
-- [01-01]: Used .ts import extensions with rewriteRelativeImportExtensions for drizzle-kit CJS compatibility
-- [01-01]: API key prefix mk_ (12 chars stored), full key SHA-256 hashed
-- [01-01]: Key rotation: old keys auto-revoked on re-registration
-- [01-01]: Rate limiter applied AFTER auth middleware to use agentId as key
-- [01-02]: Used @solana/kit PDA derivation for ATA address (not @solana/spl-token which depends on legacy web3.js)
-- [01-02]: Decimal.js named import { Decimal } required for ESM compatibility
-- [01-02]: Webhook routes mounted before auth middleware to bypass API key auth
-- [01-02]: Helius webhook always returns 200 to prevent retry storms; errors logged internally
-- [01-03]: Turnkey signMessage used directly on compiled transaction messageBytes (avoids TransactionWithinSizeLimit brand type issues)
-- [01-03]: Manual SPL Token instruction byte encoding for @solana/kit compatibility (legacy @solana/spl-token types incompatible)
-- [01-03]: CreateAssociatedTokenAccountIdempotent always included in USDC withdrawal for first-time recipients
-- [01-03]: Conservative fee estimation: 5000 lamports SOL, 2_044_280 lamports USDC (worst-case ATA creation)
-- [02-01]: JUPITER_API_KEY is required (not optional) since all trading depends on Jupiter
-- [02-01]: ATA_PROGRAM_ADDRESS centralized as shared constant (duplicated in withdrawal.ts/wallets.ts, consolidation deferred)
-- [02-02]: Jupiter transaction signing uses wire format byte parsing (compact-u16 + signature injection) rather than @solana/kit deserialize
-- [02-02]: Position weighted average cost basis computed in SQL for atomicity
-- [02-02]: Error prefix convention: services throw 'prefix: detail', routes map prefix to HTTP status
-- [03-01]: Conservative position valuation: if Jupiter price unavailable, position valued at 0
-- [03-01]: Leaderboard ranked by P&L percentage descending (fair across different capital sizes)
-- [03-01]: Leaderboard API protected behind auth + rate limiter (not public)
-- [03-02]: Tailwind v4 browser CDN with plain <style> for @theme (not type="text/tailwindcss" which is v3 syntax)
-- [03-02]: Public page routes mounted before auth middleware for unauthenticated access
-- [03-02]: Hono jsxRenderer with ContextRenderer type augmentation for typed c.render() props
+- [v1.0]: All v1.0 decisions validated (see MILESTONES.md)
+- [v1.1]: AWS CDK + Lambda for serverless deployment
+- [v1.1]: Neon serverless PostgreSQL for production DB
+- [v1.1]: DB-tracked weekly rewards (not on-chain transfers)
+- [v1.1]: Moltbook Skill file for agent onboarding (AgentSkills standard)
 
 ### Pending Todos
 
-None -- all planned work complete.
+None -- defining requirements.
 
 ### Blockers/Concerns
 
+Carried from v1.0:
 - [Research]: Moltbook identity verification endpoint not confirmed in public API docs -- needs validation
 - [Research]: Tokenized stock Transfer Hook restrictions (xStocks Token-2022) may require wallet whitelisting
 - [Research]: Legal/regulatory review for securities trading flagged as pre-development concern -- user decision needed
-- [01-01]: PostgreSQL not installed locally -- full runtime integration test deferred until DATABASE_URL is configured
-- [01-02]: Turnkey, Helius, and Solana RPC env vars required for runtime wallet operations -- not yet configured
-- [02-01]: JUPITER_API_KEY must be configured before app startup (required env var)
-- [03-01]: ADMIN_PASSWORD must be configured before app startup (required env var)
+
+New for v1.1:
+- AWS account and CDK bootstrap needed before deployment
+- Neon account and DATABASE_URL needed for production DB
+- All env vars (Turnkey, Helius, Jupiter, Solana RPC, ADMIN_PASSWORD) need production values
+- MOLT reward mechanism details (exact amount, settlement process) need finalization
 
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: All phases complete. 7/7 plans executed.
+Stopped at: Milestone v1.1 started, defining requirements
 Resume file: None
