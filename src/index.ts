@@ -10,6 +10,7 @@ import { stockRoutes } from "./routes/stocks.ts";
 import { tradingRoutes } from "./routes/trading.ts";
 import { positionRoutes } from "./routes/positions.ts";
 import { tradeRoutes } from "./routes/trades.ts";
+import { leaderboardApiRoutes } from "./routes/leaderboard-api.ts";
 
 type AppEnv = {
   Variables: {
@@ -47,6 +48,9 @@ app.route("/api/v1/positions", positionRoutes);
 
 // Trade history routes (protected)
 app.route("/api/v1/trades", tradeRoutes);
+
+// Leaderboard API routes (protected)
+app.route("/api/v1/leaderboard", leaderboardApiRoutes);
 
 // Placeholder: GET /api/v1/me (protected, for testing auth middleware)
 app.get("/api/v1/me", (c) => {
