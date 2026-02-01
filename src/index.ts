@@ -1,12 +1,32 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { env } from "./config/env.ts";
+import { authRoutes } from "./routes/auth.ts";
+import { authMiddleware } from "./middleware/auth.ts";
+import { agentRateLimiter } from "./middleware/rate-limit.ts";
 
-const app = new Hono();
+type AppEnv = {
+  Variables: {
+    agentId: string;
+  };
+};
 
-// Health check
+const app = new Hono<AppEnv>();
+
+// Health check (public)
 app.get("/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+// Auth routes (public -- registration is unauthenticated)
+app.route("/api/v1/auth", authRoutes);
+
+// Protected routes: auth middleware + rate limiter
+app.use("/api/v1/*", authMiddleware, agentRateLimiter);
+
+// Placeholder: GET /api/v1/me (protected, for testing auth middleware)
+app.get("/api/v1/me", (c) => {
+  return c.json({ agentId: c.get("agentId") });
 });
 
 // Start server
