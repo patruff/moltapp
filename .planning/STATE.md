@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
-**Current focus:** Phase 1 complete. Ready for Phase 2: Trading
+**Current focus:** Phase 2 in progress: Trading (schema and constants foundation complete)
 
 ## Current Position
 
-Phase: 1 of 3 (Identity and Wallets) -- COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 1 complete
-Last activity: 2026-02-01 -- Completed 01-03-PLAN.md (Withdrawals: SOL and USDC withdrawal with Turnkey signing)
+Phase: 2 of 3 (Trading)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-01 -- Completed 02-01-PLAN.md (Schema and Constants Foundation)
 
-Progress: [████░░░░░░] 43% (3/7 plans)
+Progress: [██████░░░░] 57% (4/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 6 min
-- Total execution time: 17 min
+- Total plans completed: 4
+- Average duration: 5 min
+- Total execution time: 20 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Identity and Wallets | 3/3 | 17 min | 6 min |
+| 2. Trading | 1/2 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5 min), 01-02 (7 min), 01-03 (5 min)
-- Trend: stable
+- Last 5 plans: 01-01 (5 min), 01-02 (7 min), 01-03 (5 min), 02-01 (3 min)
+- Trend: improving
 
 *Updated after each plan completion*
 
@@ -58,6 +59,8 @@ Recent decisions affecting current work:
 - [01-03]: Manual SPL Token instruction byte encoding for @solana/kit compatibility (legacy @solana/spl-token types incompatible)
 - [01-03]: CreateAssociatedTokenAccountIdempotent always included in USDC withdrawal for first-time recipients
 - [01-03]: Conservative fee estimation: 5000 lamports SOL, 2_044_280 lamports USDC (worst-case ATA creation)
+- [02-01]: JUPITER_API_KEY is required (not optional) since all trading depends on Jupiter
+- [02-01]: ATA_PROGRAM_ADDRESS centralized as shared constant (duplicated in withdrawal.ts/wallets.ts, consolidation deferred)
 
 ### Pending Todos
 
@@ -70,9 +73,10 @@ None yet.
 - [Research]: Legal/regulatory review for securities trading flagged as pre-development concern -- user decision needed
 - [01-01]: PostgreSQL not installed locally -- full runtime integration test deferred until DATABASE_URL is configured
 - [01-02]: Turnkey, Helius, and Solana RPC env vars required for runtime wallet operations -- not yet configured
+- [02-01]: JUPITER_API_KEY must be configured before app startup (required env var)
 
 ## Session Continuity
 
-Last session: 2026-02-01T08:20Z
-Stopped at: Completed 01-03-PLAN.md -- Phase 1 (Identity and Wallets) fully complete
+Last session: 2026-02-01T09:51Z
+Stopped at: Completed 02-01-PLAN.md -- Schema and constants foundation for Phase 2 Trading
 Resume file: None
