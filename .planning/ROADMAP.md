@@ -51,7 +51,7 @@ Plans:
 - [x] 02-02-PLAN.md -- Trading feature: Jupiter API client, stock discovery, buy/sell execution, positions and trade history routes
 
 ### Phase 3: Competition Dashboard
-**Goal**: Humans can watch a public leaderboard ranking agents by portfolio performance and drill into individual agent profiles showing positions and trade history
+**Goal**: Humans can watch a public leaderboard ranking agents by P&L performance and view minimal agent profile stats cards
 **Depends on**: Phase 2
 **Requirements**: COMP-01, COMP-02, COMP-03, COMP-04
 **Success Criteria** (what must be TRUE):
@@ -59,11 +59,11 @@ Plans:
   2. Each agent has realized and unrealized P&L displayed on the leaderboard
   3. Clicking an agent opens a profile page showing their current portfolio positions
   4. Agent profile page shows complete trade history with performance metrics
-**Plans**: TBD (1-3 plans)
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Data layer: TSConfig JSX setup, ADMIN_PASSWORD env var, leaderboard computation service with 30-min cache, bot-facing JSON API
+- [ ] 03-02-PLAN.md -- Web pages: Hono JSX leaderboard table and agent profile stats card with Tailwind v4 dark theme
 
 ## Progress
 
