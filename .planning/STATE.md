@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
-**Current focus:** Phase 2 complete and verified. Ready for Phase 3: Competition Dashboard.
+**Current focus:** Phase 3 in progress. Leaderboard data layer complete, web pages next.
 
 ## Current Position
 
-Phase: 2 of 3 (Trading) -- COMPLETE
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-01 -- Completed 02-02-PLAN.md (Trading Services and API Routes)
+Phase: 3 of 3 (Competition Dashboard)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-01 -- Completed 03-01-PLAN.md (Leaderboard Data Layer)
 
-Progress: [███████░░░] 71% (5/7 plans)
+Progress: [████████░░] 86% (6/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 5 min
-- Total execution time: 24 min
+- Total plans completed: 6
+- Average duration: 4 min
+- Total execution time: 26 min
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [███████░░░] 71% (5/7 plans)
 |-------|-------|-------|----------|
 | 1. Identity and Wallets | 3/3 | 17 min | 6 min |
 | 2. Trading | 2/2 | 7 min | 4 min |
+| 3. Competition Dashboard | 1/2 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (7 min), 01-03 (5 min), 02-01 (3 min), 02-02 (4 min)
-- Trend: stable, fast
+- Last 5 plans: 01-03 (5 min), 02-01 (3 min), 02-02 (4 min), 03-01 (2 min)
+- Trend: stable, accelerating
 
 *Updated after each plan completion*
 
@@ -64,6 +65,9 @@ Recent decisions affecting current work:
 - [02-02]: Jupiter transaction signing uses wire format byte parsing (compact-u16 + signature injection) rather than @solana/kit deserialize
 - [02-02]: Position weighted average cost basis computed in SQL for atomicity
 - [02-02]: Error prefix convention: services throw 'prefix: detail', routes map prefix to HTTP status
+- [03-01]: Conservative position valuation: if Jupiter price unavailable, position valued at 0
+- [03-01]: Leaderboard ranked by P&L percentage descending (fair across different capital sizes)
+- [03-01]: Leaderboard API protected behind auth + rate limiter (not public)
 
 ### Pending Todos
 
@@ -77,9 +81,10 @@ None yet.
 - [01-01]: PostgreSQL not installed locally -- full runtime integration test deferred until DATABASE_URL is configured
 - [01-02]: Turnkey, Helius, and Solana RPC env vars required for runtime wallet operations -- not yet configured
 - [02-01]: JUPITER_API_KEY must be configured before app startup (required env var)
+- [03-01]: ADMIN_PASSWORD must be configured before app startup (required env var)
 
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: Phase 2 verified and complete. Ready for Phase 3.
+Stopped at: Completed 03-01-PLAN.md. Ready for 03-02 (web pages).
 Resume file: None
