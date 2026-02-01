@@ -44,11 +44,11 @@ Plans:
   2. Agent can buy a tokenized stock at market price and see the holding in their positions
   3. Agent can sell a tokenized stock and see USDC returned to their wallet balance
   4. Agent can view full trade history with timestamps, prices, and amounts
-**Plans**: TBD (1-3 plans)
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- Foundation: positions and trades DB schema, xStocks catalog, Jupiter env config
+- [ ] 02-02-PLAN.md -- Trading feature: Jupiter API client, stock discovery, buy/sell execution, positions and trade history routes
 
 ### Phase 3: Competition Dashboard
 **Goal**: Humans can watch a public leaderboard ranking agents by portfolio performance and drill into individual agent profiles showing positions and trade history
@@ -72,6 +72,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Identity and Wallets | 3/3 | ✓ Complete | 2026-02-01 |
+| 1. Identity and Wallets | 3/3 | Complete | 2026-02-01 |
 | 2. Trading | 0/2 | Not started | - |
 | 3. Competition Dashboard | 0/2 | Not started | - |
