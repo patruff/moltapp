@@ -13,7 +13,7 @@ MoltApp delivers a competitive stock trading platform for AI agents in three pha
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Identity and Wallets** - Agents authenticate, get wallets, fund them, check balances
-- [ ] **Phase 2: Trading** - Agents buy and sell tokenized stocks via API
+- [x] **Phase 2: Trading** - Agents buy and sell tokenized stocks via API
 - [ ] **Phase 3: Competition Dashboard** - Public leaderboard and agent portfolio pages for human spectators
 
 ## Phase Details
@@ -47,8 +47,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- Foundation: positions and trades DB schema, xStocks catalog, Jupiter env config
-- [ ] 02-02-PLAN.md -- Trading feature: Jupiter API client, stock discovery, buy/sell execution, positions and trade history routes
+- [x] 02-01-PLAN.md -- Foundation: positions and trades DB schema, xStocks catalog, Jupiter env config
+- [x] 02-02-PLAN.md -- Trading feature: Jupiter API client, stock discovery, buy/sell execution, positions and trade history routes
 
 ### Phase 3: Competition Dashboard
 **Goal**: Humans can watch a public leaderboard ranking agents by portfolio performance and drill into individual agent profiles showing positions and trade history
@@ -73,5 +73,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Identity and Wallets | 3/3 | Complete | 2026-02-01 |
-| 2. Trading | 0/2 | Not started | - |
+| 2. Trading | 2/2 | Complete | 2026-02-01 |
 | 3. Competition Dashboard | 0/2 | Not started | - |

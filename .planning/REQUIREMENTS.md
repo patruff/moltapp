@@ -23,10 +23,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Trading
 
-- [ ] **TRAD-01**: Agent can buy or sell tokenized stocks at market price via Jupiter
-- [ ] **TRAD-02**: Agent can list all available tokenized stocks with current prices
-- [ ] **TRAD-03**: Agent can view current stock positions (holdings and quantities)
-- [ ] **TRAD-04**: Agent can view trade history with timestamps, prices, and amounts
+- [x] **TRAD-01**: Agent can buy or sell tokenized stocks at market price via Jupiter
+- [x] **TRAD-02**: Agent can list all available tokenized stocks with current prices
+- [x] **TRAD-03**: Agent can view current stock positions (holdings and quantities)
+- [x] **TRAD-04**: Agent can view trade history with timestamps, prices, and amounts
 
 ### Competition
 
@@ -85,10 +85,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WALL-02 | Phase 1 | Complete |
 | WALL-03 | Phase 1 | Complete |
 | WALL-04 | Phase 1 | Complete |
-| TRAD-01 | Phase 2 | Pending |
-| TRAD-02 | Phase 2 | Pending |
-| TRAD-03 | Phase 2 | Pending |
-| TRAD-04 | Phase 2 | Pending |
+| TRAD-01 | Phase 2 | Complete |
+| TRAD-02 | Phase 2 | Complete |
+| TRAD-03 | Phase 2 | Complete |
+| TRAD-04 | Phase 2 | Complete |
 | COMP-01 | Phase 3 | Pending |
 | COMP-02 | Phase 3 | Pending |
 | COMP-03 | Phase 3 | Pending |
@@ -101,4 +101,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after Phase 1 completion*
+*Last updated: 2026-02-01 after Phase 2 completion*
