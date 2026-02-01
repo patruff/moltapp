@@ -6,6 +6,10 @@ import { walletRoutes } from "./routes/wallets.ts";
 import { webhookRoutes } from "./routes/webhooks.ts";
 import { authMiddleware } from "./middleware/auth.ts";
 import { agentRateLimiter } from "./middleware/rate-limit.ts";
+import { stockRoutes } from "./routes/stocks.ts";
+import { tradingRoutes } from "./routes/trading.ts";
+import { positionRoutes } from "./routes/positions.ts";
+import { tradeRoutes } from "./routes/trades.ts";
 
 type AppEnv = {
   Variables: {
@@ -31,6 +35,18 @@ app.use("/api/v1/*", authMiddleware, agentRateLimiter);
 
 // Wallet routes (protected)
 app.route("/api/v1/wallet", walletRoutes);
+
+// Stock discovery routes (protected)
+app.route("/api/v1/stocks", stockRoutes);
+
+// Trading routes (protected)
+app.route("/api/v1/trading", tradingRoutes);
+
+// Position routes (protected)
+app.route("/api/v1/positions", positionRoutes);
+
+// Trade history routes (protected)
+app.route("/api/v1/trades", tradeRoutes);
 
 // Placeholder: GET /api/v1/me (protected, for testing auth middleware)
 app.get("/api/v1/me", (c) => {
