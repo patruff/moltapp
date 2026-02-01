@@ -3,8 +3,9 @@ import { z } from "zod";
 import { createHash, randomBytes } from "crypto";
 import { eq, and } from "drizzle-orm";
 import { db } from "../db/index.ts";
-import { agents, apiKeys } from "../db/schema/index.ts";
+import { agents, apiKeys, wallets } from "../db/schema/index.ts";
 import { verifyIdentity } from "../services/moltbook.ts";
+import { createAgentWallet } from "../services/wallet.ts";
 import { API_KEY_PREFIX } from "../config/constants.ts";
 
 const registerBodySchema = z.object({
@@ -74,7 +75,35 @@ authRoutes.post("/register", async (c) => {
       },
     });
 
-  // 4. Revoke any existing non-revoked API keys for this agent (key rotation)
+  // 4. Ensure agent has a wallet (create one if not)
+  let walletAddress: string;
+
+  const existingWallets = await db
+    .select()
+    .from(wallets)
+    .where(eq(wallets.agentId, moltbookAgent.id))
+    .limit(1);
+
+  if (existingWallets.length > 0) {
+    walletAddress = existingWallets[0].publicKey;
+  } else {
+    try {
+      const walletResult = await createAgentWallet(moltbookAgent.id);
+      await db.insert(wallets).values({
+        agentId: moltbookAgent.id,
+        publicKey: walletResult.publicKey,
+        turnkeyWalletId: walletResult.turnkeyWalletId,
+      });
+      walletAddress = walletResult.publicKey;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "wallet_creation_failed";
+      console.error(`Wallet creation failed for agent ${moltbookAgent.id}:`, message);
+      return c.json({ error: "wallet_creation_failed" }, 502);
+    }
+  }
+
+  // 5. Revoke any existing non-revoked API keys for this agent (key rotation)
   await db
     .update(apiKeys)
     .set({ isRevoked: true })
@@ -82,23 +111,24 @@ authRoutes.post("/register", async (c) => {
       and(eq(apiKeys.agentId, moltbookAgent.id), eq(apiKeys.isRevoked, false))
     );
 
-  // 5. Generate new API key
+  // 6. Generate new API key
   const rawKey = randomBytes(32).toString("hex");
   const fullKey = `${API_KEY_PREFIX}${rawKey}`;
   const keyHash = createHash("sha256").update(fullKey).digest("hex");
   const keyPrefix = fullKey.substring(0, 12);
 
-  // 6. Store hashed key in database
+  // 7. Store hashed key in database
   await db.insert(apiKeys).values({
     agentId: moltbookAgent.id,
     keyHash,
     keyPrefix,
   });
 
-  // 7. Return API key and profile to the agent
+  // 8. Return API key, wallet address, and profile to the agent
   return c.json({
     agentId: moltbookAgent.id,
     apiKey: fullKey,
+    walletAddress,
     profile: {
       name: moltbookAgent.name,
       karma: moltbookAgent.karma,

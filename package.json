@@ -17,6 +17,11 @@
   "description": "",
   "dependencies": {
     "@hono/node-server": "^1.19.9",
+    "@solana-program/system": "^0.10.0",
+    "@solana/kit": "^5.5.1",
+    "@solana/spl-token": "^0.4.14",
+    "@turnkey/sdk-server": "^5.0.2",
+    "@turnkey/solana": "^1.1.22",
     "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.11.7",

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { env } from "./config/env.ts";
 import { authRoutes } from "./routes/auth.ts";
+import { walletRoutes } from "./routes/wallets.ts";
 import { authMiddleware } from "./middleware/auth.ts";
 import { agentRateLimiter } from "./middleware/rate-limit.ts";
 
@@ -23,6 +24,9 @@ app.route("/api/v1/auth", authRoutes);
 
 // Protected routes: auth middleware + rate limiter
 app.use("/api/v1/*", authMiddleware, agentRateLimiter);
+
+// Wallet routes (protected)
+app.route("/api/v1/wallet", walletRoutes);
 
 // Placeholder: GET /api/v1/me (protected, for testing auth middleware)
 app.get("/api/v1/me", (c) => {
