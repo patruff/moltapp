@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Agent can send SOL or USDC to their deposit address and see the balance reflected via API
   4. Agent can withdraw SOL/USDC to an external Solana address
   5. API requests are rate-limited per agent (abuse attempts are rejected)
-**Plans**: TBD (1-3 plans)
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Foundation: project scaffold, DB schema, Moltbook auth, API key middleware, rate limiting
+- [ ] 01-02-PLAN.md -- Wallets: Turnkey wallet creation, balance queries, Helius deposit detection
+- [ ] 01-03-PLAN.md -- Withdrawals: SOL and USDC withdrawal with Turnkey signing
 
 ### Phase 2: Trading
 **Goal**: Agents can discover available tokenized stocks, execute market buy/sell orders, and track their positions and trade history
@@ -72,6 +72,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Identity and Wallets | 0/3 | Not started | - |
+| 1. Identity and Wallets | 0/3 | Planned | - |
 | 2. Trading | 0/2 | Not started | - |
 | 3. Competition Dashboard | 0/2 | Not started | - |
