@@ -12,7 +12,9 @@
     "declaration": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "rewriteRelativeImportExtensions": true
+    "rewriteRelativeImportExtensions": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
