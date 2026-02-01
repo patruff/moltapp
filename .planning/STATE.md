@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-01)
 ## Current Position
 
 Phase: 1 of 3 (Identity and Wallets)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-01 -- Completed 01-01-PLAN.md (Foundation: scaffold, schema, auth, middleware)
+Last activity: 2026-02-01 -- Completed 01-02-PLAN.md (Wallets: Turnkey custodial wallets, balance queries, Helius deposit detection)
 
-Progress: [█░░░░░░░░░] 14% (1/7 plans)
+Progress: [██░░░░░░░░] 29% (2/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 5 min
+- Total plans completed: 2
+- Average duration: 6 min
+- Total execution time: 12 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Identity and Wallets | 1/3 | 5 min | 5 min |
+| 1. Identity and Wallets | 2/3 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5 min)
-- Trend: -
+- Last 5 plans: 01-01 (5 min), 01-02 (7 min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - [01-01]: API key prefix mk_ (12 chars stored), full key SHA-256 hashed
 - [01-01]: Key rotation: old keys auto-revoked on re-registration
 - [01-01]: Rate limiter applied AFTER auth middleware to use agentId as key
+- [01-02]: Used @solana/kit PDA derivation for ATA address (not @solana/spl-token which depends on legacy web3.js)
+- [01-02]: Decimal.js named import { Decimal } required for ESM compatibility
+- [01-02]: Webhook routes mounted before auth middleware to bypass API key auth
+- [01-02]: Helius webhook always returns 200 to prevent retry storms; errors logged internally
 
 ### Pending Todos
 
@@ -61,9 +65,10 @@ None yet.
 - [Research]: Tokenized stock Transfer Hook restrictions (xStocks Token-2022) may require wallet whitelisting
 - [Research]: Legal/regulatory review for securities trading flagged as pre-development concern -- user decision needed
 - [01-01]: PostgreSQL not installed locally -- full runtime integration test deferred until DATABASE_URL is configured
+- [01-02]: Turnkey, Helius, and Solana RPC env vars required for runtime wallet operations -- not yet configured
 
 ## Session Continuity
 
-Last session: 2026-02-01T08:03Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-02-01T08:12Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
