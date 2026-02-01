@@ -11,6 +11,7 @@ import { tradingRoutes } from "./routes/trading.ts";
 import { positionRoutes } from "./routes/positions.ts";
 import { tradeRoutes } from "./routes/trades.ts";
 import { leaderboardApiRoutes } from "./routes/leaderboard-api.ts";
+import { pageRoutes } from "./routes/pages.tsx";
 
 type AppEnv = {
   Variables: {
@@ -24,6 +25,9 @@ const app = new Hono<AppEnv>();
 app.get("/health", (c) => {
   return c.json({ status: "ok" });
 });
+
+// Public web pages (no auth -- leaderboard and agent profiles)
+app.route("/", pageRoutes);
 
 // Auth routes (public -- registration is unauthenticated)
 app.route("/api/v1/auth", authRoutes);
