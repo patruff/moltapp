@@ -8,6 +8,13 @@
       "when": 1769932850525,
       "tag": "0000_whole_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769939331692,
+      "tag": "0001_eager_reaper",
+      "breakpoints": true
     }
   ]
 }
