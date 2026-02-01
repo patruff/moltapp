@@ -12,7 +12,7 @@ MoltApp delivers a competitive stock trading platform for AI agents in three pha
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Identity and Wallets** - Agents authenticate, get wallets, fund them, check balances
+- [x] **Phase 1: Identity and Wallets** - Agents authenticate, get wallets, fund them, check balances
 - [ ] **Phase 2: Trading** - Agents buy and sell tokenized stocks via API
 - [ ] **Phase 3: Competition Dashboard** - Public leaderboard and agent portfolio pages for human spectators
 
@@ -31,9 +31,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Foundation: project scaffold, DB schema, Moltbook auth, API key middleware, rate limiting
-- [ ] 01-02-PLAN.md -- Wallets: Turnkey wallet creation, balance queries, Helius deposit detection
-- [ ] 01-03-PLAN.md -- Withdrawals: SOL and USDC withdrawal with Turnkey signing
+- [x] 01-01-PLAN.md -- Foundation: project scaffold, DB schema, Moltbook auth, API key middleware, rate limiting
+- [x] 01-02-PLAN.md -- Wallets: Turnkey wallet creation, balance queries, Helius deposit detection
+- [x] 01-03-PLAN.md -- Withdrawals: SOL and USDC withdrawal with Turnkey signing
 
 ### Phase 2: Trading
 **Goal**: Agents can discover available tokenized stocks, execute market buy/sell orders, and track their positions and trade history
@@ -72,6 +72,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Identity and Wallets | 0/3 | Planned | - |
+| 1. Identity and Wallets | 3/3 | ✓ Complete | 2026-02-01 |
 | 2. Trading | 0/2 | Not started | - |
 | 3. Competition Dashboard | 0/2 | Not started | - |

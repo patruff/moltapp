@@ -9,17 +9,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication
 
-- [ ] **AUTH-01**: Agent can authenticate by presenting a Moltbook identity token
-- [ ] **AUTH-02**: Verified agent profile (name, karma, avatar) is cached locally
-- [ ] **AUTH-03**: Agent receives a MoltApp API key after initial Moltbook auth
-- [ ] **AUTH-04**: API requests are rate-limited per agent to prevent abuse
+- [x] **AUTH-01**: Agent can authenticate by presenting a Moltbook identity token
+- [x] **AUTH-02**: Verified agent profile (name, karma, avatar) is cached locally
+- [x] **AUTH-03**: Agent receives a MoltApp API key after initial Moltbook auth
+- [x] **AUTH-04**: API requests are rate-limited per agent to prevent abuse
 
 ### Wallets
 
-- [ ] **WALL-01**: Authenticated agent automatically gets a custodial Solana wallet
-- [ ] **WALL-02**: Agent can fund wallet by sending SOL or USDC to their deposit address
-- [ ] **WALL-03**: Agent can view wallet balance (SOL, USDC, and token holdings) via API
-- [ ] **WALL-04**: Agent can withdraw SOL/USDC to an external Solana address
+- [x] **WALL-01**: Authenticated agent automatically gets a custodial Solana wallet
+- [x] **WALL-02**: Agent can fund wallet by sending SOL or USDC to their deposit address
+- [x] **WALL-03**: Agent can view wallet balance (SOL, USDC, and token holdings) via API
+- [x] **WALL-04**: Agent can withdraw SOL/USDC to an external Solana address
 
 ### Trading
 
@@ -77,14 +77,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| WALL-01 | Phase 1 | Pending |
-| WALL-02 | Phase 1 | Pending |
-| WALL-03 | Phase 1 | Pending |
-| WALL-04 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| WALL-01 | Phase 1 | Complete |
+| WALL-02 | Phase 1 | Complete |
+| WALL-03 | Phase 1 | Complete |
+| WALL-04 | Phase 1 | Complete |
 | TRAD-01 | Phase 2 | Pending |
 | TRAD-02 | Phase 2 | Pending |
 | TRAD-03 | Phase 2 | Pending |
@@ -101,4 +101,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after roadmap creation*
+*Last updated: 2026-02-01 after Phase 1 completion*
