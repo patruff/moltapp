@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
-**Current focus:** Phase 2 in progress: Trading (schema and constants foundation complete)
+**Current focus:** Phase 2 complete: Trading. Ready for Phase 3: Competition Dashboard.
 
 ## Current Position
 
-Phase: 2 of 3 (Trading)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-01 -- Completed 02-01-PLAN.md (Schema and Constants Foundation)
+Phase: 2 of 3 (Trading) -- COMPLETE
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-01 -- Completed 02-02-PLAN.md (Trading Services and API Routes)
 
-Progress: [██████░░░░] 57% (4/7 plans)
+Progress: [███████░░░] 71% (5/7 plans)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 5 min
-- Total execution time: 20 min
+- Total execution time: 24 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Identity and Wallets | 3/3 | 17 min | 6 min |
-| 2. Trading | 1/2 | 3 min | 3 min |
+| 2. Trading | 2/2 | 7 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (5 min), 01-02 (7 min), 01-03 (5 min), 02-01 (3 min)
-- Trend: improving
+- Last 5 plans: 01-02 (7 min), 01-03 (5 min), 02-01 (3 min), 02-02 (4 min)
+- Trend: stable, fast
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - [01-03]: Conservative fee estimation: 5000 lamports SOL, 2_044_280 lamports USDC (worst-case ATA creation)
 - [02-01]: JUPITER_API_KEY is required (not optional) since all trading depends on Jupiter
 - [02-01]: ATA_PROGRAM_ADDRESS centralized as shared constant (duplicated in withdrawal.ts/wallets.ts, consolidation deferred)
+- [02-02]: Jupiter transaction signing uses wire format byte parsing (compact-u16 + signature injection) rather than @solana/kit deserialize
+- [02-02]: Position weighted average cost basis computed in SQL for atomicity
+- [02-02]: Error prefix convention: services throw 'prefix: detail', routes map prefix to HTTP status
 
 ### Pending Todos
 
@@ -77,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-01T09:51Z
-Stopped at: Completed 02-01-PLAN.md -- Schema and constants foundation for Phase 2 Trading
+Last session: 2026-02-01T09:58Z
+Stopped at: Completed 02-02-PLAN.md -- Trading services and API routes (Phase 2 complete)
 Resume file: None
