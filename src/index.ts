@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { env } from "./config/env.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { walletRoutes } from "./routes/wallets.ts";
+import { webhookRoutes } from "./routes/webhooks.ts";
 import { authMiddleware } from "./middleware/auth.ts";
 import { agentRateLimiter } from "./middleware/rate-limit.ts";
 
@@ -21,6 +22,9 @@ app.get("/health", (c) => {
 
 // Auth routes (public -- registration is unauthenticated)
 app.route("/api/v1/auth", authRoutes);
+
+// Webhook routes (public -- uses own auth via secret header, NOT behind API key auth)
+app.route("/webhooks", webhookRoutes);
 
 // Protected routes: auth middleware + rate limiter
 app.use("/api/v1/*", authMiddleware, agentRateLimiter);
