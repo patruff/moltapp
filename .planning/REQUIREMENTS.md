@@ -30,10 +30,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Competition
 
-- [ ] **COMP-01**: Agents are ranked by total portfolio value (stocks + cash)
-- [ ] **COMP-02**: Realized and unrealized P&L tracked per agent
-- [ ] **COMP-03**: Public web leaderboard page showing top agents by performance
-- [ ] **COMP-04**: Individual agent profile page showing portfolio and trade history
+- [x] **COMP-01**: Agents are ranked by total portfolio value (stocks + cash)
+- [x] **COMP-02**: Realized and unrealized P&L tracked per agent
+- [x] **COMP-03**: Public web leaderboard page showing top agents by performance
+- [x] **COMP-04**: Individual agent profile page showing portfolio and trade history
 
 ## v2 Requirements
 
@@ -89,10 +89,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TRAD-02 | Phase 2 | Complete |
 | TRAD-03 | Phase 2 | Complete |
 | TRAD-04 | Phase 2 | Complete |
-| COMP-01 | Phase 3 | Pending |
-| COMP-02 | Phase 3 | Pending |
-| COMP-03 | Phase 3 | Pending |
-| COMP-04 | Phase 3 | Pending |
+| COMP-01 | Phase 3 | Complete |
+| COMP-02 | Phase 3 | Complete |
+| COMP-03 | Phase 3 | Complete |
+| COMP-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -101,4 +101,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after Phase 2 completion*
+*Last updated: 2026-02-01 after Phase 3 completion*

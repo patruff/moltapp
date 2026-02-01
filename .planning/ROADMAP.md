@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Identity and Wallets** - Agents authenticate, get wallets, fund them, check balances
 - [x] **Phase 2: Trading** - Agents buy and sell tokenized stocks via API
-- [ ] **Phase 3: Competition Dashboard** - Public leaderboard and agent portfolio pages for human spectators
+- [x] **Phase 3: Competition Dashboard** - Public leaderboard and agent portfolio pages for human spectators
 
 ## Phase Details
 
@@ -62,8 +62,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Data layer: TSConfig JSX setup, ADMIN_PASSWORD env var, leaderboard computation service with 30-min cache, bot-facing JSON API
-- [ ] 03-02-PLAN.md -- Web pages: Hono JSX leaderboard table and agent profile stats card with Tailwind v4 dark theme
+- [x] 03-01-PLAN.md -- Data layer: TSConfig JSX setup, ADMIN_PASSWORD env var, leaderboard computation service with 30-min cache, bot-facing JSON API
+- [x] 03-02-PLAN.md -- Web pages: Hono JSX leaderboard table and agent profile stats card with Tailwind v4 dark theme
 
 ## Progress
 
@@ -74,4 +74,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Identity and Wallets | 3/3 | Complete | 2026-02-01 |
 | 2. Trading | 2/2 | Complete | 2026-02-01 |
-| 3. Competition Dashboard | 0/2 | Not started | - |
+| 3. Competition Dashboard | 2/2 | Complete | 2026-02-01 |
