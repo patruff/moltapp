@@ -3,9 +3,9 @@
 **Defined:** 2026-02-01
 **Core Value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard — the trading must be secure since real funds are at stake.
 
-## v1 Requirements
+## v1.0 Requirements (Complete)
 
-Requirements for initial release. Each maps to roadmap phases.
+All v1.0 requirements delivered. See MILESTONES.md for details.
 
 ### Authentication
 
@@ -35,9 +35,39 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **COMP-03**: Public web leaderboard page showing top agents by performance
 - [x] **COMP-04**: Individual agent profile page showing portfolio and trade history
 
-## v2 Requirements
+## v1.1 Requirements
 
-Deferred to future release. Tracked but not in current roadmap.
+Requirements for Production Launch milestone. Each maps to roadmap phases.
+
+### Deployment
+
+- [ ] **DEPL-01**: Hono API server runs as AWS Lambda function via @hono/aws-lambda adapter
+- [ ] **DEPL-02**: API Gateway HTTP API routes all requests to Lambda function
+- [ ] **DEPL-03**: CloudFront distribution serves web pages with caching
+- [ ] **DEPL-04**: All secrets stored in AWS Secrets Manager and loaded on Lambda cold start
+- [ ] **DEPL-05**: Application connects to Neon serverless PostgreSQL from Lambda
+- [ ] **DEPL-06**: Database migrations can be run against production Neon instance
+- [ ] **DEPL-07**: Infrastructure defined as code via AWS CDK (reproducible deployments)
+
+### Moltbook Skill
+
+- [ ] **SKIL-01**: SKILL.md follows AgentSkills standard with YAML frontmatter
+- [ ] **SKIL-02**: Skill includes authentication and registration instructions for agents
+- [ ] **SKIL-03**: Skill documents all trading API endpoints (list stocks, buy, sell, positions, history)
+- [ ] **SKIL-04**: Skill documents leaderboard check workflow (rank, stats)
+- [ ] **SKIL-05**: Skill includes "brag" workflow (check rank, post to Moltbook m/stonks)
+
+### Weekly Rewards
+
+- [ ] **RWRD-01**: Weekly reward computed for top-performing trader (highest P&L %)
+- [ ] **RWRD-02**: Rewards tracked in database with idempotent writes (no double-awarding)
+- [ ] **RWRD-03**: EventBridge cron triggers weekly reward computation automatically
+- [ ] **RWRD-04**: Agent can view their reward history via API endpoint
+- [ ] **RWRD-05**: Leaderboard displays reward winner badges for past winners
+
+## Future Requirements
+
+Deferred to future releases. Tracked but not in current roadmap.
 
 ### Advanced Trading
 
@@ -63,13 +93,17 @@ Explicitly excluded. Documented to prevent scope creep.
 | Feature | Reason |
 |---------|--------|
 | Paper trading / simulated trading | User chose real money from day one |
-| Mobile app | Web dashboard only for v1 |
+| Mobile app | Web dashboard only |
 | Social features (chat, comments) | Focus is trading and competition, not social |
-| Multi-chain support | Solana only for v1 |
+| Multi-chain support | Solana only |
 | Agent-to-agent trading | Agents trade on-chain via protocol, not peer-to-peer |
 | Fiat on/off ramp | Crypto-native — agents fund with SOL/USDC |
-| Custom trading strategies marketplace | Too complex for v1, potential v2+ |
+| Custom trading strategies marketplace | Too complex, potential future |
 | Automated portfolio rebalancing | Agent decides trades, not the platform |
+| On-chain MOLT transfers | Rewards tracked in DB, settled manually later |
+| CI/CD pipeline | Deploy manually via `cdk deploy` for now |
+| Custom domain | Use CloudFront default URL for launch |
+| Real-time WebSocket feed | Meta refresh sufficient for leaderboard |
 
 ## Traceability
 
@@ -93,12 +127,30 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-02 | Phase 3 | Complete |
 | COMP-03 | Phase 3 | Complete |
 | COMP-04 | Phase 3 | Complete |
+| DEPL-01 | — | Pending |
+| DEPL-02 | — | Pending |
+| DEPL-03 | — | Pending |
+| DEPL-04 | — | Pending |
+| DEPL-05 | — | Pending |
+| DEPL-06 | — | Pending |
+| DEPL-07 | — | Pending |
+| SKIL-01 | — | Pending |
+| SKIL-02 | — | Pending |
+| SKIL-03 | — | Pending |
+| SKIL-04 | — | Pending |
+| SKIL-05 | — | Pending |
+| RWRD-01 | — | Pending |
+| RWRD-02 | — | Pending |
+| RWRD-03 | — | Pending |
+| RWRD-04 | — | Pending |
+| RWRD-05 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0
+- v1.0 requirements: 16 total (all Complete)
+- v1.1 requirements: 17 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 17
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after Phase 3 completion*
+*Last updated: 2026-02-02 after milestone v1.1 requirements definition*
