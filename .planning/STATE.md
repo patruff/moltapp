@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 4 of 6 (AWS Deployment)
-Plan: 0 of 3 in current phase
-Status: Planned, ready to execute
-Last activity: 2026-02-02 -- Phase 4 planned (3 plans in 2 waves)
+Plan: 1 of 3 in current phase (04-02 complete)
+Status: In progress
+Last activity: 2026-02-02 -- Completed 04-02-PLAN.md (CDK infrastructure stack)
 
-Progress: [=======░░░] 70% (v1.0 complete, v1.1 starting)
+Progress: [████████░░] 80% (8/10 plans complete)
 
 ## Performance Metrics
 
-**Velocity (from v1.0):**
-- Total plans completed: 7
-- Average duration: 4 min
-- Total execution time: 29 min
+**Velocity:**
+- Total plans completed: 8
+- Average duration: ~4.4 min
+- Total execution time: ~35 min
 
 **By Phase:**
 
@@ -30,6 +30,7 @@ Progress: [=======░░░] 70% (v1.0 complete, v1.1 starting)
 | 1. Identity & Wallets | 3 | ~12 min | ~4 min |
 | 2. Trading | 2 | ~8 min | ~4 min |
 | 3. Competition Dashboard | 2 | ~9 min | ~4.5 min |
+| 4. AWS Deployment | 1/3 | ~6 min | ~6 min |
 
 ## Accumulated Context
 
@@ -42,6 +43,8 @@ Recent decisions affecting current work:
 - [v1.1]: Neon serverless PostgreSQL for production DB
 - [v1.1]: DB-tracked weekly rewards (not on-chain transfers)
 - [v1.1]: Moltbook Skill file for agent onboarding (AgentSkills standard)
+- [04-02]: Used .js import extension in CDK bin/app.ts for NodeNext module resolution
+- [04-02]: Added root route (/) alongside /{proxy+} in API Gateway (proxy doesn't match root)
 
 ### Pending Todos
 
@@ -63,5 +66,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Roadmap created for v1.1 (Phases 4-6). Ready to plan Phase 4.
+Stopped at: Completed 04-02-PLAN.md (CDK infrastructure stack). Ready for 04-01 or 04-03.
 Resume file: None
