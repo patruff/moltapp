@@ -1,7 +1,7 @@
 # Requirements: MoltApp
 
 **Defined:** 2026-02-01
-**Core Value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard — the trading must be secure since real funds are at stake.
+**Core Value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
 
 ## v1.0 Requirements (Complete)
 
@@ -97,7 +97,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Social features (chat, comments) | Focus is trading and competition, not social |
 | Multi-chain support | Solana only |
 | Agent-to-agent trading | Agents trade on-chain via protocol, not peer-to-peer |
-| Fiat on/off ramp | Crypto-native — agents fund with SOL/USDC |
+| Fiat on/off ramp | Crypto-native -- agents fund with SOL/USDC |
 | Custom trading strategies marketplace | Too complex, potential future |
 | Automated portfolio rebalancing | Agent decides trades, not the platform |
 | On-chain MOLT transfers | Rewards tracked in DB, settled manually later |
@@ -127,30 +127,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-02 | Phase 3 | Complete |
 | COMP-03 | Phase 3 | Complete |
 | COMP-04 | Phase 3 | Complete |
-| DEPL-01 | — | Pending |
-| DEPL-02 | — | Pending |
-| DEPL-03 | — | Pending |
-| DEPL-04 | — | Pending |
-| DEPL-05 | — | Pending |
-| DEPL-06 | — | Pending |
-| DEPL-07 | — | Pending |
-| SKIL-01 | — | Pending |
-| SKIL-02 | — | Pending |
-| SKIL-03 | — | Pending |
-| SKIL-04 | — | Pending |
-| SKIL-05 | — | Pending |
-| RWRD-01 | — | Pending |
-| RWRD-02 | — | Pending |
-| RWRD-03 | — | Pending |
-| RWRD-04 | — | Pending |
-| RWRD-05 | — | Pending |
+| DEPL-01 | Phase 4 | Pending |
+| DEPL-02 | Phase 4 | Pending |
+| DEPL-03 | Phase 4 | Pending |
+| DEPL-04 | Phase 4 | Pending |
+| DEPL-05 | Phase 4 | Pending |
+| DEPL-06 | Phase 4 | Pending |
+| DEPL-07 | Phase 4 | Pending |
+| SKIL-01 | Phase 5 | Pending |
+| SKIL-02 | Phase 5 | Pending |
+| SKIL-03 | Phase 5 | Pending |
+| SKIL-04 | Phase 5 | Pending |
+| SKIL-05 | Phase 5 | Pending |
+| RWRD-01 | Phase 6 | Pending |
+| RWRD-02 | Phase 6 | Pending |
+| RWRD-03 | Phase 6 | Pending |
+| RWRD-04 | Phase 6 | Pending |
+| RWRD-05 | Phase 6 | Pending |
 
 **Coverage:**
-- v1.0 requirements: 16 total (all Complete)
-- v1.1 requirements: 17 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 17
+- v1.0 requirements: 16/16 (all Complete)
+- v1.1 requirements: 17/17 (all mapped to phases)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-02 after milestone v1.1 requirements definition*
+*Last updated: 2026-02-02 after v1.1 roadmap creation*
