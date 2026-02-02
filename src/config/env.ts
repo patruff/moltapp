@@ -23,18 +23,52 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Fetch secrets from AWS Secrets Manager and merge into process.env.
+ * Only runs when deployed as a Lambda function (detected via AWS_LAMBDA_FUNCTION_NAME).
+ * Locally, this is a no-op.
+ */
+async function loadSecretsFromAWS(): Promise<void> {
+  if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return;
+  }
+
+  const { SecretsManagerClient, GetSecretValueCommand } = await import(
+    "@aws-sdk/client-secrets-manager"
+  );
+
+  const client = new SecretsManagerClient({});
+  const command = new GetSecretValueCommand({
+    SecretId: process.env.SECRET_ARN,
+  });
+
+  const response = await client.send(command);
+
+  if (response.SecretString) {
+    const secrets = JSON.parse(response.SecretString) as Record<
+      string,
+      string
+    >;
+    for (const [key, value] of Object.entries(secrets)) {
+      process.env[key] = value;
+    }
+  }
+}
+
 function loadEnv(): Env {
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {
-    console.error("Environment validation failed:");
-    for (const issue of result.error.issues) {
-      console.error(`  ${issue.path.join(".")}: ${issue.message}`);
-    }
-    process.exit(1);
+    const issues = result.error.issues
+      .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+    throw new Error(`Environment validation failed:\n${issues}`);
   }
 
   return result.data;
 }
+
+// In Lambda: fetch secrets first, then validate. Locally: no-op, then validate.
+await loadSecretsFromAWS();
 
 export const env = loadEnv();
