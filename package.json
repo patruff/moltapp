@@ -18,6 +18,7 @@
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.980.0",
     "@hono/node-server": "^1.19.9",
+    "@neondatabase/serverless": "^1.0.2",
     "@solana-program/system": "^0.10.0",
     "@solana/kit": "^5.5.1",
     "@solana/spl-token": "^0.4.14",
