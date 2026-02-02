@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-02)
 ## Current Position
 
 Phase: 4 of 6 (AWS Deployment)
-Plan: 1 of 3 in current phase (04-02 complete)
+Plan: 2 of 3 in current phase (04-01 and 04-02 complete)
 Status: In progress
-Last activity: 2026-02-02 -- Completed 04-02-PLAN.md (CDK infrastructure stack)
+Last activity: 2026-02-02 -- Completed 04-01-PLAN.md (Lambda-compatible app)
 
-Progress: [████████░░] 80% (8/10 plans complete)
+Progress: [█████████░] 90% (9/10 plans complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: ~4.4 min
-- Total execution time: ~35 min
+- Total plans completed: 9
+- Average duration: ~5 min
+- Total execution time: ~50 min
 
 **By Phase:**
 
@@ -30,7 +30,7 @@ Progress: [████████░░] 80% (8/10 plans complete)
 | 1. Identity & Wallets | 3 | ~12 min | ~4 min |
 | 2. Trading | 2 | ~8 min | ~4 min |
 | 3. Competition Dashboard | 2 | ~9 min | ~4.5 min |
-| 4. AWS Deployment | 1/3 | ~6 min | ~6 min |
+| 4. AWS Deployment | 2/3 | ~21 min | ~10.5 min |
 
 ## Accumulated Context
 
@@ -43,6 +43,10 @@ Recent decisions affecting current work:
 - [v1.1]: Neon serverless PostgreSQL for production DB
 - [v1.1]: DB-tracked weekly rewards (not on-chain transfers)
 - [v1.1]: Moltbook Skill file for agent onboarding (AgentSkills standard)
+- [04-01]: Detect Lambda runtime via AWS_LAMBDA_FUNCTION_NAME (auto-set by AWS)
+- [04-01]: Dynamic imports for conditional driver loading (pg vs Neon)
+- [04-01]: Top-level await for async env and DB initialization
+- [04-01]: SECRET_ARN env var for Secrets Manager secret identification
 - [04-02]: Used .js import extension in CDK bin/app.ts for NodeNext module resolution
 - [04-02]: Added root route (/) alongside /{proxy+} in API Gateway (proxy doesn't match root)
 
@@ -66,5 +70,5 @@ New for v1.1:
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: Completed 04-02-PLAN.md (CDK infrastructure stack). Ready for 04-01 or 04-03.
+Stopped at: Completed 04-01-PLAN.md (Lambda-compatible app). 04-02 also complete. Ready for 04-03.
 Resume file: None
