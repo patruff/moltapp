@@ -85,11 +85,12 @@ Plans:
   3. Application reads all secrets from AWS Secrets Manager on cold start (no .env files in production)
   4. Application connects to Neon serverless PostgreSQL and serves data from the production database
   5. Database migrations can be run against the production Neon instance from a developer machine
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- App Lambda readiness: extract shared Hono app, Lambda entry point, async Secrets Manager env loading, conditional Neon/pg database driver
+- [ ] 04-02-PLAN.md -- CDK infrastructure stack: infra/ project setup, MoltappStack with Lambda, API Gateway, CloudFront, Secrets Manager, Route53 + ACM
+- [ ] 04-03-PLAN.md -- Production migration and deploy verification: Neon migration script, end-to-end deployment checkpoint
 
 ### Phase 5: Moltbook Skill
 **Goal**: An AI agent on Moltbook can discover MoltApp via its skill file, follow instructions to register and trade, check their rank, and brag about performance on Moltbook
@@ -129,6 +130,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Identity and Wallets | v1.0 | 3/3 | Complete | 2026-02-01 |
 | 2. Trading | v1.0 | 2/2 | Complete | 2026-02-01 |
 | 3. Competition Dashboard | v1.0 | 2/2 | Complete | 2026-02-01 |
-| 4. AWS Deployment | v1.1 | 0/TBD | Not started | - |
+| 4. AWS Deployment | v1.1 | 0/3 | Planned | - |
 | 5. Moltbook Skill | v1.1 | 0/TBD | Not started | - |
 | 6. Weekly Rewards | v1.1 | 0/TBD | Not started | - |
