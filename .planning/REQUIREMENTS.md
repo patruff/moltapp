@@ -37,19 +37,19 @@ All v1.0 requirements delivered. See MILESTONES.md for details.
 
 ## v1.1 Requirements
 
-Requirements for Production Launch milestone. Each maps to roadmap phases.
+Requirements for Production Launch milestone. Phases 5-6 deferred to future milestone.
 
 ### Deployment
 
-- [ ] **DEPL-01**: Hono API server runs as AWS Lambda function via @hono/aws-lambda adapter
-- [ ] **DEPL-02**: API Gateway HTTP API routes all requests to Lambda function
-- [ ] **DEPL-03**: CloudFront distribution serves web pages with caching
-- [ ] **DEPL-04**: All secrets stored in AWS Secrets Manager and loaded on Lambda cold start
-- [ ] **DEPL-05**: Application connects to Neon serverless PostgreSQL from Lambda
-- [ ] **DEPL-06**: Database migrations can be run against production Neon instance
-- [ ] **DEPL-07**: Infrastructure defined as code via AWS CDK (reproducible deployments)
+- [x] **DEPL-01**: Hono API server runs as AWS Lambda function via @hono/aws-lambda adapter
+- [x] **DEPL-02**: API Gateway HTTP API routes all requests to Lambda function
+- [x] **DEPL-03**: CloudFront distribution serves web pages with caching
+- [x] **DEPL-04**: All secrets stored in AWS Secrets Manager and loaded on Lambda cold start
+- [x] **DEPL-05**: Application connects to Neon serverless PostgreSQL from Lambda
+- [x] **DEPL-06**: Database migrations can be run against production Neon instance
+- [x] **DEPL-07**: Infrastructure defined as code via AWS CDK (reproducible deployments)
 
-### Moltbook Skill
+### Moltbook Skill (deferred)
 
 - [ ] **SKIL-01**: SKILL.md follows AgentSkills standard with YAML frontmatter
 - [ ] **SKIL-02**: Skill includes authentication and registration instructions for agents
@@ -57,7 +57,7 @@ Requirements for Production Launch milestone. Each maps to roadmap phases.
 - [ ] **SKIL-04**: Skill documents leaderboard check workflow (rank, stats)
 - [ ] **SKIL-05**: Skill includes "brag" workflow (check rank, post to Moltbook m/stonks)
 
-### Weekly Rewards
+### Weekly Rewards (deferred)
 
 - [ ] **RWRD-01**: Weekly reward computed for top-performing trader (highest P&L %)
 - [ ] **RWRD-02**: Rewards tracked in database with idempotent writes (no double-awarding)
@@ -167,24 +167,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COMP-02 | Phase 3 | Complete |
 | COMP-03 | Phase 3 | Complete |
 | COMP-04 | Phase 3 | Complete |
-| DEPL-01 | Phase 4 | Pending |
-| DEPL-02 | Phase 4 | Pending |
-| DEPL-03 | Phase 4 | Pending |
-| DEPL-04 | Phase 4 | Pending |
-| DEPL-05 | Phase 4 | Pending |
-| DEPL-06 | Phase 4 | Pending |
-| DEPL-07 | Phase 4 | Pending |
-| SKIL-01 | Phase 5 | Pending |
-| SKIL-02 | Phase 5 | Pending |
-| SKIL-03 | Phase 5 | Pending |
-| SKIL-04 | Phase 5 | Pending |
-| SKIL-05 | Phase 5 | Pending |
-| RWRD-01 | Phase 6 | Pending |
-| RWRD-02 | Phase 6 | Pending |
-| RWRD-03 | Phase 6 | Pending |
-| RWRD-04 | Phase 6 | Pending |
-| RWRD-05 | Phase 6 | Pending |
-
+| DEPL-01 | Phase 4 | Complete |
+| DEPL-02 | Phase 4 | Complete |
+| DEPL-03 | Phase 4 | Complete |
+| DEPL-04 | Phase 4 | Complete |
+| DEPL-05 | Phase 4 | Complete |
+| DEPL-06 | Phase 4 | Complete |
+| DEPL-07 | Phase 4 | Complete |
+| SKIL-01 | Phase 5 | Deferred |
+| SKIL-02 | Phase 5 | Deferred |
+| SKIL-03 | Phase 5 | Deferred |
+| SKIL-04 | Phase 5 | Deferred |
+| SKIL-05 | Phase 5 | Deferred |
+| RWRD-01 | Phase 6 | Deferred |
+| RWRD-02 | Phase 6 | Deferred |
+| RWRD-03 | Phase 6 | Deferred |
+| RWRD-04 | Phase 6 | Deferred |
+| RWRD-05 | Phase 6 | Deferred |
 | BEAT-01 | Phase 7 | Pending |
 | BEAT-02 | Phase 7 | Pending |
 | BEAT-03 | Phase 7 | Pending |
@@ -199,10 +198,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 **Coverage:**
 - v1.0 requirements: 16/16 (all Complete)
-- v1.1 requirements: 17/17 (all mapped to phases 4-6)
-- v1.2 requirements: 11/11 (all mapped to phases 7-8)
+- v1.1 requirements: 12/12 mapped (7 Complete in Phase 4, 5 Deferred in Phase 5, 5 Deferred in Phase 6)
+- v1.2 requirements: 11/11 (7 in Phase 7, 4 in Phase 8)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-03 after v1.2 Colosseum Hackathon milestone*
+*Last updated: 2026-02-03 after v1.2 roadmap creation (Phases 7-8)*

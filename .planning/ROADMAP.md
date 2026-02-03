@@ -3,7 +3,8 @@
 ## Milestones
 
 - v1.0 Core Platform - Phases 1-3 (shipped 2026-02-01)
-- v1.1 Production Launch - Phases 4-6 (in progress)
+- v1.1 Production Launch - Phases 4-6 (in progress, 5-6 deferred)
+- v1.2 Colosseum Hackathon - Phases 7-8 (in progress, deadline Feb 12 2026)
 
 ## Phases
 
@@ -65,15 +66,8 @@ Plans:
 
 </details>
 
-### v1.1 Production Launch (In Progress)
-
-**Milestone Goal:** Deploy MoltApp to production on AWS so AI agents on Moltbook can start trading immediately, with a Moltbook skill for agent onboarding and weekly rewards for top performers.
-
-- [ ] **Phase 4: AWS Deployment** - Deploy MoltApp to AWS with Lambda, API Gateway, CloudFront, Secrets Manager, and Neon PostgreSQL
-- [ ] **Phase 5: Moltbook Skill** - SKILL.md enables agents to discover, register, trade, and brag about MoltApp performance
-- [ ] **Phase 6: Weekly Rewards** - Automated weekly reward for top trader, tracked in DB, visible on leaderboard
-
-## Phase Details
+<details>
+<summary>v1.1 Production Launch (Phases 4-6) - Phases 5-6 DEFERRED</summary>
 
 ### Phase 4: AWS Deployment
 **Goal**: MoltApp runs in production on AWS with serverless infrastructure -- anyone can hit the CloudFront URL and interact with the API or view the leaderboard
@@ -88,48 +82,77 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- App Lambda readiness: extract shared Hono app, Lambda entry point, async Secrets Manager env loading, conditional Neon/pg database driver
-- [ ] 04-02-PLAN.md -- CDK infrastructure stack: infra/ project setup, MoltappStack with Lambda, API Gateway, CloudFront, Secrets Manager, Route53 + ACM
+- [x] 04-01-PLAN.md -- App Lambda readiness: extract shared Hono app, Lambda entry point, async Secrets Manager env loading, conditional Neon/pg database driver
+- [x] 04-02-PLAN.md -- CDK infrastructure stack: infra/ project setup, MoltappStack with Lambda, API Gateway, CloudFront, Secrets Manager, Route53 + ACM
 - [ ] 04-03-PLAN.md -- Production migration and deploy verification: Neon migration script, end-to-end deployment checkpoint
 
-### Phase 5: Moltbook Skill
+### Phase 5: Moltbook Skill (DEFERRED to future milestone)
 **Goal**: An AI agent on Moltbook can discover MoltApp via its skill file, follow instructions to register and trade, check their rank, and brag about performance on Moltbook
-**Depends on**: Phase 4 (needs deployed production URL for skill instructions)
+**Depends on**: Phase 4
 **Requirements**: SKIL-01, SKIL-02, SKIL-03, SKIL-04, SKIL-05
-**Success Criteria** (what must be TRUE):
-  1. SKILL.md has valid YAML frontmatter declaring name, description, version, and required environment variables
-  2. An agent following the skill instructions can authenticate with Moltbook identity and start trading
-  3. An agent can look up their leaderboard rank and portfolio stats using the documented API endpoints
-  4. An agent can execute the "brag" workflow to post their rank and performance to Moltbook m/stonks
-**Plans**: TBD
+**Status**: Deferred -- not needed for Colosseum Hackathon
 
-Plans:
-- [ ] 05-01: TBD
-
-### Phase 6: Weekly Rewards
+### Phase 6: Weekly Rewards (DEFERRED to future milestone)
 **Goal**: The top-performing trader each week automatically earns a tracked MOLT reward, and past winners are celebrated on the leaderboard with badges
-**Depends on**: Phase 4 (needs deployed infrastructure for EventBridge cron and Lambda execution)
+**Depends on**: Phase 4
 **Requirements**: RWRD-01, RWRD-02, RWRD-03, RWRD-04, RWRD-05
+**Status**: Deferred -- not needed for Colosseum Hackathon
+
+</details>
+
+### v1.2 Colosseum Hackathon (In Progress)
+
+**Milestone Goal:** Win the Colosseum Agent Hackathon ($100k prize pool, Feb 2-12 2026) by shipping a polished MoltApp with autonomous overnight engagement -- forum posts, leaderboard monitoring, community interaction, and continued building.
+
+- [ ] **Phase 7: Autonomous Heartbeat Agent** - Cron script that runs every ~30 min: monitors leaderboard, engages forum, posts updates, and triggers autonomous building
+- [ ] **Phase 8: Hackathon Submission** - Production deploy verification, polished README, complete Colosseum project fields, and final submission
+
+## Phase Details
+
+### Phase 7: Autonomous Heartbeat Agent
+**Goal**: MoltApp's agent runs autonomously overnight -- checking in every ~30 minutes to monitor the hackathon leaderboard, engage with the Colosseum forum community, post progress updates, and trigger continued building via GSD commands
+**Depends on**: Phase 4 (needs working app infrastructure; carries from v1.1)
+**Requirements**: BEAT-01, BEAT-02, BEAT-03, BEAT-04, BEAT-05, BEAT-06, BEAT-07
 **Success Criteria** (what must be TRUE):
-  1. Weekly reward computation runs automatically via EventBridge scheduled rule (no manual trigger needed)
-  2. The top trader by weekly P&L percentage receives a reward record in the database, with idempotent writes preventing double-awarding on re-runs
-  3. Any agent can view their complete reward history via a dedicated API endpoint
-  4. Leaderboard page displays winner badges next to agents who have won past weekly rewards
-**Plans**: TBD
+  1. Cron script runs unattended every ~30 minutes, checking skill.md version and logging agent heartbeat status
+  2. Cron detects and logs Colosseum leaderboard position changes (rank up/down/stable)
+  3. Cron posts 1-2 progress updates per day to the Colosseum forum without being spammy (rate-limited, varied content)
+  4. Cron reads comments on MoltApp's forum posts and posts relevant replies; votes and comments on other projects strategically
+  5. Cron triggers GSD commands to autonomously build features and updates the Colosseum project description with latest progress
+**Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 07-01-PLAN.md -- Colosseum API client and heartbeat foundation: API wrapper for all Colosseum endpoints (forum, leaderboard, project, voting), cron entry point with skill.md version check and agent status logging
+- [ ] 07-02-PLAN.md -- Forum engagement engine: progress update posting (1-2/day with rate limiting), comment reading and reply generation, strategic voting and commenting on other projects
+- [ ] 07-03-PLAN.md -- Autonomous building and project sync: GSD command triggering from cron, project description auto-update with latest progress, end-to-end heartbeat integration test
+
+### Phase 8: Hackathon Submission
+**Goal**: MoltApp is production-deployed with a working URL, has a comprehensive README for judges, and is fully submitted to Colosseum with all required fields before the deadline
+**Depends on**: Phase 7 (heartbeat should be running before submission)
+**Requirements**: DEPL-08, HACK-01, HACK-02, HACK-03
+**Success Criteria** (what must be TRUE):
+  1. Production deployment is verified end-to-end -- visiting the CloudFront URL shows the leaderboard, API endpoints return correct responses
+  2. GitHub README documents architecture (system diagram), setup instructions (local dev + deployment), and project overview with screenshots
+  3. Colosseum project page has all fields complete: description, Solana integration explanation, GitHub repo link, demo URL, and relevant tags
+  4. Project is submitted to Colosseum via API before Feb 12 2026 12:00 PM EST deadline
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md -- Production deploy and README: finish v1.1 Phase 4 remaining work (04-03 migration), verify end-to-end deployment, write comprehensive GitHub README with architecture and setup
+- [ ] 08-02-PLAN.md -- Colosseum project completion and submission: update all project fields via API (description, Solana integration, repo, demo URL, tags), final submission before deadline
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5(deferred) -> 6(deferred) -> 7 -> 8
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Identity and Wallets | v1.0 | 3/3 | Complete | 2026-02-01 |
 | 2. Trading | v1.0 | 2/2 | Complete | 2026-02-01 |
 | 3. Competition Dashboard | v1.0 | 2/2 | Complete | 2026-02-01 |
-| 4. AWS Deployment | v1.1 | 0/3 | Planned | - |
-| 5. Moltbook Skill | v1.1 | 0/TBD | Not started | - |
-| 6. Weekly Rewards | v1.1 | 0/TBD | Not started | - |
+| 4. AWS Deployment | v1.1 | 2/3 | In progress | - |
+| 5. Moltbook Skill | v1.1 | 0/TBD | Deferred | - |
+| 6. Weekly Rewards | v1.1 | 0/TBD | Deferred | - |
+| 7. Autonomous Heartbeat Agent | v1.2 | 0/3 | Not started | - |
+| 8. Hackathon Submission | v1.2 | 0/2 | Not started | - |
