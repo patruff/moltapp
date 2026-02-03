@@ -29,6 +29,11 @@ import { marketRegimeRoutes } from "./routes/market-regime.ts";
 import { debateRoutes } from "./routes/debates.ts";
 import { optimizerRoutes } from "./routes/portfolio-optimizer.ts";
 import { whaleRoutes } from "./routes/whale-tracker.ts";
+import { strategyRoutes } from "./routes/strategies.ts";
+import { predictionRoutes } from "./routes/predictions.ts";
+import { streamRoutes } from "./routes/stream.ts";
+import { attributionRoutes } from "./routes/attribution.ts";
+import { sentimentRoutes } from "./routes/sentiment.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -96,6 +101,21 @@ app.route("/api/v1/optimizer", optimizerRoutes);
 
 // Whale Tracker (public -- large position alerts, conviction spikes, smart money flow)
 app.route("/api/v1/whales", whaleRoutes);
+
+// Strategy Marketplace (public -- publish, fork, adopt, rate trading strategies)
+app.route("/api/v1/strategies", strategyRoutes);
+
+// Prediction Markets (public -- agent predictions, AMM betting, leaderboard)
+app.route("/api/v1/predictions", predictionRoutes);
+
+// Real-Time Event Stream (public -- SSE live feed, recent events, stream stats)
+app.route("/api/v1/stream", streamRoutes);
+
+// Performance Attribution (public -- Brinson-Fachler, factor analysis, alpha/beta, risk)
+app.route("/api/v1/attribution", attributionRoutes);
+
+// Sentiment Analysis (public -- market mood, news digest, agent sentiment, correlation)
+app.route("/api/v1/sentiment", sentimentRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);

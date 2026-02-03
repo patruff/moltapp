@@ -9,3 +9,5 @@ export { tradeComments } from "./trade-comments.ts";
 export { tradeReactions } from "./trade-reactions.ts";
 export { copyFollowers, copyTrades } from "./copy-trading.ts";
 export { agentPayments, agentEarnings } from "./payments.ts";
+export { predictions, predictionBets, predictionMarkets } from "./predictions.ts";
+export { strategies, strategyAdoptions, strategyRatings, strategySignals } from "./strategies.ts";
