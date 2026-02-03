@@ -59,6 +59,10 @@ import { orderRoutes } from "./routes/orders.ts";
 import { learningRoutes } from "./routes/learning.ts";
 import { tradeProofRoutes } from "./routes/trade-proofs.ts";
 import { priceValidatorRoutes } from "./routes/price-validator.ts";
+import { discordRoutes } from "./routes/discord.ts";
+import { marketHoursRoutes } from "./routes/market-hours.ts";
+import { slippageRoutes } from "./routes/slippage.ts";
+import { lifecycleRoutes } from "./routes/lifecycle.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -207,6 +211,18 @@ app.route("/api/v1/proofs", tradeProofRoutes);
 
 // Price Validator (public -- multi-source validation, slippage protection)
 app.route("/api/v1/price-validator", priceValidatorRoutes);
+
+// Discord Notifications (public -- webhook config, test, manual notifications)
+app.route("/api/v1/discord", discordRoutes);
+
+// Market Hours (public -- session info, schedule, holidays, trading policy)
+app.route("/api/v1/market-hours", marketHoursRoutes);
+
+// Slippage Analytics (public -- slippage stats, anomalies, agent/stock profiles)
+app.route("/api/v1/slippage", slippageRoutes);
+
+// Lifecycle & Deep Health (public -- readiness, deep health, metrics)
+app.route("/api/v1/lifecycle", lifecycleRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
