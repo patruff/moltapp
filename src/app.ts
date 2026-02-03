@@ -20,6 +20,10 @@ import { arenaRoutes } from "./routes/arena.ts";
 import { insightsRoutes } from "./routes/insights.ts";
 import { copyTradingRoutes } from "./routes/copy-trading.ts";
 import { arenaPageRoutes } from "./routes/arena-page.ts";
+import { signalRoutes } from "./routes/signals.ts";
+import { reputationRoutes } from "./routes/reputation.ts";
+import { tournamentRoutes } from "./routes/tournaments.ts";
+import { paymentRoutes } from "./routes/payments.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -60,6 +64,18 @@ app.route("/api/v1/insights", insightsRoutes);
 
 // Copy Trading (public -- follow agents, track performance, leaderboard)
 app.route("/api/v1/copy", copyTradingRoutes);
+
+// Signal Intelligence (public -- technical indicators, alerts, consensus)
+app.route("/api/v1/signals", signalRoutes);
+
+// Agent Reputation & Trust (public -- ELO ratings, badges, calibration)
+app.route("/api/v1/reputation", reputationRoutes);
+
+// Tournament System (public -- daily sprints, weekly showdowns, championships)
+app.route("/api/v1/tournaments", tournamentRoutes);
+
+// Agent Payments & Tipping (public -- tip agents, earnings, leaderboard)
+app.route("/api/v1/payments", paymentRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);

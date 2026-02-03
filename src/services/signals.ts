@@ -1,0 +1,1064 @@
+/**
+ * Signal Intelligence Service
+ *
+ * Real-time market signal generation and analysis engine. Computes technical
+ * indicators (RSI, MACD, Bollinger, VWAP), generates AI-powered alerts,
+ * detects cross-agent signal consensus, and provides actionable intelligence
+ * for each tracked stock.
+ *
+ * This is MoltApp's "alpha generation" layer — turning raw price data into
+ * structured, timestamped signals that agents (and humans) can act on.
+ */
+
+import { db } from "../db/index.ts";
+import { agentDecisions } from "../db/schema/agent-decisions.ts";
+import { eq, desc, gte, and } from "drizzle-orm";
+import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
+import type { MarketData } from "../agents/base-agent.ts";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** A structured market signal */
+export interface MarketSignal {
+  id: string;
+  symbol: string;
+  type: SignalType;
+  direction: "bullish" | "bearish" | "neutral";
+  strength: number; // 0-100
+  indicator: string;
+  value: number;
+  threshold: number;
+  description: string;
+  timeframe: "1h" | "4h" | "1d" | "1w";
+  generatedAt: string;
+  expiresAt: string;
+}
+
+export type SignalType =
+  | "rsi_oversold"
+  | "rsi_overbought"
+  | "macd_crossover"
+  | "macd_crossunder"
+  | "bollinger_squeeze"
+  | "bollinger_breakout"
+  | "volume_spike"
+  | "momentum_shift"
+  | "trend_reversal"
+  | "price_breakout"
+  | "support_test"
+  | "resistance_test"
+  | "agent_consensus"
+  | "agent_divergence"
+  | "high_confidence_trade"
+  | "whale_accumulation";
+
+/** Technical indicator values for a stock */
+export interface TechnicalIndicators {
+  symbol: string;
+  price: number;
+  change24h: number | null;
+  rsi: number;
+  rsiSignal: "oversold" | "neutral" | "overbought";
+  macd: MACDData;
+  bollingerBands: BollingerBands;
+  volumeProfile: VolumeProfile;
+  momentum: MomentumData;
+  trendStrength: number;
+  overallSignal: "strong_buy" | "buy" | "neutral" | "sell" | "strong_sell";
+}
+
+interface MACDData {
+  macdLine: number;
+  signalLine: number;
+  histogram: number;
+  crossover: "bullish" | "bearish" | "none";
+}
+
+interface BollingerBands {
+  upper: number;
+  middle: number;
+  lower: number;
+  bandwidth: number;
+  percentB: number; // 0 = at lower, 1 = at upper, 0.5 = at middle
+  squeeze: boolean;
+}
+
+interface VolumeProfile {
+  current: number;
+  average: number;
+  ratio: number; // current/average
+  spike: boolean;
+  trend: "increasing" | "decreasing" | "stable";
+}
+
+interface MomentumData {
+  shortTerm: number; // 5-period momentum
+  mediumTerm: number; // 14-period momentum
+  longTerm: number; // 30-period momentum
+  acceleration: number;
+}
+
+/** Cross-agent signal consensus */
+export interface AgentConsensus {
+  symbol: string;
+  agentSignals: AgentSignalEntry[];
+  consensusDirection: "bullish" | "bearish" | "split" | "neutral";
+  consensusStrength: number; // 0-100
+  agreementRate: number; // percentage of agents that agree
+  averageConfidence: number;
+  lastUpdated: string;
+}
+
+interface AgentSignalEntry {
+  agentId: string;
+  agentName: string;
+  provider: string;
+  lastAction: "buy" | "sell" | "hold";
+  confidence: number;
+  reasoning: string;
+  timestamp: string;
+}
+
+/** Real-time market intelligence dashboard data */
+export interface SignalDashboard {
+  generatedAt: string;
+  marketSentiment: "risk_on" | "risk_off" | "neutral";
+  totalSignals: number;
+  strongBuySignals: number;
+  strongSellSignals: number;
+  topOpportunities: MarketSignal[];
+  topRisks: MarketSignal[];
+  agentConsensus: AgentConsensus[];
+  technicalSummary: TechnicalSummary[];
+  signalsByType: Record<string, number>;
+  volatilityIndex: number;
+  trendingStocks: TrendingStock[];
+}
+
+interface TechnicalSummary {
+  symbol: string;
+  price: number;
+  overallSignal: string;
+  rsi: number;
+  macdSignal: string;
+  bollingerPosition: string;
+  volumeStatus: string;
+}
+
+interface TrendingStock {
+  symbol: string;
+  signalCount: number;
+  dominantDirection: string;
+  momentum: number;
+}
+
+// ---------------------------------------------------------------------------
+// Price History Simulation
+// ---------------------------------------------------------------------------
+
+/**
+ * Since we don't have full historical OHLCV candle data from Jupiter,
+ * we generate synthetic price history from agent decisions and current
+ * market data. Each decision stores a market snapshot, so we can
+ * reconstruct a price series from past rounds.
+ */
+async function getPriceHistory(
+  symbol: string,
+  periods: number = 30,
+): Promise<number[]> {
+  // Fetch recent decisions that contain market snapshots for this symbol
+  const recentDecisions = await db
+    .select({
+      marketSnapshot: agentDecisions.marketSnapshot,
+      createdAt: agentDecisions.createdAt,
+    })
+    .from(agentDecisions)
+    .where(eq(agentDecisions.symbol, symbol))
+    .orderBy(desc(agentDecisions.createdAt))
+    .limit(periods * 3); // get extra since not all will have the symbol
+
+  const prices: number[] = [];
+  const seen = new Set<string>();
+
+  for (const d of recentDecisions) {
+    if (prices.length >= periods) break;
+    const snapshot = d.marketSnapshot as Record<
+      string,
+      { price: number; change24h: number | null }
+    > | null;
+    if (!snapshot) continue;
+
+    const dateKey = d.createdAt.toISOString().slice(0, 13); // group by hour
+    if (seen.has(dateKey)) continue;
+    seen.add(dateKey);
+
+    const stockData = snapshot[symbol];
+    if (stockData?.price) {
+      prices.push(stockData.price);
+    }
+  }
+
+  // If we don't have enough data, generate synthetic history from current price
+  if (prices.length < 5) {
+    const currentMarket = await getMarketData();
+    const stock = currentMarket.find((m) => m.symbol === symbol);
+    const basePrice = stock?.price ?? 100;
+
+    // Generate a random walk backward from current price
+    const syntheticPrices: number[] = [basePrice];
+    for (let i = 1; i < periods; i++) {
+      const change = (Math.random() - 0.48) * 0.02; // slight upward bias
+      syntheticPrices.push(syntheticPrices[i - 1] * (1 - change));
+    }
+    return syntheticPrices.reverse();
+  }
+
+  return prices.reverse(); // chronological order
+}
+
+// ---------------------------------------------------------------------------
+// Technical Indicator Calculations
+// ---------------------------------------------------------------------------
+
+/** Calculate RSI (Relative Strength Index) */
+function calculateRSI(prices: number[], period: number = 14): number {
+  if (prices.length < period + 1) return 50; // default neutral
+
+  const changes: number[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    changes.push(prices[i] - prices[i - 1]);
+  }
+
+  const recentChanges = changes.slice(-period);
+  let gains = 0;
+  let losses = 0;
+
+  for (const change of recentChanges) {
+    if (change > 0) gains += change;
+    else losses += Math.abs(change);
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+}
+
+/** Calculate MACD (Moving Average Convergence Divergence) */
+function calculateMACD(prices: number[]): MACDData {
+  const ema12 = calculateEMA(prices, 12);
+  const ema26 = calculateEMA(prices, 26);
+  const macdLine = ema12 - ema26;
+
+  // Signal line (9-period EMA of MACD)
+  // Simplified: use recent MACD values
+  const macdValues = [];
+  for (let i = Math.max(0, prices.length - 9); i < prices.length; i++) {
+    const e12 = calculateEMA(prices.slice(0, i + 1), 12);
+    const e26 = calculateEMA(prices.slice(0, i + 1), 26);
+    macdValues.push(e12 - e26);
+  }
+  const signalLine =
+    macdValues.length > 0
+      ? macdValues.reduce((s, v) => s + v, 0) / macdValues.length
+      : 0;
+
+  const histogram = macdLine - signalLine;
+
+  let crossover: "bullish" | "bearish" | "none" = "none";
+  if (macdValues.length >= 2) {
+    const prevHistogram =
+      macdValues[macdValues.length - 2] -
+      (macdValues.length >= 3
+        ? macdValues
+            .slice(0, -1)
+            .reduce((s, v) => s + v, 0) / (macdValues.length - 1)
+        : signalLine);
+    if (prevHistogram < 0 && histogram > 0) crossover = "bullish";
+    else if (prevHistogram > 0 && histogram < 0) crossover = "bearish";
+  }
+
+  return {
+    macdLine: Math.round(macdLine * 10000) / 10000,
+    signalLine: Math.round(signalLine * 10000) / 10000,
+    histogram: Math.round(histogram * 10000) / 10000,
+    crossover,
+  };
+}
+
+/** Calculate EMA (Exponential Moving Average) */
+function calculateEMA(prices: number[], period: number): number {
+  if (prices.length === 0) return 0;
+  if (prices.length < period) {
+    return prices.reduce((s, p) => s + p, 0) / prices.length;
+  }
+
+  const multiplier = 2 / (period + 1);
+  let ema = prices.slice(0, period).reduce((s, p) => s + p, 0) / period;
+
+  for (let i = period; i < prices.length; i++) {
+    ema = (prices[i] - ema) * multiplier + ema;
+  }
+
+  return ema;
+}
+
+/** Calculate Bollinger Bands */
+function calculateBollingerBands(
+  prices: number[],
+  period: number = 20,
+  stdDevMultiplier: number = 2,
+): BollingerBands {
+  const recentPrices = prices.slice(-period);
+  const middle = recentPrices.reduce((s, p) => s + p, 0) / recentPrices.length;
+
+  const variance =
+    recentPrices.reduce((s, p) => s + (p - middle) ** 2, 0) /
+    recentPrices.length;
+  const stdDev = Math.sqrt(variance);
+
+  const upper = middle + stdDevMultiplier * stdDev;
+  const lower = middle - stdDevMultiplier * stdDev;
+  const bandwidth = ((upper - lower) / middle) * 100;
+
+  const currentPrice = prices[prices.length - 1];
+  const percentB =
+    upper !== lower ? (currentPrice - lower) / (upper - lower) : 0.5;
+
+  // Squeeze: bandwidth < 4% (low volatility, typically precedes big move)
+  const squeeze = bandwidth < 4;
+
+  return {
+    upper: Math.round(upper * 100) / 100,
+    middle: Math.round(middle * 100) / 100,
+    lower: Math.round(lower * 100) / 100,
+    bandwidth: Math.round(bandwidth * 100) / 100,
+    percentB: Math.round(percentB * 1000) / 1000,
+    squeeze,
+  };
+}
+
+/** Calculate volume profile from agent decision frequency */
+function calculateVolumeProfile(
+  decisionCount: number,
+  avgDecisionCount: number,
+): VolumeProfile {
+  const ratio = avgDecisionCount > 0 ? decisionCount / avgDecisionCount : 1;
+  const spike = ratio > 2.0;
+  const trend: "increasing" | "decreasing" | "stable" =
+    ratio > 1.3 ? "increasing" : ratio < 0.7 ? "decreasing" : "stable";
+
+  return {
+    current: decisionCount,
+    average: avgDecisionCount,
+    ratio: Math.round(ratio * 100) / 100,
+    spike,
+    trend,
+  };
+}
+
+/** Calculate momentum across multiple timeframes */
+function calculateMomentum(prices: number[]): MomentumData {
+  const current = prices[prices.length - 1] ?? 0;
+
+  const shortTerm =
+    prices.length >= 5
+      ? ((current - prices[prices.length - 5]) / prices[prices.length - 5]) *
+        100
+      : 0;
+
+  const mediumTerm =
+    prices.length >= 14
+      ? ((current - prices[prices.length - 14]) /
+          prices[prices.length - 14]) *
+        100
+      : 0;
+
+  const longTerm =
+    prices.length >= 30
+      ? ((current - prices[0]) / prices[0]) * 100
+      : mediumTerm;
+
+  // Acceleration: rate of change of momentum
+  const acceleration = shortTerm - mediumTerm;
+
+  return {
+    shortTerm: Math.round(shortTerm * 100) / 100,
+    mediumTerm: Math.round(mediumTerm * 100) / 100,
+    longTerm: Math.round(longTerm * 100) / 100,
+    acceleration: Math.round(acceleration * 100) / 100,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Signal Generation
+// ---------------------------------------------------------------------------
+
+/** Generate all signals for a single stock */
+function generateStockSignals(
+  symbol: string,
+  price: number,
+  indicators: TechnicalIndicators,
+): MarketSignal[] {
+  const signals: MarketSignal[] = [];
+  const now = new Date();
+  const signalId = () =>
+    `sig_${symbol}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const expiry = new Date(now.getTime() + 30 * 60 * 1000); // 30 min expiry
+
+  // RSI signals
+  if (indicators.rsi < 30) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "rsi_oversold",
+      direction: "bullish",
+      strength: Math.min(100, Math.round((30 - indicators.rsi) * 3)),
+      indicator: "RSI",
+      value: indicators.rsi,
+      threshold: 30,
+      description: `${symbol} RSI at ${indicators.rsi.toFixed(1)} — oversold territory. Potential bounce opportunity.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  } else if (indicators.rsi > 70) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "rsi_overbought",
+      direction: "bearish",
+      strength: Math.min(100, Math.round((indicators.rsi - 70) * 3)),
+      indicator: "RSI",
+      value: indicators.rsi,
+      threshold: 70,
+      description: `${symbol} RSI at ${indicators.rsi.toFixed(1)} — overbought territory. Potential pullback ahead.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  // MACD crossover signals
+  if (indicators.macd.crossover === "bullish") {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "macd_crossover",
+      direction: "bullish",
+      strength: Math.min(
+        100,
+        Math.round(Math.abs(indicators.macd.histogram) * 500),
+      ),
+      indicator: "MACD",
+      value: indicators.macd.macdLine,
+      threshold: indicators.macd.signalLine,
+      description: `${symbol} MACD bullish crossover — momentum shifting upward.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  } else if (indicators.macd.crossover === "bearish") {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "macd_crossunder",
+      direction: "bearish",
+      strength: Math.min(
+        100,
+        Math.round(Math.abs(indicators.macd.histogram) * 500),
+      ),
+      indicator: "MACD",
+      value: indicators.macd.macdLine,
+      threshold: indicators.macd.signalLine,
+      description: `${symbol} MACD bearish crossunder — momentum shifting downward.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  // Bollinger Band signals
+  if (indicators.bollingerBands.squeeze) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "bollinger_squeeze",
+      direction: "neutral",
+      strength: Math.min(
+        100,
+        Math.round((4 - indicators.bollingerBands.bandwidth) * 25),
+      ),
+      indicator: "Bollinger Bands",
+      value: indicators.bollingerBands.bandwidth,
+      threshold: 4,
+      description: `${symbol} Bollinger Band squeeze — low volatility period. Breakout imminent.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  if (
+    indicators.bollingerBands.percentB > 1.0 ||
+    indicators.bollingerBands.percentB < 0
+  ) {
+    const breakoutDir = indicators.bollingerBands.percentB > 1 ? "bullish" : "bearish";
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "bollinger_breakout",
+      direction: breakoutDir,
+      strength: Math.min(
+        100,
+        Math.round(
+          Math.abs(indicators.bollingerBands.percentB - 0.5) * 100,
+        ),
+      ),
+      indicator: "Bollinger Bands",
+      value: price,
+      threshold:
+        breakoutDir === "bullish"
+          ? indicators.bollingerBands.upper
+          : indicators.bollingerBands.lower,
+      description: `${symbol} broke ${breakoutDir === "bullish" ? "above upper" : "below lower"} Bollinger Band — ${breakoutDir} breakout.`,
+      timeframe: "1d",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  // Volume spike
+  if (indicators.volumeProfile.spike) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "volume_spike",
+      direction:
+        indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
+      strength: Math.min(
+        100,
+        Math.round(indicators.volumeProfile.ratio * 25),
+      ),
+      indicator: "Volume",
+      value: indicators.volumeProfile.current,
+      threshold: indicators.volumeProfile.average * 2,
+      description: `${symbol} volume spike: ${indicators.volumeProfile.ratio.toFixed(1)}x average — increased activity.`,
+      timeframe: "1h",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  // Momentum shift
+  if (
+    Math.abs(indicators.momentum.acceleration) > 2 &&
+    indicators.momentum.shortTerm * indicators.momentum.mediumTerm < 0
+  ) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "momentum_shift",
+      direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
+      strength: Math.min(
+        100,
+        Math.round(Math.abs(indicators.momentum.acceleration) * 10),
+      ),
+      indicator: "Momentum",
+      value: indicators.momentum.shortTerm,
+      threshold: 0,
+      description: `${symbol} momentum shift — short-term ${indicators.momentum.shortTerm > 0 ? "bullish" : "bearish"} diverging from medium-term trend.`,
+      timeframe: "4h",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  // Price breakout (strong directional move)
+  if (Math.abs(indicators.momentum.shortTerm) > 3) {
+    signals.push({
+      id: signalId(),
+      symbol,
+      type: "price_breakout",
+      direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
+      strength: Math.min(
+        100,
+        Math.round(Math.abs(indicators.momentum.shortTerm) * 10),
+      ),
+      indicator: "Price Action",
+      value: price,
+      threshold: price * (1 - indicators.momentum.shortTerm / 100),
+      description: `${symbol} ${indicators.momentum.shortTerm > 0 ? "surging" : "plunging"} ${Math.abs(indicators.momentum.shortTerm).toFixed(1)}% — strong directional move.`,
+      timeframe: "1h",
+      generatedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+    });
+  }
+
+  return signals;
+}
+
+/** Determine overall signal from indicators */
+function computeOverallSignal(
+  rsi: number,
+  macd: MACDData,
+  bollinger: BollingerBands,
+  momentum: MomentumData,
+): "strong_buy" | "buy" | "neutral" | "sell" | "strong_sell" {
+  let score = 0;
+
+  // RSI contribution (-2 to +2)
+  if (rsi < 20) score += 2;
+  else if (rsi < 30) score += 1;
+  else if (rsi > 80) score -= 2;
+  else if (rsi > 70) score -= 1;
+
+  // MACD contribution (-1 to +1)
+  if (macd.crossover === "bullish") score += 1;
+  else if (macd.crossover === "bearish") score -= 1;
+  if (macd.histogram > 0) score += 0.5;
+  else if (macd.histogram < 0) score -= 0.5;
+
+  // Bollinger contribution (-1 to +1)
+  if (bollinger.percentB < 0.1) score += 1;
+  else if (bollinger.percentB > 0.9) score -= 1;
+
+  // Momentum contribution (-1.5 to +1.5)
+  if (momentum.shortTerm > 2) score += 1;
+  else if (momentum.shortTerm < -2) score -= 1;
+  if (momentum.acceleration > 1) score += 0.5;
+  else if (momentum.acceleration < -1) score -= 0.5;
+
+  if (score >= 3) return "strong_buy";
+  if (score >= 1.5) return "buy";
+  if (score <= -3) return "strong_sell";
+  if (score <= -1.5) return "sell";
+  return "neutral";
+}
+
+// ---------------------------------------------------------------------------
+// Public API Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute full technical indicators for a single stock.
+ */
+export async function getStockIndicators(
+  symbol: string,
+): Promise<TechnicalIndicators | null> {
+  const marketData = await getMarketData();
+  const stock = marketData.find(
+    (m) => m.symbol.toLowerCase() === symbol.toLowerCase(),
+  );
+  if (!stock) return null;
+
+  const priceHistory = await getPriceHistory(symbol);
+
+  const rsi = calculateRSI(priceHistory);
+  const macd = calculateMACD(priceHistory);
+  const bollingerBands = calculateBollingerBands(priceHistory);
+  const momentum = calculateMomentum(priceHistory);
+
+  // Volume from decision frequency
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  let recentCount = 0;
+  let weekCount = 0;
+  try {
+    const recentDecisions = await db
+      .select()
+      .from(agentDecisions)
+      .where(
+        and(
+          eq(agentDecisions.symbol, symbol),
+          gte(agentDecisions.createdAt, oneDayAgo),
+        ),
+      );
+    recentCount = recentDecisions.length;
+
+    const weekDecisions = await db
+      .select()
+      .from(agentDecisions)
+      .where(
+        and(
+          eq(agentDecisions.symbol, symbol),
+          gte(agentDecisions.createdAt, oneWeekAgo),
+        ),
+      );
+    weekCount = weekDecisions.length;
+  } catch {
+    // ignore DB errors
+  }
+
+  const avgDailyCount = weekCount / 7;
+  const volumeProfile = calculateVolumeProfile(recentCount, avgDailyCount);
+
+  const rsiSignal: "oversold" | "neutral" | "overbought" =
+    rsi < 30 ? "oversold" : rsi > 70 ? "overbought" : "neutral";
+
+  const overallSignal = computeOverallSignal(
+    rsi,
+    macd,
+    bollingerBands,
+    momentum,
+  );
+
+  return {
+    symbol,
+    price: stock.price,
+    change24h: stock.change24h,
+    rsi: Math.round(rsi * 10) / 10,
+    rsiSignal,
+    macd,
+    bollingerBands,
+    volumeProfile,
+    momentum,
+    trendStrength: Math.round(Math.abs(momentum.mediumTerm) * 10) / 10,
+    overallSignal,
+  };
+}
+
+/**
+ * Get all active signals across all tracked stocks.
+ */
+export async function getAllSignals(): Promise<MarketSignal[]> {
+  const marketData = await getMarketData();
+  const allSignals: MarketSignal[] = [];
+
+  for (const stock of marketData) {
+    const indicators = await getStockIndicators(stock.symbol);
+    if (!indicators) continue;
+
+    const stockSignals = generateStockSignals(
+      stock.symbol,
+      stock.price,
+      indicators,
+    );
+    allSignals.push(...stockSignals);
+  }
+
+  // Add agent consensus signals
+  const consensusSignals = await generateAgentConsensusSignals();
+  allSignals.push(...consensusSignals);
+
+  // Sort by strength descending
+  return allSignals.sort((a, b) => b.strength - a.strength);
+}
+
+/**
+ * Get cross-agent consensus for each stock.
+ */
+export async function getAgentConsensusData(): Promise<AgentConsensus[]> {
+  const configs = getAgentConfigs();
+  const symbols = new Set<string>();
+  const agentDecisionMap = new Map<
+    string,
+    Map<
+      string,
+      { action: string; confidence: number; reasoning: string; timestamp: Date }
+    >
+  >();
+
+  // Fetch recent decisions for all agents
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  for (const config of configs) {
+    const decisions = await db
+      .select()
+      .from(agentDecisions)
+      .where(
+        and(
+          eq(agentDecisions.agentId, config.agentId),
+          gte(agentDecisions.createdAt, oneDayAgo),
+        ),
+      )
+      .orderBy(desc(agentDecisions.createdAt))
+      .limit(10);
+
+    const symbolMap = new Map<
+      string,
+      { action: string; confidence: number; reasoning: string; timestamp: Date }
+    >();
+
+    for (const d of decisions) {
+      if (!symbolMap.has(d.symbol)) {
+        symbolMap.set(d.symbol, {
+          action: d.action,
+          confidence: d.confidence,
+          reasoning: d.reasoning,
+          timestamp: d.createdAt,
+        });
+        symbols.add(d.symbol);
+      }
+    }
+
+    agentDecisionMap.set(config.agentId, symbolMap);
+  }
+
+  // Build consensus for each symbol
+  const consensusList: AgentConsensus[] = [];
+
+  for (const symbol of symbols) {
+    const agentSignals: AgentSignalEntry[] = [];
+
+    for (const config of configs) {
+      const symbolMap = agentDecisionMap.get(config.agentId);
+      const decision = symbolMap?.get(symbol);
+      if (decision) {
+        agentSignals.push({
+          agentId: config.agentId,
+          agentName: config.name,
+          provider: config.provider,
+          lastAction: decision.action as "buy" | "sell" | "hold",
+          confidence: decision.confidence,
+          reasoning: decision.reasoning,
+          timestamp: decision.timestamp.toISOString(),
+        });
+      }
+    }
+
+    if (agentSignals.length === 0) continue;
+
+    // Calculate consensus
+    const buyCount = agentSignals.filter((s) => s.lastAction === "buy").length;
+    const sellCount = agentSignals.filter(
+      (s) => s.lastAction === "sell",
+    ).length;
+    const holdCount = agentSignals.filter(
+      (s) => s.lastAction === "hold",
+    ).length;
+    const total = agentSignals.length;
+
+    let consensusDirection: "bullish" | "bearish" | "split" | "neutral";
+    if (buyCount > total / 2) consensusDirection = "bullish";
+    else if (sellCount > total / 2) consensusDirection = "bearish";
+    else if (holdCount > total / 2) consensusDirection = "neutral";
+    else consensusDirection = "split";
+
+    const maxDirection = Math.max(buyCount, sellCount, holdCount);
+    const agreementRate = (maxDirection / total) * 100;
+    const avgConfidence =
+      agentSignals.reduce((s, a) => s + a.confidence, 0) / total;
+    const consensusStrength = agreementRate * (avgConfidence / 100);
+
+    consensusList.push({
+      symbol,
+      agentSignals,
+      consensusDirection,
+      consensusStrength: Math.round(consensusStrength * 10) / 10,
+      agreementRate: Math.round(agreementRate * 10) / 10,
+      averageConfidence: Math.round(avgConfidence * 10) / 10,
+      lastUpdated: new Date().toISOString(),
+    });
+  }
+
+  return consensusList.sort(
+    (a, b) => b.consensusStrength - a.consensusStrength,
+  );
+}
+
+/**
+ * Generate signals specifically from agent consensus/divergence patterns.
+ */
+async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
+  const consensus = await getAgentConsensusData();
+  const signals: MarketSignal[] = [];
+  const now = new Date();
+  const expiry = new Date(now.getTime() + 60 * 60 * 1000); // 1hr expiry
+
+  for (const c of consensus) {
+    if (c.agreementRate >= 80 && c.consensusDirection !== "neutral") {
+      signals.push({
+        id: `sig_consensus_${c.symbol}_${Date.now()}`,
+        symbol: c.symbol,
+        type: "agent_consensus",
+        direction: c.consensusDirection === "bullish" ? "bullish" : "bearish",
+        strength: Math.round(c.consensusStrength),
+        indicator: "Agent Consensus",
+        value: c.agreementRate,
+        threshold: 80,
+        description: `All agents agree: ${c.consensusDirection} on ${c.symbol} (${c.agreementRate}% agreement, avg confidence ${c.averageConfidence}%)`,
+        timeframe: "1h",
+        generatedAt: now.toISOString(),
+        expiresAt: expiry.toISOString(),
+      });
+    }
+
+    if (c.consensusDirection === "split" && c.agentSignals.length >= 2) {
+      signals.push({
+        id: `sig_divergence_${c.symbol}_${Date.now()}`,
+        symbol: c.symbol,
+        type: "agent_divergence",
+        direction: "neutral",
+        strength: Math.round(c.averageConfidence * 0.7),
+        indicator: "Agent Divergence",
+        value: c.agreementRate,
+        threshold: 50,
+        description: `Agents split on ${c.symbol} — high-confidence disagreement suggests inflection point.`,
+        timeframe: "1h",
+        generatedAt: now.toISOString(),
+        expiresAt: expiry.toISOString(),
+      });
+    }
+  }
+
+  // High-confidence individual agent trades
+  const recentHighConf = await db
+    .select()
+    .from(agentDecisions)
+    .where(gte(agentDecisions.createdAt, new Date(Date.now() - 2 * 60 * 60 * 1000)))
+    .orderBy(desc(agentDecisions.confidence))
+    .limit(5);
+
+  for (const d of recentHighConf) {
+    if (d.confidence >= 85 && d.action !== "hold") {
+      const config = getAgentConfigs().find((c) => c.agentId === d.agentId);
+      signals.push({
+        id: `sig_highconf_${d.id}_${Date.now()}`,
+        symbol: d.symbol,
+        type: "high_confidence_trade",
+        direction: d.action === "buy" ? "bullish" : "bearish",
+        strength: d.confidence,
+        indicator: `${config?.name ?? d.agentId} High-Confidence`,
+        value: d.confidence,
+        threshold: 85,
+        description: `${config?.name ?? d.agentId} made a ${d.confidence}% confidence ${d.action.toUpperCase()} on ${d.symbol}: "${d.reasoning.slice(0, 100)}..."`,
+        timeframe: "1h",
+        generatedAt: d.createdAt.toISOString(),
+        expiresAt: expiry.toISOString(),
+      });
+    }
+  }
+
+  return signals;
+}
+
+/**
+ * Build the full signal intelligence dashboard.
+ */
+export async function getSignalDashboard(): Promise<SignalDashboard> {
+  const marketData = await getMarketData();
+  const allSignals = await getAllSignals();
+  const agentConsensus = await getAgentConsensusData();
+
+  // Market sentiment
+  const bullishSignals = allSignals.filter(
+    (s) => s.direction === "bullish",
+  ).length;
+  const bearishSignals = allSignals.filter(
+    (s) => s.direction === "bearish",
+  ).length;
+  const marketSentiment: "risk_on" | "risk_off" | "neutral" =
+    bullishSignals > bearishSignals * 1.5
+      ? "risk_on"
+      : bearishSignals > bullishSignals * 1.5
+        ? "risk_off"
+        : "neutral";
+
+  // Strong signals
+  const strongBuySignals = allSignals.filter(
+    (s) => s.direction === "bullish" && s.strength >= 70,
+  ).length;
+  const strongSellSignals = allSignals.filter(
+    (s) => s.direction === "bearish" && s.strength >= 70,
+  ).length;
+
+  // Top opportunities and risks
+  const topOpportunities = allSignals
+    .filter((s) => s.direction === "bullish")
+    .slice(0, 5);
+  const topRisks = allSignals
+    .filter((s) => s.direction === "bearish")
+    .slice(0, 5);
+
+  // Technical summaries
+  const technicalSummary: TechnicalSummary[] = [];
+  for (const stock of marketData.slice(0, 10)) {
+    const indicators = await getStockIndicators(stock.symbol);
+    if (!indicators) continue;
+
+    technicalSummary.push({
+      symbol: stock.symbol,
+      price: stock.price,
+      overallSignal: indicators.overallSignal,
+      rsi: indicators.rsi,
+      macdSignal: indicators.macd.crossover,
+      bollingerPosition:
+        indicators.bollingerBands.percentB < 0.2
+          ? "near_lower"
+          : indicators.bollingerBands.percentB > 0.8
+            ? "near_upper"
+            : "middle",
+      volumeStatus: indicators.volumeProfile.trend,
+    });
+  }
+
+  // Signal type distribution
+  const signalsByType: Record<string, number> = {};
+  for (const s of allSignals) {
+    signalsByType[s.type] = (signalsByType[s.type] ?? 0) + 1;
+  }
+
+  // Volatility index (average of all stock changes)
+  const changes = marketData
+    .filter((m) => m.change24h !== null)
+    .map((m) => Math.abs(m.change24h!));
+  const volatilityIndex =
+    changes.length > 0
+      ? Math.round(
+          (changes.reduce((s, c) => s + c, 0) / changes.length) * 100,
+        ) / 100
+      : 0;
+
+  // Trending stocks (most signals)
+  const stockSignalCounts = new Map<
+    string,
+    { count: number; bullish: number; bearish: number; momentum: number }
+  >();
+  for (const s of allSignals) {
+    const entry = stockSignalCounts.get(s.symbol) ?? {
+      count: 0,
+      bullish: 0,
+      bearish: 0,
+      momentum: 0,
+    };
+    entry.count++;
+    if (s.direction === "bullish") entry.bullish++;
+    if (s.direction === "bearish") entry.bearish++;
+    entry.momentum = s.strength;
+    stockSignalCounts.set(s.symbol, entry);
+  }
+
+  const trendingStocks: TrendingStock[] = Array.from(
+    stockSignalCounts.entries(),
+  )
+    .map(([symbol, data]) => ({
+      symbol,
+      signalCount: data.count,
+      dominantDirection: data.bullish > data.bearish ? "bullish" : "bearish",
+      momentum: data.momentum,
+    }))
+    .sort((a, b) => b.signalCount - a.signalCount)
+    .slice(0, 5);
+
+  return {
+    generatedAt: new Date().toISOString(),
+    marketSentiment,
+    totalSignals: allSignals.length,
+    strongBuySignals,
+    strongSellSignals,
+    topOpportunities,
+    topRisks,
+    agentConsensus,
+    technicalSummary,
+    signalsByType,
+    volatilityIndex,
+    trendingStocks,
+  };
+}

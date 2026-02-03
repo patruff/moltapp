@@ -8,3 +8,4 @@ export { agentDecisions } from "./agent-decisions.ts";
 export { tradeComments } from "./trade-comments.ts";
 export { tradeReactions } from "./trade-reactions.ts";
 export { copyFollowers, copyTrades } from "./copy-trading.ts";
+export { agentPayments, agentEarnings } from "./payments.ts";
