@@ -73,6 +73,8 @@ import {
 } from "../schemas/trade-reasoning.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { addBrainFeedEntry, buildBrainFeedEntry } from "../routes/brain-feed.ts";
+import { checkReasoningQuality } from "../services/reasoning-quality-gate.ts";
+import { trackOutcomes } from "../services/outcome-tracker.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -578,10 +580,30 @@ async function executeTradingRound(
       }
 
       // Get agent's trading decision (with enriched context)
-      const decision = await agent.analyze(enrichedMarketData, portfolio);
+      let decision = await agent.analyze(enrichedMarketData, portfolio);
       console.log(
         `[Orchestrator] ${agent.name} decided: ${decision.action} ${decision.symbol} (confidence: ${decision.confidence}%)`,
       );
+
+      // --- QUALITY GATE: Validate reasoning before execution ---
+      try {
+        const qualityResult = checkReasoningQuality(decision, marketData);
+        if (!qualityResult.passed) {
+          console.log(
+            `[Orchestrator] ${agent.name} QUALITY GATE REJECTED: composite=${qualityResult.scores.composite.toFixed(2)}, ` +
+            `reasons: ${qualityResult.rejectionReasons.join("; ")}`,
+          );
+          decision = qualityResult.decision;
+        } else {
+          console.log(
+            `[Orchestrator] ${agent.name} quality gate PASSED: composite=${qualityResult.scores.composite.toFixed(2)}`,
+          );
+        }
+      } catch (err) {
+        console.warn(
+          `[Orchestrator] Quality gate check failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
 
       // --- BENCHMARK: Coherence Analysis & Justification Recording ---
       try {
@@ -852,6 +874,11 @@ async function executeTradingRound(
   } catch {
     // Non-critical
   }
+
+  // Track outcomes for previous trades (async, non-blocking)
+  trackOutcomes(marketData).catch((err) =>
+    console.warn(`[Orchestrator] Outcome tracking failed: ${err instanceof Error ? err.message : String(err)}`),
+  );
 
   return {
     roundId,

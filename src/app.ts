@@ -93,6 +93,7 @@ import { competitionReplayRoutes } from "./routes/competition-replay.ts";
 import { tokenFlowRoutes } from "./routes/token-flows.ts";
 import { brainFeedRoutes } from "./routes/brain-feed.ts";
 import { benchmarkDashboardRoutes } from "./routes/benchmark-dashboard.ts";
+import { outcomeTrackingRoutes } from "./routes/outcome-tracking.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -338,6 +339,9 @@ app.route("/api/v1/token-flows", tokenFlowRoutes);
 
 // Brain Feed (public -- live stream of agent reasoning, coherence scores)
 app.route("/api/v1/brain-feed", brainFeedRoutes);
+
+// Outcome Tracking (public -- trade outcomes, confidence calibration, quality gate)
+app.route("/api/v1/outcomes", outcomeTrackingRoutes);
 
 // Benchmark Dashboard (public -- AI trading benchmark with HuggingFace integration)
 app.route("/benchmark-dashboard", benchmarkDashboardRoutes);
