@@ -51,6 +51,9 @@ import { consensusRoutes } from "./routes/consensus.ts";
 import { rebalancerRoutes } from "./routes/rebalancer.ts";
 import { memoryRoutes } from "./routes/memory.ts";
 import { hardeningRoutes } from "./routes/hardening.ts";
+import { roundHistoryRoutes } from "./routes/round-history.ts";
+import { riskAnalysisRoutes } from "./routes/risk-analysis.ts";
+import { reconciliationRoutes } from "./routes/reconciliation.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -175,6 +178,15 @@ app.route("/api/v1/memory", memoryRoutes);
 
 // Production Hardening (public -- health, emergency controls, risk, feedback, logging)
 app.route("/api/v1/hardening", hardeningRoutes);
+
+// Trading Round History (public -- round timeline, consensus, agent decisions)
+app.route("/api/v1/rounds", roundHistoryRoutes);
+
+// Portfolio Risk Analysis (public -- VaR, stress tests, concentration, risk scores)
+app.route("/api/v1/risk", riskAnalysisRoutes);
+
+// Position Reconciliation (public -- on-chain position verification)
+app.route("/api/v1/reconcile", reconciliationRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);

@@ -52,6 +52,13 @@ import {
   type ExecutionResult,
 } from "../services/trade-executor.ts";
 import { emitTradeAlert, emitRoundCompletedAlert, emitAgentDisagreementAlert } from "../services/alert-webhooks.ts";
+import {
+  persistRound,
+  cacheRound,
+  type PersistedAgentResult,
+} from "../services/dynamo-round-persister.ts";
+import { enrichAgentContext } from "../services/agent-context-enricher.ts";
+import { recordMarketReturn } from "../services/portfolio-risk-analyzer.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -508,8 +515,30 @@ async function executeTradingRound(
       // Build portfolio context
       const portfolio = await getPortfolioContext(agent.agentId, marketData);
 
-      // Get agent's trading decision
-      const decision = await agent.analyze(marketData, portfolio);
+      // Enrich context with technical indicators, memory, peer actions, risk
+      let enrichedMarketData = marketData;
+      try {
+        const enrichedContext = await enrichAgentContext(agent.agentId, marketData, portfolio);
+        // Inject enriched context into market data news field for the agent
+        if (enrichedContext.fullPromptSection) {
+          enrichedMarketData = marketData.map((md) => ({
+            ...md,
+            news: [...(md.news ?? []), enrichedContext.fullPromptSection],
+          }));
+          // Only inject into the first stock to avoid duplication
+          enrichedMarketData = [
+            { ...enrichedMarketData[0], news: [...(marketData[0]?.news ?? []), enrichedContext.fullPromptSection] },
+            ...marketData.slice(1),
+          ];
+        }
+      } catch (err) {
+        console.warn(
+          `[Orchestrator] Context enrichment failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // Get agent's trading decision (with enriched context)
+      const decision = await agent.analyze(enrichedMarketData, portfolio);
       console.log(
         `[Orchestrator] ${agent.name} decided: ${decision.action} ${decision.symbol} (confidence: ${decision.confidence}%)`,
       );
@@ -635,6 +664,67 @@ async function executeTradingRound(
     // Non-critical
   }
 
+  // Persist round to DynamoDB and in-memory cache
+  const roundDuration = Date.now() - new Date(timestamp).getTime();
+  try {
+    // Build a PersistedRound for the in-memory cache
+    const cachedRound = {
+      roundId,
+      timestamp,
+      durationMs: roundDuration,
+      tradingMode: getTradingMode(),
+      results: results.map((r): PersistedAgentResult => ({
+        agentId: r.agentId,
+        agentName: r.agentName,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        quantity: r.decision.quantity,
+        reasoning: r.decision.reasoning,
+        confidence: r.decision.confidence,
+        executed: r.executed,
+        executionError: r.executionError,
+        txSignature: r.executionDetails?.txSignature,
+        filledPrice: r.executionDetails?.filledPrice,
+        usdcAmount: r.executionDetails?.usdcAmount,
+      })),
+      errors,
+      circuitBreakerActivations: allCircuitBreakerActivations.length,
+      lockSkipped: false,
+      consensus: computeRoundConsensus(results),
+      summary: buildRoundSummaryText(results, errors),
+      ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
+    };
+
+    // Always cache in memory (fast)
+    cacheRound(cachedRound);
+
+    // Persist to DynamoDB (async, non-blocking)
+    persistRound({
+      roundId,
+      timestamp,
+      durationMs: roundDuration,
+      tradingMode: getTradingMode(),
+      results,
+      errors,
+      circuitBreakerActivations: allCircuitBreakerActivations,
+      lockSkipped: false,
+    }).catch((err) =>
+      console.warn(`[Orchestrator] DynamoDB persist failed: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] Round caching failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Track SPYx return for risk analysis beta calculation
+  try {
+    const spyData = marketData.find((m) => m.symbol === "SPYx");
+    if (spyData?.change24h !== null && spyData?.change24h !== undefined) {
+      recordMarketReturn(spyData.change24h);
+    }
+  } catch {
+    // Non-critical
+  }
+
   return {
     roundId,
     timestamp,
@@ -643,6 +733,34 @@ async function executeTradingRound(
     circuitBreakerActivations: allCircuitBreakerActivations,
     lockSkipped: false,
   };
+}
+
+/**
+ * Compute consensus type from round results.
+ */
+function computeRoundConsensus(results: TradingRoundResult[]): "unanimous" | "majority" | "split" | "no_trades" {
+  const nonHold = results.filter((r) => r.decision.action !== "hold");
+  if (nonHold.length === 0) return "no_trades";
+  const actions = nonHold.map((r) => r.decision.action);
+  const buys = actions.filter((a) => a === "buy").length;
+  const sells = actions.filter((a) => a === "sell").length;
+  if (buys === nonHold.length || sells === nonHold.length) return "unanimous";
+  if (buys > sells && buys > 1) return "majority";
+  if (sells > buys && sells > 1) return "majority";
+  return "split";
+}
+
+/**
+ * Build human-readable round summary.
+ */
+function buildRoundSummaryText(results: TradingRoundResult[], errors: string[]): string {
+  const parts: string[] = [];
+  for (const r of results) {
+    const status = r.executed ? "OK" : "FAIL";
+    parts.push(`${r.agentName}: ${r.decision.action.toUpperCase()} ${r.decision.symbol} (${r.decision.confidence}%) ${status}`);
+  }
+  if (errors.length > 0) parts.push(`${errors.length} error(s)`);
+  return parts.join(" | ");
 }
 
 /**
