@@ -11,6 +11,13 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
 
+  // Demo mode (for hackathon judges to try without real funds)
+  DEMO_MODE: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
+
   // Future (optional for now)
   TURNKEY_API_PRIVATE_KEY: z.string().optional(),
   TURNKEY_API_PUBLIC_KEY: z.string().optional(),

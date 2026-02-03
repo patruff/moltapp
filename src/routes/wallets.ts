@@ -20,6 +20,7 @@ import {
   withdrawUSDC,
   estimateWithdrawalFee,
 } from "../services/withdrawal.ts";
+import { getDemoBalances } from "../services/demo-trading.ts";
 
 type WalletEnv = {
   Variables: {
@@ -90,7 +91,7 @@ walletRoutes.get("/", async (c) => {
 });
 
 /**
- * GET /balance - SOL and USDC on-chain balance
+ * GET /balance - SOL and USDC on-chain balance (or demo balance if DEMO_MODE)
  */
 walletRoutes.get("/balance", async (c) => {
   const agentId = c.get("agentId");
@@ -105,6 +106,18 @@ walletRoutes.get("/balance", async (c) => {
     return c.json({ error: "wallet_not_found" }, 404);
   }
 
+  // Use demo balances if DEMO_MODE is enabled
+  if (env.DEMO_MODE) {
+    try {
+      const balances = await getDemoBalances(agentId);
+      return c.json(balances);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      return c.json({ error: errorMessage }, 500);
+    }
+  }
+
+  // Real blockchain balance query
   const wallet = records[0];
   const rpc = getSolanaRpc();
 

@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { executeBuy, executeSell } from "../services/trading.ts";
+import { executeDemoBuy, executeDemoSell } from "../services/demo-trading.ts";
+import { env } from "../config/env.ts";
 
 type TradingEnv = { Variables: { agentId: string } };
 
@@ -70,7 +72,9 @@ tradingRoutes.post("/buy", async (c) => {
   }
 
   try {
-    const result = await executeBuy({
+    // Use demo trading if DEMO_MODE is enabled
+    const executeFunction = env.DEMO_MODE ? executeDemoBuy : executeBuy;
+    const result = await executeFunction({
       agentId: c.get("agentId"),
       stockSymbol: parsed.data.stockSymbol,
       usdcAmount: parsed.data.usdcAmount,
@@ -111,7 +115,9 @@ tradingRoutes.post("/sell", async (c) => {
   }
 
   try {
-    const result = await executeSell({
+    // Use demo trading if DEMO_MODE is enabled
+    const executeFunction = env.DEMO_MODE ? executeDemoSell : executeSell;
+    const result = await executeFunction({
       agentId: c.get("agentId"),
       stockSymbol: parsed.data.stockSymbol,
       usdcAmount: "0", // Ignored for sells; stockQuantity drives the order
