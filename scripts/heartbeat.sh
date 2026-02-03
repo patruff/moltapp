@@ -135,7 +135,13 @@ generate_content() {
             \"temperature\": 0.8
         }" 2>/dev/null)
 
-    echo "$response" | jq -r '.choices[0].message.content // "Failed to generate content"' 2>/dev/null
+    local content
+    content=$(echo "$response" | jq -r '.choices[0].message.content // "Failed to generate content"' 2>/dev/null)
+
+    # Strip markdown code fences if present (OpenAI often wraps JSON in ```json...```)
+    content=$(echo "$content" | sed 's/^```json//; s/^```//; s/```$//' | sed '/^$/d')
+
+    echo "$content"
 }
 
 # ============================================================
@@ -168,12 +174,19 @@ check_agent_status() {
     local status
     status=$(colosseum_get "/agents/status")
 
-    local claim_status=$(echo "$status" | jq -r '.agent.claimStatus // "unknown"' 2>/dev/null)
-    local agent_name=$(echo "$status" | jq -r '.agent.name // "unknown"' 2>/dev/null)
-    local engagement=$(echo "$status" | jq -r '.engagement // {}' 2>/dev/null)
+    local claim_status=$(echo "$status" | jq -r '.status // "unknown"' 2>/dev/null)
+    local forum_posts=$(echo "$status" | jq -r '.engagement.forumPostCount // 0' 2>/dev/null)
+    local replies=$(echo "$status" | jq -r '.engagement.repliesOnYourPosts // 0' 2>/dev/null)
+    local project_status=$(echo "$status" | jq -r '.engagement.projectStatus // "none"' 2>/dev/null)
 
-    log "Agent: $agent_name | Claim: $claim_status"
-    log "Engagement: $engagement"
+    log "Claim: $claim_status | Posts: $forum_posts | Replies: $replies | Project: $project_status"
+
+    local next_steps=$(echo "$status" | jq -r '.nextSteps // [] | .[]' 2>/dev/null)
+    if [ -n "$next_steps" ]; then
+        echo "$next_steps" | while IFS= read -r step; do
+            log "  Next: $step"
+        done
+    fi
 }
 
 # 3. Monitor leaderboard
@@ -187,15 +200,16 @@ check_leaderboard() {
         return
     fi
 
-    # Find our position
-    local our_rank=$(echo "$leaderboard" | jq -r '.projects // [] | to_entries[] | select(.value.name == "MoltApp" or .value.slug == "moltapp") | .key + 1' 2>/dev/null)
-    local our_votes=$(echo "$leaderboard" | jq -r '.projects // [] | .[] | select(.name == "MoltApp" or .slug == "moltapp") | .humanUpvotes // 0' 2>/dev/null)
-    local total_projects=$(echo "$leaderboard" | jq -r '.projects // [] | length' 2>/dev/null)
+    # Find our position (API uses .entries[].rank and .entries[].project)
+    local our_entry=$(echo "$leaderboard" | jq -r '.entries // [] | .[] | select(.project.name == "MoltApp" or .project.slug == "moltapp")' 2>/dev/null)
+    local our_rank=$(echo "$our_entry" | jq -r '.rank // empty' 2>/dev/null)
+    local our_votes=$(echo "$our_entry" | jq -r '.project.humanUpvotes // 0' 2>/dev/null)
+    local total_projects=$(echo "$leaderboard" | jq -r '.entries // [] | length' 2>/dev/null)
 
     local prev_rank=$(get_state "leaderboard_rank")
     local prev_votes=$(get_state "leaderboard_votes")
 
-    if [ -n "$our_rank" ] && [ "$our_rank" != "null" ]; then
+    if [ -n "$our_rank" ] && [ "$our_rank" != "null" ] && [ "$our_rank" != "" ]; then
         log "Leaderboard: Rank #$our_rank of $total_projects | Votes: $our_votes (was: $prev_votes)"
         set_state "leaderboard_rank" "$our_rank"
         set_state "leaderboard_votes" "${our_votes:-0}"
@@ -206,11 +220,11 @@ check_leaderboard() {
             log "Rank dropped: #$prev_rank -> #$our_rank"
         fi
     else
-        log "MoltApp not found on leaderboard yet (or not submitted)"
+        log "MoltApp not found on leaderboard yet (may need to submit project first)"
     fi
 
     # Log top 5
-    local top5=$(echo "$leaderboard" | jq -r '.projects // [] | .[0:5] | .[] | "\(.name): \(.humanUpvotes // 0)h/\(.agentUpvotes // 0)a votes"' 2>/dev/null)
+    local top5=$(echo "$leaderboard" | jq -r '.entries // [] | .[0:5] | .[] | "#\(.rank) \(.project.name): \(.project.humanUpvotes // 0)h/\(.project.agentUpvotes // 0)a votes"' 2>/dev/null)
     if [ -n "$top5" ]; then
         log "Top 5:"
         echo "$top5" | while IFS= read -r line; do
@@ -305,9 +319,9 @@ Write a post with a catchy title and body. Focus on what we've built, technical 
 reply_to_comments() {
     log "Checking for comments on our posts..."
 
-    # Get our posts
+    # Get our posts via authenticated endpoint
     local our_posts
-    our_posts=$(colosseum_get "/forum/posts" | jq -r '.posts // [] | .[] | select(.agentName == "MoltApp") | .id' 2>/dev/null)
+    our_posts=$(colosseum_get "/forum/me/posts" | jq -r '.posts // [] | .[] | .id' 2>/dev/null)
 
     if [ -z "$our_posts" ]; then
         log "No posts found to check comments on"
