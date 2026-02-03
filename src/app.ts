@@ -63,7 +63,12 @@ import { discordRoutes } from "./routes/discord.ts";
 import { marketHoursRoutes } from "./routes/market-hours.ts";
 import { slippageRoutes } from "./routes/slippage.ts";
 import { lifecycleRoutes } from "./routes/lifecycle.ts";
+import { analyticsRoutes } from "./routes/analytics.ts";
+import { walletProvisioningRoutes } from "./routes/wallet-provisioning.ts";
+import { newsRoutes } from "./routes/news.ts";
+import { monitorRoutes } from "./routes/monitor.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
+import { initializeNewsProviders } from "./services/news-init.ts";
 
 type AppEnv = {
   Variables: {
@@ -72,6 +77,9 @@ type AppEnv = {
 };
 
 const app = new Hono<AppEnv>();
+
+// Initialize real news providers (Perplexity/Alpha Vantage) if API keys are set
+initializeNewsProviders();
 
 // Global error handling
 app.onError(globalErrorHandler);
@@ -223,6 +231,18 @@ app.route("/api/v1/slippage", slippageRoutes);
 
 // Lifecycle & Deep Health (public -- readiness, deep health, metrics)
 app.route("/api/v1/lifecycle", lifecycleRoutes);
+
+// Portfolio Analytics (public -- Sharpe, drawdown, win rate, equity curves, comparisons)
+app.route("/api/v1/analytics", analyticsRoutes);
+
+// Wallet Provisioning (public -- Turnkey wallet creation, health checks)
+app.route("/api/v1/wallets", walletProvisioningRoutes);
+
+// News & Market Intelligence (public -- real news APIs, cache management)
+app.route("/api/v1/news", newsRoutes);
+
+// Trading Monitor Dashboard (public -- real-time charts, agent comparison)
+app.route("/monitor", monitorRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
