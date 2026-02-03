@@ -39,7 +39,10 @@ export type EventType =
   | "signal_fired"
   | "debate_started"
   | "prediction_created"
-  | "sentiment_shift";
+  | "sentiment_shift"
+  | "price_deviation"
+  | "order_triggered"
+  | "trade_outcome_recorded";
 
 /** Canonical list for validation and subscription info */
 export const EVENT_TYPES: EventType[] = [
@@ -53,6 +56,9 @@ export const EVENT_TYPES: EventType[] = [
   "debate_started",
   "prediction_created",
   "sentiment_shift",
+  "price_deviation",
+  "order_triggered",
+  "trade_outcome_recorded",
 ];
 
 // ---------------------------------------------------------------------------
@@ -160,6 +166,36 @@ export interface SentimentShiftData {
   details: string;
 }
 
+/** Payload for a price deviation alert between sources */
+export interface PriceDeviationData {
+  symbol: string;
+  mintAddress: string;
+  sources: Array<{ source: string; price: number }>;
+  maxDeviationPercent: number;
+  timestamp: string;
+}
+
+/** Payload when an advanced order triggers */
+export interface OrderTriggeredData {
+  orderId: string;
+  orderType: string;
+  symbol: string;
+  agentId: string;
+  action: "buy" | "sell";
+  quantity: number;
+  triggerPrice: number;
+  timestamp: string;
+  notes: string;
+}
+
+/** Payload when a trade outcome is recorded for learning */
+export interface TradeOutcomeRecordedData {
+  agentId: string;
+  symbol: string;
+  pnlPercent: number;
+  directionCorrect: boolean;
+}
+
 /** Map event type to its strongly-typed payload */
 export interface EventDataMap {
   trade_executed: TradeExecutedData;
@@ -172,6 +208,9 @@ export interface EventDataMap {
   debate_started: DebateStartedData;
   prediction_created: PredictionCreatedData;
   sentiment_shift: SentimentShiftData;
+  price_deviation: PriceDeviationData;
+  order_triggered: OrderTriggeredData;
+  trade_outcome_recorded: TradeOutcomeRecordedData;
 }
 
 // ---------------------------------------------------------------------------

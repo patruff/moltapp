@@ -54,6 +54,11 @@ import { hardeningRoutes } from "./routes/hardening.ts";
 import { roundHistoryRoutes } from "./routes/round-history.ts";
 import { riskAnalysisRoutes } from "./routes/risk-analysis.ts";
 import { reconciliationRoutes } from "./routes/reconciliation.ts";
+import { realtimePriceRoutes } from "./routes/realtime-prices.ts";
+import { orderRoutes } from "./routes/orders.ts";
+import { learningRoutes } from "./routes/learning.ts";
+import { tradeProofRoutes } from "./routes/trade-proofs.ts";
+import { priceValidatorRoutes } from "./routes/price-validator.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -187,6 +192,21 @@ app.route("/api/v1/risk", riskAnalysisRoutes);
 
 // Position Reconciliation (public -- on-chain position verification)
 app.route("/api/v1/reconcile", reconciliationRoutes);
+
+// Real-Time Price Stream (public -- WebSocket prices, VWAP, price history)
+app.route("/api/v1/realtime", realtimePriceRoutes);
+
+// Advanced Orders (public -- limit, stop-loss, trailing stop, bracket orders)
+app.route("/api/v1/orders", orderRoutes);
+
+// Agent Learning (public -- calibration, patterns, adaptive risk, feedback loop)
+app.route("/api/v1/learning", learningRoutes);
+
+// Trade Proofs (public -- cryptographic proof of trades, Merkle verification)
+app.route("/api/v1/proofs", tradeProofRoutes);
+
+// Price Validator (public -- multi-source validation, slippage protection)
+app.route("/api/v1/price-validator", priceValidatorRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
