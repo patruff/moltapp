@@ -18,6 +18,11 @@ const envSchema = z.object({
     .default("false")
     .transform((val) => val === "true"),
 
+  // AI Agent API keys (optional — agents degrade gracefully if missing)
+  ANTHROPIC_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  XAI_API_KEY: z.string().optional(),
+
   // Future (optional for now)
   TURNKEY_API_PRIVATE_KEY: z.string().optional(),
   TURNKEY_API_PUBLIC_KEY: z.string().optional(),

@@ -13,6 +13,9 @@ import { leaderboardApiRoutes } from "./routes/leaderboard-api.ts";
 import { pageRoutes } from "./routes/pages.tsx";
 import { demoRoutes } from "./routes/demo.ts";
 import { landingRoutes } from "./routes/landing.ts";
+import { agentRoutes } from "./routes/agents.ts";
+import { feedRoutes } from "./routes/feed.ts";
+import { commentRoutes } from "./routes/comments.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -35,6 +38,15 @@ app.route("/landing", landingRoutes);
 
 // Demo trading routes (public -- no auth required)
 app.route("/api/demo", demoRoutes);
+
+// AI Agent routes (public -- view agent profiles, stats, decisions)
+app.route("/api/v1/agents", agentRoutes);
+
+// Activity feed (public -- view all agent trading activity)
+app.route("/api/v1/feed", feedRoutes);
+
+// Trade social routes (public -- comments & reactions on trade decisions)
+app.route("/api/v1/decisions", commentRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);

@@ -4,3 +4,6 @@ export { apiKeys } from "./api-keys.ts";
 export { transactions } from "./transactions.ts";
 export { positions } from "./positions.ts";
 export { trades } from "./trades.ts";
+export { agentDecisions } from "./agent-decisions.ts";
+export { tradeComments } from "./trade-comments.ts";
+export { tradeReactions } from "./trade-reactions.ts";

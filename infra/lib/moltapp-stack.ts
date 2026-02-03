@@ -9,6 +9,9 @@ import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as targets from "aws-cdk-lib/aws-route53-targets";
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as events from "aws-cdk-lib/aws-events";
+import * as eventsTargets from "aws-cdk-lib/aws-events-targets";
 import { Construct } from "constructs";
 
 export class MoltappStack extends cdk.Stack {
@@ -21,17 +24,54 @@ export class MoltappStack extends cdk.Stack {
       description: "MoltApp production secrets",
     });
 
-    // --- Lambda Function ---
+    // --- DynamoDB Table for AI Agent State ---
+    const agentStateTable = new dynamodb.Table(this, "AgentStateTable", {
+      tableName: "moltapp-agent-state",
+      partitionKey: { name: "agentId", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+      timeToLiveAttribute: "ttl",
+    });
+
+    // GSI for querying recently active agents
+    agentStateTable.addGlobalSecondaryIndex({
+      indexName: "by-last-trade",
+      partitionKey: { name: "status", type: dynamodb.AttributeType.STRING },
+      sortKey: {
+        name: "lastTradeTimestamp",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // --- DynamoDB Table for Trading Round History ---
+    const tradingRoundsTable = new dynamodb.Table(
+      this,
+      "TradingRoundsTable",
+      {
+        tableName: "moltapp-trading-rounds",
+        partitionKey: { name: "roundId", type: dynamodb.AttributeType.STRING },
+        sortKey: { name: "timestamp", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        timeToLiveAttribute: "ttl",
+      },
+    );
+
+    // --- Lambda Function (API server) ---
     const fn = new nodejs.NodejsFunction(this, "ApiFunction", {
       entry: "../src/lambda.ts",
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       memorySize: 1024,
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.minutes(5), // Extended for AI agent trading rounds
       environment: {
         NODE_ENV: "production",
         SECRET_ARN: secret.secretArn,
+        AGENT_STATE_TABLE: agentStateTable.tableName,
+        TRADING_ROUNDS_TABLE: tradingRoundsTable.tableName,
       },
       bundling: {
         format: nodejs.OutputFormat.ESM,
@@ -46,6 +86,58 @@ export class MoltappStack extends cdk.Stack {
       },
     });
     secret.grantRead(fn);
+    agentStateTable.grantReadWriteData(fn);
+    tradingRoundsTable.grantReadWriteData(fn);
+
+    // --- Trading Round Lambda (dedicated for scheduled trading) ---
+    const tradingFn = new nodejs.NodejsFunction(this, "TradingFunction", {
+      entry: "../src/lambda-trading.ts",
+      handler: "handler",
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      memorySize: 2048, // Extra memory for parallel LLM calls
+      timeout: cdk.Duration.minutes(5),
+      environment: {
+        NODE_ENV: "production",
+        SECRET_ARN: secret.secretArn,
+        AGENT_STATE_TABLE: agentStateTable.tableName,
+        TRADING_ROUNDS_TABLE: tradingRoundsTable.tableName,
+      },
+      bundling: {
+        format: nodejs.OutputFormat.ESM,
+        target: "node22",
+        mainFields: ["module", "main"],
+        banner:
+          "import{createRequire}from'module';const require=createRequire(import.meta.url);",
+        minify: true,
+        sourceMap: true,
+        tsconfig: "../tsconfig.json",
+        externalModules: [],
+      },
+    });
+    secret.grantRead(tradingFn);
+    agentStateTable.grantReadWriteData(tradingFn);
+    tradingRoundsTable.grantReadWriteData(tradingFn);
+
+    // --- EventBridge Rule: Trigger trading every 30 minutes ---
+    const tradingSchedule = new events.Rule(this, "TradingSchedule", {
+      ruleName: "moltapp-trading-round",
+      description:
+        "Trigger AI trading round every 30 minutes — 3 agents compete",
+      schedule: events.Schedule.cron({ minute: "0,30" }),
+      enabled: true,
+    });
+
+    tradingSchedule.addTarget(
+      new eventsTargets.LambdaFunction(tradingFn, {
+        event: events.RuleTargetInput.fromObject({
+          trigger: "scheduled-trading",
+          source: "eventbridge-cron",
+        }),
+        retryAttempts: 2,
+        maxEventAge: cdk.Duration.minutes(10),
+      }),
+    );
 
     // --- API Gateway HTTP API ---
     const lambdaIntegration = new integrations.HttpLambdaIntegration(
@@ -54,7 +146,7 @@ export class MoltappStack extends cdk.Stack {
     );
 
     const httpApi = new apigatewayv2.HttpApi(this, "HttpApi", {
-      description: "MoltApp API",
+      description: "MoltApp API — AI Trading Competition Platform",
     });
 
     // Root route (/{proxy+} does NOT match /)
@@ -122,6 +214,21 @@ export class MoltappStack extends cdk.Stack {
     new cdk.CfnOutput(this, "CustomDomain", {
       value: "https://patgpt.us",
       description: "Custom domain URL",
+    });
+
+    new cdk.CfnOutput(this, "AgentStateTableName", {
+      value: agentStateTable.tableName,
+      description: "DynamoDB table for AI agent state",
+    });
+
+    new cdk.CfnOutput(this, "TradingRoundsTableName", {
+      value: tradingRoundsTable.tableName,
+      description: "DynamoDB table for trading round history",
+    });
+
+    new cdk.CfnOutput(this, "TradingScheduleArn", {
+      value: tradingSchedule.ruleArn,
+      description: "EventBridge rule ARN for scheduled trading",
     });
   }
 }
