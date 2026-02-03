@@ -8,6 +8,7 @@ import { verifyIdentity } from "../services/moltbook.ts";
 import { createAgentWallet } from "../services/wallet.ts";
 import { API_KEY_PREFIX } from "../config/constants.ts";
 import { env } from "../config/env.ts";
+import { apiError } from "../lib/errors.ts";
 
 const registerBodySchema = z.object({
   identityToken: z.string().min(1, "identityToken is required"),
@@ -31,10 +32,7 @@ authRoutes.post("/register", async (c) => {
   const parsed = registerBodySchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      { error: "validation_failed", details: parsed.error.flatten() },
-      400
-    );
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
   }
 
   const { identityToken } = parsed.data;
@@ -48,12 +46,12 @@ authRoutes.post("/register", async (c) => {
       err instanceof Error ? err.message : "moltbook_verification_failed";
 
     if (message === "invalid_identity_token") {
-      return c.json({ error: "invalid_identity_token" }, 401);
+      return apiError(c, "INVALID_IDENTITY_TOKEN");
     }
     if (message === "moltbook_rate_limited") {
-      return c.json({ error: "moltbook_rate_limited" }, 503);
+      return apiError(c, "MOLTBOOK_RATE_LIMITED");
     }
-    return c.json({ error: "moltbook_verification_failed" }, 502);
+    return apiError(c, "MOLTBOOK_VERIFICATION_FAILED");
   }
 
   // 3. Upsert agent profile in database
@@ -104,7 +102,7 @@ authRoutes.post("/register", async (c) => {
       const message =
         err instanceof Error ? err.message : "wallet_creation_failed";
       console.error(`Wallet creation failed for agent ${moltbookAgent.id}:`, message);
-      return c.json({ error: "wallet_creation_failed" }, 502);
+      return apiError(c, "WALLET_CREATION_FAILED", message);
     }
   }
 
@@ -151,10 +149,7 @@ authRoutes.post("/register", async (c) => {
 authRoutes.post("/demo-register", async (c) => {
   // 1. Check if demo mode is enabled
   if (!env.DEMO_MODE) {
-    return c.json(
-      { error: "demo_mode_disabled", message: "Demo registration is only available when DEMO_MODE=true" },
-      403
-    );
+    return apiError(c, "DEMO_MODE_DISABLED", "Demo registration is only available when DEMO_MODE=true");
   }
 
   // 2. Parse and validate body
@@ -162,10 +157,7 @@ authRoutes.post("/demo-register", async (c) => {
   const parsed = demoRegisterBodySchema.safeParse(body);
 
   if (!parsed.success) {
-    return c.json(
-      { error: "validation_failed", details: parsed.error.flatten() },
-      400
-    );
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
   }
 
   const { agentName } = parsed.data;
