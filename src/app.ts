@@ -35,6 +35,10 @@ import { streamRoutes } from "./routes/stream.ts";
 import { attributionRoutes } from "./routes/attribution.ts";
 import { sentimentRoutes } from "./routes/sentiment.ts";
 import { infraRoutes } from "./routes/infra.ts";
+import { adminRoutes } from "./routes/admin.ts";
+import { apiDocsRoutes } from "./routes/api-docs.ts";
+import { auditRoutes } from "./routes/audit.ts";
+import { recoveryRoutes } from "./routes/recovery.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -120,6 +124,18 @@ app.route("/api/v1/sentiment", sentimentRoutes);
 
 // Trading Infrastructure (public -- lock status, circuit breakers, rate limiters, wallets)
 app.route("/api/v1/infra", infraRoutes);
+
+// Audit Log (public -- compliance trail, event history)
+app.route("/api/v1/audit", auditRoutes);
+
+// Trade Recovery (public -- failed trade status, dead letter queue)
+app.route("/api/v1/recovery", recoveryRoutes);
+
+// Admin Dashboard (self-authenticated via X-Admin-Password)
+app.route("/admin", adminRoutes);
+
+// API Documentation (public -- Swagger UI, OpenAPI spec)
+app.route("/api-docs", apiDocsRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);
