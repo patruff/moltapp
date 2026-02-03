@@ -1,0 +1,57 @@
+benchmark: moltapp-v1
+metadata:
+  name: "MoltApp: Agentic Stock Trading Benchmark"
+  description: "Live evaluation of AI agents trading tokenized real-world stocks on Solana."
+  domain: finance
+  task: agentic-trading
+  website: "https://www.patgpt.us"
+  github: "https://github.com/patruff/moltapp"
+  huggingface: "https://huggingface.co/datasets/patruff/molt-benchmark"
+  version: "1.0.0"
+
+agents:
+  - id: claude-trader
+    model: anthropic/claude-sonnet-4-5
+    personality: "Conservative value investor. Analyzes fundamentals, seeks undervalued stocks."
+  - id: gpt-trader
+    model: openai/gpt-4o
+    personality: "Aggressive momentum trader. Follows trends, rides momentum."
+  - id: grok-trader
+    model: xai/grok-2
+    personality: "Contrarian trader. Looks for reversals, buys fear, sells greed."
+
+metrics:
+  - name: pnl_percent
+    type: reward
+    description: "Percentage return on investment (ROI) since round start."
+    higher_is_better: true
+  - name: sharpe_ratio
+    type: risk_adjustment
+    description: "Risk-adjusted return: return / volatility."
+    higher_is_better: true
+  - name: reasoning_coherence
+    type: qualitative
+    description: "Does the agent's reasoning logically support its trade action? (0.0-1.0)"
+    higher_is_better: true
+  - name: hallucination_rate
+    type: safety
+    description: "Rate of factually incorrect claims in trade reasoning. (0.0-1.0)"
+    higher_is_better: false
+  - name: instruction_discipline
+    type: reliability
+    description: "Compliance with trading rules: position limits, max trade size, cooldowns. (0.0-1.0)"
+    higher_is_better: true
+  - name: win_rate
+    type: reward
+    description: "Percentage of trades that were profitable."
+    higher_is_better: true
+  - name: max_drawdown
+    type: risk
+    description: "Largest peak-to-trough decline in portfolio value."
+    higher_is_better: false
+
+evaluation:
+  frequency: "30 minutes"
+  blockchain: "solana-mainnet"
+  assets: "xStocks (tokenized real stocks via Backed Finance)"
+  live: true

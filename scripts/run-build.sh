@@ -14,99 +14,145 @@ fi
 cd "$PROJECT_DIR"
 echo "=== BUILD SESSION START: $(date -u) ===" >> "$BUILD_LOG"
 
-claude -p "You are the MoltApp autonomous builder for the Colosseum Agent Hackathon (\$100k prize, deadline Feb 12 2026). Ship 500+ lines of PRODUCTION code every session.
+claude -p "You are the MoltApp autonomous builder for the Colosseum Agent Hackathon (\$100k prize, deadline Feb 12 2026). Ship 500+ lines of PRODUCTION code. This session focuses on making MoltApp an industry-standard AI TRADING BENCHMARK.
 
-Project: /Users/patruff/moltapp — competitive stock trading platform. AI agents trade REAL tokenized stocks (xStocks) on Solana.
+Project: /Users/patruff/moltapp — competitive stock trading platform. AI agents trade REAL tokenized stocks on Solana.
+Domain: www.patgpt.us
 
 ## First: Read current state
-- Read src/app.ts, package.json, .planning/STATE.md
-- git log --oneline -10 to see what exists
-- ls src/routes/ src/services/ src/agents/ src/middleware/ to see all files
-- Read infra/lib/moltapp-stack.ts for current CDK
+- Read src/app.ts, package.json
+- git log --oneline -15 to see what exists
+- ls src/routes/ src/services/ src/agents/ src/db/schema/ to see all files
+- Read infra/lib/moltapp-stack.ts for CDK
 
-## Then: Build the NEXT priority that doesn't exist yet
+## FOCUS: Benchmark & Reasoning Transparency
 
-Check what already exists. Don't rebuild what's there. Pick from below:
+### PRIORITY 1: Trade Reasoning Schema
+Update the trade system so every trade REQUIRES reasoning data:
 
-### PRIORITY 1: Solana Chain Tracking & Transaction Service
-Create src/services/solana-tracker.ts:
-- Connect to Solana RPC (use env SOLANA_RPC_URL or default to mainnet)
-- getBalance(walletAddress): get SOL balance
-- getTokenBalances(walletAddress): get all SPL token balances (xStocks)
-- watchWallet(address, callback): poll for new transactions every 60s
-- getRecentTransactions(address, limit): fetch tx history
-- Use @solana/kit (already installed)
-- Add retry logic with exponential backoff for RPC failures
-- Rate limit: max 5 RPC calls per second, queue excess
+Create/update src/db/schema/trade-reasoning.ts:
+\`\`\`typescript
+export const tradeJustifications = pgTable('trade_justifications', {
+  id: text('id').primaryKey(),
+  tradeId: text('trade_id').references(() => trades.id),
+  agentId: text('agent_id').references(() => agents.id),
+  reasoning: text('reasoning').notNull(),           // Step-by-step logic
+  confidence: real('confidence').notNull(),          // 0.0 to 1.0
+  sources: jsonb('sources').\$type<string[]>(),      // What data agent read
+  intent: text('intent').notNull(),                  // 'momentum' | 'mean_reversion' | 'value' | 'hedge' | 'contrarian'
+  predictedOutcome: text('predicted_outcome'),       // What agent expects
+  actualOutcome: text('actual_outcome'),             // Filled later
+  coherenceScore: real('coherence_score'),           // Did reasoning match action?
+  hallucinationFlags: jsonb('hallucination_flags').\$type<string[]>(), // Fact-check failures
+  timestamp: timestamp('timestamp').defaultNow(),
+});
+\`\`\`
 
-### PRIORITY 2: Rate Limiting Infrastructure
-Create src/services/rate-limiter.ts:
-- Token bucket rate limiter for external APIs
-- Separate buckets for: Solana RPC (5/s), LLM APIs (10/min), Jupiter (2/s)
-- Queue system: if rate limit hit, queue and retry with jitter
-- Add random jitter (1-5 seconds) between agent trade executions
-- Metrics: track rate limit hits, queue depth, avg wait time
+### PRIORITY 2: Zod Validation for Reasoning-Required Trades
+Update trading endpoints: agents MUST provide reasoning to trade.
 
-### PRIORITY 3: Financial Circuit Breakers
-Create src/services/circuit-breaker.ts:
-- MAX_TRADE_SOL: configurable max trade size (default 0.1 SOL)
-- DAILY_LOSS_LIMIT: halt trading if agent loses more than X% in a day
-- COOLDOWN_PERIOD: minimum 10 min between trades per agent
-- POSITION_LIMIT: max % of portfolio in single stock (25%)
-- Override any LLM decision that exceeds limits
-- Log all circuit breaker activations
-- Store state in DynamoDB (or in-memory with periodic flush)
+Create src/schemas/trade-reasoning.ts:
+\`\`\`typescript
+import { z } from 'zod';
+export const tradeWithReasoningSchema = z.object({
+  symbol: z.string(),
+  side: z.enum(['buy', 'sell']),
+  quantity: z.number().positive(),
+  reasoning: z.string().min(20, 'Reasoning must explain your logic'),
+  confidence: z.number().min(0).max(1),
+  sources: z.array(z.string()).min(1, 'Must cite at least one data source'),
+  intent: z.enum(['momentum', 'mean_reversion', 'value', 'hedge', 'contrarian', 'arbitrage']),
+  predictedOutcome: z.string().optional(),
+});
+\`\`\`
 
-### PRIORITY 4: Singleton Trading Lock
-Create src/services/trading-lock.ts:
-- Prevent concurrent trading rounds (DynamoDB conditional writes)
-- If a 30-min cycle takes longer, next cycle skips gracefully
-- Prevents double-buying positions
-- TTL-based lock: auto-release after 25 minutes
+### PRIORITY 3: Coherence Analyzer
+Create src/services/coherence-analyzer.ts:
+- analyzeCoherence(reasoning, action, marketData): score 0-1
+  - Does the reasoning support the action? (bullish text + buy = coherent)
+  - Use simple NLP: detect sentiment in reasoning, compare to action
+- detectHallucinations(reasoning, realPrices): string[]
+  - Check if agent claims prices that don't match reality
+  - Flag made-up ticker symbols, impossible price claims
+- checkInstructionDiscipline(trade, agentConfig): boolean
+  - Did agent respect max trade size, position limits?
 
-### PRIORITY 5: Search Cache (Singleton Search)
-Create src/services/search-cache.ts:
-- Cache search/news results for 30 minutes
-- One search per cycle, shared across all 3 agents
-- Reduces API traffic by 66%
-- Interface: getCachedNews(symbols): returns cached or fresh results
+### PRIORITY 4: HuggingFace Benchmark Integration
+Create scripts/sync-to-hf.ts:
+\`\`\`typescript
+import { uploadFile } from '@huggingface/hub';
+// Fetch all trades with justifications from DB
+// Format as benchmark dataset: { agent, trade, reasoning, coherence, metrics }
+// Upload to patruff/molt-benchmark on HF
+// Include eval.yaml for benchmark recognition
+\`\`\`
 
-### PRIORITY 6: CDK Infrastructure Update
-Update infra/lib/moltapp-stack.ts:
-- DynamoDB table for agent state (agentId PK, PAY_PER_REQUEST)
-- EventBridge rule (every 30 min trigger)
-- Lambda reserved concurrency = 1 (prevents duplicate runs)
-- Lambda timeout = 5 min (for trading rounds)
-- Add TABLE_NAME to Lambda environment
+Create eval.yaml in project root:
+\`\`\`yaml
+benchmark: moltapp-v1
+metadata:
+  name: 'MoltApp: Agentic Stock Trading Benchmark'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana.'
+  domain: finance
+  task: agentic-trading
+  website: 'https://www.patgpt.us'
+metrics:
+  - name: pnl_percent
+    type: reward
+    description: 'ROI since round start'
+  - name: sharpe_ratio
+    type: risk_adjustment
+    description: 'Risk-adjusted return'
+  - name: reasoning_coherence
+    type: qualitative
+    description: 'Does reasoning match trade action?'
+  - name: hallucination_rate
+    type: safety
+    description: 'Rate of factually incorrect claims in reasoning'
+  - name: instruction_discipline
+    type: reliability
+    description: 'Compliance with trading rules and limits'
+\`\`\`
 
-### PRIORITY 7: Agent Wallet Management
-Create src/services/agent-wallets.ts:
-- 3 pre-configured wallets (one per agent: Claude, GPT, Grok)
-- getAgentWallet(agentId): returns Keypair for agent
-- Fund check: ensure wallet has minimum SOL for fees before trading
-- Balance tracking: record balances before/after each trade
+### PRIORITY 5: Brain Feed API
+Create src/routes/brain-feed.ts:
+- GET /api/v1/brain-feed — live stream of agent reasoning
+  - Returns recent trades with full reasoning, confidence, coherence scores
+  - Pagination support
+  - Filter by agent, intent, confidence level
+- GET /api/v1/brain-feed/:agentId — specific agent's thought process
+- GET /api/v1/brain-feed/highlights — most interesting/controversial trades
+  - Low coherence = interesting (agent contradicted itself)
+  - High confidence + wrong = interesting
 
-### PRIORITY 8: Jupiter DEX Integration Hardening
-Update src/services/trading.ts (or create if doesn't exist):
-- Add compute budget instruction (priority fees)
-- Add retry with exponential backoff for failed swaps
-- Transaction confirmation: wait for finalized status
-- Slippage protection: configurable max slippage (1%)
-- Pass JUP_API_KEY in all Jupiter API headers
+### PRIORITY 6: Benchmark Dashboard Route
+Update the landing page or create new route:
+- GET /benchmark — HTML page showing:
+  - Live leaderboard with P&L + Sharpe + Coherence scores
+  - Brain feed ticker showing latest agent reasoning
+  - HuggingFace badge linking to dataset
+  - Metric explanations for each pillar
+  - 'Official AI Finance Benchmark' branding
+
+### PRIORITY 7: Update Agent Trading Logic
+Update src/agents/ to require reasoning in all trades:
+- Each agent (claude-trader, gpt-trader, grok-trader) must return:
+  { action, symbol, quantity, reasoning, confidence, sources, intent }
+- The orchestrator validates reasoning before executing
+- Bad reasoning = trade rejected and logged
 
 ## After ALL coding:
 1. npx tsc --noEmit — MUST pass. Fix ALL errors.
-2. npm install any new dependencies needed
-3. git add all changed files
-4. git commit -m 'feat: [detailed description of what you built]'
-5. git push origin main
+2. npm install any needed deps
+3. Run drizzle-kit generate if schema changed
+4. git add all changed files
+5. git commit -m 'feat: [description]'
+6. git push origin main
 
 ## Rules:
-- 500+ lines minimum. Ship multiple priorities per session.
-- PRODUCTION quality. Real error handling, types, retries.
-- Use existing patterns (Hono, Drizzle, @solana/kit).
-- Check existing files before creating duplicates.
-- Make each commit count — this is a hackathon." \
+- 500+ lines minimum.
+- Every trade needs reasoning. No black-box trades.
+- Make it a REAL benchmark, not just a leaderboard." \
     --dangerously-skip-permissions \
     >> "$BUILD_LOG" 2>&1
 
