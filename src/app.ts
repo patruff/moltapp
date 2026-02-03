@@ -34,6 +34,7 @@ import { predictionRoutes } from "./routes/predictions.ts";
 import { streamRoutes } from "./routes/stream.ts";
 import { attributionRoutes } from "./routes/attribution.ts";
 import { sentimentRoutes } from "./routes/sentiment.ts";
+import { infraRoutes } from "./routes/infra.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -116,6 +117,9 @@ app.route("/api/v1/attribution", attributionRoutes);
 
 // Sentiment Analysis (public -- market mood, news digest, agent sentiment, correlation)
 app.route("/api/v1/sentiment", sentimentRoutes);
+
+// Trading Infrastructure (public -- lock status, circuit breakers, rate limiters, wallets)
+app.route("/api/v1/infra", infraRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);

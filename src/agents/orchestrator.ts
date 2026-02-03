@@ -30,6 +30,20 @@ import type {
   TradingDecision,
   TradingRoundResult,
 } from "./base-agent.ts";
+import { withTradingLock, getLockStatus } from "../services/trading-lock.ts";
+import {
+  checkCircuitBreakers,
+  recordTradeExecution,
+  getCircuitBreakerStatus,
+  type CircuitBreakerActivation,
+} from "../services/circuit-breaker.ts";
+import { applyTradeJitter } from "../services/rate-limiter.ts";
+import {
+  getCachedNews,
+  formatNewsForPrompt,
+  getSearchCacheMetrics,
+} from "../services/search-cache.ts";
+import { recordBalanceSnapshot, preTradeFundCheck } from "../services/agent-wallets.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -314,23 +328,69 @@ async function executeAgentDecision(
 // ---------------------------------------------------------------------------
 
 /**
- * Run a complete trading round: fetch data, run all agents, execute decisions.
+ * Run a complete trading round with full production safety controls.
+ *
+ * Integrated services:
+ * 1. Trading Lock — prevents concurrent rounds
+ * 2. Search Cache — one search per cycle, shared across agents
+ * 3. Circuit Breakers — enforces trade limits, cooldowns, position limits
+ * 4. Trade Jitter — random delay between agent executions
+ * 5. Balance Snapshots — record balances before/after trades
  *
  * This is the main entry point called by the cron/EventBridge trigger.
- * It runs all 3 agents in parallel and handles individual agent failures
- * gracefully (one agent failing doesn't affect the others).
  */
 export async function runTradingRound(): Promise<{
   roundId: string;
   timestamp: string;
   results: TradingRoundResult[];
   errors: string[];
+  circuitBreakerActivations: CircuitBreakerActivation[];
+  lockSkipped: boolean;
 }> {
   const roundId = `round_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const timestamp = new Date().toISOString();
-  const errors: string[] = [];
 
   console.log(`[Orchestrator] Starting trading round ${roundId} at ${timestamp}`);
+
+  // Step 0: Acquire trading lock (prevents concurrent rounds)
+  const lockResult = await withTradingLock(roundId, async () => {
+    return await executeTradingRound(roundId, timestamp);
+  });
+
+  if (!lockResult) {
+    const lockStatus = getLockStatus();
+    console.log(
+      `[Orchestrator] Round ${roundId} SKIPPED — another round is in progress (lock: ${lockStatus.lock?.lockId ?? "unknown"})`,
+    );
+    return {
+      roundId,
+      timestamp,
+      results: [],
+      errors: ["Trading round skipped — another round is in progress"],
+      circuitBreakerActivations: [],
+      lockSkipped: true,
+    };
+  }
+
+  return lockResult.result;
+}
+
+/**
+ * Inner trading round execution (runs while holding the lock).
+ */
+async function executeTradingRound(
+  roundId: string,
+  timestamp: string,
+): Promise<{
+  roundId: string;
+  timestamp: string;
+  results: TradingRoundResult[];
+  errors: string[];
+  circuitBreakerActivations: CircuitBreakerActivation[];
+  lockSkipped: boolean;
+}> {
+  const errors: string[] = [];
+  const allCircuitBreakerActivations: CircuitBreakerActivation[] = [];
 
   // Step 1: Fetch market data
   let marketData: MarketData[];
@@ -342,15 +402,64 @@ export async function runTradingRound(): Promise<{
   } catch (error) {
     const msg = `Failed to fetch market data: ${error instanceof Error ? error.message : String(error)}`;
     console.error(`[Orchestrator] ${msg}`);
-    return { roundId, timestamp, results: [], errors: [msg] };
+    return {
+      roundId,
+      timestamp,
+      results: [],
+      errors: [msg],
+      circuitBreakerActivations: [],
+      lockSkipped: false,
+    };
   }
 
-  // Step 2: Run all agents in parallel
-  const agentPromises = ALL_AGENTS.map(async (agent) => {
+  // Step 2: Fetch news (cached — one search per cycle for all agents)
+  let newsContext = "";
+  try {
+    const symbols = marketData.map((d) => d.symbol);
+    const cachedNews = await getCachedNews(symbols);
+    newsContext = formatNewsForPrompt(cachedNews);
+    console.log(
+      `[Orchestrator] News context ready (${cachedNews.items.length} items, cache: ${getSearchCacheMetrics().hitRate}% hit rate)`,
+    );
+  } catch (err) {
+    console.warn(
+      `[Orchestrator] News fetch failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  // Step 3: Inject news into market data for agent prompts
+  if (newsContext) {
+    for (const md of marketData) {
+      md.news = md.news ?? [];
+      md.news.push(newsContext);
+    }
+  }
+
+  // Step 4: Run all agents sequentially with jitter and circuit breakers
+  const results: TradingRoundResult[] = [];
+
+  for (const agent of ALL_AGENTS) {
     try {
       console.log(`[Orchestrator] Running ${agent.name} (${agent.model})...`);
 
-      // Build portfolio context for this agent
+      // Pre-trade fund check
+      const fundCheck = await preTradeFundCheck(agent.agentId);
+      if (!fundCheck.ready) {
+        console.warn(
+          `[Orchestrator] ${agent.name} fund check failed: ${fundCheck.reason}`,
+        );
+        // Continue anyway — fund check is advisory for demo mode
+      }
+
+      // Record pre-trade balance snapshot
+      await recordBalanceSnapshot(agent.agentId, `pre-trade-${roundId}`).catch(
+        (err) =>
+          console.warn(
+            `[Orchestrator] Balance snapshot failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+      );
+
+      // Build portfolio context
       const portfolio = await getPortfolioContext(agent.agentId, marketData);
 
       // Get agent's trading decision
@@ -359,16 +468,58 @@ export async function runTradingRound(): Promise<{
         `[Orchestrator] ${agent.name} decided: ${decision.action} ${decision.symbol} (confidence: ${decision.confidence}%)`,
       );
 
-      // Execute the decision
-      const result = await executeAgentDecision(agent, decision, marketData);
-      return result;
+      // Apply circuit breakers
+      const cbResult = checkCircuitBreakers(
+        agent.agentId,
+        decision,
+        portfolio,
+      );
+      allCircuitBreakerActivations.push(...cbResult.activations);
+
+      if (!cbResult.allowed) {
+        console.log(
+          `[Orchestrator] ${agent.name} decision BLOCKED by circuit breaker`,
+        );
+      }
+
+      // Execute the (possibly modified) decision
+      const execResult = await executeAgentDecision(
+        agent,
+        cbResult.decision,
+        marketData,
+      );
+
+      // Record circuit breaker info in result
+      if (cbResult.activations.length > 0) {
+        execResult.executionDetails = execResult.executionDetails ?? {};
+      }
+
+      // Record trade execution in circuit breaker state
+      if (
+        execResult.executed &&
+        cbResult.decision.action !== "hold"
+      ) {
+        recordTradeExecution(agent.agentId);
+      }
+
+      // Record post-trade balance snapshot
+      await recordBalanceSnapshot(agent.agentId, `post-trade-${roundId}`).catch(
+        (err) =>
+          console.warn(
+            `[Orchestrator] Post-trade snapshot failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+      );
+
+      results.push(execResult);
+
+      // Apply jitter between agents (1-5 seconds)
+      await applyTradeJitter();
     } catch (error) {
       const msg = `${agent.name} failed: ${error instanceof Error ? error.message : String(error)}`;
       console.error(`[Orchestrator] ${msg}`);
       errors.push(msg);
 
-      // Return a failed result with fallback hold
-      return {
+      results.push({
         agentId: agent.agentId,
         agentName: agent.name,
         decision: {
@@ -381,17 +532,34 @@ export async function runTradingRound(): Promise<{
         },
         executed: false,
         executionError: msg,
-      };
+      });
     }
-  });
-
-  const results = await Promise.all(agentPromises);
+  }
 
   console.log(
-    `[Orchestrator] Round ${roundId} complete. ${results.length} agents ran. ${errors.length} errors.`,
+    `[Orchestrator] Round ${roundId} complete. ${results.length} agents ran. ${errors.length} errors. ${allCircuitBreakerActivations.length} circuit breaker activations.`,
   );
 
-  return { roundId, timestamp, results, errors };
+  return {
+    roundId,
+    timestamp,
+    results,
+    errors,
+    circuitBreakerActivations: allCircuitBreakerActivations,
+    lockSkipped: false,
+  };
+}
+
+/**
+ * Get the current trading infrastructure status.
+ * Returns status for lock, circuit breakers, and search cache.
+ */
+export function getTradingInfraStatus() {
+  return {
+    lock: getLockStatus(),
+    circuitBreaker: getCircuitBreakerStatus(),
+    searchCache: getSearchCacheMetrics(),
+  };
 }
 
 // ---------------------------------------------------------------------------
