@@ -59,6 +59,8 @@ import {
 } from "../services/dynamo-round-persister.ts";
 import { enrichAgentContext } from "../services/agent-context-enricher.ts";
 import { recordMarketReturn } from "../services/portfolio-risk-analyzer.ts";
+import { runPreRoundGate } from "../services/pre-round-gate.ts";
+import { trackLatency } from "../services/observability.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -405,6 +407,32 @@ export async function runTradingRound(): Promise<{
 
   console.log(`[Orchestrator] Starting trading round ${roundId} at ${timestamp}`);
 
+  // Step -1: Run pre-round health gate
+  try {
+    const gateResult = await runPreRoundGate();
+    if (!gateResult.proceed) {
+      console.warn(
+        `[Orchestrator] Round ${roundId} BLOCKED by pre-round gate: ${gateResult.blockReason}`,
+      );
+      return {
+        roundId,
+        timestamp,
+        results: [],
+        errors: [`Pre-round gate blocked: ${gateResult.blockReason}`],
+        circuitBreakerActivations: [],
+        lockSkipped: false,
+      };
+    }
+    console.log(
+      `[Orchestrator] Pre-round gate PASSED (${gateResult.mode}): ${gateResult.summary.passed}/${gateResult.summary.total} checks OK in ${gateResult.durationMs}ms`,
+    );
+  } catch (err) {
+    // Gate check failure is non-fatal — log and continue
+    console.warn(
+      `[Orchestrator] Pre-round gate check error (continuing): ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
   // Step 0: Acquire trading lock (prevents concurrent rounds)
   const lockResult = await withTradingLock(roundId, async () => {
     return await executeTradingRound(roundId, timestamp);
@@ -611,6 +639,10 @@ async function executeTradingRound(
       });
     }
   }
+
+  // Track round duration for observability
+  const roundDurationMs = Date.now() - new Date(timestamp).getTime();
+  trackLatency(roundDurationMs);
 
   console.log(
     `[Orchestrator] Round ${roundId} complete. ${results.length} agents ran. ${errors.length} errors. ${allCircuitBreakerActivations.length} circuit breaker activations. Mode: ${getTradingMode()}.`,

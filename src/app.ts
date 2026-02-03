@@ -72,6 +72,7 @@ import { startupHealthRoutes } from "./routes/startup-health.ts";
 import { scoringRoutes } from "./routes/scoring.ts";
 import { fingerprintRoutes } from "./routes/fingerprints.ts";
 import { sessionReplayRoutes } from "./routes/session-replay.ts";
+import { observabilityRoutes } from "./routes/observability.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -260,6 +261,9 @@ app.route("/api/v1/fingerprints", fingerprintRoutes);
 
 // Trading Session Replay (public -- DVR for AI trading rounds)
 app.route("/api/v1/session-replay", sessionReplayRoutes);
+
+// Observability (public -- metrics, health gate, DB seeder, Prometheus)
+app.route("/api/v1/observability", observabilityRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
