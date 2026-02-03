@@ -50,6 +50,7 @@ import { marketDataRoutes } from "./routes/market-data.ts";
 import { consensusRoutes } from "./routes/consensus.ts";
 import { rebalancerRoutes } from "./routes/rebalancer.ts";
 import { memoryRoutes } from "./routes/memory.ts";
+import { hardeningRoutes } from "./routes/hardening.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -171,6 +172,9 @@ app.route("/api/v1/rebalancer", rebalancerRoutes);
 
 // Agent Memory & Learning (public -- trade memories, patterns, stock knowledge)
 app.route("/api/v1/memory", memoryRoutes);
+
+// Production Hardening (public -- health, emergency controls, risk, feedback, logging)
+app.route("/api/v1/hardening", hardeningRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
