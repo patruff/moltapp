@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 *.log
+
+# Heartbeat runtime files
+scripts/heartbeat-state.json
+scripts/heartbeat-build.pid
+scripts/build.log
