@@ -21,6 +21,7 @@ import {
   estimateWithdrawalFee,
 } from "../services/withdrawal.ts";
 import { getDemoBalances } from "../services/demo-trading.ts";
+import { apiError, handleError } from "../lib/errors.ts";
 
 type WalletEnv = {
   Variables: {
@@ -79,7 +80,7 @@ walletRoutes.get("/", async (c) => {
     .limit(1);
 
   if (records.length === 0) {
-    return c.json({ error: "wallet_not_found" }, 404);
+    return apiError(c, "WALLET_NOT_FOUND");
   }
 
   const wallet = records[0];
@@ -103,7 +104,7 @@ walletRoutes.get("/balance", async (c) => {
     .limit(1);
 
   if (records.length === 0) {
-    return c.json({ error: "wallet_not_found" }, 404);
+    return apiError(c, "WALLET_NOT_FOUND");
   }
 
   // Use demo balances if DEMO_MODE is enabled
@@ -112,8 +113,7 @@ walletRoutes.get("/balance", async (c) => {
       const balances = await getDemoBalances(agentId);
       return c.json(balances);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      return c.json({ error: errorMessage }, 500);
+      return handleError(c, err);
     }
   }
 
@@ -175,15 +175,12 @@ walletRoutes.post("/withdraw", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ error: "invalid_json", message: "Request body must be valid JSON" }, 400);
+    return apiError(c, "INVALID_JSON", "Request body must be valid JSON");
   }
 
   const parsed = withdrawBodySchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      { error: "validation_failed", details: parsed.error.flatten() },
-      400
-    );
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
   }
 
   const { tokenType, amount, destinationAddress } = parsed.data;
@@ -192,10 +189,7 @@ walletRoutes.post("/withdraw", async (c) => {
   try {
     address(destinationAddress);
   } catch {
-    return c.json(
-      { error: "invalid_destination", message: "Destination address is not a valid Solana address" },
-      400
-    );
+    return apiError(c, "INVALID_DESTINATION", "Destination address is not a valid Solana address");
   }
 
   // 3. Get agent's wallet from DB
@@ -206,17 +200,14 @@ walletRoutes.post("/withdraw", async (c) => {
     .limit(1);
 
   if (walletRecords.length === 0) {
-    return c.json({ error: "wallet_not_found" }, 404);
+    return apiError(c, "WALLET_NOT_FOUND");
   }
 
   const wallet = walletRecords[0];
 
   // 4. Prevent self-withdrawal (wastes fees)
   if (wallet.publicKey === destinationAddress) {
-    return c.json(
-      { error: "self_withdrawal", message: "Cannot withdraw to your own wallet address" },
-      400
-    );
+    return apiError(c, "INVALID_AMOUNT", "Cannot withdraw to your own wallet address");
   }
 
   // 5. Convert amount to smallest units
@@ -233,10 +224,7 @@ walletRoutes.post("/withdraw", async (c) => {
   }
 
   if (smallestUnits <= 0n) {
-    return c.json(
-      { error: "invalid_amount", message: "Amount must be greater than zero" },
-      400
-    );
+    return apiError(c, "INVALID_AMOUNT", "Amount must be greater than zero");
   }
 
   // 6. Balance check
@@ -253,36 +241,24 @@ walletRoutes.post("/withdraw", async (c) => {
     if (solLamports < totalNeeded) {
       const availableDisplay = new Decimal(solLamports.toString()).div(1e9).toFixed(9);
       const feeDisplay = new Decimal(estimatedFee.toString()).div(1e9).toFixed(9);
-      return c.json(
-        {
-          error: "insufficient_balance",
-          details: {
-            requested: decimalAmount.toFixed(displayPrecision),
-            available: availableDisplay,
-            estimatedFee: feeDisplay,
-            tokenType,
-          },
-        },
-        400
-      );
+      return apiError(c, "INSUFFICIENT_BALANCE", {
+        requested: decimalAmount.toFixed(displayPrecision),
+        available: availableDisplay,
+        estimatedFee: feeDisplay,
+        tokenType,
+      });
     }
   } else {
     // USDC withdrawal: need USDC balance >= amount AND SOL balance >= fee
     if (solLamports < estimatedFee) {
       const solAvailable = new Decimal(solLamports.toString()).div(1e9).toFixed(9);
       const feeDisplay = new Decimal(estimatedFee.toString()).div(1e9).toFixed(9);
-      return c.json(
-        {
-          error: "insufficient_balance",
-          details: {
-            requested: decimalAmount.toFixed(displayPrecision),
-            available: solAvailable,
-            estimatedFee: feeDisplay,
-            tokenType: "SOL (for transaction fee)",
-          },
-        },
-        400
-      );
+      return apiError(c, "INSUFFICIENT_SOL_FOR_FEES", {
+        requested: decimalAmount.toFixed(displayPrecision),
+        available: solAvailable,
+        estimatedFee: feeDisplay,
+        tokenType: "SOL (for transaction fee)",
+      });
     }
 
     // Check USDC balance
@@ -343,10 +319,7 @@ walletRoutes.post("/withdraw", async (c) => {
     console.error(
       `[withdrawal] FAILED agent=${agentId} type=${tokenType} amount=${amount} error=${errorMessage}`
     );
-    return c.json(
-      { error: "withdrawal_failed", details: errorMessage },
-      500
-    );
+    return handleError(c, err);
   }
 
   // 8. Record transaction in DB
