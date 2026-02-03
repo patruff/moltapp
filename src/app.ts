@@ -82,6 +82,10 @@ import { deliberationRoutes } from "./routes/deliberation.ts";
 import { riskLeaderboardRoutes } from "./routes/risk-leaderboard.ts";
 import { benchmarkRoutes } from "./routes/benchmark.ts";
 import { yieldRoutes } from "./routes/yield.ts";
+import { agentComparisonRoutes } from "./routes/agent-comparison.ts";
+import { triggerRoundRoutes } from "./routes/trigger-round.ts";
+import { tradeStreamRoutes } from "./routes/trade-stream.ts";
+import { battleDashboardRoutes } from "./routes/battle-dashboard.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -300,6 +304,18 @@ app.route("/api/v1/benchmark", benchmarkRoutes);
 
 // DeFi Yield Optimizer (public -- idle USDC yield management)
 app.route("/api/v1/yield", yieldRoutes);
+
+// Agent Comparison Engine (public -- head-to-head analytics, rankings, style analysis)
+app.route("/api/v1/comparison", agentComparisonRoutes);
+
+// Trigger Round (public -- on-demand trading round for demos/judges)
+app.route("/api/v1/trigger", triggerRoundRoutes);
+
+// Trade Stream (public -- SSE real-time trading events)
+app.route("/api/v1/trade-stream", tradeStreamRoutes);
+
+// Battle Dashboard (public -- interactive competition visualization for judges)
+app.route("/battle", battleDashboardRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
