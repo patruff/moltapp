@@ -73,6 +73,11 @@ import { scoringRoutes } from "./routes/scoring.ts";
 import { fingerprintRoutes } from "./routes/fingerprints.ts";
 import { sessionReplayRoutes } from "./routes/session-replay.ts";
 import { observabilityRoutes } from "./routes/observability.ts";
+import { strategyTunerRoutes } from "./routes/strategy-tuner.ts";
+import { crossAgentRoutes } from "./routes/cross-agent.ts";
+import { roundAnalyticsRoutes } from "./routes/round-analytics.ts";
+import { autonomousRunnerRoutes } from "./routes/autonomous-runner.ts";
+import { liveDashboardRoutes } from "./routes/live-dashboard.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -264,6 +269,21 @@ app.route("/api/v1/session-replay", sessionReplayRoutes);
 
 // Observability (public -- metrics, health gate, DB seeder, Prometheus)
 app.route("/api/v1/observability", observabilityRoutes);
+
+// Strategy Tuner (public -- adaptive agent parameter tuning)
+app.route("/api/v1/strategy-tuner", strategyTunerRoutes);
+
+// Cross-Agent Analysis (public -- herding, contrarian, correlation, drift)
+app.route("/api/v1/cross-agent", crossAgentRoutes);
+
+// Round Analytics (public -- deep post-round analysis, trends, quality scores)
+app.route("/api/v1/round-analytics", roundAnalyticsRoutes);
+
+// Autonomous Runner (public -- start/stop/pause local trading rounds)
+app.route("/api/v1/runner", autonomousRunnerRoutes);
+
+// Live Dashboard Data (public -- aggregated dashboard snapshot)
+app.route("/api/v1/dashboard", liveDashboardRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
