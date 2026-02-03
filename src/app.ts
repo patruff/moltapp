@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { authRoutes } from "./routes/auth.ts";
 import { walletRoutes } from "./routes/wallets.ts";
 import { webhookRoutes } from "./routes/webhooks.ts";
+import { healthRoutes } from "./routes/health.ts";
 import { authMiddleware } from "./middleware/auth.ts";
 import { agentRateLimiter } from "./middleware/rate-limit.ts";
 import { stockRoutes } from "./routes/stocks.ts";
@@ -20,9 +21,7 @@ type AppEnv = {
 const app = new Hono<AppEnv>();
 
 // Health check (public)
-app.get("/health", (c) => {
-  return c.json({ status: "ok" });
-});
+app.route("/health", healthRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);
