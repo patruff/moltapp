@@ -11,6 +11,9 @@ import { positionRoutes } from "./routes/positions.ts";
 import { tradeRoutes } from "./routes/trades.ts";
 import { leaderboardApiRoutes } from "./routes/leaderboard-api.ts";
 import { pageRoutes } from "./routes/pages.tsx";
+import { demoRoutes } from "./routes/demo.ts";
+import { landingRoutes } from "./routes/landing.ts";
+import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
   Variables: {
@@ -20,8 +23,18 @@ type AppEnv = {
 
 const app = new Hono<AppEnv>();
 
+// Global error handling
+app.onError(globalErrorHandler);
+app.notFound(notFoundHandler);
+
 // Health check (public)
 app.route("/health", healthRoutes);
+
+// Landing page (public)
+app.route("/landing", landingRoutes);
+
+// Demo trading routes (public -- no auth required)
+app.route("/api/demo", demoRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);
