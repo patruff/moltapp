@@ -75,6 +75,13 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { addBrainFeedEntry, buildBrainFeedEntry } from "../routes/brain-feed.ts";
 import { checkReasoningQuality } from "../services/reasoning-quality-gate.ts";
 import { trackOutcomes } from "../services/outcome-tracker.ts";
+import {
+  recordReasoningSnapshot,
+  generateRoundDiffs,
+} from "../services/reasoning-diff-engine.ts";
+import { recordTradeForAttribution } from "../services/strategy-attribution.ts";
+import { recordHallucinationAnalysis } from "../services/hallucination-tracker.ts";
+import { recordReasoningEntry } from "../services/reasoning-profile.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -683,6 +690,45 @@ async function executeTradingRound(
           hallucinations,
         );
         addBrainFeedEntry(feedEntry);
+
+        // --- NEW: Feed reasoning diff engine, attribution, hallucination tracker, profile ---
+        const normalizedConf = normalizeConfidence(decision.confidence);
+
+        recordReasoningSnapshot({
+          agentId: agent.agentId,
+          action: decision.action,
+          symbol: decision.symbol,
+          quantity: decision.quantity,
+          reasoning: decision.reasoning,
+          confidence: normalizedConf,
+          intent,
+          sources,
+          coherenceScore: coherence.score,
+          hallucinationCount: hallucinations.flags.length,
+          roundId,
+          timestamp: new Date().toISOString(),
+        });
+
+        recordHallucinationAnalysis(
+          agent.agentId,
+          decision.symbol,
+          roundId,
+          hallucinations.flags,
+          hallucinations.severity,
+          normalizedConf,
+          decision.action,
+        );
+
+        recordReasoningEntry({
+          agentId: agent.agentId,
+          reasoning: decision.reasoning,
+          action: decision.action,
+          symbol: decision.symbol,
+          confidence: normalizedConf,
+          intent,
+          coherenceScore: coherence.score,
+          timestamp: new Date().toISOString(),
+        });
       } catch (err) {
         console.warn(
           `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -879,6 +925,20 @@ async function executeTradingRound(
   trackOutcomes(marketData).catch((err) =>
     console.warn(`[Orchestrator] Outcome tracking failed: ${err instanceof Error ? err.message : String(err)}`),
   );
+
+  // Generate reasoning diffs for this round (compare how agents reasoned differently)
+  try {
+    const diffReport = generateRoundDiffs(roundId);
+    if (diffReport) {
+      console.log(
+        `[Orchestrator] Round diffs: ${diffReport.diffs.length} comparisons, ` +
+        `avgDivergence=${diffReport.stats.avgDivergence}, ` +
+        `conflicts=${diffReport.stats.actionConflictRate}`,
+      );
+    }
+  } catch (err) {
+    console.warn(`[Orchestrator] Reasoning diffs failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   return {
     roundId,

@@ -94,6 +94,7 @@ import { tokenFlowRoutes } from "./routes/token-flows.ts";
 import { brainFeedRoutes } from "./routes/brain-feed.ts";
 import { benchmarkDashboardRoutes } from "./routes/benchmark-dashboard.ts";
 import { outcomeTrackingRoutes } from "./routes/outcome-tracking.ts";
+import { benchmarkApiRoutes } from "./routes/benchmark-api.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -345,6 +346,9 @@ app.route("/api/v1/outcomes", outcomeTrackingRoutes);
 
 // Benchmark Dashboard (public -- AI trading benchmark with HuggingFace integration)
 app.route("/benchmark-dashboard", benchmarkDashboardRoutes);
+
+// Benchmark API (public -- researcher-facing data export, diffs, attribution, profiles)
+app.route("/api/v1/benchmark-data", benchmarkApiRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
