@@ -78,6 +78,10 @@ import { crossAgentRoutes } from "./routes/cross-agent.ts";
 import { roundAnalyticsRoutes } from "./routes/round-analytics.ts";
 import { autonomousRunnerRoutes } from "./routes/autonomous-runner.ts";
 import { liveDashboardRoutes } from "./routes/live-dashboard.ts";
+import { deliberationRoutes } from "./routes/deliberation.ts";
+import { riskLeaderboardRoutes } from "./routes/risk-leaderboard.ts";
+import { benchmarkRoutes } from "./routes/benchmark.ts";
+import { yieldRoutes } from "./routes/yield.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -284,6 +288,18 @@ app.route("/api/v1/runner", autonomousRunnerRoutes);
 
 // Live Dashboard Data (public -- aggregated dashboard snapshot)
 app.route("/api/v1/dashboard", liveDashboardRoutes);
+
+// Pre-Trade Deliberation (public -- multi-agent debate before trading)
+app.route("/api/v1/deliberation", deliberationRoutes);
+
+// Risk-Adjusted Leaderboard (public -- Sharpe/Sortino ranked agents)
+app.route("/api/v1/risk-leaderboard", riskLeaderboardRoutes);
+
+// Benchmark Comparison (public -- agents vs SPY buy-and-hold)
+app.route("/api/v1/benchmark", benchmarkRoutes);
+
+// DeFi Yield Optimizer (public -- idle USDC yield management)
+app.route("/api/v1/yield", yieldRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
