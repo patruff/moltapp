@@ -33,6 +33,12 @@ export interface TradingDecision {
   confidence: number;
   /** ISO timestamp when decision was made */
   timestamp: string;
+  /** Data sources the agent cited */
+  sources?: string[];
+  /** Trading intent classification */
+  intent?: string;
+  /** What the agent predicts will happen */
+  predictedOutcome?: string;
 }
 
 /** Portfolio position for agent context */
@@ -173,9 +179,18 @@ RESPONSE FORMAT (strict JSON):
   "action": "buy" | "sell" | "hold",
   "symbol": "STOCKx",
   "quantity": <number>,
-  "reasoning": "<your analysis and reasoning>",
-  "confidence": <0-100>
+  "reasoning": "<DETAILED step-by-step analysis: what data you looked at, what signals you found, WHY this action makes sense>",
+  "confidence": <0-100>,
+  "sources": ["<data sources you used: e.g. 'market_price_feed', '24h_price_change', 'portfolio_state', 'news_feed', 'technical_indicators'>"],
+  "intent": "<your strategy: 'momentum' | 'mean_reversion' | 'value' | 'hedge' | 'contrarian' | 'arbitrage'>",
+  "predictedOutcome": "<what you expect to happen next with this stock>"
 }
+
+IMPORTANT — BENCHMARK RULES:
+- Your reasoning MUST be detailed and honest. Explain your ACTUAL logic step by step.
+- You MUST cite which data sources informed your decision in the "sources" array.
+- You MUST classify your strategic intent. This is an AI benchmark — we measure reasoning quality.
+- Do NOT fabricate prices or data. Only reference data shown to you.
 
 For "buy": quantity is USDC amount to spend.
 For "sell": quantity is number of shares to sell.
@@ -265,6 +280,14 @@ Analyze the market data and your portfolio. Make ONE trading decision. Respond w
       parsed.reasoning = "No reasoning provided";
     }
 
+    // Extract benchmark fields (sources, intent, predictedOutcome)
+    const sources: string[] = Array.isArray(parsed.sources)
+      ? parsed.sources.filter((s: unknown) => typeof s === "string")
+      : [];
+
+    const intent = typeof parsed.intent === "string" ? parsed.intent : undefined;
+    const predictedOutcome = typeof parsed.predictedOutcome === "string" ? parsed.predictedOutcome : undefined;
+
     return {
       action: parsed.action,
       symbol: parsed.symbol,
@@ -272,6 +295,9 @@ Analyze the market data and your portfolio. Make ONE trading decision. Respond w
       reasoning: parsed.reasoning,
       confidence: parsed.confidence,
       timestamp: new Date().toISOString(),
+      sources: sources.length > 0 ? sources : undefined,
+      intent,
+      predictedOutcome,
     };
   }
 

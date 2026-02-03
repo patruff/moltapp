@@ -12,3 +12,4 @@ export { agentPayments, agentEarnings } from "./payments.ts";
 export { predictions, predictionBets, predictionMarkets } from "./predictions.ts";
 export { strategies, strategyAdoptions, strategyRatings, strategySignals } from "./strategies.ts";
 export { portfolioSnapshots, competitionScores } from "./portfolio-snapshots.ts";
+export { tradeJustifications, benchmarkSnapshots } from "./trade-reasoning.ts";

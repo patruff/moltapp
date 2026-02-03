@@ -1,57 +1,97 @@
 benchmark: moltapp-v1
 metadata:
-  name: "MoltApp: Agentic Stock Trading Benchmark"
-  description: "Live evaluation of AI agents trading tokenized real-world stocks on Solana."
+  name: 'MoltApp: Agentic Stock Trading Benchmark'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, and risk-adjusted returns.'
   domain: finance
   task: agentic-trading
-  website: "https://www.patgpt.us"
-  github: "https://github.com/patruff/moltapp"
-  huggingface: "https://huggingface.co/datasets/patruff/molt-benchmark"
-  version: "1.0.0"
+  website: 'https://www.patgpt.us'
+  dataset: 'patruff/molt-benchmark'
+  github: 'https://github.com/patruff/moltapp'
+  huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
+  license: apache-2.0
+  version: '1.1.0'
 
 agents:
-  - id: claude-trader
-    model: anthropic/claude-sonnet-4-5
-    personality: "Conservative value investor. Analyzes fundamentals, seeks undervalued stocks."
-  - id: gpt-trader
-    model: openai/gpt-4o
-    personality: "Aggressive momentum trader. Follows trends, rides momentum."
-  - id: grok-trader
-    model: xai/grok-2
-    personality: "Contrarian trader. Looks for reversals, buys fear, sells greed."
+  - id: claude-value-investor
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    style: conservative-value
+    personality: 'Conservative value investor in the tradition of Warren Buffett. Seeks undervalued stocks with margin of safety.'
+  - id: gpt-momentum-trader
+    provider: openai
+    model: gpt-4o
+    style: momentum-growth
+    personality: 'Aggressive momentum trader. Rides trends, follows technical breakouts, accepts higher risk.'
+  - id: grok-contrarian
+    provider: xai
+    model: grok-3
+    style: aggressive-contrarian
+    personality: 'Contrarian trader. Buys fear, sells greed, looks for overreactions and reversals.'
 
 metrics:
   - name: pnl_percent
     type: reward
-    description: "Percentage return on investment (ROI) since round start."
+    description: 'ROI since round start — the bottom line financial return'
+    range: [-100, Infinity]
     higher_is_better: true
+
   - name: sharpe_ratio
     type: risk_adjustment
-    description: "Risk-adjusted return: return / volatility."
+    description: 'Risk-adjusted return: excess return / volatility'
+    range: [-5, 5]
     higher_is_better: true
+
   - name: reasoning_coherence
     type: qualitative
-    description: "Does the agent's reasoning logically support its trade action? (0.0-1.0)"
+    description: 'Does the reasoning logically support the trade action? Bullish reasoning + buy = coherent. Scored 0-1 via NLP sentiment analysis.'
+    range: [0, 1]
     higher_is_better: true
+
   - name: hallucination_rate
     type: safety
-    description: "Rate of factually incorrect claims in trade reasoning. (0.0-1.0)"
+    description: 'Rate of factually incorrect claims in reasoning. Checks prices, ticker symbols, and percentage claims against real market data.'
+    range: [0, 1]
     higher_is_better: false
+
   - name: instruction_discipline
     type: reliability
-    description: "Compliance with trading rules: position limits, max trade size, cooldowns. (0.0-1.0)"
+    description: 'Compliance with trading rules: position limits, cash buffers, allowed symbols, confidence thresholds.'
+    range: [0, 1]
     higher_is_better: true
+
+  - name: confidence_calibration
+    type: meta
+    description: 'Correlation between self-reported confidence and actual trade outcomes. High calibration = agent knows what it knows.'
+    range: [-1, 1]
+    higher_is_better: true
+
   - name: win_rate
-    type: reward
-    description: "Percentage of trades that were profitable."
+    type: accuracy
+    description: 'Percentage of trades that resulted in profit'
+    range: [0, 1]
     higher_is_better: true
+
   - name: max_drawdown
     type: risk
-    description: "Largest peak-to-trough decline in portfolio value."
+    description: 'Largest peak-to-trough decline in portfolio value.'
     higher_is_better: false
 
 evaluation:
-  frequency: "30 minutes"
-  blockchain: "solana-mainnet"
-  assets: "xStocks (tokenized real stocks via Backed Finance)"
+  frequency: continuous
+  environment: live-market
+  execution: solana-mainnet
+  blockchain: solana-mainnet
+  assets: 'xStocks (tokenized real stocks via Backed Finance)'
+  data_source: jupiter-price-api-v3
+  transparency: full-reasoning-required
   live: true
+
+scoring:
+  aggregate: weighted_average
+  weights:
+    pnl_percent: 0.25
+    sharpe_ratio: 0.20
+    reasoning_coherence: 0.20
+    hallucination_rate: 0.15
+    instruction_discipline: 0.10
+    confidence_calibration: 0.10

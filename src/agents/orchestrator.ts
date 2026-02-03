@@ -61,6 +61,18 @@ import { enrichAgentContext } from "../services/agent-context-enricher.ts";
 import { recordMarketReturn } from "../services/portfolio-risk-analyzer.ts";
 import { runPreRoundGate } from "../services/pre-round-gate.ts";
 import { trackLatency } from "../services/observability.ts";
+import {
+  analyzeCoherence,
+  detectHallucinations,
+  checkInstructionDiscipline,
+} from "../services/coherence-analyzer.ts";
+import {
+  normalizeConfidence,
+  extractSourcesFromReasoning,
+  classifyIntent,
+} from "../schemas/trade-reasoning.ts";
+import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
+import { addBrainFeedEntry, buildBrainFeedEntry } from "../routes/brain-feed.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -570,6 +582,90 @@ async function executeTradingRound(
       console.log(
         `[Orchestrator] ${agent.name} decided: ${decision.action} ${decision.symbol} (confidence: ${decision.confidence}%)`,
       );
+
+      // --- BENCHMARK: Coherence Analysis & Justification Recording ---
+      try {
+        const coherence = analyzeCoherence(
+          decision.reasoning,
+          decision.action,
+          marketData,
+        );
+        const hallucinations = detectHallucinations(decision.reasoning, marketData);
+        const discipline = checkInstructionDiscipline(
+          {
+            action: decision.action,
+            symbol: decision.symbol,
+            quantity: decision.quantity,
+            confidence: normalizeConfidence(decision.confidence),
+          },
+          {
+            maxPositionSize: agent.config.maxPositionSize,
+            maxPortfolioAllocation: agent.config.maxPortfolioAllocation,
+            riskTolerance: agent.config.riskTolerance,
+          },
+          {
+            cashBalance: portfolio.cashBalance,
+            totalValue: portfolio.totalValue,
+            positions: portfolio.positions.map((p) => ({
+              symbol: p.symbol,
+              quantity: p.quantity,
+              currentPrice: p.currentPrice,
+            })),
+          },
+        );
+
+        // Extract or use agent-provided sources/intent
+        const sources = decision.sources ?? extractSourcesFromReasoning(decision.reasoning);
+        const intent = decision.intent ?? classifyIntent(decision.reasoning, decision.action);
+
+        console.log(
+          `[Orchestrator] ${agent.name} benchmark: coherence=${coherence.score.toFixed(2)}, ` +
+          `hallucinations=${hallucinations.flags.length}, discipline=${discipline.passed ? "PASS" : "FAIL"}`,
+        );
+
+        // Record justification to DB
+        const justificationId = `tj_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        await db.insert(tradeJustifications).values({
+          id: justificationId,
+          agentId: agent.agentId,
+          reasoning: decision.reasoning,
+          confidence: normalizeConfidence(decision.confidence),
+          sources,
+          intent,
+          predictedOutcome: decision.predictedOutcome ?? null,
+          coherenceScore: coherence.score,
+          hallucinationFlags: hallucinations.flags,
+          action: decision.action,
+          symbol: decision.symbol,
+          quantity: decision.quantity,
+          roundId,
+          disciplinePass: discipline.passed ? "pass" : "fail",
+        }).catch((err) => {
+          console.warn(
+            `[Orchestrator] Justification insert failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
+
+        // Add to brain feed cache
+        const feedEntry = buildBrainFeedEntry(
+          {
+            agentId: agent.agentId,
+            action: decision.action,
+            symbol: decision.symbol,
+            quantity: decision.quantity,
+            reasoning: decision.reasoning,
+            confidence: decision.confidence,
+            roundId,
+          },
+          coherence,
+          hallucinations,
+        );
+        addBrainFeedEntry(feedEntry);
+      } catch (err) {
+        console.warn(
+          `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
 
       // Apply circuit breakers
       const cbResult = checkCircuitBreakers(
