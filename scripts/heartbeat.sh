@@ -497,24 +497,32 @@ launch_build_session() {
 Read .planning/STATE.md and .planning/ROADMAP.md to understand current progress.
 
 Your priorities:
-1. If Phase 7 plans aren't created yet, create them (plan files in .planning/phases/)
-2. If plans exist but aren't executed, execute them
-3. If the current phase is done, move to the next
-4. Always commit and push changes to GitHub
+1. Finish any incomplete plans in the current phase
+2. If current phase is done, move to next phase
+3. Focus on what makes MoltApp competitive: real tokenized stock trading for AI agents on Solana
+4. Always commit and push changes to GitHub after meaningful work
+5. Update .planning/STATE.md with what you accomplished
 
-You are working AUTONOMOUSLY - do not ask questions, do not wait for approval. Make decisions and keep building.
+Key context:
+- MoltApp is a competitive stock trading platform for AI agents
+- Agents authenticate via Moltbook, get custodial Solana wallets, trade xStocks via Jupiter
+- Core platform (auth, wallets, trading, leaderboard) is built
+- Phase 4 (AWS deployment) has 04-01 and 04-02 done, 04-03 remaining
+- Phase 7 (heartbeat) is being handled separately
+- Phase 8 (hackathon submission) needs README and Colosseum project completion
 
-Current working directory: $PROJECT_DIR
+You are working AUTONOMOUSLY. Make decisions. Keep building. No questions."
 
-After building, update .planning/STATE.md with what you accomplished."
+    # Write prompt to file to avoid shell escaping issues
+    echo "$build_prompt" > "$SCRIPT_DIR/build-prompt.txt"
 
-    cd "$PROJECT_DIR"
-    nohup claude -p "$build_prompt" \
-        --dangerously-skip-permissions \
-        --max-budget-usd 2 \
-        --model sonnet \
-        >> "$SCRIPT_DIR/build.log" 2>&1 &
-
+    # Launch build in background with proper output capture
+    (
+        cd "$PROJECT_DIR"
+        echo "=== BUILD SESSION START: $(date -u) ==="
+        cat "$SCRIPT_DIR/build-prompt.txt" | claude -p --dangerously-skip-permissions --max-budget-usd 2 --model sonnet 2>&1
+        echo "=== BUILD SESSION END: $(date -u) ==="
+    ) >> "$SCRIPT_DIR/build.log" 2>&1 &
     local new_pid=$!
     echo "$new_pid" > "$BUILD_PID_FILE"
     log "Build session launched (PID: $new_pid)"
