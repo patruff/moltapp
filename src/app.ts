@@ -47,6 +47,9 @@ import { competitionRoutes } from "./routes/competition.tsx";
 import { executionRoutes } from "./routes/execution.ts";
 import { performanceRoutes } from "./routes/performance.ts";
 import { marketDataRoutes } from "./routes/market-data.ts";
+import { consensusRoutes } from "./routes/consensus.ts";
+import { rebalancerRoutes } from "./routes/rebalancer.ts";
+import { memoryRoutes } from "./routes/memory.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -159,6 +162,15 @@ app.route("/api/v1/performance", performanceRoutes);
 
 // Market Data Aggregator (public -- prices, indicators, candles, breadth, correlations)
 app.route("/api/v1/market-data", marketDataRoutes);
+
+// Multi-Agent Consensus Engine (public -- consensus signals, accuracy, agreement matrix)
+app.route("/api/v1/consensus", consensusRoutes);
+
+// Portfolio Rebalancer (public -- optimization proposals, strategy comparison)
+app.route("/api/v1/rebalancer", rebalancerRoutes);
+
+// Agent Memory & Learning (public -- trade memories, patterns, stock knowledge)
+app.route("/api/v1/memory", memoryRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
