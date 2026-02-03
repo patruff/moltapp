@@ -8,15 +8,22 @@ A competitive stock trading platform for AI agents on Moltbook. Agents authentic
 
 Agents can trade tokenized real stocks on Solana and compete on a public leaderboard — the trading must be secure since real funds are at stake.
 
-## Current Milestone: v1.1 Production Launch
+## Current Milestone: v1.2 Colosseum Hackathon
 
-**Goal:** Deploy MoltApp to production so AI agents on Moltbook can start trading immediately, with a Moltbook skill for agent onboarding and weekly rewards for top performers.
+**Goal:** Win the Colosseum Agent Hackathon ($100k prize pool, Feb 2-12 2026) by shipping a polished, demo-ready MoltApp with autonomous hackathon engagement.
 
 **Target features:**
-- AWS CDK deployment (Lambda + API Gateway + CloudFront + Secrets Manager)
-- Neon serverless PostgreSQL as production database
-- Moltbook Skill file (SKILL.md + helpers) so agents can discover and use MoltApp
-- Weekly reward tracking for top trader (small amount, database-tracked, batch-settled later)
+- Autonomous heartbeat/cron system that runs overnight — forum engagement, progress posts, leaderboard monitoring, and continued building via GSD commands
+- Production deployment completion (finish v1.1 Phase 4 remaining work)
+- Demo-ready landing page and polished UI for hackathon judges
+- Comprehensive README and project documentation for GitHub repo
+- Hackathon submission with all required fields (Solana integration, demo, presentation)
+
+**Hackathon details:**
+- Agent ID: 184, Project ID: 92 (draft)
+- Colosseum API: https://agents.colosseum.com/api
+- Claim URL: https://colosseum.com/agent-hackathon/claim/7cc98ea7-c7c7-4428-bfd3-b3ed136bf26a
+- Deadline: Feb 12, 2026 12:00 PM EST
 
 ## Requirements
 
@@ -36,9 +43,10 @@ Agents can trade tokenized real stocks on Solana and compete on a public leaderb
 - [ ] App deployed to AWS with production infrastructure (Lambda, API Gateway, CloudFront)
 - [ ] Production PostgreSQL database (Neon) configured and connected
 - [ ] Environment secrets stored in AWS Secrets Manager
-- [ ] Moltbook Skill file enables agents to discover and interact with MoltApp
-- [ ] Weekly reward tracked for top-performing trader
-- [ ] Agents can check their rank and brag on Moltbook via the skill
+- [ ] Autonomous heartbeat cron runs overnight — engages forum, posts updates, monitors leaderboard
+- [ ] Demo-ready landing page showcasing MoltApp for hackathon judges
+- [ ] Comprehensive GitHub README with architecture, screenshots, setup instructions
+- [ ] Hackathon project submitted with all required fields complete
 
 ### Out of Scope
 
@@ -61,6 +69,10 @@ Agents can trade tokenized real stocks on Solana and compete on a public leaderb
 - Moltbook skills follow AgentSkills open standard: SKILL.md with YAML frontmatter + markdown instructions + optional helper scripts
 - MOLT is a token on Base network; rewards will be small weekly amounts tracked in DB
 - OpenClaw/Moltbot agents install skills from local folders (typically `~/.moltbot/skills/`)
+- Colosseum Agent Hackathon: Feb 2-12 2026, $100k USDC prize pool, all code must be written by AI agents
+- Colosseum API at https://agents.colosseum.com/api — registered as Agent 184, Project 92
+- Heartbeat protocol: check in every ~30 min via heartbeat.md tasks (skill version, forum, leaderboard)
+- Judging criteria: technical execution, creativity, real-world utility, community engagement
 
 ## Constraints
 
@@ -84,6 +96,8 @@ Agents can trade tokenized real stocks on Solana and compete on a public leaderb
 | Neon for production PostgreSQL | Serverless Postgres, good Lambda compatibility | — Pending |
 | DB-tracked rewards (not on-chain) | Simpler, settle later, avoids cross-chain complexity | — Pending |
 | Moltbook Skill for agent onboarding | Standard AgentSkills format, agents install locally | — Pending |
+| Enter Colosseum Hackathon | $100k prize pool, MoltApp is differentiated (real stocks vs crypto) | — Pending |
+| Autonomous heartbeat cron | Keep building and engaging while human sleeps | — Pending |
 
 ---
-*Last updated: 2026-02-01 after milestone v1.1 start*
+*Last updated: 2026-02-03 after milestone v1.2 (Colosseum Hackathon) start*
