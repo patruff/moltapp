@@ -78,6 +78,17 @@ set_state() {
     jq ".$key = $value" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
 }
 
+add_to_array() {
+    local key="$1" value="$2"
+    local tmp=$(mktemp)
+    jq ".$key += [$value]" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+}
+
+is_in_array() {
+    local key="$1" value="$2"
+    jq -e ".$key // [] | index($value)" "$STATE_FILE" > /dev/null 2>&1
+}
+
 increment_state() {
     local key="$1"
     local current=$(get_state "$key")
@@ -159,7 +170,6 @@ check_skill_version() {
     if [ -n "$version" ] && [ "$version" != "$stored_version" ]; then
         log "Skill version changed: $stored_version -> $version"
         set_state "skill_version" "\"$version\""
-
         if [ -n "$stored_version" ]; then
             log "IMPORTANT: Skill version updated! May need to fetch new endpoints."
         fi
@@ -183,9 +193,9 @@ check_agent_status() {
 
     local next_steps=$(echo "$status" | jq -r '.nextSteps // [] | .[]' 2>/dev/null)
     if [ -n "$next_steps" ]; then
-        echo "$next_steps" | while IFS= read -r step; do
+        while IFS= read -r step; do
             log "  Next: $step"
-        done
+        done <<< "$next_steps"
     fi
 }
 
@@ -193,14 +203,13 @@ check_agent_status() {
 check_leaderboard() {
     log "Checking leaderboard..."
     local leaderboard
-    leaderboard=$(colosseum_get "/hackathons/1/leaderboard" 2>/dev/null || colosseum_get "/leaderboard" 2>/dev/null)
+    leaderboard=$(colosseum_get "/leaderboard" 2>/dev/null)
 
     if [ -z "$leaderboard" ] || [ "$leaderboard" = "null" ]; then
         log "Could not fetch leaderboard"
         return
     fi
 
-    # Find our position (API uses .entries[].rank and .entries[].project)
     local our_entry=$(echo "$leaderboard" | jq -r '.entries // [] | .[] | select(.project.name == "MoltApp" or .project.slug == "moltapp")' 2>/dev/null)
     local our_rank=$(echo "$our_entry" | jq -r '.rank // empty' 2>/dev/null)
     local our_votes=$(echo "$our_entry" | jq -r '.project.humanUpvotes // 0' 2>/dev/null)
@@ -224,13 +233,10 @@ check_leaderboard() {
     fi
 
     # Log top 5
-    local top5=$(echo "$leaderboard" | jq -r '.entries // [] | .[0:5] | .[] | "#\(.rank) \(.project.name): \(.project.humanUpvotes // 0)h/\(.project.agentUpvotes // 0)a votes"' 2>/dev/null)
-    if [ -n "$top5" ]; then
-        log "Top 5:"
-        echo "$top5" | while IFS= read -r line; do
-            log "  $line"
-        done
-    fi
+    log "Top 5:"
+    echo "$leaderboard" | jq -r '.entries // [] | .[0:5] | .[] | "#\(.rank) \(.project.name): \(.project.humanUpvotes // 0)h/\(.project.agentUpvotes // 0)a votes"' 2>/dev/null | while IFS= read -r line; do
+        log "  $line"
+    done
 }
 
 # 4. Post forum updates (1-2 per day)
@@ -255,7 +261,7 @@ post_forum_update() {
     # Check time since last post (at least 6 hours between posts)
     local last_post_time=$(get_state "last_forum_post_time")
     local now=$(date +%s)
-    local min_interval=21600  # 6 hours in seconds
+    local min_interval=21600  # 6 hours
 
     if [ -n "$last_post_time" ] && [ "$last_post_time" != "0" ]; then
         local elapsed=$((now - last_post_time))
@@ -267,7 +273,6 @@ post_forum_update() {
 
     log "Generating forum progress update..."
 
-    # Get current project state for context
     local state_summary=""
     if [ -f "$PROJECT_DIR/.planning/STATE.md" ]; then
         state_summary=$(head -30 "$PROJECT_DIR/.planning/STATE.md")
@@ -289,7 +294,6 @@ Heartbeat cycle: #$heartbeat_count
 
 Write a post with a catchy title and body. Focus on what we've built, technical details, or interesting challenges. Vary the topic — sometimes talk about architecture, sometimes about features, sometimes about what makes MoltApp unique (real stocks not crypto, platform for agents not a single agent). Return as JSON: {\"title\": \"...\", \"body\": \"...\"}")
 
-    # Parse the generated content
     local title=$(echo "$content" | jq -r '.title // empty' 2>/dev/null)
     local body=$(echo "$content" | jq -r '.body // empty' 2>/dev/null)
 
@@ -298,7 +302,6 @@ Write a post with a catchy title and body. Focus on what we've built, technical 
         return
     fi
 
-    # Post to forum
     local post_data
     post_data=$(jq -n --arg t "$title" --arg b "$body" '{title: $t, body: $b, tags: ["progress-update", "trading"]}')
 
@@ -319,30 +322,34 @@ Write a post with a catchy title and body. Focus on what we've built, technical 
 reply_to_comments() {
     log "Checking for comments on our posts..."
 
-    # Get our posts via authenticated endpoint
-    local our_posts
-    our_posts=$(colosseum_get "/forum/me/posts" | jq -r '.posts // [] | .[] | .id' 2>/dev/null)
+    local posts_json
+    posts_json=$(colosseum_get "/forum/me/posts")
 
-    if [ -z "$our_posts" ]; then
+    # Use jq to get post IDs into a temp file (avoids piped while subshell)
+    local post_ids_file=$(mktemp)
+    echo "$posts_json" | jq -r '.posts // [] | .[].id' > "$post_ids_file" 2>/dev/null
+
+    if [ ! -s "$post_ids_file" ]; then
         log "No posts found to check comments on"
+        rm -f "$post_ids_file"
         return
     fi
 
-    local replied_comments=$(jq -r '.replied_comments // [] | .[]' "$STATE_FILE" 2>/dev/null)
-
-    echo "$our_posts" | while IFS= read -r post_id; do
+    while IFS= read -r post_id; do
         [ -z "$post_id" ] && continue
 
         local comments
         comments=$(colosseum_get "/forum/posts/$post_id/comments")
 
-        local comment_ids=$(echo "$comments" | jq -r '.comments // [] | .[] | select(.agentName != "MoltApp") | .id' 2>/dev/null)
+        # Get non-MoltApp comment IDs into temp file
+        local comment_ids_file=$(mktemp)
+        echo "$comments" | jq -r '.comments // [] | .[] | select(.agentName != "MoltApp") | .id' > "$comment_ids_file" 2>/dev/null
 
-        echo "$comment_ids" | while IFS= read -r comment_id; do
+        while IFS= read -r comment_id; do
             [ -z "$comment_id" ] && continue
 
             # Skip if already replied
-            if echo "$replied_comments" | grep -q "^${comment_id}$"; then
+            if is_in_array "replied_comments" "$comment_id"; then
                 continue
             fi
 
@@ -367,16 +374,16 @@ reply_to_comments() {
 
                     if echo "$result" | jq -e '.comment.id' > /dev/null 2>&1; then
                         log "Replied to comment #$comment_id"
-                        # Track replied comment
-                        local tmp=$(mktemp)
-                        jq ".replied_comments += [$comment_id]" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+                        add_to_array "replied_comments" "$comment_id"
                     else
                         log_error "Failed to reply: $result"
                     fi
                 fi
             fi
-        done
-    done
+        done < "$comment_ids_file"
+        rm -f "$comment_ids_file"
+    done < "$post_ids_file"
+    rm -f "$post_ids_file"
 }
 
 # 6. Vote and comment on other projects
@@ -399,56 +406,58 @@ engage_other_projects() {
     local projects
     projects=$(colosseum_get "/projects")
 
-    local project_ids=$(echo "$projects" | jq -r '.projects // [] | .[] | select(.slug != "moltapp") | .id' 2>/dev/null)
-    local voted_projects=$(jq -r '.voted_projects // [] | .[]' "$STATE_FILE" 2>/dev/null)
+    # Write IDs to temp file to avoid subshell
+    local pids_file=$(mktemp)
+    echo "$projects" | jq -r '.projects // [] | .[] | select(.slug != "moltapp") | .id' > "$pids_file" 2>/dev/null
 
     local voted_count=0
     local max_votes_per_session=3
 
-    echo "$project_ids" | while IFS= read -r pid; do
+    while IFS= read -r pid; do
         [ -z "$pid" ] && continue
         [ "$voted_count" -ge "$max_votes_per_session" ] && break
 
         # Skip if already voted
-        if echo "$voted_projects" | grep -q "^${pid}$"; then
+        if is_in_array "voted_projects" "$pid"; then
             continue
         fi
 
         local project_name=$(echo "$projects" | jq -r ".projects[] | select(.id == $pid) | .name" 2>/dev/null)
-        local project_desc=$(echo "$projects" | jq -r ".projects[] | select(.id == $pid) | .description" 2>/dev/null)
 
-        # Vote on the project
         local vote_result
         vote_result=$(colosseum_post "/projects/$pid/vote" '{"vote": "up"}')
 
-        if echo "$vote_result" | jq -e '.success // .vote' > /dev/null 2>&1; then
+        if echo "$vote_result" | jq -e '.message | test("success")' > /dev/null 2>&1; then
             log "Upvoted project: $project_name (ID: $pid)"
-            local tmp=$(mktemp)
-            jq ".voted_projects += [$pid]" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+            add_to_array "voted_projects" "$pid"
             voted_count=$((voted_count + 1))
         else
-            log "Vote result for $project_name: $vote_result"
+            log "Vote on $project_name: $(echo "$vote_result" | jq -r '.error // .message // "unknown"' 2>/dev/null)"
+            # Track even failed votes (already voted) to stop retrying
+            add_to_array "voted_projects" "$pid"
         fi
-    done
+    done < "$pids_file"
+    rm -f "$pids_file"
 
     set_state "last_vote_time" "$now"
 
-    # Comment on a forum post from another agent (pick one we haven't engaged with)
-    local other_posts
-    other_posts=$(colosseum_get "/forum/posts" | jq -r '.posts // [] | .[] | select(.agentName != "MoltApp") | .id' 2>/dev/null | head -5)
+    # Comment on one forum post we haven't engaged with
+    local forum_json
+    forum_json=$(colosseum_get "/forum/posts")
 
-    local voted_posts=$(jq -r '.voted_posts // [] | .[]' "$STATE_FILE" 2>/dev/null)
+    local fpids_file=$(mktemp)
+    echo "$forum_json" | jq -r '.posts // [] | .[] | select(.agentName != "MoltApp") | .id' 2>/dev/null | head -10 > "$fpids_file"
 
-    echo "$other_posts" | head -2 | while IFS= read -r fpid; do
+    while IFS= read -r fpid; do
         [ -z "$fpid" ] && continue
 
-        if echo "$voted_posts" | grep -q "^${fpid}$"; then
+        if is_in_array "voted_posts" "$fpid"; then
             continue
         fi
 
-        local post_title=$(colosseum_get "/forum/posts" | jq -r ".posts[] | select(.id == $fpid) | .title" 2>/dev/null)
-        local post_body=$(colosseum_get "/forum/posts" | jq -r ".posts[] | select(.id == $fpid) | .body" 2>/dev/null | head -500)
-        local post_author=$(colosseum_get "/forum/posts" | jq -r ".posts[] | select(.id == $fpid) | .agentName" 2>/dev/null)
+        local post_title=$(echo "$forum_json" | jq -r ".posts[] | select(.id == $fpid) | .title" 2>/dev/null)
+        local post_body=$(echo "$forum_json" | jq -r ".posts[] | select(.id == $fpid) | .body" 2>/dev/null | head -c 1000)
+        local post_author=$(echo "$forum_json" | jq -r ".posts[] | select(.id == $fpid) | .agentName" 2>/dev/null)
 
         # Upvote the post
         colosseum_post "/forum/posts/$fpid/vote" '{"vote": "up"}' > /dev/null 2>&1
@@ -466,13 +475,12 @@ engage_other_projects() {
 
             colosseum_post "/forum/posts/$fpid/comments" "$comment_data" > /dev/null 2>&1
             log "Commented on post '$post_title' by $post_author"
-
-            local tmp=$(mktemp)
-            jq ".voted_posts += [$fpid]" "$STATE_FILE" > "$tmp" && mv "$tmp" "$STATE_FILE"
+            add_to_array "voted_posts" "$fpid"
         fi
 
         break  # Only comment on one post per heartbeat
-    done
+    done < "$fpids_file"
+    rm -f "$fpids_file"
 }
 
 # 7. Launch autonomous build session
@@ -491,8 +499,24 @@ launch_build_session() {
 
     log "Launching autonomous build session..."
 
-    # Determine what to build next by reading state
-    local build_prompt="You are the MoltApp autonomous builder running overnight for the Colosseum Agent Hackathon (deadline Feb 12, 2026).
+    # Write the build script to a standalone file that runs independently
+    cat > "$SCRIPT_DIR/run-build.sh" << 'BUILDSCRIPT'
+#!/bin/bash
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+BUILD_LOG="$SCRIPT_DIR/build.log"
+
+# Load env
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a; source "$PROJECT_DIR/.env"; set +a
+fi
+
+cd "$PROJECT_DIR"
+echo "=== BUILD SESSION START: $(date -u) ===" >> "$BUILD_LOG"
+
+claude -p "You are the MoltApp autonomous builder running overnight for the Colosseum Agent Hackathon (deadline Feb 12, 2026).
 
 Read .planning/STATE.md and .planning/ROADMAP.md to understand current progress.
 
@@ -511,19 +535,20 @@ Key context:
 - Phase 7 (heartbeat) is being handled separately
 - Phase 8 (hackathon submission) needs README and Colosseum project completion
 
-You are working AUTONOMOUSLY. Make decisions. Keep building. No questions."
+You are working AUTONOMOUSLY. Make decisions. Keep building. No questions." \
+    --dangerously-skip-permissions \
+    --max-budget-usd 2 \
+    --model sonnet \
+    >> "$BUILD_LOG" 2>&1
 
-    # Write prompt to file to avoid shell escaping issues
-    echo "$build_prompt" > "$SCRIPT_DIR/build-prompt.txt"
+echo "=== BUILD SESSION END: $(date -u) ===" >> "$BUILD_LOG"
+BUILDSCRIPT
+    chmod +x "$SCRIPT_DIR/run-build.sh"
 
-    # Launch build in background with proper output capture
-    (
-        cd "$PROJECT_DIR"
-        echo "=== BUILD SESSION START: $(date -u) ==="
-        cat "$SCRIPT_DIR/build-prompt.txt" | claude -p --dangerously-skip-permissions --max-budget-usd 2 --model sonnet 2>&1
-        echo "=== BUILD SESSION END: $(date -u) ==="
-    ) >> "$SCRIPT_DIR/build.log" 2>&1 &
+    # Launch as a fully detached process using nohup + disown
+    nohup bash "$SCRIPT_DIR/run-build.sh" < /dev/null > /dev/null 2>&1 &
     local new_pid=$!
+    disown $new_pid 2>/dev/null
     echo "$new_pid" > "$BUILD_PID_FILE"
     log "Build session launched (PID: $new_pid)"
     increment_state "build_sessions_launched"
@@ -533,9 +558,7 @@ You are working AUTONOMOUSLY. Make decisions. Keep building. No questions."
 update_project_description() {
     log "Updating project description..."
 
-    local recent_commits=$(cd "$PROJECT_DIR" && git log --oneline -3 2>/dev/null | tr '\n' '; ')
     local heartbeat_count=$(get_state "heartbeat_count")
-    local rank=$(get_state "leaderboard_rank")
 
     # Only update every few heartbeats to avoid rate limits
     if [ $((heartbeat_count % 4)) -ne 0 ]; then
@@ -571,7 +594,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>" 2>/dev/null || true
 }
 
 # ============================================================
-# MAIN HEARTBEAT LOOP
+# MAIN
 # ============================================================
 
 main() {
@@ -612,5 +635,4 @@ main() {
     log ""
 }
 
-# Run
 main "$@"
