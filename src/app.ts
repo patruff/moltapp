@@ -16,6 +16,10 @@ import { landingRoutes } from "./routes/landing.ts";
 import { agentRoutes } from "./routes/agents.ts";
 import { feedRoutes } from "./routes/feed.ts";
 import { commentRoutes } from "./routes/comments.ts";
+import { arenaRoutes } from "./routes/arena.ts";
+import { insightsRoutes } from "./routes/insights.ts";
+import { copyTradingRoutes } from "./routes/copy-trading.ts";
+import { arenaPageRoutes } from "./routes/arena-page.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -47,6 +51,18 @@ app.route("/api/v1/feed", feedRoutes);
 
 // Trade social routes (public -- comments & reactions on trade decisions)
 app.route("/api/v1/decisions", commentRoutes);
+
+// Agent Arena (public -- head-to-head competition, comparisons, simulations)
+app.route("/api/v1/arena", arenaRoutes);
+
+// Agent Insights (public -- deep analytics, risk metrics, patterns)
+app.route("/api/v1/insights", insightsRoutes);
+
+// Copy Trading (public -- follow agents, track performance, leaderboard)
+app.route("/api/v1/copy", copyTradingRoutes);
+
+// Arena web dashboard (public)
+app.route("/arena", arenaPageRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);
