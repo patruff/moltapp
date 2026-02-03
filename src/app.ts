@@ -67,6 +67,11 @@ import { analyticsRoutes } from "./routes/analytics.ts";
 import { walletProvisioningRoutes } from "./routes/wallet-provisioning.ts";
 import { newsRoutes } from "./routes/news.ts";
 import { monitorRoutes } from "./routes/monitor.tsx";
+import { snapshotRoutes } from "./routes/snapshots.ts";
+import { startupHealthRoutes } from "./routes/startup-health.ts";
+import { scoringRoutes } from "./routes/scoring.ts";
+import { fingerprintRoutes } from "./routes/fingerprints.ts";
+import { sessionReplayRoutes } from "./routes/session-replay.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -240,6 +245,21 @@ app.route("/api/v1/wallets", walletProvisioningRoutes);
 
 // News & Market Intelligence (public -- real news APIs, cache management)
 app.route("/api/v1/news", newsRoutes);
+
+// Portfolio Snapshots (public -- historical P&L, equity curves, drawdown analysis)
+app.route("/api/v1/snapshots", snapshotRoutes);
+
+// Deep Health Check (public -- validates all dependencies: DB, Solana, Jupiter, LLMs)
+app.route("/api/v1/health-deep", startupHealthRoutes);
+
+// Competition Scoring (public -- multi-factor scoring, leaderboard, head-to-head)
+app.route("/api/v1/scoring", scoringRoutes);
+
+// Agent Behavioral Fingerprints (public -- behavior patterns, similarity, correlation)
+app.route("/api/v1/fingerprints", fingerprintRoutes);
+
+// Trading Session Replay (public -- DVR for AI trading rounds)
+app.route("/api/v1/session-replay", sessionReplayRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
