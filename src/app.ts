@@ -39,6 +39,11 @@ import { adminRoutes } from "./routes/admin.ts";
 import { apiDocsRoutes } from "./routes/api-docs.ts";
 import { auditRoutes } from "./routes/audit.ts";
 import { recoveryRoutes } from "./routes/recovery.ts";
+import { alertRoutes } from "./routes/alerts.ts";
+import { chainVerifierRoutes } from "./routes/chain-verifier.ts";
+import { decisionReplayRoutes } from "./routes/decision-replay.ts";
+import { simulatorRoutes } from "./routes/simulator.ts";
+import { competitionRoutes } from "./routes/competition.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -131,6 +136,18 @@ app.route("/api/v1/audit", auditRoutes);
 // Trade Recovery (public -- failed trade status, dead letter queue)
 app.route("/api/v1/recovery", recoveryRoutes);
 
+// Alert & Webhook Subscriptions (public -- manage alert webhooks, view events)
+app.route("/api/v1/alerts", alertRoutes);
+
+// On-Chain Verification (public -- verify trades on Solana, generate proofs)
+app.route("/api/v1/verify", chainVerifierRoutes);
+
+// Decision Replay (public -- replay past decisions with full context)
+app.route("/api/v1/replay", decisionReplayRoutes);
+
+// Portfolio Simulator (public -- simulate copy-trading agents)
+app.route("/api/v1/simulator", simulatorRoutes);
+
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
 
@@ -139,6 +156,9 @@ app.route("/api-docs", apiDocsRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);
+
+// Live Competition Dashboard (public -- real-time agent battle view)
+app.route("/compete", competitionRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);
