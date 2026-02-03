@@ -86,6 +86,11 @@ import { agentComparisonRoutes } from "./routes/agent-comparison.ts";
 import { triggerRoundRoutes } from "./routes/trigger-round.ts";
 import { tradeStreamRoutes } from "./routes/trade-stream.ts";
 import { battleDashboardRoutes } from "./routes/battle-dashboard.tsx";
+import { personalityEvolutionRoutes } from "./routes/personality-evolution.ts";
+import { monteCarloRoutes } from "./routes/monte-carlo.ts";
+import { correlationMonitorRoutes } from "./routes/correlation-monitor.ts";
+import { competitionReplayRoutes } from "./routes/competition-replay.ts";
+import { tokenFlowRoutes } from "./routes/token-flows.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -313,6 +318,21 @@ app.route("/api/v1/trigger", triggerRoundRoutes);
 
 // Trade Stream (public -- SSE real-time trading events)
 app.route("/api/v1/trade-stream", tradeStreamRoutes);
+
+// Personality Evolution (public -- track how agent personalities evolve over time)
+app.route("/api/v1/personality", personalityEvolutionRoutes);
+
+// Monte Carlo Simulations (public -- probabilistic outcome forecasting)
+app.route("/api/v1/monte-carlo", monteCarloRoutes);
+
+// Agent Correlation Monitor (public -- herding, divergence, regime analysis)
+app.route("/api/v1/correlation", correlationMonitorRoutes);
+
+// Competition Replay (public -- narrative, decision trees, key moments)
+app.route("/api/v1/competition-replay", competitionReplayRoutes);
+
+// Token Flow Analysis (public -- flow summaries, heatmaps, market impact)
+app.route("/api/v1/token-flows", tokenFlowRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
