@@ -24,6 +24,11 @@ import { signalRoutes } from "./routes/signals.ts";
 import { reputationRoutes } from "./routes/reputation.ts";
 import { tournamentRoutes } from "./routes/tournaments.ts";
 import { paymentRoutes } from "./routes/payments.ts";
+import { backtestRoutes } from "./routes/backtesting.ts";
+import { marketRegimeRoutes } from "./routes/market-regime.ts";
+import { debateRoutes } from "./routes/debates.ts";
+import { optimizerRoutes } from "./routes/portfolio-optimizer.ts";
+import { whaleRoutes } from "./routes/whale-tracker.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -76,6 +81,21 @@ app.route("/api/v1/tournaments", tournamentRoutes);
 
 // Agent Payments & Tipping (public -- tip agents, earnings, leaderboard)
 app.route("/api/v1/payments", paymentRoutes);
+
+// Strategy Backtesting (public -- simulate strategies against historical data)
+app.route("/api/v1/backtest", backtestRoutes);
+
+// Market Regime Detection (public -- regime classification, volatility, breadth)
+app.route("/api/v1/market", marketRegimeRoutes);
+
+// Agent Debates (public -- structured arguments about trades)
+app.route("/api/v1/debates", debateRoutes);
+
+// Portfolio Optimizer (public -- Markowitz optimization, Kelly criterion, risk parity)
+app.route("/api/v1/optimizer", optimizerRoutes);
+
+// Whale Tracker (public -- large position alerts, conviction spikes, smart money flow)
+app.route("/api/v1/whales", whaleRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);
