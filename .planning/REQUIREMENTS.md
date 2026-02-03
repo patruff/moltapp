@@ -65,9 +65,49 @@ Requirements for Production Launch milestone. Each maps to roadmap phases.
 - [ ] **RWRD-04**: Agent can view their reward history via API endpoint
 - [ ] **RWRD-05**: Leaderboard displays reward winner badges for past winners
 
+## v1.2 Requirements
+
+Requirements for Colosseum Hackathon milestone. Deadline: Feb 12, 2026.
+
+### Heartbeat & Autonomy
+
+- [ ] **BEAT-01**: Cron script runs every ~30 minutes, checking skill.md version and agent status
+- [ ] **BEAT-02**: Cron monitors Colosseum leaderboard and logs position changes
+- [ ] **BEAT-03**: Cron posts progress updates to Colosseum forum (1-2 per day, not spammy)
+- [ ] **BEAT-04**: Cron reads and responds to comments on MoltApp's forum posts
+- [ ] **BEAT-05**: Cron strategically votes and comments on other projects' forum posts
+- [ ] **BEAT-06**: Cron triggers GSD commands to keep building features autonomously
+- [ ] **BEAT-07**: Cron updates Colosseum project description with latest progress
+
+### Production Deploy (carry from v1.1)
+
+- [ ] **DEPL-08**: Production deployment verified end-to-end with working URL
+
+### Hackathon Submission
+
+- [ ] **HACK-01**: GitHub README documents architecture, setup instructions, and project overview
+- [ ] **HACK-02**: Colosseum project has all fields complete (description, Solana integration, repo, tags)
+- [ ] **HACK-03**: Project submitted to Colosseum before deadline
+
 ## Future Requirements
 
 Deferred to future releases. Tracked but not in current roadmap.
+
+### Moltbook Skill (deferred from v1.1)
+
+- **SKIL-01**: SKILL.md follows AgentSkills standard with YAML frontmatter
+- **SKIL-02**: Skill includes authentication and registration instructions for agents
+- **SKIL-03**: Skill documents all trading API endpoints
+- **SKIL-04**: Skill documents leaderboard check workflow
+- **SKIL-05**: Skill includes "brag" workflow
+
+### Weekly Rewards (deferred from v1.1)
+
+- **RWRD-01**: Weekly reward computed for top-performing trader
+- **RWRD-02**: Rewards tracked in database with idempotent writes
+- **RWRD-03**: EventBridge cron triggers weekly reward computation
+- **RWRD-04**: Agent can view their reward history via API endpoint
+- **RWRD-05**: Leaderboard displays reward winner badges
 
 ### Advanced Trading
 
@@ -145,11 +185,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RWRD-04 | Phase 6 | Pending |
 | RWRD-05 | Phase 6 | Pending |
 
+| BEAT-01 | Phase 7 | Pending |
+| BEAT-02 | Phase 7 | Pending |
+| BEAT-03 | Phase 7 | Pending |
+| BEAT-04 | Phase 7 | Pending |
+| BEAT-05 | Phase 7 | Pending |
+| BEAT-06 | Phase 7 | Pending |
+| BEAT-07 | Phase 7 | Pending |
+| DEPL-08 | Phase 8 | Pending |
+| HACK-01 | Phase 8 | Pending |
+| HACK-02 | Phase 8 | Pending |
+| HACK-03 | Phase 8 | Pending |
+
 **Coverage:**
 - v1.0 requirements: 16/16 (all Complete)
-- v1.1 requirements: 17/17 (all mapped to phases)
+- v1.1 requirements: 17/17 (all mapped to phases 4-6)
+- v1.2 requirements: 11/11 (all mapped to phases 7-8)
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-02 after v1.1 roadmap creation*
+*Last updated: 2026-02-03 after v1.2 Colosseum Hackathon milestone*
