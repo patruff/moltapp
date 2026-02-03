@@ -44,6 +44,14 @@ import {
   getSearchCacheMetrics,
 } from "../services/search-cache.ts";
 import { recordBalanceSnapshot, preTradeFundCheck } from "../services/agent-wallets.ts";
+import {
+  executeDecision as executeTradeDecision,
+  executePipeline,
+  getExecutionStats,
+  getTradingMode,
+  type ExecutionResult,
+} from "../services/trade-executor.ts";
+import { emitTradeAlert, emitRoundCompletedAlert, emitAgentDisagreementAlert } from "../services/alert-webhooks.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -265,13 +273,14 @@ export async function getPortfolioContext(
 
 /**
  * Execute a single agent's trading decision.
- * Records the decision to the agent_decisions table.
- * If the action is buy/sell, attempts to execute via the trading service.
+ * Records the decision to the agent_decisions table, then calls the
+ * Trade Execution Engine to actually execute the trade (live or paper).
  */
 async function executeAgentDecision(
   agent: BaseTradingAgent,
   decision: TradingDecision,
   marketData: MarketData[],
+  roundId: string,
 ): Promise<TradingRoundResult> {
   const result: TradingRoundResult = {
     agentId: agent.agentId,
@@ -290,6 +299,7 @@ async function executeAgentDecision(
       reasoning: decision.reasoning,
       confidence: decision.confidence,
       modelUsed: agent.model,
+      roundId,
       marketSnapshot: marketData.reduce(
         (acc, d) => {
           acc[d.symbol] = { price: d.price, change24h: d.change24h };
@@ -311,14 +321,50 @@ async function executeAgentDecision(
     return result;
   }
 
-  // For now, record the decision but don't execute real trades automatically.
-  // Real trade execution requires wallet signing and is done through the
-  // existing trading routes. This orchestrator logs the agent's intent.
-  result.executed = true;
-  result.executionDetails = {
-    usdcAmount: decision.action === "buy" ? decision.quantity : undefined,
-    filledQuantity: decision.action === "sell" ? decision.quantity : undefined,
-  };
+  // Execute the trade via the Trade Execution Engine
+  // This handles both live (Jupiter swaps) and paper (simulated) modes
+  try {
+    const execResult: ExecutionResult = await executeTradeDecision({
+      agentId: agent.agentId,
+      agentName: agent.name,
+      decision,
+      roundId,
+    });
+
+    result.executed = execResult.success;
+
+    if (execResult.success) {
+      result.executionDetails = {
+        txSignature: execResult.tradeResult?.txSignature ?? execResult.paperTradeId,
+        filledPrice: execResult.tradeResult
+          ? parseFloat(execResult.tradeResult.pricePerToken)
+          : undefined,
+        usdcAmount: execResult.tradeResult
+          ? parseFloat(execResult.tradeResult.usdcAmount)
+          : (decision.action === "buy" ? decision.quantity : undefined),
+        filledQuantity: execResult.tradeResult
+          ? parseFloat(execResult.tradeResult.stockQuantity)
+          : (decision.action === "sell" ? decision.quantity : undefined),
+      };
+
+      console.log(
+        `[Orchestrator] ${agent.name} trade EXECUTED (${getTradingMode()}): ` +
+        `${decision.action} ${decision.symbol} — ` +
+        `tx: ${execResult.tradeResult?.txSignature ?? execResult.paperTradeId}`,
+      );
+    } else {
+      result.executionError = execResult.error;
+      console.warn(
+        `[Orchestrator] ${agent.name} trade FAILED: ${execResult.error}`,
+      );
+    }
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    result.executionError = errorMsg;
+    console.error(
+      `[Orchestrator] ${agent.name} execution error: ${errorMsg}`,
+    );
+  }
 
   return result;
 }
@@ -482,11 +528,12 @@ async function executeTradingRound(
         );
       }
 
-      // Execute the (possibly modified) decision
+      // Execute the (possibly modified) decision via the Trade Execution Engine
       const execResult = await executeAgentDecision(
         agent,
         cbResult.decision,
         marketData,
+        roundId,
       );
 
       // Record circuit breaker info in result
@@ -537,8 +584,56 @@ async function executeTradingRound(
   }
 
   console.log(
-    `[Orchestrator] Round ${roundId} complete. ${results.length} agents ran. ${errors.length} errors. ${allCircuitBreakerActivations.length} circuit breaker activations.`,
+    `[Orchestrator] Round ${roundId} complete. ${results.length} agents ran. ${errors.length} errors. ${allCircuitBreakerActivations.length} circuit breaker activations. Mode: ${getTradingMode()}.`,
   );
+
+  // Emit round completion alert
+  try {
+    emitRoundCompletedAlert({
+      roundId,
+      results: results.map((r) => ({
+        agentId: r.agentId,
+        agentName: r.agentName,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        confidence: r.decision.confidence,
+        executed: r.executed,
+      })),
+      errors,
+      circuitBreakerActivations: allCircuitBreakerActivations.length,
+    });
+  } catch {
+    // Non-critical — don't fail the round for alert emission
+  }
+
+  // Detect agent disagreements (opposite positions on the same stock)
+  try {
+    const nonHoldResults = results.filter((r) => r.decision.action !== "hold");
+    const bySymbol = new Map<string, typeof nonHoldResults>();
+    for (const r of nonHoldResults) {
+      const list = bySymbol.get(r.decision.symbol) ?? [];
+      list.push(r);
+      bySymbol.set(r.decision.symbol, list);
+    }
+    for (const [symbol, symbolResults] of bySymbol) {
+      const hasBuy = symbolResults.some((r) => r.decision.action === "buy");
+      const hasSell = symbolResults.some((r) => r.decision.action === "sell");
+      if (hasBuy && hasSell) {
+        emitAgentDisagreementAlert({
+          roundId,
+          symbol,
+          agents: symbolResults.map((r) => ({
+            agentId: r.agentId,
+            agentName: r.agentName,
+            action: r.decision.action,
+            confidence: r.decision.confidence,
+          })),
+        });
+      }
+    }
+  } catch {
+    // Non-critical
+  }
 
   return {
     roundId,

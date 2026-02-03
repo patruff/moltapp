@@ -44,6 +44,9 @@ import { chainVerifierRoutes } from "./routes/chain-verifier.ts";
 import { decisionReplayRoutes } from "./routes/decision-replay.ts";
 import { simulatorRoutes } from "./routes/simulator.ts";
 import { competitionRoutes } from "./routes/competition.tsx";
+import { executionRoutes } from "./routes/execution.ts";
+import { performanceRoutes } from "./routes/performance.ts";
+import { marketDataRoutes } from "./routes/market-data.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 
 type AppEnv = {
@@ -147,6 +150,15 @@ app.route("/api/v1/replay", decisionReplayRoutes);
 
 // Portfolio Simulator (public -- simulate copy-trading agents)
 app.route("/api/v1/simulator", simulatorRoutes);
+
+// Trade Execution Engine (public -- execution pipeline status, recovery, retry)
+app.route("/api/v1/execution", executionRoutes);
+
+// Agent Performance Analytics (public -- P&L, risk metrics, leaderboard, comparison)
+app.route("/api/v1/performance", performanceRoutes);
+
+// Market Data Aggregator (public -- prices, indicators, candles, breadth, correlations)
+app.route("/api/v1/market-data", marketDataRoutes);
 
 // Admin Dashboard (self-authenticated via X-Admin-Password)
 app.route("/admin", adminRoutes);
