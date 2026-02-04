@@ -33,6 +33,7 @@ const CLAUDE_AGENT_CONFIG = {
   riskTolerance: "conservative" as const,
   maxPositionSize: 15,
   maxPortfolioAllocation: 60,
+  temperature: 0.3,
   skillOverrides: {
     AGENT_NAME: "Claude ValueBot",
     STRATEGY:

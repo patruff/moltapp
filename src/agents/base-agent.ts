@@ -79,6 +79,8 @@ export interface AgentConfig {
   tradingStyle: string;
   maxPositionSize: number;
   maxPortfolioAllocation: number;
+  /** Temperature for API calls (0.0-1.0) */
+  temperature: number;
   walletAddress?: string;
   /** Optional overrides for skill.md template placeholders */
   skillOverrides?: Record<string, string>;

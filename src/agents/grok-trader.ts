@@ -6,7 +6,6 @@
  * template with contrarian strategy overrides.
  */
 
-import type OpenAI from "openai";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -16,7 +15,7 @@ import { getOpenAITools } from "./trading-tools.ts";
 import {
   buildOpenAIMessages,
   appendOpenAIToolResults,
-  parseOpenAIResponse,
+  createOpenAICompatibleCaller,
 } from "./openai-compatible-utils.ts";
 import { createXAIClientGetter } from "./client-factory.ts";
 
@@ -38,6 +37,7 @@ const GROK_AGENT_CONFIG = {
   riskTolerance: "moderate" as const,
   maxPositionSize: 20,
   maxPortfolioAllocation: 75,
+  temperature: 0.6,
   skillOverrides: {
     AGENT_NAME: "Grok ContrarianBot",
     STRATEGY:
@@ -55,11 +55,16 @@ const GROK_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class GrokTrader extends BaseTradingAgent {
-  private getClient: () => OpenAI;
+  callWithTools: (system: string, messages: any[], tools: any[]) => Promise<AgentTurn>;
 
   constructor() {
     super(GROK_AGENT_CONFIG);
-    this.getClient = createXAIClientGetter();
+    const getClient = createXAIClientGetter();
+    this.callWithTools = createOpenAICompatibleCaller(
+      getClient,
+      this.config.model,
+      this.config.temperature,
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -80,24 +85,6 @@ export class GrokTrader extends BaseTradingAgent {
     results: ToolResult[],
   ): any[] {
     return appendOpenAIToolResults(messages, turn, results);
-  }
-
-  async callWithTools(
-    system: string,
-    messages: any[],
-    tools: any[],
-  ): Promise<AgentTurn> {
-    const client = this.getClient();
-
-    const response = await client.chat.completions.create({
-      model: this.config.model,
-      max_tokens: 2048,
-      temperature: 0.6,
-      messages: [{ role: "system", content: system }, ...messages],
-      tools,
-    });
-
-    return parseOpenAIResponse(response);
   }
 }
 

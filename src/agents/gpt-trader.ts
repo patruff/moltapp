@@ -5,7 +5,6 @@
  * Uses the shared skill.md prompt template with momentum strategy overrides.
  */
 
-import type OpenAI from "openai";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -15,7 +14,7 @@ import { getOpenAITools } from "./trading-tools.ts";
 import {
   buildOpenAIMessages,
   appendOpenAIToolResults,
-  parseOpenAIResponse,
+  createOpenAICompatibleCaller,
 } from "./openai-compatible-utils.ts";
 import { createOpenAIClientGetter } from "./client-factory.ts";
 
@@ -37,6 +36,7 @@ const GPT_AGENT_CONFIG = {
   riskTolerance: "aggressive" as const,
   maxPositionSize: 25,
   maxPortfolioAllocation: 85,
+  temperature: 0.5,
   skillOverrides: {
     AGENT_NAME: "GPT MomentumBot",
     STRATEGY:
@@ -54,11 +54,16 @@ const GPT_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class GPTTrader extends BaseTradingAgent {
-  private getClient: () => OpenAI;
+  callWithTools: (system: string, messages: any[], tools: any[]) => Promise<AgentTurn>;
 
   constructor() {
     super(GPT_AGENT_CONFIG);
-    this.getClient = createOpenAIClientGetter();
+    const getClient = createOpenAIClientGetter();
+    this.callWithTools = createOpenAICompatibleCaller(
+      getClient,
+      this.config.model,
+      this.config.temperature,
+    );
   }
 
   // -----------------------------------------------------------------------
@@ -79,24 +84,6 @@ export class GPTTrader extends BaseTradingAgent {
     results: ToolResult[],
   ): any[] {
     return appendOpenAIToolResults(messages, turn, results);
-  }
-
-  async callWithTools(
-    system: string,
-    messages: any[],
-    tools: any[],
-  ): Promise<AgentTurn> {
-    const client = this.getClient();
-
-    const response = await client.chat.completions.create({
-      model: this.config.model,
-      max_tokens: 2048,
-      temperature: 0.5,
-      messages: [{ role: "system", content: system }, ...messages],
-      tools,
-    });
-
-    return parseOpenAIResponse(response);
   }
 }
 

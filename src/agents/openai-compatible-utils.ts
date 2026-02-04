@@ -6,6 +6,7 @@
  * to reduce duplication.
  */
 
+import type OpenAI from "openai";
 import type { AgentTurn, ToolCall, ToolResult } from "./base-agent.ts";
 
 /**
@@ -77,5 +78,31 @@ export function parseOpenAIResponse(response: any): AgentTurn {
     toolCalls,
     textResponse: msg.content ?? null,
     stopReason,
+  };
+}
+
+/**
+ * Create a callWithTools method for OpenAI-compatible APIs.
+ *
+ * Returns a closure that captures the client getter, model name, and temperature,
+ * eliminating the need for duplicate callWithTools implementations in GPT/Grok agents.
+ */
+export function createOpenAICompatibleCaller(
+  getClient: () => OpenAI,
+  model: string,
+  temperature: number,
+): (system: string, messages: any[], tools: any[]) => Promise<AgentTurn> {
+  return async (system: string, messages: any[], tools: any[]): Promise<AgentTurn> => {
+    const client = getClient();
+
+    const response = await client.chat.completions.create({
+      model,
+      max_tokens: 2048,
+      temperature,
+      messages: [{ role: "system", content: system }, ...messages],
+      tools,
+    });
+
+    return parseOpenAIResponse(response);
   };
 }
