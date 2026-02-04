@@ -52,9 +52,20 @@ for (const d of decisions) {
   decisionMap.set(`${d.agentId}|${d.roundId}|${d.symbol}`, d);
 }
 
-// Merge justifications with decision data into benchmark records (v32: 24-dimension)
+// Import v33 scoring functions for enrichment
+const { scoreCausalReasoning, scoreEpistemicHumility } = await import("../src/services/v33-benchmark-engine.ts");
+
+// Merge justifications with decision data into benchmark records (v33: 26-dimension)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
+  // Compute v33 scores for each record
+  const causalScore = scoreCausalReasoning(j.reasoning);
+  const epistemicScore = scoreEpistemicHumility(
+    j.reasoning,
+    j.confidence,
+    (j.sources as string[]) ?? [],
+    (j.hallucinationFlags as string[]) ?? [],
+  );
   return {
     agent_id: j.agentId,
     agent_action: j.action,
@@ -69,10 +80,12 @@ const records = justifications.map((j) => {
     coherence_score: j.coherenceScore ?? null,
     hallucination_flags: j.hallucinationFlags ?? [],
     discipline_pass: j.disciplinePass ?? "pending",
+    causal_reasoning_score: causalScore,
+    epistemic_humility_score: epistemicScore,
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "32.0",
-    dimension_count: 24,
+    benchmark_version: "33.0",
+    dimension_count: 26,
   };
 });
 
@@ -157,10 +170,12 @@ quality scores.
 | \`coherence_score\` | Does reasoning match the action? (0-1) |
 | \`hallucination_flags\` | Factual errors found in reasoning |
 | \`discipline_pass\` | Whether trading rules were followed |
+| \`causal_reasoning_score\` | Quality of cause-effect chains (0-100) |
+| \`epistemic_humility_score\` | Appropriate uncertainty acknowledgment (0-100) |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 32.0) |
-| \`dimension_count\` | Number of scoring dimensions (24) |
+| \`benchmark_version\` | Benchmark version (e.g. 33.0) |
+| \`dimension_count\` | Number of scoring dimensions (26) |
 
 ## Citation
 

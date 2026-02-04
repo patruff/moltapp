@@ -42,7 +42,15 @@ import {
   getCachedNews,
   formatNewsForPrompt,
   getSearchCacheMetrics,
+  setSearchProvider,
 } from "../services/search-cache.ts";
+import { braveSearchProvider } from "../services/brave-search.ts";
+
+// Register Brave Search if API key is available
+if (process.env.BRAVE_API_KEY) {
+  setSearchProvider(braveSearchProvider);
+  console.log("[Orchestrator] Brave Search enabled");
+}
 import { recordBalanceSnapshot, preTradeFundCheck } from "../services/agent-wallets.ts";
 import {
   executeDecision as executeTradeDecision,
@@ -57,7 +65,8 @@ import {
   cacheRound,
   type PersistedAgentResult,
 } from "../services/dynamo-round-persister.ts";
-import { enrichAgentContext } from "../services/agent-context-enricher.ts";
+// Agent context enrichment is now handled by agents themselves via tool-calling loop
+// import { enrichAgentContext } from "../services/agent-context-enricher.ts";
 import { recordMarketReturn } from "../services/portfolio-risk-analyzer.ts";
 import { runPreRoundGate } from "../services/pre-round-gate.ts";
 import { trackLatency } from "../services/observability.ts";
@@ -119,6 +128,12 @@ import {
 import {
   recordTradeForDNA,
 } from "../services/strategy-dna-profiler.ts";
+import {
+  gradeTrade as gradeTradeV33,
+  scoreAgent as scoreAgentV33,
+  createRoundSummary as createV33RoundSummary,
+  type V33TradeGrade,
+} from "../services/v33-benchmark-engine.ts";
 import {
   recordDriftSnapshot,
   buildDriftSnapshot,
@@ -460,7 +475,7 @@ export async function getPortfolioContext(
     }
 
     // Build position details with current market prices
-    const positionDetails: AgentPosition[] = agentPositions.map((pos) => {
+    const positionDetails: AgentPosition[] = agentPositions.map((pos: any) => {
       const market = marketData.find(
         (m) => m.symbol.toLowerCase() === pos.symbol.toLowerCase(),
       );
@@ -781,30 +796,8 @@ async function executeTradingRound(
       // Build portfolio context
       const portfolio = await getPortfolioContext(agent.agentId, marketData);
 
-      // Enrich context with technical indicators, memory, peer actions, risk
-      let enrichedMarketData = marketData;
-      try {
-        const enrichedContext = await enrichAgentContext(agent.agentId, marketData, portfolio);
-        // Inject enriched context into market data news field for the agent
-        if (enrichedContext.fullPromptSection) {
-          enrichedMarketData = marketData.map((md) => ({
-            ...md,
-            news: [...(md.news ?? []), enrichedContext.fullPromptSection],
-          }));
-          // Only inject into the first stock to avoid duplication
-          enrichedMarketData = [
-            { ...enrichedMarketData[0], news: [...(marketData[0]?.news ?? []), enrichedContext.fullPromptSection] },
-            ...marketData.slice(1),
-          ];
-        }
-      } catch (err) {
-        console.warn(
-          `[Orchestrator] Context enrichment failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-
-      // Get agent's trading decision (with enriched context)
-      let decision = await agent.analyze(enrichedMarketData, portfolio);
+      // Agents now fetch their own context via tools (tool-calling loop)
+      let decision = await agent.analyze(marketData, portfolio);
       console.log(
         `[Orchestrator] ${agent.name} decided: ${decision.action} ${decision.symbol} (confidence: ${decision.confidence}%)`,
       );
@@ -886,7 +879,7 @@ async function executeTradingRound(
           quantity: decision.quantity,
           roundId,
           disciplinePass: discipline.passed ? "pass" : "fail",
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.warn(
             `[Orchestrator] Justification insert failed: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -2676,6 +2669,88 @@ async function executeTradingRound(
     console.warn(`[Orchestrator] v28 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  // -----------------------------------------------------------------------
+  // v33 — 26-Dimension Benchmark (Causal Reasoning + Epistemic Humility)
+  // -----------------------------------------------------------------------
+  try {
+    const v33Trades: V33TradeGrade[] = [];
+    const marketPrices: Record<string, number> = {};
+    for (const md of marketData) {
+      marketPrices[md.symbol] = md.price;
+    }
+
+    const peerActions = results.map((r) => ({
+      agentId: r.agentId,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+    }));
+
+    for (const r of results) {
+      const d = r.decision;
+      const conf01 = normalizeConfidence(d.confidence);
+      const coherence = analyzeCoherence(d.reasoning, d.action, marketData);
+      const hallucinations = detectHallucinations(d.reasoning, marketData);
+      const discipline = checkInstructionDiscipline(
+        { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
+        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
+        { cashBalance: 10000, totalValue: 10000, positions: [] },
+      );
+
+      const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.action, d.reasoning);
+
+      const grade = gradeTradeV33({
+        agentId: r.agentId,
+        roundId,
+        symbol: d.symbol,
+        action: d.action,
+        reasoning: d.reasoning,
+        confidence: conf01,
+        intent,
+        coherenceScore: coherence.score,
+        hallucinationFlags: hallucinations.flags,
+        disciplinePassed: discipline.passed,
+        sources,
+        predictedOutcome: d.predictedOutcome ?? null,
+        previousPredictions: [],
+        marketPrices,
+        peerActions: peerActions.filter((p) => p.agentId !== r.agentId),
+      });
+
+      v33Trades.push(grade);
+    }
+
+    // Score each agent across all their v33 trades
+    const v33Scores = [];
+    for (const r of results) {
+      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      if (!agentConfig) continue;
+
+      const agentTrades = v33Trades.filter((t) => t.agentId === r.agentId);
+      const score = scoreAgentV33({
+        agentId: r.agentId,
+        agentName: agentConfig.name,
+        provider: agentConfig.provider,
+        model: agentConfig.model,
+        trades: agentTrades,
+        pnlPercent: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      });
+      v33Scores.push(score);
+    }
+
+    // Create round summary
+    const regime = detectMarketRegime(marketData).regime ?? "unknown";
+    createV33RoundSummary(roundId, v33Scores, v33Trades, regime);
+
+    console.log(
+      `[Orchestrator] v33 round complete: ${results.length} agents — 26-dimension causal + epistemic scoring recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v33 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   return {
     roundId,
     timestamp,
@@ -2742,13 +2817,13 @@ export async function getAgentStats(agentId: string) {
       .orderBy(desc(agentDecisions.createdAt));
 
     const totalDecisions = decisions.length;
-    const buyDecisions = decisions.filter((d) => d.action === "buy");
-    const sellDecisions = decisions.filter((d) => d.action === "sell");
-    const holdDecisions = decisions.filter((d) => d.action === "hold");
+    const buyDecisions = decisions.filter((d: any) => d.action === "buy");
+    const sellDecisions = decisions.filter((d: any) => d.action === "sell");
+    const holdDecisions = decisions.filter((d: any) => d.action === "hold");
 
     const avgConfidence =
       totalDecisions > 0
-        ? decisions.reduce((sum, d) => sum + d.confidence, 0) / totalDecisions
+        ? decisions.reduce((sum: any, d: any) => sum + d.confidence, 0) / totalDecisions
         : 0;
 
     // Symbol frequency

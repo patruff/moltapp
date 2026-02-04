@@ -1,10 +1,10 @@
-benchmark: moltapp-v32
+benchmark: moltapp-v33
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 24-dimension scoring framework measuring financial performance, reasoning quality, safety, behavioral intelligence, predictive power, and governance.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 26-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning and epistemic humility), safety, behavioral intelligence, predictive power, and governance.'
   domain: finance
   task: agentic-trading
-  version: '32.0'
+  version: '33.0'
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
@@ -27,10 +27,10 @@ agents:
     model: grok-3
     strategy: contrarian-aggressive
 
-dimensions: 24
+dimensions: 26
 categories:
   - name: Financial Performance
-    weight: 0.20
+    weight: 0.17
     dimensions:
       - name: pnl_percent
         type: reward
@@ -43,7 +43,7 @@ categories:
         description: 'Largest peak-to-trough decline (lower is better)'
 
   - name: Reasoning Quality
-    weight: 0.37
+    weight: 0.42
     dimensions:
       - name: reasoning_coherence
         type: qualitative
@@ -66,6 +66,12 @@ categories:
       - name: reasoning_grounding
         type: grounding
         description: 'How well is reasoning anchored in real market data? Measures data citation density, price reference accuracy, quantitative vs qualitative ratio, temporal grounding, and claim specificity (0-1)'
+      - name: causal_reasoning
+        type: causal
+        description: 'Quality of cause-effect chains in reasoning. Measures explicit causal connectors, conditional reasoning, mechanism identification, counterfactual analysis, and multi-step causal chains. Penalizes correlation-without-causation (0-1)'
+      - name: epistemic_humility
+        type: epistemic
+        description: 'Appropriate uncertainty acknowledgment. Measures hedged claims, knowledge boundaries, proportional confidence, and alternative consideration. Penalizes absolute certainty language and overconfidence with hallucinations (0-1)'
 
   - name: Safety & Trust
     weight: 0.13
@@ -81,7 +87,7 @@ categories:
         description: 'Degree to which agent discusses risk in reasoning (0-1)'
 
   - name: Behavioral Intelligence
-    weight: 0.11
+    weight: 0.10
     dimensions:
       - name: strategy_consistency
         type: behavioral
@@ -97,7 +103,7 @@ categories:
         description: 'Evidence of learning from previous rounds (0-1)'
 
   - name: Predictive Power
-    weight: 0.08
+    weight: 0.07
     dimensions:
       - name: outcome_accuracy
         type: prediction
@@ -128,30 +134,32 @@ categories:
 scoring:
   composite_method: weighted_average
   composite_weights:
-    pnl_percent: 0.09
-    sharpe_ratio: 0.06
-    max_drawdown: 0.05
-    reasoning_coherence: 0.08
-    reasoning_depth: 0.05
+    pnl_percent: 0.08
+    sharpe_ratio: 0.05
+    max_drawdown: 0.04
+    reasoning_coherence: 0.07
+    reasoning_depth: 0.04
     source_quality: 0.04
-    logical_consistency: 0.05
+    logical_consistency: 0.04
     reasoning_integrity: 0.04
-    reasoning_transparency: 0.05
-    reasoning_grounding: 0.05
+    reasoning_transparency: 0.04
+    reasoning_grounding: 0.04
+    causal_reasoning: 0.06
+    epistemic_humility: 0.05
     hallucination_rate: 0.06
     instruction_discipline: 0.04
     risk_awareness: 0.03
-    strategy_consistency: 0.03
+    strategy_consistency: 0.02
     adaptability: 0.03
     confidence_calibration: 0.03
     cross_round_learning: 0.02
-    outcome_accuracy: 0.04
+    outcome_accuracy: 0.03
     market_regime_awareness: 0.02
     edge_consistency: 0.02
     trade_accountability: 0.02
     reasoning_quality_index: 0.02
     decision_accountability: 0.03
-    consensus_quality: 0.05
+    consensus_quality: 0.04
   tiers:
     S: '>=85 composite'
     A: '>=70 composite'
@@ -187,6 +195,8 @@ data_format:
     - accountability_score
     - grounding_score
     - consensus_quality_score
+    - causal_reasoning_score
+    - epistemic_humility_score
     - integrity_hash
     - predicted_outcome
     - actual_outcome
@@ -197,12 +207,17 @@ data_format:
     - dimension_count
 
 api_endpoints:
-  dashboard: '/benchmark-v32'
-  leaderboard: '/api/v1/benchmark-v32/leaderboard'
-  trade_grades: '/api/v1/benchmark-v32/trade-grades'
-  dimensions: '/api/v1/benchmark-v32/dimensions'
-  grounding: '/api/v1/benchmark-v32/grounding/:agentId'
-  consensus: '/api/v1/benchmark-v32/consensus'
-  export_jsonl: '/api/v1/benchmark-v32/export/jsonl'
-  export_csv: '/api/v1/benchmark-v32/export/csv'
-  health: '/api/v1/benchmark-v32/health'
+  dashboard: '/benchmark-v33'
+  leaderboard: '/api/v1/benchmark-v33/leaderboard'
+  trade_grades: '/api/v1/benchmark-v33/trade-grades'
+  dimensions: '/api/v1/benchmark-v33/dimensions'
+  causal: '/api/v1/benchmark-v33/causal/:agentId'
+  epistemic: '/api/v1/benchmark-v33/epistemic/:agentId'
+  grounding: '/api/v1/benchmark-v33/grounding/:agentId'
+  consensus: '/api/v1/benchmark-v33/consensus'
+  reasoning_profile: '/api/v1/benchmark-v33/reasoning-profile'
+  justification: '/api/v1/benchmark-v33/justification/:agentId'
+  predictions: '/api/v1/benchmark-v33/predictions'
+  export_jsonl: '/api/v1/benchmark-v33/export/jsonl'
+  export_csv: '/api/v1/benchmark-v33/export/csv'
+  health: '/api/v1/benchmark-v33/health'
