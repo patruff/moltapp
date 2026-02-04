@@ -262,6 +262,22 @@ import {
 import {
   emitV21Event,
 } from "../routes/benchmark-v21.tsx";
+import {
+  recordTradeIntegrity,
+  finalizeRoundIntegrity,
+} from "../services/benchmark-integrity-engine.ts";
+import {
+  validateGrounding,
+  recordGroundingResult,
+} from "../services/reasoning-grounding-validator.ts";
+import {
+  analyzeBiases,
+  recordBiasResult,
+  type RoundAgentContext,
+} from "../services/cognitive-bias-detector.ts";
+import {
+  emitV22Event,
+} from "../routes/benchmark-v22.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2413,6 +2429,83 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v21 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // =========================================================================
+  // v22: Benchmark Integrity + Reasoning Grounding + Cognitive Bias Detection
+  // =========================================================================
+  try {
+    const tradeIds: string[] = [];
+
+    // Build other-agent context for herding detection
+    const otherAgentContexts: Record<string, RoundAgentContext[]> = {};
+    for (const result of results) {
+      otherAgentContexts[result.agentId] = results
+        .filter((r) => r.agentId !== result.agentId)
+        .map((r) => ({
+          agentId: r.agentId,
+          action: r.decision.action,
+          symbol: r.decision.symbol,
+          reasoning: r.decision.reasoning,
+          confidence: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+        }));
+    }
+
+    for (const result of results) {
+      const d = result.decision;
+      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
+      const tradeId = `v22_${roundId}_${result.agentId}`;
+
+      // 1. Integrity Engine — fingerprint every trade
+      recordTradeIntegrity({
+        tradeId,
+        agentId: result.agentId,
+        roundId,
+        action: d.action,
+        symbol: d.symbol,
+        quantity: d.quantity,
+        reasoning: d.reasoning,
+        confidence: conf01,
+        intent,
+        sources,
+        predictedOutcome: d.predictedOutcome,
+      });
+      tradeIds.push(tradeId);
+
+      // 2. Reasoning Grounding Validator — verify factual claims
+      const groundingResult = validateGrounding(d.reasoning, marketData, sources);
+      recordGroundingResult(tradeId, result.agentId, roundId, groundingResult);
+
+      // 3. Cognitive Bias Detector — detect systematic reasoning errors
+      const biasResult = analyzeBiases(
+        d.reasoning,
+        d.action,
+        conf01,
+        marketData,
+        otherAgentContexts[result.agentId] ?? [],
+      );
+      recordBiasResult(tradeId, result.agentId, roundId, biasResult);
+    }
+
+    // Finalize round integrity — build Merkle tree
+    finalizeRoundIntegrity(roundId, tradeIds);
+
+    // Emit v22 event
+    emitV22Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      version: "v22",
+      pillars: 28,
+      tradeFingerprints: tradeIds.length,
+    });
+
+    console.log(
+      `[Orchestrator] v22 round complete: ${results.length} agents — integrity + grounding + bias detection recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v22 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {

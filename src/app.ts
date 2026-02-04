@@ -141,6 +141,8 @@ import { benchmarkV20Routes } from "./routes/benchmark-v20.tsx";
 import { benchmarkV20ApiRoutes } from "./routes/benchmark-v20-api.ts";
 import { benchmarkV21Routes } from "./routes/benchmark-v21.tsx";
 import { benchmarkV21ApiRoutes } from "./routes/benchmark-v21-api.ts";
+import { benchmarkV22Routes } from "./routes/benchmark-v22.tsx";
+import { benchmarkV22ApiRoutes } from "./routes/benchmark-v22-api.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -533,6 +535,12 @@ app.route("/benchmark-v21", benchmarkV21Routes);
 
 // Benchmark v21 API (public -- chain validation, strategy profiling, 26-pillar scores)
 app.route("/api/v1/benchmark-v21", benchmarkV21ApiRoutes);
+
+// Benchmark v22 Dashboard (public -- 28-pillar scoring, integrity, grounding, cognitive bias)
+app.route("/benchmark-v22", benchmarkV22Routes);
+
+// Benchmark v22 API (public -- integrity proofs, grounding, bias detection, 28-pillar scores)
+app.route("/api/v1/benchmark-v22", benchmarkV22ApiRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);

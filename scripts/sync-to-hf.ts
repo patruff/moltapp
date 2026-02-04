@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v21",
+    benchmark: "moltapp-v22",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,22 +290,22 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v21"
+pretty_name: "MoltApp: AI Trading Benchmark v22"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v21
+# MoltApp: Agentic Stock Trading Benchmark v22
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v21](https://www.patgpt.us/benchmark-v21)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v22](https://www.patgpt.us/benchmark-v22)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **26 scoring pillars**:
+which we analyze across **28 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
@@ -336,9 +336,14 @@ which we analyze across **26 scoring pillars**:
 | **Reasoning Chain Integrity** | 5% | Step decomposition, logical connectors, circular reasoning detection, evidence gaps |
 | **Strategy Profiling** | 5% | Conviction consistency, risk awareness, market sensitivity, adaptability, info utilization |
 
-### v21 Features (NEW)
-- **Reasoning Chain Validator**: Decomposes reasoning into discrete logical steps, analyzes causal/conditional/comparative connectors, detects circular reasoning, non-sequiturs, evidence gaps, and unsupported leaps. Computes chain integrity score.
-- **Agent Strategy Profiler**: Builds multi-dimensional behavioral profiles — conviction consistency, risk awareness depth, market sensitivity, strategic adaptability, and information utilization. Tracks whether agents show genuine strategic intelligence.
+### v22 Features (NEW)
+- **Benchmark Integrity Engine**: SHA-256 fingerprinting of every trade, Merkle audit trees per round, tamper detection — makes MoltApp the first AI benchmark with cryptographic integrity proofs.
+- **Reasoning Grounding Validator**: Extracts every factual claim from reasoning, cross-references against real market data. Distinguishes grounded, ungrounded, hallucinated, embellished, and inferred claims.
+- **Cognitive Bias Detector**: Identifies 7 cognitive biases in agent reasoning — anchoring, confirmation bias, recency bias, sunk cost fallacy, overconfidence, herding, and loss aversion.
+
+### v21 Features
+- **Reasoning Chain Validator**: Step decomposition, logical connector analysis, circular reasoning detection.
+- **Agent Strategy Profiler**: Conviction consistency, risk awareness, market sensitivity, adaptability, info utilization.
 
 ### v20 Features
 - **Reasoning Transparency Engine**: Decomposes reasoning into verifiable claims, maps evidence, validates logic chains, surfaces assumptions, generates counterfactuals.
@@ -392,23 +397,23 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v21
+- **Benchmark Version**: v22
 
 ## API Endpoints
 
-- Dashboard: \`/benchmark-v21\`
-- Data: \`/benchmark-v21/data\`
-- Stream: \`/benchmark-v21/stream\`
-- Export: \`/benchmark-v21/export\`
-- Scores: \`/api/v1/benchmark-v21/scores\`
-- Agent Score: \`/api/v1/benchmark-v21/score/:agentId\`
-- Chains: \`/api/v1/benchmark-v21/chains\`
-- Strategy: \`/api/v1/benchmark-v21/strategy\`
-- Health: \`/api/v1/benchmark-v21/health\`
-- Weights: \`/api/v1/benchmark-v21/weights\`
-- Schema: \`/api/v1/benchmark-v21/schema\`
-- JSONL Export: \`/api/v1/benchmark-v21/export/jsonl\`
-- CSV Export: \`/api/v1/benchmark-v21/export/csv\`
+- Dashboard: \`/benchmark-v22\`
+- Data: \`/benchmark-v22/data\`
+- Stream: \`/benchmark-v22/stream\`
+- Export: \`/benchmark-v22/export\`
+- Scores: \`/api/v1/benchmark-v22/scores\`
+- Agent Score: \`/api/v1/benchmark-v22/score/:agentId\`
+- Chains: \`/api/v1/benchmark-v22/chains\`
+- Strategy: \`/api/v1/benchmark-v22/strategy\`
+- Health: \`/api/v1/benchmark-v22/health\`
+- Weights: \`/api/v1/benchmark-v22/weights\`
+- Schema: \`/api/v1/benchmark-v22/schema\`
+- JSONL Export: \`/api/v1/benchmark-v22/export/jsonl\`
+- CSV Export: \`/api/v1/benchmark-v22/export/csv\`
 
 ## Citation
 
