@@ -19,3 +19,4 @@ export { reasoningDepthAnalysis, sourceQualityAnalysis, benchmarkLeaderboardV24,
 export { outcomePredictionTracking, consensusIntelligence, benchmarkLeaderboardV25, benchmarkRoundSnapshotsV25 } from "./benchmark-v25.ts";
 export { strategyGenomeAnalysis, riskRewardDiscipline, benchmarkLeaderboardV26, benchmarkRoundSnapshotsV26 } from "./benchmark-v26.ts";
 export { executionQualityAnalysis, crossRoundLearning, benchmarkLeaderboardV27, benchmarkRoundSnapshotsV27 } from "./benchmark-v27.ts";
+export { tradeAccountabilityAnalysis, reasoningQualityIndex, benchmarkLeaderboardV28, benchmarkRoundSnapshotsV28 } from "./benchmark-v28.ts";

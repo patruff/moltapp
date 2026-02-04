@@ -292,6 +292,13 @@ import {
   analyzeReasoningDepthV24,
   analyzeSourceQualityV24,
 } from "../services/reasoning-depth-quality-engine.ts";
+import {
+  analyzeTradeAccountability,
+  analyzeReasoningQualityIndex,
+  computeV28Composite,
+  recordV28Scores,
+  updateV28Leaderboard,
+} from "../services/v28-benchmark-engine.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2593,6 +2600,80 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v25 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // v28 — Trade Accountability + Reasoning Quality Index (16-dimension benchmark)
+  // -----------------------------------------------------------------------
+  try {
+    for (const r of results) {
+      const d = r.decision;
+      const conf01 = normalizeConfidence(d.confidence);
+
+      // Build past decisions for this agent (from previous rounds in this session)
+      const pastDecisions = results
+        .filter((pr) => pr.agentId === r.agentId && pr !== r)
+        .map((pr) => ({
+          action: pr.decision.action,
+          symbol: pr.decision.symbol,
+          reasoning: pr.decision.reasoning,
+          outcome: pr.executed ? "executed" : "failure",
+          coherenceScore: analyzeCoherence(pr.decision.reasoning, pr.decision.action, marketData).score,
+        }));
+
+      // Analyze trade accountability
+      const accountability = analyzeTradeAccountability(d.reasoning, pastDecisions);
+
+      // Analyze reasoning quality index
+      const rqi = analyzeReasoningQualityIndex(d.reasoning);
+
+      // Record v28 scores
+      recordV28Scores(r.agentId, accountability, rqi);
+
+      // Compute v28 composite scores from all available dimensions
+      const coherence = analyzeCoherence(d.reasoning, d.action, marketData);
+      const hallucinations = detectHallucinations(d.reasoning, marketData);
+      const discipline = checkInstructionDiscipline(
+        { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
+        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
+        { cashBalance: 10000, totalValue: 10000, positions: [] },
+      );
+      const depth = analyzeReasoningDepthV24(d.reasoning);
+      const sourceQ = analyzeSourceQualityV24(d.reasoning, d.sources ?? []);
+
+      const compositeInput = {
+        pnl: 0.5, // Neutral baseline — updated by outcome tracker
+        coherence: coherence.score,
+        hallucinationFree: 1 - hallucinations.severity,
+        discipline: discipline.passed ? 1.0 : Math.max(0, 1 - discipline.violations.length * 0.25),
+        calibration: 0.5, // Updated by calibration engine
+        predictionAccuracy: 0.5, // Updated by outcome tracker
+        reasoningDepth: depth.depthScore,
+        sourceQuality: sourceQ.qualityScore,
+        outcomePrediction: 0.5, // Updated by outcome tracker
+        consensusIntelligence: 0.5, // Updated by consensus engine
+        strategyGenome: 0.5, // Updated by genome analyzer
+        riskRewardDiscipline: 0.5, // Updated by risk analyzer
+        executionQuality: 0.5, // Updated by execution analyzer
+        crossRoundLearning: 0.5, // Updated by learning tracker
+        tradeAccountability: accountability.accountabilityScore,
+        reasoningQualityIndex: rqi.rqiScore,
+      };
+
+      const { composite, grade } = computeV28Composite(compositeInput);
+
+      updateV28Leaderboard(r.agentId, {
+        ...compositeInput,
+        composite,
+        grade,
+      });
+    }
+
+    console.log(
+      `[Orchestrator] v28 round complete: ${results.length} agents — accountability + RQI recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v28 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {

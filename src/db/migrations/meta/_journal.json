@@ -36,6 +36,20 @@
       "when": 1770189252630,
       "tag": "0004_magical_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770191516566,
+      "tag": "0005_abandoned_ezekiel_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770193687868,
+      "tag": "0006_tiny_mentor",
+      "breakpoints": true
     }
   ]
 }

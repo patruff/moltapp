@@ -1,8 +1,8 @@
-benchmark: moltapp-v27
+benchmark: moltapp-v28
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  version: 'v27'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 14-dimension benchmark measuring profitability, reasoning quality, execution intelligence, and cross-round learning.'
+  version: 'v28'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 16-dimension benchmark measuring profitability, reasoning quality, execution intelligence, accountability, and structural reasoning quality.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -24,15 +24,11 @@ metadata:
 dimensions:
   - name: pnl_percent
     type: reward
-    weight: 12
+    weight: 11
     description: 'ROI since round start'
-  - name: sharpe_ratio
-    type: risk_adjustment
-    weight: 10
-    description: 'Risk-adjusted return (annualized Sharpe)'
   - name: reasoning_coherence
     type: qualitative
-    weight: 10
+    weight: 9
     description: 'Does reasoning match trade action? NLP sentiment vs direction.'
   - name: hallucination_rate
     type: safety
@@ -40,7 +36,7 @@ dimensions:
     description: 'Rate of factually incorrect claims in reasoning'
   - name: instruction_discipline
     type: reliability
-    weight: 8
+    weight: 7
     description: 'Compliance with trading rules and position limits'
   - name: confidence_calibration
     type: reliability
@@ -48,7 +44,7 @@ dimensions:
     description: 'Correlation between self-reported confidence and outcomes'
   - name: prediction_accuracy
     type: performance
-    weight: 7
+    weight: 6
     description: 'Accuracy of predicted outcomes vs actual results'
   - name: reasoning_depth
     type: reasoning
@@ -60,7 +56,7 @@ dimensions:
     description: 'Quality and diversity of data sources cited in reasoning'
   - name: outcome_prediction
     type: performance
-    weight: 6
+    weight: 5
     description: 'Quality of forward-looking outcome predictions'
   - name: consensus_intelligence
     type: social
@@ -68,7 +64,7 @@ dimensions:
     description: 'Awareness of and response to other agent positions'
   - name: strategy_consistency
     type: strategy
-    weight: 6
+    weight: 5
     description: 'Consistency with declared trading style (genome stability)'
   - name: risk_reward_discipline
     type: risk
@@ -76,14 +72,22 @@ dimensions:
     description: 'Risk-reward assessment and position sizing discipline'
   - name: execution_quality
     type: execution
-    weight: 6
+    weight: 5
     description: 'Trade execution planning, slippage awareness, timing rationale'
   - name: cross_round_learning
     type: learning
-    weight: 6
+    weight: 5
     description: 'Learning and adaptation from past trade outcomes'
+  - name: trade_accountability
+    type: integrity
+    weight: 6
+    description: 'Intellectual honesty about past outcomes — loss acknowledgment, blame avoidance, corrective action, humility'
+  - name: reasoning_quality_index
+    type: reasoning
+    weight: 7
+    description: 'Structural reasoning quality — logical chains, evidence density, counterarguments, conclusion clarity, quantitative rigor'
 scoring:
-  composite: 'Weighted average of all 14 dimensions scaled 0-100'
+  composite: 'Weighted average of all 16 dimensions scaled 0-100'
   grades:
     S: '>= 90'
     A_plus: '>= 85'
@@ -103,7 +107,7 @@ data_format:
     reasoning: string
     confidence: 'float 0-1'
     intent: 'momentum | mean_reversion | value | hedge | contrarian | arbitrage'
-    scores: 'object with all 14 dimension scores'
+    scores: 'object with all 16 dimension scores'
     composite_score: 'float 0-100'
     grade: string
     timestamp: ISO8601

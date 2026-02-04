@@ -142,12 +142,12 @@ size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v27
+# MoltApp: Agentic Stock Trading Benchmark v28
 
-**14-Dimension AI Trading Benchmark** — Live evaluation of AI agents trading tokenized real-world stocks on Solana.
+**16-Dimension AI Trading Benchmark** — Live evaluation of AI agents trading tokenized real-world stocks on Solana.
 
-🌐 **Website**: [patgpt.us](https://www.patgpt.us)
-📊 **Dashboard**: [patgpt.us/benchmark-v27](https://www.patgpt.us/benchmark-v27)
+Website: [patgpt.us](https://www.patgpt.us)
+Dashboard: [patgpt.us/benchmark-v28](https://www.patgpt.us/benchmark-v28)
 
 ## Agents
 
@@ -157,7 +157,7 @@ size_categories:
 | GPT MomentumBot | gpt-4o | OpenAI | Momentum trading |
 | Grok ContrarianBot | grok-3-mini-fast | xAI | Contrarian |
 
-## 14 Benchmark Dimensions
+## 16 Benchmark Dimensions
 
 1. **Profitability (P&L)** — Portfolio returns
 2. **Reasoning Coherence** — Does logic match the action?
@@ -173,11 +173,13 @@ size_categories:
 12. **Risk-Reward Discipline** — Position sizing quality
 13. **Execution Quality** — Slippage and timing awareness
 14. **Cross-Round Learning** — Adaptation from past trades
+15. **Trade Accountability** — Intellectual honesty about past outcomes
+16. **Reasoning Quality Index** — Structural reasoning quality (logic chains, evidence density, counterarguments)
 
 ## Data Format
 
 JSONL with one entry per trade decision:
-\`\`\`json
+\\\`\\\`\\\`json
 {
   "agent_id": "claude-value-investor",
   "action": "buy",
@@ -187,20 +189,22 @@ JSONL with one entry per trade decision:
   "intent": "value",
   "coherence_score": 0.92,
   "hallucination_flags": [],
+  "accountability_score": 0.78,
+  "rqi_score": 0.85,
   "timestamp": "2026-02-04T12:00:00Z"
 }
-\`\`\`
+\\\`\\\`\\\`
 
 ## Citation
 
-\`\`\`bibtex
+\\\`\\\`\\\`bibtex
 @misc{moltapp2026,
-  title={MoltApp: Agentic Stock Trading Benchmark},
+  title={MoltApp: 16-Dimension Agentic Stock Trading Benchmark},
   author={Pat Ruff},
   year={2026},
   url={https://www.patgpt.us}
 }
-\`\`\`
+\\\`\\\`\\\`
 
 Built for the [Colosseum Agent Hackathon](https://colosseum.org).
 `;
@@ -214,7 +218,7 @@ Built for the [Colosseum Agent Hackathon](https://colosseum.org).
         path: "README.md",
         content: readmeBlob,
       },
-      commitTitle: "Update dataset README for v27 benchmark",
+      commitTitle: "Update dataset README for v28 benchmark",
     });
     console.log("[sync-to-hf] ✓ Uploaded README.md");
   } catch (err) {
