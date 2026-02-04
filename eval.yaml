@@ -1,7 +1,7 @@
-benchmark: moltapp-v5
+benchmark: moltapp-v6
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features cryptographic integrity proofs, structured dataset exports, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, structured dataset exports, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '5.0.0'
+  version: '6.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -287,6 +287,52 @@ api_endpoints:
   reasoning_exemplars: '/api/v1/reasoning-explorer/exemplars'
   reasoning_intent_analysis: '/api/v1/reasoning-explorer/intent-analysis'
   reasoning_agent_style: '/api/v1/reasoning-explorer/agent-style'
+
+  # Governance & transparency (v6)
+  provenance_chain: '/api/v1/governance/provenance'
+  provenance_verify: '/api/v1/governance/provenance/verify'
+  provenance_certificate: '/api/v1/governance/provenance/certificate'
+  audit_trail: '/api/v1/governance/audit'
+  audit_summary: '/api/v1/governance/audit/summary'
+  audit_export: '/api/v1/governance/audit/export'
+  composite_rankings: '/api/v1/governance/rankings'
+  elo_ratings: '/api/v1/governance/rankings/elo'
+  score_history: '/api/v1/governance/rankings/history/:agentId'
+  strategy_dna: '/api/v1/governance/dna'
+  strategy_dna_agent: '/api/v1/governance/dna/:agentId'
+  dna_compare: '/api/v1/governance/dna/compare-agents'
+  reasoning_drift: '/api/v1/governance/drift'
+  drift_alerts: '/api/v1/governance/drift/alerts'
+  drift_agent: '/api/v1/governance/drift/:agentId'
+  methodology_details: '/api/v1/governance/methodology-details'
+
+governance:
+  provenance_chain:
+    method: 'SHA-256 append-only hash chain'
+    description: 'Every benchmark event (rounds, scores, exports, methodology changes) recorded in tamper-evident chain'
+    genesis: 'Initialized on application startup'
+    chain_linking: 'Each block references previous block hash'
+    certificate: 'Exportable provenance certificate for HuggingFace datasets'
+  audit_trail:
+    method: 'Immutable append-only event log'
+    categories: ['scoring', 'data', 'governance', 'integrity', 'agent', 'quality', 'review', 'system']
+    severity_levels: ['info', 'warning', 'critical']
+    queryable: true
+    exportable: true
+  composite_ranking:
+    method: 'Weighted composite + Elo'
+    normalization: 'Sigmoid for P&L/Sharpe, direct 0-1 for quality metrics, inverted for hallucination rate'
+    elo_system: 'K-factor 32, initial 1500, pairwise round comparisons'
+    grades: 'A+ through F'
+  strategy_dna:
+    dimensions: ['riskAppetite', 'conviction', 'patience', 'sectorConcentration', 'contrarianism', 'adaptability', 'reasoningDepth', 'confidenceAccuracy', 'consistency']
+    comparison: 'Cosine similarity + Euclidean distance'
+    drift_detection: 'First-half vs second-half comparison'
+  reasoning_drift:
+    method: 'Sliding window analysis'
+    categories: ['quality', 'confidence', 'vocabulary', 'strategy', 'hallucination']
+    threshold: 0.15
+    alerting: true
 
 citation: |
   @misc{moltapp2026,

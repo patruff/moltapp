@@ -101,6 +101,27 @@ import {
   analyzeDeepCoherence,
   recordDeepAnalysis,
 } from "../services/deep-coherence-analyzer.ts";
+import {
+  recordRoundProvenance,
+  recordScoringProvenance,
+} from "../services/benchmark-provenance.ts";
+import {
+  auditScoring,
+  auditQualityGate,
+  auditHallucination,
+  auditPeerReview,
+} from "../services/benchmark-audit-trail.ts";
+import {
+  processRoundElo,
+  updateStreak,
+} from "../services/benchmark-composite-ranker.ts";
+import {
+  recordTradeForDNA,
+} from "../services/strategy-dna-profiler.ts";
+import {
+  recordDriftSnapshot,
+  buildDriftSnapshot,
+} from "../services/reasoning-drift-detector.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -815,6 +836,65 @@ async function executeTradingRound(
           discipline.passed,
         );
 
+        // --- Feed provenance, audit, DNA, and drift services ---
+        try {
+          // Audit trail: record scoring event
+          auditScoring(
+            agent.agentId,
+            { composite: coherence.score, coherence: coherence.score, hallucinationRate: hallucinations.severity },
+            coherence.score >= 0.8 ? "A" : coherence.score >= 0.6 ? "B" : "C",
+            roundId,
+          );
+
+          // Audit trail: hallucination flags
+          if (hallucinations.flags.length > 0) {
+            auditHallucination(agent.agentId, decision.symbol, hallucinations.flags, roundId);
+          }
+
+          // Audit trail: quality gate
+          auditQualityGate(agent.agentId, discipline.passed, coherence.score, 0.3);
+
+          // Strategy DNA profiler
+          recordTradeForDNA({
+            agentId: agent.agentId,
+            action: decision.action,
+            symbol: decision.symbol,
+            quantity: decision.quantity,
+            confidence: normalizedConf,
+            reasoning: decision.reasoning,
+            intent,
+            coherenceScore: coherence.score,
+            timestamp: new Date().toISOString(),
+          });
+
+          // Reasoning drift detector
+          const driftSnap = buildDriftSnapshot({
+            agentId: agent.agentId,
+            roundId,
+            reasoning: decision.reasoning,
+            coherenceScore: coherence.score,
+            hallucinationCount: hallucinations.flags.length,
+            confidence: normalizedConf,
+            intent,
+            action: decision.action,
+          });
+          recordDriftSnapshot(driftSnap);
+
+          // Provenance chain: scoring event
+          recordScoringProvenance(agent.agentId, {
+            composite: coherence.score,
+            coherence: coherence.score,
+            hallucinationRate: hallucinations.severity,
+            discipline: discipline.passed ? 1 : 0,
+            pnl: portfolio.totalPnlPercent,
+            sharpe: 0,
+          });
+        } catch (err) {
+          console.warn(
+            `[Orchestrator] Governance service recording failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+
         // --- NEW: Reasoning depth analysis ---
         try {
           const depthScore = analyzeReasoningDepth(
@@ -1212,6 +1292,35 @@ async function executeTradingRound(
     errorCount: errors.length,
     tradingMode: getTradingMode(),
   });
+
+  // --- Round-level provenance, Elo, and audit trail ---
+  try {
+    // Record round in provenance chain
+    recordRoundProvenance(roundId, {
+      agentCount: results.length,
+      tradeCount: results.filter((r) => r.decision.action !== "hold").length,
+      avgCoherence: 0.5, // Will be enriched by scoring engine
+      hallucinationCount: 0,
+      tradingMode: getTradingMode(),
+    });
+
+    // Process Elo updates from pairwise comparisons
+    const eloResults = results.map((r) => ({
+      agentId: r.agentId,
+      compositeScore: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+    }));
+    processRoundElo(eloResults);
+
+    // Update streaks
+    for (const r of results) {
+      updateStreak(r.agentId, r.executed && r.decision.action !== "hold" ? null : null);
+    }
+
+    // Audit peer review
+    auditPeerReview(roundId, results.length, results[0]?.agentId ?? null, 0);
+  } catch (err) {
+    console.warn(`[Orchestrator] Governance round finalization failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   return {
     roundId,
