@@ -253,19 +253,10 @@ benchmarkV14Routes.get("/", (c) => {
       <!-- Prediction Resolution -->
       <div class="card">
         <h2>Prediction Resolution</h2>
-        <div class="stat-row"><span class="label">Pending Predictions</span><span class="value">${resolutionStats.totalPending}</span></div>
+        <div class="stat-row"><span class="label">Pending Predictions</span><span class="value">${resolutionStats.pendingCount}</span></div>
         <div class="stat-row"><span class="label">Resolved Predictions</span><span class="value">${resolutionStats.totalResolved}</span></div>
-        <div class="stat-row"><span class="label">Overall Direction Accuracy</span><span class="value">${(resolutionStats.overallAccuracy * 100).toFixed(1)}%</span></div>
-        <div class="stat-row"><span class="label">Avg Prediction Quality</span><span class="value">${(resolutionStats.avgPredictionScore * 100).toFixed(1)}%</span></div>
-        <div class="bar-chart">
-          ${Object.entries(resolutionStats.byAgent).map(([id, stats]) => `
-            <div class="bar">
-              <span class="bar-label">${formatAgentName(id)}</span>
-              <div class="bar-fill" style="width: ${stats.accuracy * 200}px; background: ${stats.accuracy >= 0.6 ? '#00e676' : stats.accuracy >= 0.4 ? '#ffca28' : '#ff5252'};"></div>
-              <span class="bar-value">${(stats.accuracy * 100).toFixed(0)}% (${stats.resolved})</span>
-            </div>
-          `).join("")}
-        </div>
+        <div class="stat-row"><span class="label">Overall Direction Accuracy</span><span class="value">${(resolutionStats.directionAccuracy * 100).toFixed(1)}%</span></div>
+        <div class="stat-row"><span class="label">Avg P&L</span><span class="value">${resolutionStats.avgPnl.toFixed(2)}%</span></div>
       </div>
 
       <!-- Consensus Intelligence -->

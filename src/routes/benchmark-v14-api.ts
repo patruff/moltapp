@@ -51,8 +51,8 @@ export const benchmarkV14ApiRoutes = new Hono();
 benchmarkV14ApiRoutes.get("/predictions/:agentId", (c) => {
   const agentId = c.req.param("agentId");
   const profile = buildAgentPredictionProfile(agentId);
-  const pending = getPendingPredictions(agentId);
-  const resolved = getResolvedPredictions(agentId);
+  const pending = getPendingPredictions().filter((p) => p.agentId === agentId);
+  const resolved = getResolvedPredictions().filter((p) => p.agentId === agentId);
 
   return c.json({
     ok: true,
@@ -68,13 +68,14 @@ benchmarkV14ApiRoutes.get("/predictions/:agentId", (c) => {
  */
 benchmarkV14ApiRoutes.get("/predictions", (c) => {
   const stats = getResolutionStats();
+  const allPredictions = getResolvedPredictions();
+  const agentIds = [...new Set(allPredictions.map((p) => p.agentId))];
+  const agents = agentIds.map((agentId) => buildAgentPredictionProfile(agentId));
+
   return c.json({
     ok: true,
     overview: stats,
-    agents: Object.entries(stats.byAgent).map(([agentId, agentStats]) => ({
-      agentId,
-      ...agentStats,
-    })),
+    agents,
   });
 });
 
@@ -239,23 +240,18 @@ benchmarkV14ApiRoutes.get("/export/v14", (c) => {
 
   const records = resolved.map((r) => ({
     type: "prediction_resolution",
-    id: r.id,
     agent_id: r.agentId,
     symbol: r.symbol,
     action: r.action,
     confidence: r.confidence,
     predicted_outcome: r.predictedOutcome,
-    implied_direction: r.impliedDirection,
-    actual_change_pct: r.actualChangePct,
     direction_correct: r.directionCorrect,
-    target_accuracy: r.targetAccuracy,
-    prediction_score: r.predictionScore,
-    resolution_method: r.resolutionMethod,
-    resolution_time_hours: r.resolutionTimeHours,
+    pnl_percent: r.pnlPercent,
     price_at_prediction: r.priceAtPrediction,
-    price_at_resolution: r.priceAtResolution,
+    exit_price: r.exitPrice,
     round_id: r.roundId,
-    timestamp: r.timestamp,
+    registered_at: r.registeredAt,
+    resolved_at: r.resolvedAt,
   }));
 
   const calibRecords = calibData.map((d) => ({

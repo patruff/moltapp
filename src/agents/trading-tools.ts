@@ -30,7 +30,7 @@ export interface ToolContext {
 // Tool Schema Definitions
 // ---------------------------------------------------------------------------
 
-interface ToolParam {
+export interface ToolParam {
   type: string;
   description: string;
   enum?: string[];
