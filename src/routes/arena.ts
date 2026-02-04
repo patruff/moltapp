@@ -192,27 +192,28 @@ arenaRoutes.get("/history", async (c) => {
       .limit(limit * 3); // 3 agents per round
 
     // Group by round
-    const roundMap = new Map<
-      string,
-      {
-        roundId: string;
-        timestamp: Date;
-        decisions: Array<{
-          agentId: string;
-          agentName: string;
-          action: string;
-          symbol: string;
-          quantity: string;
-          confidence: number;
-          reasoning: string;
-          modelUsed: string;
-        }>;
-      }
-    >();
+    type RoundDecision = {
+      agentId: string;
+      agentName: string;
+      action: string;
+      symbol: string;
+      quantity: string;
+      confidence: number;
+      reasoning: string;
+      modelUsed: string;
+    };
+
+    type RoundEntry = {
+      roundId: string;
+      timestamp: Date;
+      decisions: RoundDecision[];
+    };
+
+    const roundMap = new Map<string, RoundEntry>();
 
     for (const d of decisions) {
       const key = d.roundId ?? `solo_${d.id}`;
-      const entry = roundMap.get(key) ?? {
+      const entry: RoundEntry = roundMap.get(key) ?? {
         roundId: key,
         timestamp: d.createdAt,
         decisions: [],

@@ -683,7 +683,11 @@ export async function analyzeHistoricalConsensus(
     .limit(roundCount * 3);
 
   const uniqueRoundIds = [
-    ...new Set(rounds.map((r: { roundId: string | null }) => r.roundId).filter(Boolean)),
+    ...new Set(
+      rounds
+        .map((r: { roundId: string | null }) => r.roundId)
+        .filter((id): id is string => Boolean(id))
+    ),
   ].slice(0, roundCount);
 
   let totalSignals = 0;

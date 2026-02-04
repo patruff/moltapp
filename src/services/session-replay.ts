@@ -157,7 +157,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
   timeline.push({
     timestamp: new Date(baseTime).toISOString(),
     type: "round_start",
-    data: { roundId, agentCount: new Set(decisions.map((d) => d.agentId)).size },
+    data: { roundId, agentCount: new Set(decisions.map((d: typeof decisions[number]) => d.agentId)).size },
     offsetMs: 0,
   });
 
@@ -173,7 +173,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
 
     // Find matching trade
     const matchingTrade = roundTrades.find(
-      (t) =>
+      (t: typeof roundTrades[number]) =>
         t.txSignature === decision.txSignature ||
         (t.stockSymbol === decision.symbol &&
           Math.abs(
@@ -258,7 +258,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
     data: {
       decisionsCount: decisions.length,
       tradesExecuted: decisions.filter(
-        (d) => d.executed === "executed" || d.executed === "executed_paper",
+        (d: typeof decisions[number]) => d.executed === "executed" || d.executed === "executed_paper",
       ).length,
     },
     offsetMs: lastEventTime - baseTime + 2000,
@@ -281,13 +281,13 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
     : [];
 
   // 5. Build summary
-  const buyCount = decisions.filter((d) => d.action === "buy").length;
-  const sellCount = decisions.filter((d) => d.action === "sell").length;
-  const holdCount = decisions.filter((d) => d.action === "hold").length;
+  const buyCount = decisions.filter((d: typeof decisions[number]) => d.action === "buy").length;
+  const sellCount = decisions.filter((d: typeof decisions[number]) => d.action === "sell").length;
+  const holdCount = decisions.filter((d: typeof decisions[number]) => d.action === "hold").length;
   const executed = decisions.filter(
-    (d) => d.executed === "executed" || d.executed === "executed_paper",
+    (d: typeof decisions[number]) => d.executed === "executed" || d.executed === "executed_paper",
   ).length;
-  const failed = decisions.filter((d) => d.executed === "failed").length;
+  const failed = decisions.filter((d: typeof decisions[number]) => d.executed === "failed").length;
 
   // Consensus: if majority agrees on action
   let consensusAction: string | null = null;
@@ -298,9 +298,9 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
   }
 
   // Best decision: highest confidence non-hold
-  const nonHolds = decisions.filter((d) => d.action !== "hold");
+  const nonHolds = decisions.filter((d: typeof decisions[number]) => d.action !== "hold");
   const bestDecision = nonHolds.length > 0
-    ? nonHolds.sort((a, b) => b.confidence - a.confidence)[0]
+    ? nonHolds.sort((a: typeof nonHolds[number], b: typeof nonHolds[number]) => b.confidence - a.confidence)[0]
     : null;
 
   // 6. Generate annotations
@@ -316,8 +316,8 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
     roundId,
     timestamp: new Date(baseTime).toISOString(),
     duration: durationStr,
-    tradingMode: decisions.some((d) => d.executed === "executed") ? "live" : "paper",
-    agentCount: new Set(decisions.map((d) => d.agentId)).size,
+    tradingMode: decisions.some((d: typeof decisions[number]) => d.executed === "executed") ? "live" : "paper",
+    agentCount: new Set(decisions.map((d: typeof decisions[number]) => d.agentId)).size,
     timeline,
     decisions: agentDecisionReplays,
     marketContext: {
@@ -430,7 +430,7 @@ export async function compareAgentSessions(
     .orderBy(desc(agentDecisions.createdAt))
     .limit(limit);
 
-  const sessions = decisions.map((d) => ({
+  const sessions = decisions.map((d: typeof decisions[number]) => ({
     roundId: d.roundId ?? "unknown",
     timestamp: d.createdAt.toISOString(),
     action: d.action,
@@ -440,7 +440,7 @@ export async function compareAgentSessions(
   }));
 
   // Compute patterns
-  const actions = decisions.map((d) => d.action);
+  const actions = decisions.map((d: typeof decisions[number]) => d.action);
   const actionCounts: Record<string, number> = {};
   for (const a of actions) {
     actionCounts[a] = (actionCounts[a] ?? 0) + 1;
@@ -450,14 +450,14 @@ export async function compareAgentSessions(
   const avgConfidence =
     decisions.length > 0
       ? Math.round(
-          decisions.reduce((sum, d) => sum + d.confidence, 0) / decisions.length,
+          decisions.reduce((sum: number, d: typeof decisions[number]) => sum + d.confidence, 0) / decisions.length,
         )
       : 0;
 
   const executionRate =
     decisions.length > 0
       ? Math.round(
-          (sessions.filter((s) => s.executed).length / decisions.length) * 100,
+          (sessions.filter((s: typeof sessions[number]) => s.executed).length / decisions.length) * 100,
         )
       : 0;
 
@@ -476,10 +476,10 @@ export async function compareAgentSessions(
   const firstHalf = decisions.slice(mid);
   const secondHalf = decisions.slice(0, mid);
   const firstAvg = firstHalf.length > 0
-    ? firstHalf.reduce((s, d) => s + d.confidence, 0) / firstHalf.length
+    ? firstHalf.reduce((s: number, d: typeof firstHalf[number]) => s + d.confidence, 0) / firstHalf.length
     : 0;
   const secondAvg = secondHalf.length > 0
-    ? secondHalf.reduce((s, d) => s + d.confidence, 0) / secondHalf.length
+    ? secondHalf.reduce((s: number, d: typeof secondHalf[number]) => s + d.confidence, 0) / secondHalf.length
     : 0;
   const improvingOverTime = secondAvg > firstAvg;
 

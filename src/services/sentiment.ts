@@ -305,14 +305,14 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
 
     // Build driver descriptions per agent
     for (const agentId of AGENT_IDS) {
-      const agentDecs = decisions.filter((d) => d.agentId === agentId);
+      const agentDecs = decisions.filter((d: typeof decisions[number]) => d.agentId === agentId);
       if (agentDecs.length === 0) continue;
 
       const agentConfig = agentConfigs.find((a) => a.agentId === agentId);
-      const buys = agentDecs.filter((d) => d.action === "buy").length;
-      const sells = agentDecs.filter((d) => d.action === "sell").length;
-      const holds = agentDecs.filter((d) => d.action === "hold").length;
-      const avgConf = agentDecs.reduce((s, d) => s + d.confidence, 0) / agentDecs.length;
+      const buys = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "buy").length;
+      const sells = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "sell").length;
+      const holds = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "hold").length;
+      const avgConf = agentDecs.reduce((s: number, d: typeof agentDecs[number]) => s + d.confidence, 0) / agentDecs.length;
       const latest = agentDecs[0];
 
       const direction = buys > sells ? "bullish" : sells > buys ? "bearish" : "neutral";
@@ -787,7 +787,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
     // Overall bias: buy -> +1, sell -> -1, hold -> 0, weighted by confidence
     let biasSum = 0;
     let biasWeight = 0;
-    const avgConf = decisions.reduce((s, d) => s + d.confidence, 0) / decisions.length;
+    const avgConf = decisions.reduce((s: number, d: typeof decisions[number]) => s + d.confidence, 0) / decisions.length;
 
     for (const d of decisions) {
       const actionVal = d.action === "buy" ? 1 : d.action === "sell" ? -1 : 0;
@@ -877,14 +877,14 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
 
     for (const group of Object.values(roundGroups)) {
       if (group.length < 2) continue;
-      const thisAgentDec = group.find((d) => d.agentId === agentId);
-      const otherDecs = group.filter((d) => d.agentId !== agentId);
+      const thisAgentDec = group.find((d: typeof allDecisions[number]) => d.agentId === agentId);
+      const otherDecs = group.filter((d: typeof allDecisions[number]) => d.agentId !== agentId);
       if (!thisAgentDec || otherDecs.length === 0) continue;
 
       comparisonCount++;
       // Consensus of others
-      const otherBuys = otherDecs.filter((d) => d.action === "buy").length;
-      const otherSells = otherDecs.filter((d) => d.action === "sell").length;
+      const otherBuys = otherDecs.filter((d: typeof otherDecs[number]) => d.action === "buy").length;
+      const otherSells = otherDecs.filter((d: typeof otherDecs[number]) => d.action === "sell").length;
       const otherConsensus = otherBuys > otherSells ? "buy" : otherSells > otherBuys ? "sell" : "hold";
 
       if (thisAgentDec.action !== otherConsensus && thisAgentDec.action !== "hold" && otherConsensus !== "hold") {
@@ -1130,7 +1130,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       const volume = stock.volume24h ?? 0;
       const sector = SECTOR_MAP[stock.symbol] ?? "General";
       const keywords = SOCIAL_KEYWORDS[stock.symbol] ?? [];
-      const stockDecisions = recentDecisions.filter((d) => d.symbol === stock.symbol);
+      const stockDecisions = recentDecisions.filter((d: typeof recentDecisions[number]) => d.symbol === stock.symbol);
       const name = stock.name ?? stock.symbol.replace("x", "");
 
       // Generate 2-4 headlines per stock
