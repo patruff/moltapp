@@ -40,6 +40,7 @@ import {
   acknowledgeAlert,
 } from "../services/risk-management.ts";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const riskRoutes = new Hono();
 
@@ -85,7 +86,7 @@ riskRoutes.post("/alerts/:alertId/ack", async (c) => {
   const success = acknowledgeAlert(alertId);
 
   if (!success) {
-    return c.json({ ok: false, error: "Alert not found" }, 404);
+    return apiError(c, "ALERT_NOT_FOUND");
   }
 
   return c.json({ ok: true, message: "Alert acknowledged" });
@@ -100,7 +101,7 @@ riskRoutes.get("/:agentId", async (c) => {
   const dashboard = await getAgentRiskDashboard(agentId);
 
   if (!dashboard) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   return c.json({
@@ -118,7 +119,7 @@ riskRoutes.get("/:agentId/var", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -149,7 +150,7 @@ riskRoutes.get("/:agentId/drawdown", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -175,7 +176,7 @@ riskRoutes.get("/:agentId/concentration", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -206,7 +207,7 @@ riskRoutes.get("/:agentId/correlations", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -247,7 +248,7 @@ riskRoutes.get("/:agentId/metrics", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -292,7 +293,7 @@ riskRoutes.get("/:agentId/stress-test", async (c) => {
   const configs = getAgentConfigs();
   const config = configs.find((a) => a.agentId === agentId);
   if (!config) {
-    return c.json({ ok: false, error: "Agent not found" }, 404);
+    return apiError(c, "AGENT_NOT_FOUND");
   }
 
   const portfolio = await getPortfolioContext(agentId, await getMarketData());
@@ -356,17 +357,17 @@ riskRoutes.post("/:agentId/stops", async (c) => {
   const { symbol, type, triggerPrice, triggerPercent, action } = body;
 
   if (!symbol || !type || triggerPrice === undefined) {
-    return c.json(
-      { ok: false, error: "Missing required fields: symbol, type, triggerPrice" },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", {
+      fields: ["symbol", "type", "triggerPrice"],
+      message: "Missing required fields",
+    });
   }
 
   if (!["stop_loss", "take_profit", "trailing_stop"].includes(type)) {
-    return c.json(
-      { ok: false, error: "type must be stop_loss, take_profit, or trailing_stop" },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", {
+      field: "type",
+      message: "type must be stop_loss, take_profit, or trailing_stop",
+    });
   }
 
   const rule = createStopRule({
@@ -391,10 +392,7 @@ riskRoutes.delete("/:agentId/stops/:ruleId", async (c) => {
 
   const cancelled = cancelStopRule(agentId, ruleId);
   if (!cancelled) {
-    return c.json(
-      { ok: false, error: "Rule not found or already inactive" },
-      404,
-    );
+    return apiError(c, "STOP_RULE_NOT_FOUND");
   }
 
   return c.json({ ok: true, data: cancelled });
