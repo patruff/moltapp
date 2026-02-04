@@ -1,7 +1,7 @@
-benchmark: moltapp-v4
+benchmark: moltapp-v5
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, confidence calibration, deep reasoning quality, and risk-adjusted returns. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features cryptographic integrity proofs, structured dataset exports, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '4.0.0'
+  version: '5.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -127,6 +127,26 @@ metrics:
     range: [0, 1]
     higher_is_better: true
 
+  - name: expected_calibration_error
+    type: meta
+    description: 'ECE measures how well confidence predicts outcomes. Lower is better. A perfectly calibrated agent has ECE = 0.'
+    range: [0, 1]
+    higher_is_better: false
+    measurement: 'Bucket analysis: |avg_confidence - actual_win_rate| weighted by bucket size.'
+
+  - name: brier_score
+    type: meta
+    description: 'Brier score measures probabilistic forecast accuracy. Lower is better.'
+    range: [0, 1]
+    higher_is_better: false
+    measurement: '(1/n) * sum((confidence - outcome)^2)'
+
+  - name: reasoning_originality
+    type: qualitative
+    description: 'Whether agent produces unique reasoning vs templated responses. Measured via Jaccard similarity.'
+    range: [0, 1]
+    higher_is_better: true
+
 evaluation:
   frequency: continuous
   environment: live-market
@@ -186,6 +206,16 @@ enforcement:
     pattern_count: '60+'
     grades: 'A+ through F'
     endpoint: '/api/v1/methodology/deep-analysis'
+  integrity_proofs:
+    method: 'SHA-256 Merkle trees'
+    chain: 'Temporal chain linking (each proof references previous round)'
+    verification: '/api/v1/integrity/verify/:roundId'
+    fingerprint: 'Dataset-level SHA-256 fingerprint for HuggingFace verification'
+  calibration_engine:
+    method: 'ECE + Brier Score + Reliability Diagrams'
+    buckets: 10
+    trend_analysis: true
+    endpoint: '/api/v1/calibration'
 
 data_schema:
   trade_justification:
@@ -237,6 +267,26 @@ api_endpoints:
   timeline: '/api/v1/timeline/:agentId'
   reports: '/api/v1/reports/:agentId'
   duels: '/api/v1/duels'
+
+  # Research portal (v5)
+  research_dataset: '/api/v1/research-portal/dataset'
+  research_statistics: '/api/v1/research-portal/dataset/statistics'
+  research_timeseries: '/api/v1/research-portal/dataset/timeseries'
+  research_query: '/api/v1/research-portal/query'
+  research_compare: '/api/v1/research-portal/compare'
+  research_hypothesis: '/api/v1/research-portal/hypothesis'
+  research_correlation: '/api/v1/research-portal/correlation'
+  research_schema: '/api/v1/research-portal/schema'
+
+  # Reasoning explorer (v5)
+  reasoning_search: '/api/v1/reasoning-explorer/search'
+  reasoning_similar: '/api/v1/reasoning-explorer/similar/:id'
+  reasoning_trends: '/api/v1/reasoning-explorer/trends'
+  reasoning_vocabulary: '/api/v1/reasoning-explorer/vocabulary'
+  reasoning_controversial: '/api/v1/reasoning-explorer/controversial'
+  reasoning_exemplars: '/api/v1/reasoning-explorer/exemplars'
+  reasoning_intent_analysis: '/api/v1/reasoning-explorer/intent-analysis'
+  reasoning_agent_style: '/api/v1/reasoning-explorer/agent-style'
 
 citation: |
   @misc{moltapp2026,

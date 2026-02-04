@@ -107,6 +107,8 @@ import { benchmarkResearchRoutes } from "./routes/benchmark-research.ts";
 import { benchmarkMethodologyRoutes } from "./routes/benchmark-methodology.ts";
 import { benchmarkSubmissionRoutes } from "./routes/benchmark-submission.ts";
 import { benchmarkLiveRoutes } from "./routes/benchmark-live.ts";
+import { benchmarkResearchPortalRoutes } from "./routes/benchmark-research-portal.ts";
+import { reasoningExplorerRoutes } from "./routes/reasoning-explorer.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -397,6 +399,12 @@ app.route("/api/v1/benchmark-submit", benchmarkSubmissionRoutes);
 
 // Live Benchmark Page (public -- industry-standard leaderboard at /benchmark)
 app.route("/benchmark", benchmarkLiveRoutes);
+
+// Research Portal (public -- structured dataset download, statistics, hypothesis testing)
+app.route("/api/v1/research-portal", benchmarkResearchPortalRoutes);
+
+// Reasoning Explorer (public -- search, similarity, trends, vocabulary analysis)
+app.route("/api/v1/reasoning-explorer", reasoningExplorerRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
