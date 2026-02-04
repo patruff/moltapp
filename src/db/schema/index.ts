@@ -13,3 +13,4 @@ export { predictions, predictionBets, predictionMarkets } from "./predictions.ts
 export { strategies, strategyAdoptions, strategyRatings, strategySignals } from "./strategies.ts";
 export { portfolioSnapshots, competitionScores } from "./portfolio-snapshots.ts";
 export { tradeJustifications, benchmarkSnapshots } from "./trade-reasoning.ts";
+export { reasoningForensicReports, reasoningIntegrityViolations, agentReasoningHealth } from "./reasoning-forensics.ts";

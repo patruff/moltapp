@@ -126,6 +126,16 @@ import {
   analyzeReasoningPatterns,
   recordReasoningForPatternAnalysis,
 } from "../services/reasoning-pattern-detector.ts";
+import {
+  analyzeForensics,
+  seedForensicHistory,
+} from "../services/reasoning-forensic-engine.ts";
+import {
+  recordV11Metrics,
+} from "../services/benchmark-v11-scorer.ts";
+import {
+  emitV11Event,
+} from "../routes/benchmark-v11.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -980,8 +990,9 @@ async function executeTradingRound(
           }
 
           // --- v10: Reasoning pattern analysis (fallacies, depth, vocabulary) ---
+          let patternResult: { qualityScore: number; fallacies: { type: string }[]; depth: { classification: string }; vocabulary: { sophisticationScore: number }; hedgeRatio: number; templateProbability: number } | null = null;
           try {
-            const patternResult = analyzeReasoningPatterns(agent.agentId, decision.reasoning);
+            patternResult = analyzeReasoningPatterns(agent.agentId, decision.reasoning);
             recordReasoningForPatternAnalysis(agent.agentId, decision.reasoning, patternResult.qualityScore);
             console.log(
               `[Orchestrator] ${agent.name} patterns: quality=${patternResult.qualityScore.toFixed(2)}, ` +
@@ -1001,6 +1012,72 @@ async function executeTradingRound(
           } catch (err) {
             console.warn(
               `[Orchestrator] Pattern analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+
+          // --- v11: Forensic reasoning analysis ---
+          try {
+            const forensicReport = analyzeForensics(
+              agent.agentId,
+              roundId,
+              decision.reasoning,
+              decision.action,
+              decision.symbol,
+              normalizedConf,
+            );
+
+            // Seed forensic history for cross-trade analysis
+            seedForensicHistory(
+              agent.agentId,
+              decision.reasoning,
+              decision.action,
+              decision.symbol,
+              normalizedConf,
+            );
+
+            // Record into v11 scoring engine
+            recordV11Metrics(agent.agentId, {
+              coherence: coherence.score,
+              depth: forensicReport.depth.depthScore,
+              hallucinationFree: 1 - hallucinations.severity,
+              discipline: discipline.passed ? 1 : 0,
+              confidence: normalizedConf,
+              forensicStructure: forensicReport.structural.structureScore,
+              forensicOriginality: forensicReport.originality.originalityScore,
+              forensicClarity: forensicReport.clarity.clarityScore,
+              forensicIntegrity: forensicReport.crossTrade.flags.length === 0 ? 1 : Math.max(0, 1 - forensicReport.crossTrade.flags.length * 0.2),
+              patternQuality: patternResult?.qualityScore ?? 0.5,
+            });
+
+            console.log(
+              `[Orchestrator] ${agent.name} forensic: composite=${forensicReport.compositeScore.toFixed(2)} (${forensicReport.grade}), ` +
+              `depth=${forensicReport.depth.classification}, originality=${forensicReport.originality.originalityScore.toFixed(2)}, ` +
+              `clarity=${forensicReport.clarity.clarityScore.toFixed(2)}, integrity-flags=${forensicReport.crossTrade.flags.length}`,
+            );
+
+            emitV11Event("forensic_analyzed", {
+              compositeScore: forensicReport.compositeScore,
+              grade: forensicReport.grade,
+              depthClassification: forensicReport.depth.classification,
+              dimensionsCovered: forensicReport.depth.dimensionCount,
+              originalityScore: forensicReport.originality.originalityScore,
+              templateProbability: forensicReport.originality.templateProbability,
+              clarityScore: forensicReport.clarity.clarityScore,
+              integrityFlags: forensicReport.crossTrade.flags,
+              structureScore: forensicReport.structural.structureScore,
+              quantitativeClaims: forensicReport.structural.quantitativeClaimCount,
+              causalConnectors: forensicReport.structural.causalConnectorCount,
+            }, agent.agentId);
+
+            emitBenchmarkEvent("v11_forensic", {
+              compositeScore: forensicReport.compositeScore,
+              grade: forensicReport.grade,
+              depthClassification: forensicReport.depth.classification,
+              originalityScore: forensicReport.originality.originalityScore,
+            }, agent.agentId);
+          } catch (err) {
+            console.warn(
+              `[Orchestrator] v11 forensic analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
             );
           }
         } catch (err) {

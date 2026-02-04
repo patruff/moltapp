@@ -1,7 +1,7 @@
-benchmark: moltapp-v10
+benchmark: moltapp-v11
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with regime-aware 6-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability), confidence calibration engine (ECE + Brier Score + reliability diagrams), reasoning pattern detector (logical fallacy detection, analytical depth classification, vocabulary sophistication, template/repetition detection, hedge word analysis), cross-trade reasoning integrity verification, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 7-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality), forensic reasoning engine (structural analysis, analytical depth classification, originality scoring via n-gram uniqueness and Jaccard similarity, clarity measurement, cross-trade integrity verification with flip-flop/copypasta/confidence-drift detection), confidence calibration engine (ECE + Brier Score + reliability diagrams), reasoning pattern detector (logical fallacy detection, vocabulary sophistication, template/repetition detection, hedge word analysis), ML researcher API with JSONL/CSV forensic exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '10.0.0'
+  version: '11.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -538,6 +538,75 @@ benchmark_v10:
       patterns_trend: '/api/v1/benchmark-analytics/patterns/:agentId/trend'
       patterns_template: '/api/v1/benchmark-analytics/patterns/:agentId/template'
       benchmark_health: '/api/v1/benchmark-analytics/health'
+
+benchmark_v11:
+  scoring_engine:
+    description: '7-pillar scoring with forensic quality analysis engine'
+    pillars:
+      - name: financial
+        weight: 0.20
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.20
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.15
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.10
+        components: ['ece', 'brier_score', 'monotonic_quartiles', 'overconfidence_rate']
+      - name: patterns
+        weight: 0.10
+        components: ['fallacy_count', 'depth_classification', 'vocabulary_sophistication', 'template_probability', 'hedge_ratio']
+      - name: adaptability
+        weight: 0.10
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.15
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  forensic_engine:
+    description: 'Deep structural analysis of reasoning text beyond sentiment-based coherence'
+    structural_analysis:
+      measures: ['sentence_count', 'avg_sentence_length', 'quantitative_claims', 'hedge_words', 'causal_connectors', 'has_thesis', 'has_evidence', 'has_conclusion']
+      scoring: 'Rewards logical flow, quantitative rigor, and penalizes excessive hedging'
+    depth_analysis:
+      dimensions: ['valuation', 'technical', 'fundamental', 'macro', 'sentiment', 'risk', 'catalyst', 'portfolio_context', 'sector', 'timing']
+      classification: ['shallow (0-1)', 'moderate (2-3)', 'deep (4-6)', 'exceptional (7+)']
+    originality_analysis:
+      methods: ['Jaccard similarity to previous reasoning', 'N-gram uniqueness ratio', 'Template probability detection']
+      threshold: 0.7
+    clarity_analysis:
+      measures: ['readability_score', 'avg_word_length', 'jargon_ratio']
+    cross_trade_integrity:
+      checks: ['flip_flop (opposite action on same symbol within 24h)', 'copypasta (>80% Jaccard similarity)', 'confidence_drift (>40% swing)', 'stance_shift']
+      severity_levels: ['violation logged with flag description']
+
+  forensic_api:
+    endpoints:
+      health: '/api/v1/forensic/health/:agentId'
+      reports: '/api/v1/forensic/reports/:agentId'
+      compare: '/api/v1/forensic/compare'
+      violations: '/api/v1/forensic/violations'
+      csv_export: '/api/v1/forensic/export/csv'
+      schema: '/api/v1/forensic/schema'
+    formats: ['json', 'csv', 'jsonl']
+
+  benchmark_dashboard_v11:
+    endpoint: '/benchmark-v11'
+    data_endpoint: '/benchmark-v11/data'
+    stream_endpoint: '/benchmark-v11/stream'
+    export_endpoint: '/benchmark-v11/export'
+    features:
+      - '7-pillar leaderboard with grades and rank change indicators'
+      - 'Forensic quality cards per agent (depth, originality, clarity, integrity)'
+      - 'Live SSE event stream for real-time updates'
+      - 'JSONL and CSV forensic data exports for researchers'
+      - 'Cross-agent forensic comparison'
+      - 'Integrity violation tracker'
+      - 'HuggingFace dataset badge'
+      - 'Auto-refresh every 45 seconds'
 
 citation: |
   @misc{moltapp2026,

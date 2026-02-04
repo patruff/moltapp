@@ -15,6 +15,13 @@
       "when": 1769939331692,
       "tag": "0001_eager_reaper",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770174648664,
+      "tag": "0002_colorful_lake",
+      "breakpoints": true
     }
   ]
 }
