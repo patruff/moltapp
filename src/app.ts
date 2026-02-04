@@ -100,6 +100,8 @@ import { reasoningTimelineRoutes } from "./routes/reasoning-timeline.ts";
 import { agentReportRoutes } from "./routes/agent-reports.ts";
 import { benchmarkCertificationRoutes } from "./routes/benchmark-certification.ts";
 import { reasoningDuelRoutes } from "./routes/reasoning-duel.ts";
+import { benchmarkExportRoutes } from "./routes/benchmark-export.ts";
+import { benchmarkComparisonRoutes } from "./routes/benchmark-comparison.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -369,6 +371,12 @@ app.route("/api/v1/certification", benchmarkCertificationRoutes);
 
 // Reasoning Duels (public -- side-by-side agent reasoning comparisons)
 app.route("/api/v1/duels", reasoningDuelRoutes);
+
+// Benchmark Export (public -- researcher-facing JSONL, CSV, summary, dataset card)
+app.route("/api/v1/export", benchmarkExportRoutes);
+
+// Benchmark Comparison (public -- head-to-head, rankings, dominance matrix, statistical tests)
+app.route("/api/v1/compare", benchmarkComparisonRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);

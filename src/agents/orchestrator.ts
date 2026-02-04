@@ -84,6 +84,11 @@ import { recordHallucinationAnalysis } from "../services/hallucination-tracker.t
 import { recordReasoningEntry } from "../services/reasoning-profile.ts";
 import { recordTimelineSnapshot } from "../services/reasoning-timeline.ts";
 import { recordIntelligenceEntry } from "../services/agent-intelligence-report.ts";
+import { recordForensicEntry } from "../services/reasoning-forensics.ts";
+import { recordComparisonEntry } from "../routes/benchmark-comparison.ts";
+import { recordRoundForIntegrity } from "../services/benchmark-integrity.ts";
+import { recordQualityDataPoint } from "../services/adaptive-quality-gate.ts";
+import { recordRoundResult as recordLeaderboardRoundResult } from "../services/leaderboard-evolution.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -766,6 +771,37 @@ async function executeTradingRound(
           disciplinePass: discipline.passed,
           timestamp: new Date().toISOString(),
         });
+
+        // Feed reasoning forensics
+        recordForensicEntry({
+          agentId: agent.agentId,
+          reasoning: decision.reasoning,
+          action: decision.action as "buy" | "sell" | "hold",
+          intent,
+          confidence: normalizedConf,
+          coherenceScore: coherence.score,
+          hallucinationFlags: hallucinations.flags,
+          disciplineViolations: discipline.passed ? [] : discipline.violations,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Feed benchmark comparison engine
+        recordComparisonEntry({
+          roundId,
+          agentId: agent.agentId,
+          pnl: portfolio.totalPnlPercent,
+          coherence: coherence.score,
+          hallucinationCount: hallucinations.flags.length,
+          timestamp: Date.now(),
+        });
+
+        // Feed adaptive quality gate history
+        recordQualityDataPoint(
+          agent.agentId,
+          coherence.score,
+          hallucinations.severity,
+          discipline.passed,
+        );
       } catch (err) {
         console.warn(
           `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -975,6 +1011,36 @@ async function executeTradingRound(
     }
   } catch (err) {
     console.warn(`[Orchestrator] Reasoning diffs failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Record round integrity proof (Merkle hash of all justifications)
+  try {
+    const roundJustifications = results.map((r) => ({
+      agentId: r.agentId,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+      reasoning: r.decision.reasoning,
+      confidence: r.decision.confidence,
+      timestamp: r.decision.timestamp ?? timestamp,
+    }));
+    recordRoundForIntegrity(roundId, roundJustifications);
+  } catch (err) {
+    console.warn(`[Orchestrator] Integrity proof failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Feed leaderboard evolution with round results
+  try {
+    const leaderboardResults = results.map((r) => ({
+      agentId: r.agentId,
+      agentName: r.agentName,
+      compositeScore: r.decision.confidence / 100,
+      pnl: 0,
+      coherence: 0,
+      hallucinationRate: 0,
+    }));
+    recordLeaderboardRoundResult(roundId, leaderboardResults);
+  } catch (err) {
+    console.warn(`[Orchestrator] Leaderboard evolution failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
