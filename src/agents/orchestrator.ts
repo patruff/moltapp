@@ -135,6 +135,12 @@ import {
   type V33TradeGrade,
 } from "../services/v33-benchmark-engine.ts";
 import {
+  gradeTrade as gradeTradeV35,
+  scoreAgent as scoreAgentV35,
+  createRoundSummary as createV35RoundSummary,
+  type V35TradeGrade,
+} from "../services/v35-benchmark-engine.ts";
+import {
   recordDriftSnapshot,
   buildDriftSnapshot,
 } from "../services/reasoning-drift-detector.ts";
@@ -2749,6 +2755,91 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v33 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── v35 Benchmark Scoring (30 dimensions — info asymmetry + temporal reasoning) ──
+  try {
+    const v35Trades: V35TradeGrade[] = [];
+    const allReasonings = results.map((r) => r.decision.reasoning);
+
+    const v35MarketPrices: Record<string, number> = {};
+    for (const md of marketData) {
+      v35MarketPrices[md.symbol] = md.price;
+    }
+
+    const v35PeerActions = results.map((r) => ({
+      agentId: r.agentId,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+    }));
+
+    for (const r of results) {
+      const d = r.decision;
+      const conf01 = normalizeConfidence(d.confidence);
+      const action = d.action as "buy" | "sell" | "hold";
+      const coherence = analyzeCoherence(d.reasoning, action, marketData);
+      const hallucinations = detectHallucinations(d.reasoning, marketData);
+      const discipline = checkInstructionDiscipline(
+        d,
+        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
+        { cashBalance: 10000, totalValue: 10000, positions: [] },
+      );
+
+      const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const peerReasonings = allReasonings.filter((_: string, i: number) => results[i].agentId !== r.agentId);
+
+      const grade = gradeTradeV35({
+        agentId: r.agentId,
+        roundId,
+        symbol: d.symbol,
+        action: d.action,
+        reasoning: d.reasoning,
+        confidence: conf01,
+        intent,
+        coherenceScore: coherence.score,
+        hallucinationFlags: hallucinations.flags,
+        disciplinePassed: discipline.passed,
+        sources,
+        predictedOutcome: d.predictedOutcome ?? null,
+        previousPredictions: [],
+        marketPrices: v35MarketPrices,
+        peerActions: v35PeerActions.filter((p: { agentId: string }) => p.agentId !== r.agentId),
+        peerReasonings,
+      });
+
+      v35Trades.push(grade);
+    }
+
+    // Score each agent across all their v35 trades
+    const v35Scores = [];
+    for (const r of results) {
+      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      if (!agentConfig) continue;
+
+      const agentTrades = v35Trades.filter((t) => t.agentId === r.agentId);
+      const score = scoreAgentV35({
+        agentId: r.agentId,
+        agentName: agentConfig.name,
+        provider: agentConfig.provider,
+        model: agentConfig.model,
+        trades: agentTrades,
+        pnlPercent: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      });
+      v35Scores.push(score);
+    }
+
+    // Create round summary
+    const regimeV35 = detectMarketRegime(marketData).regime ?? "unknown";
+    createV35RoundSummary(roundId, v35Scores, v35Trades, regimeV35);
+
+    console.log(
+      `[Orchestrator] v35 round complete: ${results.length} agents — 30-dimension info asymmetry + temporal reasoning scoring recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v35 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
