@@ -10,10 +10,14 @@ import OpenAI from "openai";
 import {
   BaseTradingAgent,
   type AgentTurn,
-  type ToolCall,
   type ToolResult,
 } from "./base-agent.ts";
 import { getOpenAITools } from "./trading-tools.ts";
+import {
+  buildOpenAIMessages,
+  appendOpenAIToolResults,
+  parseOpenAIResponse,
+} from "./openai-compatible-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Grok Agent Configuration
@@ -81,7 +85,7 @@ export class GrokTrader extends BaseTradingAgent {
   }
 
   buildInitialMessages(userMessage: string): any[] {
-    return [{ role: "user" as const, content: userMessage }];
+    return buildOpenAIMessages(userMessage);
   }
 
   appendToolResults(
@@ -89,27 +93,7 @@ export class GrokTrader extends BaseTradingAgent {
     turn: AgentTurn,
     results: ToolResult[],
   ): any[] {
-    // Same format as OpenAI — xAI is OpenAI-compatible
-    const assistantMsg: any = {
-      role: "assistant",
-      content: turn.textResponse ?? null,
-      tool_calls: turn.toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function",
-        function: {
-          name: tc.name,
-          arguments: JSON.stringify(tc.arguments),
-        },
-      })),
-    };
-
-    const toolMsgs = results.map((r) => ({
-      role: "tool" as const,
-      tool_call_id: r.toolCallId,
-      content: r.result,
-    }));
-
-    return [...messages, assistantMsg, ...toolMsgs];
+    return appendOpenAIToolResults(messages, turn, results);
   }
 
   async callWithTools(
@@ -127,29 +111,7 @@ export class GrokTrader extends BaseTradingAgent {
       tools,
     });
 
-    const choice = response.choices[0];
-    if (!choice) {
-      return { toolCalls: [], textResponse: null, stopReason: "end_turn" };
-    }
-
-    const msg = choice.message;
-    const toolCalls: ToolCall[] = (msg.tool_calls ?? [])
-      .filter((tc): tc is Extract<typeof tc, { type: "function" }> => tc.type === "function")
-      .map((tc) => ({
-        id: tc.id,
-        name: tc.function.name,
-        arguments: JSON.parse(tc.function.arguments || "{}"),
-      }));
-
-    let stopReason: AgentTurn["stopReason"] = "end_turn";
-    if (choice.finish_reason === "tool_calls") stopReason = "tool_use";
-    else if (choice.finish_reason === "length") stopReason = "max_tokens";
-
-    return {
-      toolCalls,
-      textResponse: msg.content ?? null,
-      stopReason,
-    };
+    return parseOpenAIResponse(response);
   }
 }
 
