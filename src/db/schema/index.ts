@@ -21,3 +21,4 @@ export { strategyGenomeAnalysis, riskRewardDiscipline, benchmarkLeaderboardV26, 
 export { executionQualityAnalysis, crossRoundLearning, benchmarkLeaderboardV27, benchmarkRoundSnapshotsV27 } from "./benchmark-v27.ts";
 export { tradeAccountabilityAnalysis, reasoningQualityIndex, benchmarkLeaderboardV28, benchmarkRoundSnapshotsV28 } from "./benchmark-v28.ts";
 export { v29TradeGrades, v29BenchmarkScores, v29Leaderboard, v29ResearchExports } from "./benchmark-v29.ts";
+export { v30TradeGrades, v30BenchmarkScores, v30Leaderboard, v30ResearchExports } from "./benchmark-v30.ts";

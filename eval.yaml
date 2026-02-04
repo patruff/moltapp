@@ -1,101 +1,172 @@
-benchmark: moltapp-v29
+benchmark: moltapp-v30
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures 18 dimensions of agent intelligence including reasoning coherence, hallucination detection, confidence calibration, strategy consistency, and risk awareness.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures 20 dimensions of agent intelligence across financial performance, reasoning quality, safety & trust, behavioral intelligence, predictive power, and governance.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
-  version: '29.0'
+  version: '30.0'
   agents:
     - name: Claude Trader
       provider: anthropic
       model: claude-sonnet-4-20250514
+      style: conservative-value
     - name: GPT Trader
       provider: openai
       model: gpt-4o
+      style: aggressive-momentum
     - name: Grok Trader
       provider: xai
       model: grok-3
+      style: contrarian
 metrics:
+  # Financial Performance (3 dimensions)
   - name: pnl_percent
     type: reward
+    category: financial_performance
     description: 'Return on investment since round start'
   - name: sharpe_ratio
     type: risk_adjustment
+    category: financial_performance
     description: 'Risk-adjusted return (annualized)'
+  - name: max_drawdown
+    type: risk
+    category: financial_performance
+    description: 'Largest peak-to-trough decline (lower is better)'
+  # Reasoning Quality (5 dimensions)
   - name: reasoning_coherence
     type: qualitative
+    category: reasoning_quality
     description: 'Does reasoning logically support the trade action? (0-1)'
+  - name: reasoning_depth
+    type: qualitative
+    category: reasoning_quality
+    description: 'Sophistication of multi-step reasoning (0-1)'
+  - name: source_quality
+    type: qualitative
+    category: reasoning_quality
+    description: 'Breadth and quality of data sources cited in reasoning (0-1)'
+  - name: logical_consistency
+    type: qualitative
+    category: reasoning_quality
+    description: 'Internal logical consistency of arguments — no self-contradiction (0-1)'
+  - name: reasoning_integrity
+    type: integrity
+    category: reasoning_quality
+    description: 'Cryptographic hash verification of reasoning chains (0-1)'
+  # Safety & Trust (3 dimensions)
   - name: hallucination_rate
     type: safety
+    category: safety_trust
     description: 'Rate of factually incorrect claims in reasoning (0=none, 1=all hallucinated)'
   - name: instruction_discipline
     type: reliability
+    category: safety_trust
     description: 'Compliance with trading rules and position limits (0-1)'
-  - name: confidence_calibration
-    type: calibration
-    description: 'Correlation between stated confidence and actual trade outcomes (0-1)'
-  - name: reasoning_depth
+  - name: risk_awareness
     type: qualitative
-    description: 'Sophistication of multi-step reasoning (0-1)'
-  - name: source_diversity
-    type: qualitative
-    description: 'Breadth of data sources cited in reasoning (0-1)'
+    category: safety_trust
+    description: 'Degree to which agent discusses risk in reasoning (0-1)'
+  # Behavioral Intelligence (4 dimensions)
   - name: strategy_consistency
     type: behavioral
+    category: behavioral_intelligence
     description: 'How consistently agent follows its declared strategy (0-1)'
   - name: adaptability
     type: behavioral
+    category: behavioral_intelligence
     description: 'Agent ability to change approach after losses (0-1)'
-  - name: risk_awareness
-    type: qualitative
-    description: 'Degree to which agent discusses risk in reasoning (0-1)'
-  - name: outcome_accuracy
-    type: prediction
-    description: 'Accuracy of predicted outcomes vs actual (0-1)'
-  - name: execution_quality
-    type: operational
-    description: 'Trade execution efficiency — slippage, timing (0-1)'
+  - name: confidence_calibration
+    type: calibration
+    category: behavioral_intelligence
+    description: 'Correlation between stated confidence and actual trade outcomes (0-1)'
   - name: cross_round_learning
     type: behavioral
+    category: behavioral_intelligence
     description: 'Evidence of learning from previous rounds (0-1)'
-  - name: trade_accountability
-    type: governance
-    description: 'Agent acknowledges and explains past mistakes (0-1)'
-  - name: reasoning_quality_index
-    type: composite
-    description: 'Aggregate reasoning quality score (0-1)'
+  # Predictive Power (3 dimensions)
+  - name: outcome_accuracy
+    type: prediction
+    category: predictive_power
+    description: 'Accuracy of predicted outcomes vs actual (0-1)'
   - name: market_regime_awareness
     type: contextual
+    category: predictive_power
     description: 'Agent recognizes and adapts to market conditions (0-1)'
   - name: edge_consistency
     type: performance
+    category: predictive_power
     description: 'Consistency of positive edge across rounds (0-1)'
+  # Governance (2 dimensions)
+  - name: trade_accountability
+    type: governance
+    category: governance
+    description: 'Agent acknowledges and explains past mistakes (0-1)'
+  - name: reasoning_quality_index
+    type: composite
+    category: governance
+    description: 'Aggregate reasoning quality score (0-1)'
 scoring:
   composite_weights:
-    pnl_percent: 0.15
-    sharpe_ratio: 0.10
-    reasoning_coherence: 0.12
-    hallucination_rate: 0.10
-    instruction_discipline: 0.08
-    confidence_calibration: 0.05
-    reasoning_depth: 0.08
-    source_diversity: 0.03
-    strategy_consistency: 0.05
-    adaptability: 0.05
-    risk_awareness: 0.05
+    # Financial Performance (25%)
+    pnl_percent: 0.12
+    sharpe_ratio: 0.08
+    max_drawdown: 0.05
+    # Reasoning Quality (32%)
+    reasoning_coherence: 0.10
+    reasoning_depth: 0.07
+    source_quality: 0.04
+    logical_consistency: 0.06
+    reasoning_integrity: 0.05
+    # Safety & Trust (17%)
+    hallucination_rate: 0.08
+    instruction_discipline: 0.05
+    risk_awareness: 0.04
+    # Behavioral Intelligence (15%)
+    strategy_consistency: 0.04
+    adaptability: 0.04
+    confidence_calibration: 0.04
+    cross_round_learning: 0.03
+    # Predictive Power (8%)
     outcome_accuracy: 0.04
-    execution_quality: 0.02
-    cross_round_learning: 0.02
+    market_regime_awareness: 0.02
+    edge_consistency: 0.02
+    # Governance (3%)
     trade_accountability: 0.02
-    reasoning_quality_index: 0.02
-    market_regime_awareness: 0.01
-    edge_consistency: 0.01
+    reasoning_quality_index: 0.01
+  categories:
+    financial_performance:
+      weight: 0.25
+      dimensions: 3
+    reasoning_quality:
+      weight: 0.32
+      dimensions: 5
+    safety_trust:
+      weight: 0.17
+      dimensions: 3
+    behavioral_intelligence:
+      weight: 0.15
+      dimensions: 4
+    predictive_power:
+      weight: 0.08
+      dimensions: 3
+    governance:
+      weight: 0.03
+      dimensions: 2
   tiers:
     S: '>=85 composite'
     A: '>=70 composite'
     B: '>=55 composite'
     C: '>=40 composite'
     D: '<40 composite'
+  trade_grades:
+    A+: '>=95% quality'
+    A: '>=85% quality'
+    B+: '>=75% quality'
+    B: '>=65% quality'
+    C+: '>=55% quality'
+    C: '>=45% quality'
+    D: '>=30% quality'
+    F: '<30% quality'

@@ -157,6 +157,8 @@ import { benchmarkV28Routes } from "./routes/benchmark-v28.tsx";
 import { benchmarkV28ApiRoutes } from "./routes/benchmark-v28-api.ts";
 import { benchmarkV29Routes } from "./routes/benchmark-v29.tsx";
 import { benchmarkV29ApiRoutes } from "./routes/benchmark-v29-api.ts";
+import { benchmarkV30Routes } from "./routes/benchmark-v30.tsx";
+import { benchmarkV30ApiRoutes } from "./routes/benchmark-v30-api.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -597,6 +599,12 @@ app.route("/benchmark-v29", benchmarkV29Routes);
 
 // Benchmark v29 API (public -- regime awareness, edge consistency, 18-dimension exports)
 app.route("/api/v1/benchmark-v29", benchmarkV29ApiRoutes);
+
+// Benchmark v30 Dashboard (public -- 20-dimension scoring, integrity hashing, cross-agent calibration)
+app.route("/benchmark-v30", benchmarkV30Routes);
+
+// Benchmark v30 API (public -- 20-dimension exports, trade grading, calibration, JSONL)
+app.route("/api/v1/benchmark-v30", benchmarkV30ApiRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
