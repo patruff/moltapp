@@ -30,7 +30,7 @@ install_launchd() {
         <string>$HEARTBEAT_SCRIPT</string>
     </array>
     <key>StartInterval</key>
-    <integer>1800</integer>
+    <integer>7200</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>WorkingDirectory</key>
@@ -55,7 +55,7 @@ EOF
 
     echo "Installed and started!"
     echo "  Plist: $PLIST_PATH"
-    echo "  Interval: every 30 minutes"
+    echo "  Interval: every 2 hours (matches circuit breaker cooldown)"
     echo "  Log: $SCRIPT_DIR/heartbeat.log"
     echo ""
     echo "Commands:"

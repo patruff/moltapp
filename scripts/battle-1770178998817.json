@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "timestamp": "2026-02-04T04:23:18.817Z",
+  "mode": "paper",
+  "wallet": "22zGTQx1aaZuECeMKcS9VmNNdCogC38uzdKt7Yb8sU65",
+  "budget_per_agent": 2,
+  "prices": {
+    "AAPLx": 6.916414234838131,
+    "NVDAx": 4.202612486810626,
+    "TSLAx": 2.6991320428081265
+  },
+  "agents": [
+    {
+      "name": "Grok Trader",
+      "model": "grok-4-fast-reasoning",
+      "provider": "xai",
+      "decision": {
+        "symbol": "TSLAx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "Tesla's recent Q4 earnings missed revenue estimates at $24.9 billion but beat on adjusted EPS of $0.50, and the upcoming Q1 2026 EPS forecast is only $0.36, signaling market fear and overreaction to short-term volatility. As a contrarian, I see value in TSLAx at $2.70/token amid this perceived risk, especially with positive notes on Optimus and xAI investments. This positions for mean reversion as Tesla's long-term EV and AI potential is undervalued.",
+        "confidence": 0.75,
+        "intent": "contrarian"
+      },
+      "execution": {
+        "outAmount": "741117",
+        "durationMs": 5836
+      }
+    },
+    {
+      "name": "GPT Trader",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "decision": {
+        "symbol": "N/A",
+        "side": "hold",
+        "amountUsdc": 0,
+        "reason": "Error: GPT: 400 {\n  \"error\": {\n    \"message\": \"Unsupported value: 'temperature' does not support 0.5 with this model. Only the default (1) value is supported.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"temperature\",\n    \"code\": \"unsupported_value\"\n  }\n}",
+        "confidence": 0,
+        "intent": "N/A"
+      },
+      "execution": {
+        "error": "GPT: 400 {\n  \"error\": {\n    \"message\": \"Unsupported value: 'temperature' does not support 0.5 with this model. Only the default (1) value is supported.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"temperature\",\n    \"code\": \"unsupported_value\"\n  }\n}",
+        "durationMs": 1434
+      }
+    },
+    {
+      "name": "Claude Trader",
+      "model": "claude-3.5-haiku",
+      "provider": "anthropic",
+      "decision": {
+        "symbol": "AAPLx",
+        "side": "buy",
+        "amountUsdc": 1.5,
+        "reason": "Apple shows promising revenue growth projection of 13-16% this quarter and consistent performance. At $6.92 per token, this represents a reasonable entry point with potential upside given their stable earnings forecast of $1.92 EPS for Q2 2026.",
+        "confidence": 0.75,
+        "intent": "value"
+      },
+      "execution": {
+        "outAmount": "216930",
+        "durationMs": 3630
+      }
+    }
+  ]
+}

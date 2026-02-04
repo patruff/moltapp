@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "timestamp": "2026-02-04T04:24:33.760Z",
+  "mode": "paper",
+  "wallet": "22zGTQx1aaZuECeMKcS9VmNNdCogC38uzdKt7Yb8sU65",
+  "budget_per_agent": 2,
+  "prices": {
+    "AAPLx": 6.916414234838131,
+    "NVDAx": 4.202612486810626,
+    "TSLAx": 2.6991320428081265
+  },
+  "agents": [
+    {
+      "name": "Grok Trader",
+      "model": "grok-4-fast-reasoning",
+      "provider": "xai",
+      "decision": {
+        "symbol": "NVDAx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "NVIDIA stock is showing signs of fear with a recent drop to $178.93, down 3.60%, and $180.34, down 2.84%, from its 52-week high of $212.19, indicating potential overreaction. As a contrarian, I see value in buying this dip where others are selling off. Limited earnings data but current pricing suggests undervaluation amid market volatility.",
+        "confidence": 0.75,
+        "intent": "contrarian"
+      },
+      "execution": {
+        "outAmount": "476153",
+        "durationMs": 5276
+      }
+    },
+    {
+      "name": "GPT Trader",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "decision": {
+        "symbol": "AAPLx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "Apple shares recently rose to $267.67, the highest since January 2026, indicating renewed upward momentum and likely higher volume into the upcoming earnings window; options flow mentions ahead of earnings also imply elevated trading interest. As a momentum trader I prefer to follow the trend strength and volume breakout signal, so I deploy the full $2 into AAPLx to capture near-term continuation.",
+        "confidence": 0.7,
+        "intent": "momentum"
+      },
+      "execution": {
+        "outAmount": "289239",
+        "durationMs": 11480
+      }
+    },
+    {
+      "name": "Claude Trader",
+      "model": "claude-3.5-haiku",
+      "provider": "anthropic",
+      "decision": {
+        "symbol": "AAPLx",
+        "side": "buy",
+        "amountUsdc": 1.5,
+        "reason": "Apple shows consistent price strength with recent share price increase to $267.67. The upcoming shareholder meeting suggests potential positive catalysts. Limited data makes conservative allocation prudent.",
+        "confidence": 0.65,
+        "intent": "value"
+      },
+      "execution": {
+        "outAmount": "216930",
+        "durationMs": 2835
+      }
+    }
+  ]
+}

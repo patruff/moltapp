@@ -1,0 +1,1256 @@
+{
+ "Resources": {
+  "AppSecretsA1997F2A": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "MoltApp production secrets",
+    "GenerateSecretString": {},
+    "Name": "moltapp/production"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/AppSecrets/Resource"
+   }
+  },
+  "AgentStateTable74E748E9": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "agentId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "status",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "lastTradeTimestamp",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "by-last-trade",
+      "KeySchema": [
+       {
+        "AttributeName": "status",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "lastTradeTimestamp",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "agentId",
+      "KeyType": "HASH"
+     }
+    ],
+    "PointInTimeRecoverySpecification": {
+     "PointInTimeRecoveryEnabled": true
+    },
+    "TableName": "moltapp-agent-state",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/AgentStateTable/Resource"
+   }
+  },
+  "TradingRoundsTableCBE59423": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "roundId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "timestamp",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "roundId",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "timestamp",
+      "KeyType": "RANGE"
+     }
+    ],
+    "TableName": "moltapp-trading-rounds",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingRoundsTable/Resource"
+   }
+  },
+  "LendingStateTableDC59F16D": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "loanId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "createdAt",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "borrowerId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "status",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "by-borrower",
+      "KeySchema": [
+       {
+        "AttributeName": "borrowerId",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "createdAt",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     },
+     {
+      "IndexName": "by-status",
+      "KeySchema": [
+       {
+        "AttributeName": "status",
+        "KeyType": "HASH"
+       },
+       {
+        "AttributeName": "createdAt",
+        "KeyType": "RANGE"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "loanId",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "createdAt",
+      "KeyType": "RANGE"
+     }
+    ],
+    "TableName": "moltapp-lending-state",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/LendingStateTable/Resource"
+   }
+  },
+  "ApiFunctionServiceRole52B9747B": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/ApiFunction/ServiceRole/Resource"
+   }
+  },
+  "ApiFunctionServiceRoleDefaultPolicy20A32B8D": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "AppSecretsA1997F2A"
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AgentStateTable74E748E9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AgentStateTable74E748E9",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AgentStateTable74E748E9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AgentStateTable74E748E9",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "TradingRoundsTableCBE59423",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "TradingRoundsTableCBE59423",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LendingStateTableDC59F16D",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LendingStateTableDC59F16D",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LendingStateTableDC59F16D",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LendingStateTableDC59F16D",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+    "Roles": [
+     {
+      "Ref": "ApiFunctionServiceRole52B9747B"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/ApiFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "ApiFunctionCE271BD4": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "arm64"
+    ],
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
+     "S3Key": "e3c69c295394fd7204b5b8d92539931f6a0ac07eb543feac0add48ba5118bf82.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "NODE_ENV": "production",
+      "SECRET_ARN": {
+       "Ref": "AppSecretsA1997F2A"
+      },
+      "AGENT_STATE_TABLE": {
+       "Ref": "AgentStateTable74E748E9"
+      },
+      "TRADING_ROUNDS_TABLE": {
+       "Ref": "TradingRoundsTableCBE59423"
+      },
+      "LENDING_STATE_TABLE": {
+       "Ref": "LendingStateTableDC59F16D"
+      }
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "ApiFunctionServiceRole52B9747B",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "ApiFunctionServiceRoleDefaultPolicy20A32B8D",
+    "ApiFunctionServiceRole52B9747B"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/ApiFunction/Resource",
+    "aws:asset:path": "asset.e3c69c295394fd7204b5b8d92539931f6a0ac07eb543feac0add48ba5118bf82",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "TradingFunctionServiceRoleC9AD7730": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingFunction/ServiceRole/Resource"
+   }
+  },
+  "TradingFunctionServiceRoleDefaultPolicyA8929496": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "AppSecretsA1997F2A"
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AgentStateTable74E748E9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AgentStateTable74E748E9",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "AgentStateTable74E748E9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "AgentStateTable74E748E9",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "TradingRoundsTableCBE59423",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "TradingRoundsTableCBE59423",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LendingStateTableDC59F16D",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LendingStateTableDC59F16D",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "LendingStateTableDC59F16D",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "LendingStateTableDC59F16D",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TradingFunctionServiceRoleDefaultPolicyA8929496",
+    "Roles": [
+     {
+      "Ref": "TradingFunctionServiceRoleC9AD7730"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingFunction/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "TradingFunctionCEDCFB59": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Architectures": [
+     "arm64"
+    ],
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
+     "S3Key": "d44cf48fc204ee84d8df69e676672160718d1208f474d37b29f7f60a01d8a044.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "NODE_ENV": "production",
+      "SECRET_ARN": {
+       "Ref": "AppSecretsA1997F2A"
+      },
+      "AGENT_STATE_TABLE": {
+       "Ref": "AgentStateTable74E748E9"
+      },
+      "TRADING_ROUNDS_TABLE": {
+       "Ref": "TradingRoundsTableCBE59423"
+      },
+      "LENDING_STATE_TABLE": {
+       "Ref": "LendingStateTableDC59F16D"
+      }
+     }
+    },
+    "Handler": "index.handler",
+    "MemorySize": 1024,
+    "Role": {
+     "Fn::GetAtt": [
+      "TradingFunctionServiceRoleC9AD7730",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Timeout": 300
+   },
+   "DependsOn": [
+    "TradingFunctionServiceRoleDefaultPolicyA8929496",
+    "TradingFunctionServiceRoleC9AD7730"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingFunction/Resource",
+    "aws:asset:path": "asset.d44cf48fc204ee84d8df69e676672160718d1208f474d37b29f7f60a01d8a044",
+    "aws:asset:is-bundled": true,
+    "aws:asset:property": "Code"
+   }
+  },
+  "TradingScheduleFDC8B174": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Trigger AI trading round every 30 minutes — 3 agents compete",
+    "Name": "moltapp-trading-round",
+    "ScheduleExpression": "cron(0,30 * * * ? *)",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "TradingFunctionCEDCFB59",
+        "Arn"
+       ]
+      },
+      "Id": "Target0",
+      "Input": "{\"trigger\":\"scheduled-trading\",\"source\":\"eventbridge-cron\"}",
+      "RetryPolicy": {
+       "MaximumEventAgeInSeconds": 600,
+       "MaximumRetryAttempts": 2
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingSchedule/Resource"
+   }
+  },
+  "TradingScheduleAllowEventRuleMoltappStackTradingFunctionCAA694CEE70983B2": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "TradingFunctionCEDCFB59",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "TradingScheduleFDC8B174",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/TradingSchedule/AllowEventRuleMoltappStackTradingFunctionCAA694CE"
+   }
+  },
+  "HttpApiF5A9A8A7": {
+   "Type": "AWS::ApiGatewayV2::Api",
+   "Properties": {
+    "Description": "MoltApp API — AI Trading Competition Platform",
+    "Name": "HttpApi",
+    "ProtocolType": "HTTP"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/Resource"
+   }
+  },
+  "HttpApiDefaultStage3EEB07D6": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApiF5A9A8A7"
+    },
+    "AutoDeploy": true,
+    "StageName": "$default"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/DefaultStage/Resource"
+   }
+  },
+  "HttpApiANYLambdaIntegration762BFA23": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApiF5A9A8A7"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "PayloadFormatVersion": "2.0"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/ANY--/LambdaIntegration/Resource"
+   }
+  },
+  "HttpApiANYLambdaIntegrationPermissionC72E1C60": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:528546457264:",
+       {
+        "Ref": "HttpApiF5A9A8A7"
+       },
+       "/*/*/"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/ANY--/LambdaIntegration-Permission"
+   }
+  },
+  "HttpApiANY7B3CD14C": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApiF5A9A8A7"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "ANY /",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "HttpApiANYLambdaIntegration762BFA23"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/ANY--/Resource"
+   }
+  },
+  "HttpApiANYproxyLambdaIntegrationPermission2EDD6285": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ApiFunctionCE271BD4",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":execute-api:us-east-1:528546457264:",
+       {
+        "Ref": "HttpApiF5A9A8A7"
+       },
+       "/*/*/{proxy+}"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/ANY--{proxy+}/LambdaIntegration-Permission"
+   }
+  },
+  "HttpApiANYproxy435A1FB9": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "HttpApiF5A9A8A7"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "ANY /{proxy+}",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "HttpApiANYLambdaIntegration762BFA23"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/HttpApi/ANY--{proxy+}/Resource"
+   }
+  },
+  "Certificate4E7ABB08": {
+   "Type": "AWS::CertificateManager::Certificate",
+   "Properties": {
+    "DomainName": "patgpt.us",
+    "DomainValidationOptions": [
+     {
+      "DomainName": "patgpt.us",
+      "HostedZoneId": "Z0120448TE4EO5EEUBIP"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "MoltappStack/Certificate"
+     }
+    ],
+    "ValidationMethod": "DNS"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/Certificate/Resource"
+   }
+  },
+  "ShortCachePolicy51CE6641": {
+   "Type": "AWS::CloudFront::CachePolicy",
+   "Properties": {
+    "CachePolicyConfig": {
+     "DefaultTTL": 60,
+     "MaxTTL": 300,
+     "MinTTL": 0,
+     "Name": "moltapp-60s-cache",
+     "ParametersInCacheKeyAndForwardedToOrigin": {
+      "CookiesConfig": {
+       "CookieBehavior": "none"
+      },
+      "EnableAcceptEncodingBrotli": false,
+      "EnableAcceptEncodingGzip": false,
+      "HeadersConfig": {
+       "HeaderBehavior": "none"
+      },
+      "QueryStringsConfig": {
+       "QueryStringBehavior": "whitelist",
+       "QueryStrings": [
+        "page",
+        "limit",
+        "agent",
+        "agentId",
+        "format"
+       ]
+      }
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/ShortCachePolicy/Resource"
+   }
+  },
+  "Distribution830FAC52": {
+   "Type": "AWS::CloudFront::Distribution",
+   "Properties": {
+    "DistributionConfig": {
+     "Aliases": [
+      "patgpt.us"
+     ],
+     "CacheBehaviors": [
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD"
+       ],
+       "CachePolicyId": {
+        "Ref": "ShortCachePolicy51CE6641"
+       },
+       "Compress": true,
+       "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+       "PathPattern": "/api/v1/leaderboard*",
+       "TargetOriginId": "MoltappStackDistributionOrigin1C2BAD646",
+       "ViewerProtocolPolicy": "redirect-to-https"
+      },
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD"
+       ],
+       "CachePolicyId": {
+        "Ref": "ShortCachePolicy51CE6641"
+       },
+       "Compress": true,
+       "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+       "PathPattern": "/api/v1/brain-feed*",
+       "TargetOriginId": "MoltappStackDistributionOrigin1C2BAD646",
+       "ViewerProtocolPolicy": "redirect-to-https"
+      },
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD"
+       ],
+       "CachePolicyId": {
+        "Ref": "ShortCachePolicy51CE6641"
+       },
+       "Compress": true,
+       "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+       "PathPattern": "/benchmark*",
+       "TargetOriginId": "MoltappStackDistributionOrigin1C2BAD646",
+       "ViewerProtocolPolicy": "redirect-to-https"
+      },
+      {
+       "AllowedMethods": [
+        "GET",
+        "HEAD"
+       ],
+       "CachePolicyId": {
+        "Ref": "ShortCachePolicy51CE6641"
+       },
+       "Compress": true,
+       "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+       "PathPattern": "/api/v1/methodology*",
+       "TargetOriginId": "MoltappStackDistributionOrigin1C2BAD646",
+       "ViewerProtocolPolicy": "redirect-to-https"
+      }
+     ],
+     "DefaultCacheBehavior": {
+      "AllowedMethods": [
+       "GET",
+       "HEAD",
+       "OPTIONS",
+       "PUT",
+       "PATCH",
+       "POST",
+       "DELETE"
+      ],
+      "CachePolicyId": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",
+      "Compress": true,
+      "OriginRequestPolicyId": "b689b0a8-53d0-40ab-baf2-68738e2966ac",
+      "TargetOriginId": "MoltappStackDistributionOrigin1C2BAD646",
+      "ViewerProtocolPolicy": "redirect-to-https"
+     },
+     "Enabled": true,
+     "HttpVersion": "http2",
+     "IPV6Enabled": true,
+     "Origins": [
+      {
+       "CustomOriginConfig": {
+        "OriginProtocolPolicy": "https-only",
+        "OriginSSLProtocols": [
+         "TLSv1.2"
+        ]
+       },
+       "DomainName": {
+        "Fn::Join": [
+         "",
+         [
+          {
+           "Ref": "HttpApiF5A9A8A7"
+          },
+          ".execute-api.us-east-1.amazonaws.com"
+         ]
+        ]
+       },
+       "Id": "MoltappStackDistributionOrigin1C2BAD646"
+      }
+     ],
+     "ViewerCertificate": {
+      "AcmCertificateArn": {
+       "Ref": "Certificate4E7ABB08"
+      },
+      "MinimumProtocolVersion": "TLSv1.2_2021",
+      "SslSupportMethod": "sni-only"
+     }
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/Distribution/Resource"
+   }
+  },
+  "AliasRecord851000D2": {
+   "Type": "AWS::Route53::RecordSet",
+   "Properties": {
+    "AliasTarget": {
+     "DNSName": {
+      "Fn::GetAtt": [
+       "Distribution830FAC52",
+       "DomainName"
+      ]
+     },
+     "HostedZoneId": {
+      "Fn::FindInMap": [
+       "AWSCloudFrontPartitionHostedZoneIdMap",
+       {
+        "Ref": "AWS::Partition"
+       },
+       "zoneId"
+      ]
+     }
+    },
+    "HostedZoneId": "Z0120448TE4EO5EEUBIP",
+    "Name": "patgpt.us.",
+    "Type": "A"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/AliasRecord/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/11S207DMAz9Ft6zAK3gfRtC8MBFHe+Tm3rFW5tUuWyaov47TrqbePI59nFOYqeQRfksH+7g4Gaq2c06qmVceVA7wal1dKgseteDhhYtlzIXy42e0Ciao4beNNz2A3WHqZTBKDro6wbW2jS4dfIzh9eglSejBUEvY2Wmhhy/TUfqmOiERuHKNTjH9nKeAnO5CGqHfgEOT8fLyA2XU1Mz2p6cYzYK3KPm7liFk09I94KBWvB4gOO+kPHN+2E+UCqnkCi/v836CaRUZYKf0Lv22Fo42/2jWTcKhdbThhTbXEa3vOaS8oayvjOh2VijPetA/eJ1GLf0hZy3VIez2y0fhU3eT6WM8wqVsU2+T0YrXtQoKnQmWIUiTzO9jXSbRB8wDCf4FfwQeKtpaXLr7vdFKR8f+YNsHdHMBu2pR1lN8Q9/sG3xPQIAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Mappings": {
+  "AWSCloudFrontPartitionHostedZoneIdMap": {
+   "aws": {
+    "zoneId": "Z2FDTNDATAQYW2"
+   },
+   "aws-cn": {
+    "zoneId": "Z3RFFRIM2A3IF5"
+   }
+  }
+ },
+ "Outputs": {
+  "CloudFrontDomain": {
+   "Description": "CloudFront distribution domain name",
+   "Value": {
+    "Fn::GetAtt": [
+     "Distribution830FAC52",
+     "DomainName"
+    ]
+   }
+  },
+  "ApiGatewayUrl": {
+   "Description": "API Gateway HTTP API URL",
+   "Value": {
+    "Fn::GetAtt": [
+     "HttpApiF5A9A8A7",
+     "ApiEndpoint"
+    ]
+   }
+  },
+  "CustomDomain": {
+   "Description": "Custom domain URL",
+   "Value": "https://patgpt.us"
+  },
+  "AgentStateTableName": {
+   "Description": "DynamoDB table for AI agent state",
+   "Value": {
+    "Ref": "AgentStateTable74E748E9"
+   }
+  },
+  "TradingRoundsTableName": {
+   "Description": "DynamoDB table for trading round history",
+   "Value": {
+    "Ref": "TradingRoundsTableCBE59423"
+   }
+  },
+  "LendingStateTableName": {
+   "Description": "DynamoDB table for $STONKS lending state",
+   "Value": {
+    "Ref": "LendingStateTableDC59F16D"
+   }
+  },
+  "TradingScheduleArn": {
+   "Description": "EventBridge rule ARN for scheduled trading",
+   "Value": {
+    "Fn::GetAtt": [
+     "TradingScheduleFDC8B174",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

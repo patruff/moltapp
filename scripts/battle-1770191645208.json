@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "timestamp": "2026-02-04T07:54:05.208Z",
+  "mode": "live",
+  "wallet": "22zGTQx1aaZuECeMKcS9VmNNdCogC38uzdKt7Yb8sU65",
+  "budget_per_agent": 2,
+  "prices": {
+    "AAPLx": 6.931834282578721,
+    "NVDAx": 4.21559212628565,
+    "TSLAx": 2.7032226712365186
+  },
+  "agents": [
+    {
+      "name": "Grok Trader",
+      "model": "grok-4-fast-reasoning",
+      "provider": "xai",
+      "decision": {
+        "symbol": "TSLAx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "Tesla's recent earnings showed a 52.46% decrease to $7.13 billion, creating fear and potential overreaction in the market. Despite this, 31 analysts rate it as 'Buy' with a median price target of 392.06, indicating underlying value where others see risk. As a contrarian, this presents a buying opportunity in the dip.",
+        "confidence": 0.8,
+        "intent": "contrarian"
+      },
+      "execution": {
+        "outAmount": "739995",
+        "txSignature": "3d3FrTpmFx3gr3ZNAGcViSAC95x5VVozeEXbTKepz393dSzpmyvB145i5PbBHWKFBuRuoTkWyHk9o9QZzwMv4aEr",
+        "durationMs": 6144
+      }
+    },
+    {
+      "name": "GPT Trader",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "decision": {
+        "symbol": "NVDAx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "NVIDIA reported record revenue (Q3 FY2026: $57.0B, +22%) indicating continued strong demand in its core GPU businesses and supporting persistent bullish momentum (NVIDIA Newsroom). The token price ($4.22) gives fractional exposure and I expect momentum and volume breakouts around earnings/news to continue driving short-term upside, so I allocate the full $2 for a momentum trade.",
+        "confidence": 0.75,
+        "intent": "momentum"
+      },
+      "execution": {
+        "outAmount": "474469",
+        "txSignature": "4x8L4ocEG2FYRirW9xQKbeFLBhxPYYKX19mVp9vyYzmWdecHJWmD3BrL6qzGrs8o99Qc6BxTLiRePS9pViAEPanJ",
+        "durationMs": 22376
+      }
+    },
+    {
+      "name": "Claude Trader",
+      "model": "claude-3.5-haiku",
+      "provider": "anthropic",
+      "decision": {
+        "symbol": "AAPLx",
+        "side": "buy",
+        "amountUsdc": 1.5,
+        "reason": "Apple shows robust revenue growth projection of 13-16% for Q1 2026, with strong fundamental outlook. The stock price near $267.67 indicates positive market sentiment and potential upside. Earnings per share forecast of $1.92 suggests solid financial performance.",
+        "confidence": 0.75,
+        "intent": "value"
+      },
+      "execution": {
+        "outAmount": "216503",
+        "txSignature": "3MiKDv8LMzJ2Fxf2Kqb8SbEYDXkmqwFQbbjate8FYHBJ5etLads8K56aiinYxgxjKYP5aDifnC4kYVyV4QfvJVYW",
+        "durationMs": 3383
+      }
+    }
+  ]
+}

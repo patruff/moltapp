@@ -2,108 +2,111 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-03)
+See: .planning/PROJECT.md (updated 2026-02-04)
 
-**Core value:** Agents can trade tokenized real stocks on Solana and compete on a public leaderboard -- the trading must be secure since real funds are at stake.
-**Current focus:** v1.2 Colosseum Hackathon -- Phase 7 (Autonomous Heartbeat Agent)
+**Core value:** Open benchmark for AI stock trading — autonomous agents trade real tokenized equities on Solana mainnet, scored on P&L + reasoning quality. Every trade is on-chain and verifiable.
+
+**Current focus:** Platform improvement — agent trading quality, benchmark accuracy, skill prompt refinement.
 
 ## Current Position
 
-Phase: 7 of 8 (Autonomous Heartbeat Agent)
-Plan: 0 of 3 in current phase (heartbeat.sh operational, formal plans pending)
-Status: Phase 7 operational, Phase 8 in progress
-Last activity: 2026-02-03 -- Autonomous session: README created, Colosseum project updated, heartbeat running
+Platform is fully operational. All core systems built and running:
+- 3 autonomous tool-calling agents (Claude, GPT, Grok) with shared skill.md
+- 66 xStocks tradeable via Jupiter DEX on Solana mainnet
+- 7 agent tools (get_portfolio, get_stock_prices, get_active_theses, update_thesis, close_thesis, search_news, get_technical_indicators)
+- Investment thesis persistence across rounds (agent_theses table)
+- Circuit breaker system ($5 max, 2hr cooldown, 6/day limit)
+- On-chain trade execution with verifiable Solana transaction signatures
+- Rich agent profile pages with positions, P&L, tx links to Solscan
+- Benchmark submission API for external agents
+- HuggingFace dataset sync
+- Overnight heartbeat running trading rounds every 2 hours
 
-Progress: [###########...........] 55% (9 of 16 active plans complete; phases 5-6 deferred)
+Last activity: 2026-02-04 — Rewrote heartbeat.sh to focus on trading + improvement, updated skill.md with on-chain context, enhanced agent profile pages.
 
-**Phase 7 Status:** Heartbeat system is fully operational with 3 cycles completed:
-- ✓ Skill version checking
-- ✓ Agent status monitoring
-- ✓ Leaderboard tracking (currently rank #39)
-- ✓ Forum post creation (4 posts total, 2 today, rate-limited to 6+ hours apart)
-- ✓ Comment replies (6 comments replied: ClaudeCraft x2, JacobsClawd, BlockScoreBot x2, BCORP)
-- ✓ Project voting and engagement (2 projects voted: SuperRouter, SOLPRISM)
-- ✓ Forum engagement (2 posts commented: BlockScore, SENTRY)
-- ✓ Autonomous build session launching
-- ✓ Git push automation
-- ✓ Project description updates (heartbeat #3)
+## Architecture Summary
 
-**Phase 8 Progress:**
-- ✓ Comprehensive README.md created with architecture, setup, API docs
-- ✓ Colosseum project updated with full description, Solana integration, tags
-- ⏳ AWS deployment pending (CDK stack ready, needs credentials)
-- ⏳ Production migration pending (script ready, needs Neon DB URL)
+```
+Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 8 turns)
+  → get_portfolio, get_stock_prices, search_news, get_technical_indicators
+  → update_thesis (persist reasoning across rounds)
+  → Return TradingDecision JSON
+  → Circuit breaker checks → Jupiter DEX swap → Solana tx signature stored
+  → Benchmark scoring (40+ dimensions) → Leaderboard + HuggingFace
+```
 
-## Hackathon Status
+## What's Built
 
-- Agent ID: 184
-- Project ID: 92 (draft, ready for submission)
-- Project URL: https://colosseum.com/agent-hackathon/projects/moltapp
-- Leaderboard rank: #39 (1 human upvote, 0 agent upvotes)
-- Forum posts: 4 total (all with STONKS BRO voice)
-- Forum engagement: 6 comment replies, 2 post comments, 2 project votes
-- Claim: PENDING -- https://colosseum.com/agent-hackathon/claim/7cc98ea7-c7c7-4428-bfd3-b3ed136bf26a
-- Verification code: tide-9BB4
-- Deadline: Feb 12, 2026 12:00 PM EST (5:00 PM GMT)
-- Days remaining: ~9
-- Heartbeat cycles completed: 3 (autonomous 24/7 operation)
+### Core Trading
+- [x] Autonomous tool-calling agent loop (base-agent.ts runAgentLoop)
+- [x] Shared skill.md prompt template with 5 customizable fields
+- [x] Claude ValueBot (claude-haiku-4-5-20251101) — value investing strategy
+- [x] GPT MomentumBot (gpt-5-mini) — momentum/trend following
+- [x] Grok ContrarianBot (grok-4-fast) — contrarian mean-reversion
+- [x] 7 trading tools with dual-format schemas (Anthropic + OpenAI)
+- [x] Investment thesis persistence (agent_theses table, CRUD service)
+- [x] 66 xStocks catalog (all verified from xstocks.fi)
+- [x] Circuit breaker: $5 max trade, 2hr cooldown, 6/day, 25% position limit
+- [x] Jupiter DEX integration (Ultra API, order + execute)
+- [x] On-chain trade execution with Solana tx signatures
+
+### Dashboard & API
+- [x] Leaderboard page (/) — agents ranked by P&L %
+- [x] Agent profile page (/agent/:id) — positions, trade history, Solana tx links, wallet address
+- [x] Agent API — /api/v1/agents, /api/v1/agents/:id, /api/v1/agents/:id/portfolio, /api/v1/agents/:id/trades
+- [x] Benchmark submission API — external agents can submit trades for scoring
+- [x] Brain feed — live agent reasoning stream
+- [x] 40+ benchmark scoring dimensions
+
+### Infrastructure
+- [x] Hono 4.x API server
+- [x] Drizzle ORM + PostgreSQL (Neon)
+- [x] AWS CDK stack (Lambda, API Gateway, CloudFront, Secrets Manager)
+- [x] Heartbeat.ts — trading round orchestrator
+- [x] Heartbeat.sh — overnight automation (trading + improvement sessions)
+- [x] HuggingFace dataset sync
+- [x] README with full agent development guide, skill system docs, on-chain verification
+
+## What Needs Improvement
+
+- Agent trading quality (are agents making good decisions?)
+- Skill.md prompt refinement (better instructions = better trades)
+- Agent profile pages (could show reasoning quality, thesis history)
+- Circuit breaker tuning (are limits too tight or too loose?)
+- Bug fixes in pre-existing TypeScript errors (300+ in older files)
+- Test coverage (currently no automated tests running)
+- Live deployment verification (production AWS deploy pending)
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 9 (v1.0: 7, v1.1: 2)
-- Average duration: ~5 min
-- Total execution time: ~50 min
+| Agent | Model | Strategy | Status |
+|-------|-------|----------|--------|
+| Claude ValueBot | claude-haiku-4-5-20251101 | Value investing | Active |
+| GPT MomentumBot | gpt-5-mini | Momentum | Active |
+| Grok ContrarianBot | grok-4-fast | Contrarian | Active |
 
-**By Phase:**
+## Overnight Heartbeat
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Identity & Wallets | 3 | ~12 min | ~4 min |
-| 2. Trading | 2 | ~8 min | ~4 min |
-| 3. Competition Dashboard | 2 | ~9 min | ~4.5 min |
-| 4. AWS Deployment | 2/3 | ~21 min | ~10.5 min |
-
-## Accumulated Context
-
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [v1.2]: Enter Colosseum Hackathon with MoltApp as submission
-- [v1.2]: Build autonomous heartbeat/cron for overnight engagement
-- [v1.2]: Focus on demo polish, README, and forum engagement for judging
-- [v1.2]: Phase 7 (heartbeat) is highest priority -- runs overnight autonomously
-- [v1.2]: Phase 8 (submission) depends on Phase 7 and remaining v1.1 Phase 4 work
-
-### Pending Todos
-
-- Claim hackathon code (human action needed) -- visit claim URL, verify with X account
-- Deploy to AWS: `cd infra && cdk deploy` (needs AWS credentials configured)
-- Run production migration: `NEON_DATABASE_URL="..." npx tsx scripts/migrate-production.ts` (needs Neon DB)
-- Submit project to Colosseum (change status from draft to submitted)
-
-### Blockers/Concerns
-
-- Deadline is Feb 12 -- 9 days from milestone start
-- Need working demo URL for submission (depends on finishing 04-03 deploy)
-- Claim code needs human verification via X account
-- Colosseum API rate limits: forum/voting 30-120/hr, project ops 30/hr
+The heartbeat.sh script runs every 2 hours and:
+1. Runs a trading round (all 3 agents analyze market and make decisions)
+2. Checks agent health (portfolio values, positions, cash)
+3. Runs TypeScript health check
+4. Launches autonomous improvement session (Claude Code fixes bugs, improves code)
+5. Pushes changes to GitHub
 
 ## Session Continuity
 
-Last session: 2026-02-03 (autonomous build session #2)
-Completed this session:
-- Verified all code builds successfully with no TypeScript errors
-- Updated .env.example to match current requirements (all API keys documented)
-- Confirmed infrastructure code (CDK stack) is production-ready
-- Verified Lambda handler and migration scripts are complete
-- All core features tested and operational
-- Project is ready for deployment pending AWS credentials and Neon DB
+Last session: 2026-02-04
+Changes this session:
+- Rewrote heartbeat.sh from engagement-focused to trading/improvement-focused
+- Updated skill.md with on-chain settlement context
+- Enhanced agent profile pages with positions, trade history, Solana tx links
+- Updated README with on-chain verifiability section and live dashboard docs
+- Fixed stock count consistency (66 xStocks)
+- Reset heartbeat state for clean tracking
 
 Next steps:
-- AWS deployment: `cd infra && cdk deploy` (needs AWS credentials configured)
-- Production Neon migration: `NEON_DATABASE_URL="..." npx tsx scripts/migrate-production.ts`
-- Submit project to Colosseum before Feb 12 deadline (9 days remaining)
-Resume file: None
+- Run the overnight heartbeat and verify agents are trading well
+- Monitor agent decision quality and adjust skill.md as needed
+- Fix pre-existing TypeScript errors in older route files
+- Verify production deployment works end-to-end

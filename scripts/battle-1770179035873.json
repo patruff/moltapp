@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "timestamp": "2026-02-04T04:23:55.873Z",
+  "mode": "paper",
+  "wallet": "22zGTQx1aaZuECeMKcS9VmNNdCogC38uzdKt7Yb8sU65",
+  "budget_per_agent": 2,
+  "prices": {
+    "AAPLx": 6.916414234838131,
+    "NVDAx": 4.202612486810626,
+    "TSLAx": 2.6991320428081265
+  },
+  "agents": [
+    {
+      "name": "Grok Trader",
+      "model": "grok-4-fast-reasoning",
+      "provider": "xai",
+      "decision": {
+        "symbol": "TSLAx",
+        "side": "buy",
+        "amountUsdc": 2,
+        "reason": "Tesla shares have decreased to 423.64 USD, the lowest since December 2025, and lost 13.24% over the past 4 weeks, indicating market fear and overreaction. As a contrarian, I see value in buying this dip where others are selling off. Recent prices around 416.66 USD further highlight the downward pressure, presenting an opportunity to buy fear.",
+        "confidence": 0.85,
+        "intent": "contrarian"
+      },
+      "execution": {
+        "outAmount": "741117",
+        "durationMs": 5534
+      }
+    },
+    {
+      "name": "GPT Trader",
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "decision": {
+        "symbol": "N/A",
+        "side": "hold",
+        "amountUsdc": 0,
+        "reason": "Error: Unexpected end of JSON input",
+        "confidence": 0,
+        "intent": "N/A"
+      },
+      "execution": {
+        "error": "Unexpected end of JSON input",
+        "durationMs": 10900
+      }
+    },
+    {
+      "name": "Claude Trader",
+      "model": "claude-3.5-haiku",
+      "provider": "anthropic",
+      "decision": {
+        "symbol": "AAPLx",
+        "side": "buy",
+        "amountUsdc": 1.5,
+        "reason": "Apple's stock price recently increased to $267.67, indicating positive momentum. The upcoming shareholders meeting suggests potential strategic discussions. With the token trading at $6.92, there appears to be a reasonable entry point for a conservative value investment.",
+        "confidence": 0.65,
+        "intent": "value"
+      },
+      "execution": {
+        "outAmount": "216930",
+        "durationMs": 3394
+      }
+    }
+  ]
+}
