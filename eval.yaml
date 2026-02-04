@@ -1,7 +1,7 @@
-benchmark: moltapp-v3
+benchmark: moltapp-v4
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, confidence calibration, and risk-adjusted returns.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, confidence calibration, deep reasoning quality, and risk-adjusted returns. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '3.0.0'
+  version: '4.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -30,6 +30,13 @@ agents:
     model: grok-3
     style: aggressive-contrarian
     personality: 'Contrarian trader. Buys fear, sells greed, looks for overreactions and reversals.'
+
+external_submissions:
+  enabled: true
+  endpoint: '/api/v1/benchmark-submit/submit'
+  rules: '/api/v1/benchmark-submit/rules'
+  leaderboard: '/api/v1/benchmark-submit/leaderboard'
+  description: 'Any AI agent can submit trade decisions with reasoning for benchmark scoring. See submission rules for requirements.'
 
 metrics:
   - name: pnl_percent
@@ -78,6 +85,19 @@ metrics:
     higher_is_better: true
     measurement: 'Bucket analysis: monotonic increase in win rate across confidence quartiles.'
 
+  - name: deep_coherence
+    type: qualitative
+    description: 'Multi-dimensional structural analysis of reasoning quality. Measures logical structure, evidence grounding, risk awareness, temporal reasoning, counterfactual thinking, and quantitative rigor.'
+    range: [0, 1]
+    higher_is_better: true
+    dimensions:
+      - logical_structure: 0.25
+      - evidence_grounding: 0.20
+      - risk_awareness: 0.20
+      - temporal_reasoning: 0.15
+      - counterfactual_thinking: 0.10
+      - quantitative_rigor: 0.10
+
   - name: win_rate
     type: accuracy
     description: 'Percentage of trades that resulted in profit'
@@ -118,6 +138,8 @@ evaluation:
   live: true
   quality_gate: true
   quality_gate_threshold: 0.3
+  reasoning_enforcement: true
+  external_submissions: true
 
 scoring:
   aggregate: weighted_average
@@ -148,6 +170,23 @@ scoring:
     validity_days: 7
     verification_endpoint: '/api/v1/certification/verify/:hash'
 
+enforcement:
+  reasoning_gate:
+    levels:
+      strict: 'Trades rejected without full reasoning data'
+      warn: 'Trades flagged as unreasoned in benchmark data'
+      off: 'No enforcement (backward compatibility)'
+    default: warn
+    metrics_endpoint: '/api/v1/methodology/gate-metrics'
+  quality_gate:
+    threshold: 0.3
+    description: 'Pre-execution quality check on reasoning coherence, hallucination severity, and discipline'
+  deep_coherence:
+    dimensions: 6
+    pattern_count: '60+'
+    grades: 'A+ through F'
+    endpoint: '/api/v1/methodology/deep-analysis'
+
 data_schema:
   trade_justification:
     id: 'string — unique trade justification ID'
@@ -168,11 +207,28 @@ data_schema:
     timestamp: 'ISO 8601'
 
 api_endpoints:
+  # Benchmark core
+  benchmark_page: '/benchmark'
+  benchmark_data: '/benchmark/data'
+  methodology: '/api/v1/methodology'
+  scoring_weights: '/api/v1/methodology/scoring-weights'
+  deep_analysis: '/api/v1/methodology/deep-analysis'
+  gate_metrics: '/api/v1/methodology/gate-metrics'
+
+  # External submissions
+  submit_trade: '/api/v1/benchmark-submit/submit'
+  batch_submit: '/api/v1/benchmark-submit/batch-submit'
+  submission_results: '/api/v1/benchmark-submit/results/:id'
+  external_leaderboard: '/api/v1/benchmark-submit/leaderboard'
+  submission_rules: '/api/v1/benchmark-submit/rules'
+
+  # Brain feed & reasoning
   brain_feed: '/api/v1/brain-feed'
   brain_feed_agent: '/api/v1/brain-feed/:agentId'
   brain_feed_highlights: '/api/v1/brain-feed/highlights'
+
+  # Existing benchmark APIs
   benchmark_dashboard: '/benchmark-dashboard'
-  benchmark_data: '/api/v1/benchmark-data'
   export_json: '/api/v1/benchmark-data/export/json'
   export_csv: '/api/v1/benchmark-data/export/csv'
   scoring: '/api/v1/scoring-engine/scorecard'
@@ -181,7 +237,6 @@ api_endpoints:
   timeline: '/api/v1/timeline/:agentId'
   reports: '/api/v1/reports/:agentId'
   duels: '/api/v1/duels'
-  methodology: '/api/v1/certification/methodology'
 
 citation: |
   @misc{moltapp2026,

@@ -104,6 +104,9 @@ import { benchmarkExportRoutes } from "./routes/benchmark-export.ts";
 import { benchmarkComparisonRoutes } from "./routes/benchmark-comparison.ts";
 import { benchmarkStreamRoutes } from "./routes/benchmark-stream.ts";
 import { benchmarkResearchRoutes } from "./routes/benchmark-research.ts";
+import { benchmarkMethodologyRoutes } from "./routes/benchmark-methodology.ts";
+import { benchmarkSubmissionRoutes } from "./routes/benchmark-submission.ts";
+import { benchmarkLiveRoutes } from "./routes/benchmark-live.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -385,6 +388,15 @@ app.route("/api/v1/benchmark-stream", benchmarkStreamRoutes);
 
 // Benchmark Research API (public -- structured queries for researchers, statistical tests, reproducibility)
 app.route("/api/v1/research", benchmarkResearchRoutes);
+
+// Benchmark Methodology (public -- scoring methodology, deep analysis, reproducibility)
+app.route("/api/v1/methodology", benchmarkMethodologyRoutes);
+
+// Benchmark Submission (public -- external agents submit trades for scoring)
+app.route("/api/v1/benchmark-submit", benchmarkSubmissionRoutes);
+
+// Live Benchmark Page (public -- industry-standard leaderboard at /benchmark)
+app.route("/benchmark", benchmarkLiveRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);

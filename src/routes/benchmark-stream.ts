@@ -39,7 +39,8 @@ export interface BenchmarkEvent {
     | "regime_detected"
     | "hallucination_flagged"
     | "benchmark_update"
-    | "round_completed";
+    | "round_completed"
+    | "deep_coherence";
   agentId?: string;
   data: Record<string, unknown>;
   timestamp: string;

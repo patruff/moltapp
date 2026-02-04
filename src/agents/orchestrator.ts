@@ -97,6 +97,10 @@ import {
 } from "../services/regime-reasoning.ts";
 import { recordBenchmarkScore } from "../services/benchmark-reproducibility.ts";
 import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
+import {
+  analyzeDeepCoherence,
+  recordDeepAnalysis,
+} from "../services/deep-coherence-analyzer.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -861,6 +865,34 @@ async function executeTradingRound(
               severity: hallucinations.severity,
               symbol: decision.symbol,
             }, agent.agentId);
+          }
+
+          // --- Deep coherence analysis (structural reasoning quality) ---
+          try {
+            const deepResult = analyzeDeepCoherence(
+              decision.reasoning,
+              decision.action,
+              decision.symbol,
+              normalizedConf,
+              marketData,
+            );
+            recordDeepAnalysis(agent.agentId, deepResult);
+            console.log(
+              `[Orchestrator] ${agent.name} deep coherence: ${deepResult.overallScore.toFixed(2)} (${deepResult.grade}), ` +
+              `strengths=${deepResult.strengths.length}, weaknesses=${deepResult.weaknesses.length}`,
+            );
+
+            emitBenchmarkEvent("deep_coherence", {
+              overallScore: deepResult.overallScore,
+              grade: deepResult.grade,
+              strengthCount: deepResult.strengths.length,
+              weaknessCount: deepResult.weaknesses.length,
+              wordCount: deepResult.textMetrics.wordCount,
+            }, agent.agentId);
+          } catch (err) {
+            console.warn(
+              `[Orchestrator] Deep coherence failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
         } catch (err) {
           console.warn(
