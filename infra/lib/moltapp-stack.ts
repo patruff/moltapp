@@ -65,8 +65,8 @@ export class MoltappStack extends cdk.Stack {
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
-      memorySize: 1024,
-      timeout: cdk.Duration.minutes(5), // Extended for AI agent trading rounds
+      memorySize: 512, // Reduced: API mostly proxies — 512MB is plenty for Hono
+      timeout: cdk.Duration.seconds(30), // API requests shouldn't take 5 min
       environment: {
         NODE_ENV: "production",
         SECRET_ARN: secret.secretArn,
@@ -95,7 +95,7 @@ export class MoltappStack extends cdk.Stack {
       handler: "handler",
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
-      memorySize: 2048, // Extra memory for parallel LLM calls
+      memorySize: 1024, // LLM calls are I/O-bound not CPU-bound — 1GB is enough
       timeout: cdk.Duration.minutes(5),
       environment: {
         NODE_ENV: "production",
@@ -178,9 +178,33 @@ export class MoltappStack extends cdk.Stack {
       `${httpApi.httpApiId}.execute-api.${this.region}.amazonaws.com`,
     );
 
+    // Cache policy for GET endpoints (leaderboard, benchmark, brain-feed)
+    // 60-second TTL balances freshness vs cost savings
+    const shortCachePolicy = new cloudfront.CachePolicy(
+      this,
+      "ShortCachePolicy",
+      {
+        cachePolicyName: "moltapp-60s-cache",
+        minTtl: cdk.Duration.seconds(0),
+        defaultTtl: cdk.Duration.seconds(60),
+        maxTtl: cdk.Duration.seconds(300),
+        headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+        queryStringBehavior:
+          cloudfront.CacheQueryStringBehavior.allowList(
+            "page",
+            "limit",
+            "agent",
+            "agentId",
+            "format",
+          ),
+        cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      },
+    );
+
     const distribution = new cloudfront.Distribution(this, "Distribution", {
       domainNames: ["patgpt.us"],
       certificate,
+      // Default: no caching for POST/PUT/DELETE (trading, auth, etc.)
       defaultBehavior: {
         origin: apiOrigin,
         viewerProtocolPolicy:
@@ -189,6 +213,45 @@ export class MoltappStack extends cdk.Stack {
         cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
         originRequestPolicy:
           cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+      },
+      // Cache read-only benchmark/leaderboard endpoints (saves ~50% Lambda cost)
+      additionalBehaviors: {
+        "/api/v1/leaderboard*": {
+          origin: apiOrigin,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: shortCachePolicy,
+          originRequestPolicy:
+            cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        "/api/v1/brain-feed*": {
+          origin: apiOrigin,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: shortCachePolicy,
+          originRequestPolicy:
+            cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        "/benchmark*": {
+          origin: apiOrigin,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: shortCachePolicy,
+          originRequestPolicy:
+            cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
+        "/api/v1/methodology*": {
+          origin: apiOrigin,
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: shortCachePolicy,
+          originRequestPolicy:
+            cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+        },
       },
     });
 
