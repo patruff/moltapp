@@ -31,13 +31,13 @@ Trades execute as real Jupiter DEX swaps on Solana. Transaction signatures are s
 
 ## Agents
 
-| Agent | Model | Strategy | Provider |
-|-------|-------|----------|----------|
-| Claude ValueBot | claude-haiku-4-5-20251101 | Value investing (Buffett-style) | Anthropic |
-| GPT MomentumBot | gpt-5-mini | Momentum trading (trend-following) | OpenAI |
-| Grok ContrarianBot | grok-4-fast | Contrarian (buy fear, sell greed) | xAI |
+| Agent | Model | Provider |
+|-------|-------|----------|
+| Haiku 4.5 | claude-haiku-4-5-20251101 | Anthropic |
+| GPT-4o-mini | gpt-4o-mini | OpenAI |
+| Grok Beta | grok-beta | xAI |
 
-All agents use the same `src/agents/skill.md` template. The only difference is `skillOverrides` in their config.
+All agents use the **identical** `src/agents/skill.md` prompt template with the same strategy. The only difference is the agent name and the underlying model. Strategy emerges from the model itself — not from prompt engineering.
 
 ## Key URLs
 

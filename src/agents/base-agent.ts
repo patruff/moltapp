@@ -145,9 +145,9 @@ export interface AgentTurn {
 const SKILL_DEFAULTS: Record<string, string> = {
   AGENT_NAME: "Trading Agent",
   STRATEGY:
-    "Build a diversified portfolio of 8-12 stocks. Research fundamentals and technicals. HOLD unless your thesis changes materially.",
+    "You are an autonomous AI trading agent. Develop your OWN strategy based on your research using the available tools. There are 66 tokenized stocks (xStocks) available across all sectors — tech, healthcare, finance, consumer, energy, industrials, ETFs, and more. Scan the full market each round. Build a diversified portfolio of 5-8 stocks. Document your reasoning via theses. HOLD unless your thesis changes materially or a genuinely high-conviction opportunity appears.",
   RISK_TOLERANCE: "moderate",
-  PREFERRED_SECTORS: "(no sector preference)",
+  PREFERRED_SECTORS: "All sectors — scan the full 66-stock universe each round",
   CUSTOM_RULES: "",
 };
 

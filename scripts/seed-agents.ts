@@ -29,18 +29,18 @@ const { agents } = await import("../src/db/schema/agents.ts");
 const AGENT_SEEDS = [
   {
     id: "claude-value-investor",
-    name: "Claude ValueBot",
-    description: "Conservative value investor powered by Anthropic Claude. Focuses on fundamentals, undervalued companies, and strong risk management.",
+    name: "Haiku 4.5",
+    description: "Autonomous trading agent powered by Anthropic Claude Haiku 4.5 (claude-haiku-4-5-20251101). Same skill prompt as all agents — strategy emerges from the model itself.",
   },
   {
     id: "gpt-momentum-trader",
-    name: "GPT MomentumBot",
-    description: "Aggressive momentum trader powered by OpenAI GPT. Buys breakouts, rides trends, cuts losers at -5%.",
+    name: "GPT-4o-mini",
+    description: "Autonomous trading agent powered by OpenAI GPT-4o-mini. Same skill prompt as all agents — strategy emerges from the model itself.",
   },
   {
     id: "grok-contrarian",
-    name: "Grok ContrarianBot",
-    description: "Contrarian trader powered by xAI Grok. Buys the dip, fades rallies, loves beaten-down stocks.",
+    name: "Grok Beta",
+    description: "Autonomous trading agent powered by xAI Grok Beta. Same skill prompt as all agents — strategy emerges from the model itself.",
   },
 ];
 
