@@ -28,6 +28,7 @@ import {
   updateQualityGateConfig,
 } from "../services/reasoning-quality-gate.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
+import { apiError, handleError } from "../lib/errors.ts";
 
 export const outcomeTrackingRoutes = new Hono();
 
@@ -52,13 +53,7 @@ outcomeTrackingRoutes.post("/track", async (c) => {
       results: results.slice(0, 20),
     });
   } catch (err) {
-    return c.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      500,
-    );
+    return handleError(c, err);
   }
 });
 
@@ -183,7 +178,7 @@ outcomeTrackingRoutes.put("/quality-gate", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json({ ok: false, error: "Invalid JSON" }, 400);
+    return apiError(c, "INVALID_JSON");
   }
 
   const updates: Record<string, unknown> = {};
