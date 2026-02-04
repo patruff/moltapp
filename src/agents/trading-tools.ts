@@ -251,6 +251,9 @@ function executeGetStockPrices(
   args: Record<string, any>,
   ctx: ToolContext,
 ): string {
+  if (!Array.isArray(args.symbols)) {
+    return JSON.stringify({ error: "symbols must be an array" });
+  }
   const symbols: string[] = args.symbols ?? [];
   const data =
     symbols.length === 0
@@ -294,6 +297,18 @@ async function executeUpdateThesis(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<string> {
+  if (!args.symbol || typeof args.symbol !== "string") {
+    return JSON.stringify({ success: false, error: "symbol is required" });
+  }
+  if (!args.thesis || typeof args.thesis !== "string") {
+    return JSON.stringify({ success: false, error: "thesis is required" });
+  }
+  if (!args.conviction || typeof args.conviction !== "string") {
+    return JSON.stringify({ success: false, error: "conviction is required" });
+  }
+  if (!args.direction || !["bullish", "bearish", "neutral"].includes(args.direction)) {
+    return JSON.stringify({ success: false, error: "direction must be bullish, bearish, or neutral" });
+  }
   try {
     const result = await upsertThesis(ctx.agentId, {
       symbol: args.symbol,
@@ -316,6 +331,12 @@ async function executeCloseThesis(
   args: Record<string, any>,
   ctx: ToolContext,
 ): Promise<string> {
+  if (!args.symbol || typeof args.symbol !== "string") {
+    return JSON.stringify({ success: false, error: "symbol is required" });
+  }
+  if (!args.reason || typeof args.reason !== "string") {
+    return JSON.stringify({ success: false, error: "reason is required" });
+  }
   try {
     const result = await closeThesis(ctx.agentId, args.symbol, args.reason);
     return JSON.stringify({ success: true, ...result });
@@ -328,6 +349,9 @@ async function executeCloseThesis(
 }
 
 async function executeSearchNews(args: Record<string, any>): Promise<string> {
+  if (!args.query || typeof args.query !== "string") {
+    return JSON.stringify({ results: [], error: "query is required" });
+  }
   const query = args.query ?? "";
   const apiKey = process.env.BRAVE_API_KEY;
   if (!apiKey) {
@@ -373,6 +397,9 @@ async function executeSearchNews(args: Record<string, any>): Promise<string> {
 }
 
 function executeGetTechnicalIndicators(args: Record<string, any>): string {
+  if (!args.symbol || typeof args.symbol !== "string") {
+    return JSON.stringify({ error: "symbol is required" });
+  }
   const symbol = args.symbol ?? "";
   try {
     const indicators = computeIndicators(symbol);
