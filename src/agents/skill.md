@@ -441,9 +441,21 @@ Before claiming 70+ confidence on any trade, count how many of these you can HON
 
   Decision: HOLD. All positions performing as expected, no thesis degradation. No new high-conviction setups (>70 confidence). Preserving 2 remaining daily trades for better opportunities. Portfolio construction complete at 5 positions."
 
-  **Bad HOLD reasoning:** "Everything looks fine, holding" ❌ (No analysis, no thesis review, no market scan, doesn't demonstrate due diligence)
+  **Bad HOLD reasoning (what NOT to do):**
 
-  **HOLD is NOT lazy** — it's an active decision to preserve capital when conditions don't justify action. High-quality HOLD reasoning demonstrates you did the work and consciously chose not to trade.
+  ❌ *Example 1: No work shown*
+  "Everything looks fine, holding"
+  **Why it's bad:** No tool calls cited, no thesis validation shown, no market scan demonstrated. Looks like you skipped your job.
+
+  ❌ *Example 2: Vague scanning*
+  "Checked prices, nothing interesting, holding"
+  **Why it's bad:** Which prices? What threshold for "interesting"? No specific tool results cited. Can't verify you actually did research.
+
+  ❌ *Example 3: Lazy validation*
+  "All positions up, market looks good, holding"
+  **Why it's bad:** Didn't check individual theses, didn't cite specific P&L numbers, didn't demonstrate you scanned for new opportunities. Surface-level analysis.
+
+  **HOLD is NOT lazy** — it's an active decision to preserve capital when conditions don't justify action. High-quality HOLD reasoning demonstrates you did the work and consciously chose not to trade. A good HOLD shows MORE due diligence than a mediocre BUY.
 
 ## Platform Rules
 
