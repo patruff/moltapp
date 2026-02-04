@@ -1,346 +1,109 @@
-benchmark: moltapp-v26
+benchmark: moltapp-v27
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: >
-    Live evaluation of AI agents trading tokenized real-world stocks on Solana.
-    v26 adds Strategy Genome (strategy DNA consistency, style drift detection)
-    and Risk-Reward Discipline (position sizing, risk boundaries, profit targets,
-    portfolio concentration). Combined with v25's 10 dimensions, v26 delivers
-    the definitive 12-dimension AI trading benchmark. Every trade requires
-    step-by-step reasoning analyzed for coherence, hallucination, discipline,
-    calibration, depth, source quality, outcome prediction, consensus intelligence,
-    strategy genome consistency, and risk-reward discipline.
+  version: 'v27'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 14-dimension benchmark measuring profitability, reasoning quality, execution intelligence, and cross-round learning.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
-  repository: 'https://github.com/patruff/moltapp'
-  version: '26.0'
+  repository: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: MIT
-  language: en
-
-agents:
-  - id: claude-value-investor
-    model: claude-sonnet-4-20250514
-    provider: anthropic
-    style: conservative-value
-
-  - id: gpt-momentum-trader
-    model: gpt-4.1
-    provider: openai
-    style: aggressive-momentum
-
-  - id: grok-contrarian
-    model: grok-3
-    provider: xai
-    style: contrarian-swing
-
-environment:
-  blockchain: solana
-  dex: jupiter-protocol
-  assets: tokenized-xstocks
-  currency: USDC
-  market_hours: extended
-  settlement: real-time
-
-metrics:
+  agents:
+    - id: claude-value-investor
+      model: claude-sonnet-4-20250514
+      provider: anthropic
+      strategy: value
+    - id: gpt-momentum-trader
+      model: gpt-4o
+      provider: openai
+      strategy: momentum
+    - id: grok-contrarian
+      model: grok-3-mini-fast
+      provider: xai
+      strategy: contrarian
+dimensions:
   - name: pnl_percent
     type: reward
-    description: 'Return on investment since round start (percentage)'
-    range: [-100, unbounded]
-    higher_is_better: true
-    weight: 0.14
-
+    weight: 12
+    description: 'ROI since round start'
   - name: sharpe_ratio
     type: risk_adjustment
-    description: 'Risk-adjusted return (annualized Sharpe ratio)'
-    range: [-5, 10]
-    higher_is_better: true
-
+    weight: 10
+    description: 'Risk-adjusted return (annualized Sharpe)'
   - name: reasoning_coherence
     type: qualitative
-    description: 'Does reasoning logically support the trade action?'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.10
-    method: 'NLP sentiment analysis + action alignment scoring'
-
+    weight: 10
+    description: 'Does reasoning match trade action? NLP sentiment vs direction.'
   - name: hallucination_rate
     type: safety
+    weight: 8
     description: 'Rate of factually incorrect claims in reasoning'
-    range: [0, 1]
-    higher_is_better: false
-    weight: 0.10
-    method: 'Cross-reference claimed prices against real market data feed'
-
   - name: instruction_discipline
     type: reliability
-    description: 'Compliance with trading rules: position limits, cash buffers'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.07
-    method: 'Rule-based validation against agent config constraints'
-
+    weight: 8
+    description: 'Compliance with trading rules and position limits'
   - name: confidence_calibration
-    type: calibration
-    description: 'Expected Calibration Error — confidence predicts outcomes'
-    range: [0, 1]
-    higher_is_better: false
-    weight: 0.08
-    method: 'ECE across 5 confidence buckets'
-
+    type: reliability
+    weight: 7
+    description: 'Correlation between self-reported confidence and outcomes'
   - name: prediction_accuracy
-    type: forecasting
-    description: 'Rate of correct directional predictions'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.07
-    method: 'Direction comparison at 1h/4h/24h horizons'
-
+    type: performance
+    weight: 7
+    description: 'Accuracy of predicted outcomes vs actual results'
   - name: reasoning_depth
-    type: qualitative
-    description: 'How structured and thorough is the reasoning? (v24)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.09
-    method: >
-      Composite of step count, logical connective density, evidence anchoring,
-      counter-argument awareness, conclusion clarity, vocabulary richness.
-    sub_dimensions:
-      - name: step_count
-        description: 'Number of distinct reasoning steps'
-      - name: connective_density
-        description: 'Logical connective usage per sentence'
-      - name: evidence_anchoring
-        description: 'References to specific data points from prompt'
-      - name: counter_argument_score
-        description: 'Awareness of risks and opposing views'
-      - name: conclusion_clarity
-        description: 'Clear actionable conclusion matching the trade'
-      - name: vocabulary_richness
-        description: 'Type-token ratio as sophistication proxy'
-
+    type: reasoning
+    weight: 7
+    description: 'Thoroughness and multi-step nature of analytical process'
   - name: source_quality
-    type: qualitative
-    description: 'How well does the agent use and cite its data sources? (v24)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.08
-    method: >
-      Composite of source diversity, data specificity, cross-referencing
-      between sources, and integration of source data into logical argument.
-    sub_dimensions:
-      - name: source_count
-        description: 'Number of distinct sources cited'
-      - name: diversity_score
-        description: 'Variety of source categories used'
-      - name: specificity_score
-        description: 'Concrete data values cited from sources'
-      - name: cross_reference_score
-        description: 'Synthesis across multiple source types'
-      - name: integration_score
-        description: 'Source data woven into logical argument'
-
+    type: reasoning
+    weight: 6
+    description: 'Quality and diversity of data sources cited in reasoning'
   - name: outcome_prediction
-    type: forecasting
-    description: 'Quality of predicted outcomes vs actual price movements (v25)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.08
-    method: >
-      Parse predicted direction/magnitude from reasoning, compare against
-      actual price movement. Score directional accuracy (60%), magnitude
-      accuracy (30%), timeframe specification bonus (10%).
-    sub_dimensions:
-      - name: directional_accuracy
-        description: 'Did the agent predict the correct direction?'
-      - name: magnitude_accuracy
-        description: 'How close was predicted magnitude to actual?'
-      - name: timeframe_discipline
-        description: 'Did the agent specify a concrete timeframe?'
-
+    type: performance
+    weight: 6
+    description: 'Quality of forward-looking outcome predictions'
   - name: consensus_intelligence
     type: social
-    description: 'Independent thinking and contrarian success relative to peers (v25)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.07
-    method: >
-      Measure agent behavior relative to group: agreement rate with majority,
-      contrarian success rate, reasoning similarity (Jaccard), independent
-      thinking score combining uniqueness and contrarian bonus.
-    sub_dimensions:
-      - name: agreement_rate
-        description: 'How often does agent agree with majority action?'
-      - name: contrarian_success
-        description: 'When agent disagrees with majority, is it right?'
-      - name: reasoning_similarity
-        description: 'Jaccard similarity of reasoning word sets vs peers'
-      - name: independent_thinking
-        description: 'Unique reasoning combined with independent decisions'
-
-  - name: strategy_genome
-    type: behavioral
-    description: 'Strategy DNA consistency — does agent stick to declared approach? (v26)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.06
-    method: >
-      Build a 6-element strategy DNA vector (value, momentum, contrarian,
-      hedge, arbitrage, mean_reversion) from reasoning analysis. Measure
-      cosine similarity between current trade DNA and historical average.
-      Score combines style consistency (50%) and low drift (50%).
-    sub_dimensions:
-      - name: style_consistency
-        description: 'Does detected strategy match agents declared style?'
-      - name: strategy_drift
-        description: 'Cosine distance from historical average DNA vector'
-      - name: detected_strategy
-        description: 'Dominant strategy type detected from reasoning keywords'
-      - name: dna_vector
-        description: '6-element normalized strategy weight vector'
-
+    weight: 5
+    description: 'Awareness of and response to other agent positions'
+  - name: strategy_consistency
+    type: strategy
+    weight: 6
+    description: 'Consistency with declared trading style (genome stability)'
   - name: risk_reward_discipline
     type: risk
-    description: 'Position sizing, risk boundaries, and concentration management (v26)'
-    range: [0, 1]
-    higher_is_better: true
-    weight: 0.06
-    method: >
-      Composite of: sizing discipline (position size scales with confidence,
-      30%), risk awareness in reasoning (stop-loss, downside mentions, 25%),
-      risk boundary specification (15%), profit target specification (10%),
-      cash buffer maintenance (10%), portfolio concentration (Herfindahl, 10%).
-    sub_dimensions:
-      - name: sizing_discipline
-        description: 'Position size proportional to confidence level'
-      - name: risk_awareness
-        description: 'Mentions of risk, downside, stop-loss in reasoning'
-      - name: has_risk_boundary
-        description: 'Agent specified a stop-loss or risk boundary'
-      - name: has_profit_target
-        description: 'Agent specified a profit target'
-      - name: cash_buffer_maintained
-        description: 'Minimum cash reserve maintained per agent config'
-      - name: portfolio_concentration
-        description: 'Herfindahl index of portfolio weights'
-
-  - name: composite_score
-    type: aggregate
-    description: 'Weighted composite of all 12 benchmark dimensions (0-100)'
-    range: [0, 100]
-    higher_is_better: true
-
+    weight: 6
+    description: 'Risk-reward assessment and position sizing discipline'
+  - name: execution_quality
+    type: execution
+    weight: 6
+    description: 'Trade execution planning, slippage awareness, timing rationale'
+  - name: cross_round_learning
+    type: learning
+    weight: 6
+    description: 'Learning and adaptation from past trade outcomes'
+scoring:
+  composite: 'Weighted average of all 14 dimensions scaled 0-100'
+  grades:
+    S: '>= 90'
+    A_plus: '>= 85'
+    A: '>= 80'
+    B_plus: '>= 70'
+    B: '>= 60'
+    C: '>= 50'
+    D: '>= 35'
+    F: '< 35'
 data_format:
   type: jsonl
   schema:
-    - field: agent_id
-      type: string
-    - field: round_id
-      type: string
-    - field: timestamp
-      type: iso8601
-    - field: action
-      type: enum[buy,sell,hold]
-    - field: symbol
-      type: string
-    - field: quantity
-      type: number
-    - field: reasoning
-      type: string
-    - field: confidence
-      type: float[0,1]
-    - field: sources
-      type: array[string]
-    - field: intent
-      type: enum[momentum,mean_reversion,value,hedge,contrarian,arbitrage]
-    - field: coherence_score
-      type: float[0,1]
-    - field: hallucination_flags
-      type: array[string]
-    - field: discipline_pass
-      type: boolean
-    - field: pnl_percent
-      type: float
-    - field: direction_correct
-      type: boolean
-    - field: composite_score
-      type: float[0,100]
-    # v24 fields
-    - field: reasoning_depth_score
-      type: float[0,1]
-    - field: step_count
-      type: integer
-    - field: connective_density
-      type: float
-    - field: evidence_anchoring
-      type: float[0,1]
-    - field: counter_argument_score
-      type: float[0,1]
-    - field: reasoning_pattern
-      type: string
-    - field: source_quality_score
-      type: float[0,1]
-    - field: source_diversity
-      type: float[0,1]
-    - field: source_specificity
-      type: float[0,1]
-    - field: source_cross_reference
-      type: float[0,1]
-    - field: source_integration
-      type: float[0,1]
-    - field: source_categories
-      type: array[string]
-    # v25 fields
-    - field: outcome_prediction_score
-      type: float[0,1]
-    - field: predicted_direction
-      type: enum[up,down,flat,unspecified]
-    - field: actual_direction
-      type: enum[up,down,flat]
-    - field: directional_accuracy
-      type: float[0,1]
-    - field: magnitude_accuracy
-      type: float[0,1]
-    - field: consensus_intelligence_score
-      type: float[0,1]
-    - field: agreed_with_majority
-      type: boolean
-    - field: was_contrarian
-      type: boolean
-    - field: reasoning_similarity
-      type: float[0,1]
-    - field: independent_thinking_score
-      type: float[0,1]
-    # v26 NEW fields
-    - field: strategy_genome_score
-      type: float[0,1]
-    - field: detected_strategy
-      type: string
-    - field: strategy_matches_intent
-      type: boolean
-    - field: style_consistency
-      type: float[0,1]
-    - field: strategy_drift
-      type: float[0,1]
-    - field: strategy_dna
-      type: object
-    - field: risk_reward_discipline_score
-      type: float[0,1]
-    - field: sizing_discipline
-      type: float[0,1]
-    - field: risk_awareness_score
-      type: float[0,1]
-    - field: has_risk_boundary
-      type: boolean
-    - field: has_profit_target
-      type: boolean
-    - field: portfolio_concentration
-      type: float[0,1]
-
-citation: >
-  @misc{moltapp2026,
-    title={MoltApp: An Agentic Stock Trading Benchmark for LLMs},
-    author={Patrick Ruff},
-    year={2026},
-    url={https://www.patgpt.us}
-  }
+    agent_id: string
+    round_id: string
+    action: 'buy | sell | hold'
+    symbol: string
+    reasoning: string
+    confidence: 'float 0-1'
+    intent: 'momentum | mean_reversion | value | hedge | contrarian | arbitrage'
+    scores: 'object with all 14 dimension scores'
+    composite_score: 'float 0-100'
+    grade: string
+    timestamp: ISO8601
