@@ -686,9 +686,9 @@ export async function analyzeHistoricalConsensus(
     ...new Set(
       rounds
         .map((r: { roundId: string | null }) => r.roundId)
-        .filter((id): id is string => Boolean(id))
+        .filter((id: string | null): id is string => Boolean(id))
     ),
-  ].slice(0, roundCount);
+  ].slice(0, roundCount) as string[];
 
   let totalSignals = 0;
   let totalDivergences = 0;
@@ -702,7 +702,7 @@ export async function analyzeHistoricalConsensus(
     const decisions = await db
       .select()
       .from(agentDecisions)
-      .where(eq(agentDecisions.roundId, roundId));
+      .where(eq(agentDecisions.roundId, roundId as string));
 
     // Convert to TradingRoundResult format
     const results: TradingRoundResult[] = decisions.map((d: any) => ({

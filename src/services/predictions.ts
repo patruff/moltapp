@@ -733,8 +733,8 @@ export async function getPredictionById(id: string) {
     .orderBy(desc(predictionBets.createdAt));
 
   // Compute bet summary
-  const forBets = bets.filter((b) => b.position === "for");
-  const againstBets = bets.filter((b) => b.position === "against");
+  const forBets = bets.filter((b: any) => b.position === "for");
+  const againstBets = bets.filter((b: any) => b.position === "against");
 
   return {
     ...prediction,
@@ -744,12 +744,12 @@ export async function getPredictionById(id: string) {
       totalBets: bets.length,
       forBets: forBets.length,
       againstBets: againstBets.length,
-      forVolume: forBets.reduce((sum, b) => sum + parseFloat(b.amount), 0),
+      forVolume: forBets.reduce((sum: number, b: any) => sum + parseFloat(b.amount), 0),
       againstVolume: againstBets.reduce(
-        (sum, b) => sum + parseFloat(b.amount),
+        (sum: number, b: any) => sum + parseFloat(b.amount),
         0,
       ),
-      uniqueBettors: new Set(bets.map((b) => b.bettorId)).size,
+      uniqueBettors: new Set(bets.map((b: any) => b.bettorId)).size,
     },
   };
 }
@@ -772,13 +772,13 @@ export async function getAgentPredictionStats(
     .where(eq(predictions.agentId, agentId))
     .orderBy(desc(predictions.createdAt));
 
-  const active = agentPredictions.filter((p) => p.status === "active");
+  const active = agentPredictions.filter((p: any) => p.status === "active");
   const resolved = agentPredictions.filter(
-    (p) =>
+    (p: any) =>
       p.status === "resolved_correct" || p.status === "resolved_incorrect",
   );
-  const correct = resolved.filter((p) => p.status === "resolved_correct");
-  const incorrect = resolved.filter((p) => p.status === "resolved_incorrect");
+  const correct = resolved.filter((p: any) => p.status === "resolved_correct");
+  const incorrect = resolved.filter((p: any) => p.status === "resolved_incorrect");
 
   // Win rate
   const winRate =
@@ -787,18 +787,18 @@ export async function getAgentPredictionStats(
   // Average confidence
   const avgConfidence =
     agentPredictions.length > 0
-      ? agentPredictions.reduce((sum, p) => sum + p.confidence, 0) /
+      ? agentPredictions.reduce((sum: number, p: any) => sum + p.confidence, 0) /
         agentPredictions.length
       : 0;
 
   const avgConfidenceWhenCorrect =
     correct.length > 0
-      ? correct.reduce((sum, p) => sum + p.confidence, 0) / correct.length
+      ? correct.reduce((sum: number, p: any) => sum + p.confidence, 0) / correct.length
       : 0;
 
   const avgConfidenceWhenIncorrect =
     incorrect.length > 0
-      ? incorrect.reduce((sum, p) => sum + p.confidence, 0) / incorrect.length
+      ? incorrect.reduce((sum: number, p: any) => sum + p.confidence, 0) / incorrect.length
       : 0;
 
   // Calibration score: how close is confidence to actual accuracy?
@@ -936,12 +936,12 @@ export async function getPredictionLeaderboard(): Promise<
     .from(predictions)
     .orderBy(desc(predictions.createdAt));
 
-  const agentIds = [...new Set(allPreds.map((p) => p.agentId))];
+  const agentIds = [...new Set(allPreds.map((p: any) => p.agentId))];
 
   const entries: PredictionLeaderboardEntry[] = [];
 
   for (const agentId of agentIds) {
-    const stats = await getAgentPredictionStats(agentId);
+    const stats = await getAgentPredictionStats(agentId as string);
 
     // Composite score for ranking
     const winRateScore = stats.winRate * 40;
@@ -952,7 +952,7 @@ export async function getPredictionLeaderboard(): Promise<
       winRateScore + calibrationBonus + volumeScore + consistencyScore;
 
     entries.push({
-      agentId,
+      agentId: agentId as string,
       totalPredictions: stats.totalPredictions,
       resolvedPredictions: stats.resolvedPredictions,
       correctPredictions: stats.correctPredictions,
@@ -1044,7 +1044,7 @@ export async function getHotPredictions() {
     .orderBy(desc(predictionMarkets.totalPool));
 
   const hotPredictions = await Promise.all(
-    markets.slice(0, 20).map(async (market) => {
+    markets.slice(0, 20).map(async (market: any) => {
       const [pred] = await db
         .select()
         .from(predictions)
@@ -1104,11 +1104,11 @@ export async function getPredictionHistory(
 
   // Apply filters
   if (agentId) {
-    allPredictions = allPredictions.filter((p) => p.agentId === agentId);
+    allPredictions = allPredictions.filter((p: any) => p.agentId === agentId);
   }
   if (symbol) {
     allPredictions = allPredictions.filter(
-      (p) => p.symbol.toLowerCase() === symbol.toLowerCase(),
+      (p: any) => p.symbol.toLowerCase() === symbol.toLowerCase(),
     );
   }
 
@@ -1117,7 +1117,7 @@ export async function getPredictionHistory(
 
   // Attach market data
   const withMarkets = await Promise.all(
-    page.map(async (pred) => {
+    page.map(async (pred: any) => {
       const [market] = await db
         .select()
         .from(predictionMarkets)
