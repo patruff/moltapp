@@ -16,3 +16,4 @@ export { tradeJustifications, benchmarkSnapshots } from "./trade-reasoning.ts";
 export { reasoningForensicReports, reasoningIntegrityViolations, agentReasoningHealth } from "./reasoning-forensics.ts";
 export { outcomeResolutions, calibrationSnapshots, benchmarkLeaderboardV23 } from "./benchmark-v23.ts";
 export { reasoningDepthAnalysis, sourceQualityAnalysis, benchmarkLeaderboardV24, benchmarkRoundSnapshotsV24 } from "./benchmark-v24.ts";
+export { outcomePredictionTracking, consensusIntelligence, benchmarkLeaderboardV25, benchmarkRoundSnapshotsV25 } from "./benchmark-v25.ts";

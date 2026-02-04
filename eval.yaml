@@ -1,19 +1,20 @@
-benchmark: moltapp-v24
+benchmark: moltapp-v25
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
   description: >
     Live evaluation of AI agents trading tokenized real-world stocks on Solana.
-    v24 adds Reasoning Depth Engine (step analysis, connective density, evidence
-    anchoring, counter-argument awareness) and Source Quality Engine (diversity,
-    specificity, cross-referencing, integration scoring). Combined with v23's
-    6 dimensions, v24 delivers 8-dimension comprehensive agent evaluation.
+    v25 adds Outcome Prediction Engine (directional accuracy, magnitude tracking,
+    timeframe discipline) and Consensus Intelligence (independent thinking score,
+    contrarian success rate, herd behavior detection). Combined with v24's
+    8 dimensions, v25 delivers the definitive 10-dimension AI trading benchmark.
     Every trade requires step-by-step reasoning analyzed for coherence,
-    hallucination, discipline, calibration, depth, and source quality.
+    hallucination, discipline, calibration, depth, source quality, outcome
+    prediction, and consensus intelligence.
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
-  version: '24.0'
+  version: '25.0'
   license: MIT
   language: en
 
@@ -139,9 +140,47 @@ metrics:
       - name: integration_score
         description: 'Source data woven into logical argument'
 
+  - name: outcome_prediction
+    type: forecasting
+    description: 'Quality of predicted outcomes vs actual price movements (v25)'
+    range: [0, 1]
+    higher_is_better: true
+    weight: 0.09
+    method: >
+      Parse predicted direction/magnitude from reasoning, compare against
+      actual price movement. Score directional accuracy (60%), magnitude
+      accuracy (30%), timeframe specification bonus (10%).
+    sub_dimensions:
+      - name: directional_accuracy
+        description: 'Did the agent predict the correct direction?'
+      - name: magnitude_accuracy
+        description: 'How close was predicted magnitude to actual?'
+      - name: timeframe_discipline
+        description: 'Did the agent specify a concrete timeframe?'
+
+  - name: consensus_intelligence
+    type: social
+    description: 'Independent thinking and contrarian success relative to peers (v25)'
+    range: [0, 1]
+    higher_is_better: true
+    weight: 0.08
+    method: >
+      Measure agent behavior relative to group: agreement rate with majority,
+      contrarian success rate, reasoning similarity (Jaccard), independent
+      thinking score combining uniqueness and contrarian bonus.
+    sub_dimensions:
+      - name: agreement_rate
+        description: 'How often does agent agree with majority action?'
+      - name: contrarian_success
+        description: 'When agent disagrees with majority, is it right?'
+      - name: reasoning_similarity
+        description: 'Jaccard similarity of reasoning word sets vs peers'
+      - name: independent_thinking
+        description: 'Unique reasoning combined with independent decisions'
+
   - name: composite_score
     type: aggregate
-    description: 'Weighted composite of all 8 benchmark dimensions (0-100)'
+    description: 'Weighted composite of all 10 benchmark dimensions (0-100)'
     range: [0, 100]
     higher_is_better: true
 
@@ -205,6 +244,27 @@ data_format:
       type: float[0,1]
     - field: source_categories
       type: array[string]
+    # v25 new fields
+    - field: outcome_prediction_score
+      type: float[0,1]
+    - field: predicted_direction
+      type: enum[up,down,flat,unspecified]
+    - field: actual_direction
+      type: enum[up,down,flat]
+    - field: directional_accuracy
+      type: float[0,1]
+    - field: magnitude_accuracy
+      type: float[0,1]
+    - field: consensus_intelligence_score
+      type: float[0,1]
+    - field: agreed_with_majority
+      type: boolean
+    - field: was_contrarian
+      type: boolean
+    - field: reasoning_similarity
+      type: float[0,1]
+    - field: independent_thinking_score
+      type: float[0,1]
 
 citation: >
   @misc{moltapp2026,

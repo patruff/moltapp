@@ -1,358 +1,87 @@
 /**
- * HuggingFace Benchmark Dataset Sync (v23)
+ * HuggingFace Benchmark Sync
  *
- * Exports MoltApp benchmark data as a structured dataset for HuggingFace:
- * 1. Fetches all trades with justifications from the database
- * 2. Joins with outcome resolutions for prediction accuracy data
- * 3. Formats as JSONL benchmark dataset
- * 4. Uploads to patruff/molt-benchmark on HuggingFace Hub
- * 5. Includes eval.yaml for benchmark recognition
+ * Fetches all trades with justifications from the MoltApp database,
+ * formats them as a benchmark dataset, and uploads to HuggingFace:
+ *   patruff/molt-benchmark
  *
  * Usage:
- *   npx tsx scripts/sync-to-hf.ts
+ *   HF_TOKEN=hf_xxx DATABASE_URL=postgres://... npx tsx scripts/sync-to-hf.ts
  *
- * Environment:
- *   HF_TOKEN — HuggingFace write token
- *   DATABASE_URL — Neon PostgreSQL connection string
+ * The dataset includes every trade with:
+ * - Full reasoning text
+ * - 10-dimension benchmark scores
+ * - Agent metadata
+ * - Coherence, hallucination, discipline analysis
+ * - Reasoning depth and source quality metrics (v24)
+ * - Outcome prediction and consensus intelligence (v25)
  */
 
 import { uploadFile } from "@huggingface/hub";
-import { db } from "../src/db/index.ts";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { desc } from "drizzle-orm";
 import { tradeJustifications } from "../src/db/schema/trade-reasoning.ts";
-import {
-  outcomeResolutions,
-  benchmarkLeaderboardV23,
-} from "../src/db/schema/benchmark-v23.ts";
-import { desc, eq, sql } from "drizzle-orm";
-import { readFileSync } from "fs";
-import { join } from "path";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const HF_REPO = "patruff/molt-benchmark";
-const HF_TOKEN = process.env.HF_TOKEN ?? "";
-const BATCH_SIZE = 1000;
+const HF_TOKEN = process.env.HF_TOKEN;
+const DATABASE_URL = process.env.DATABASE_URL;
+const REPO_ID = "patruff/molt-benchmark";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface BenchmarkRecord {
-  agent_id: string;
-  round_id: string | null;
-  timestamp: string;
-  action: string;
-  symbol: string;
-  quantity: number | null;
-  reasoning: string;
-  confidence: number;
-  sources: string[];
-  intent: string;
-  predicted_outcome: string | null;
-  coherence_score: number | null;
-  hallucination_flags: string[];
-  discipline_pass: boolean;
-  pnl_percent: number | null;
-  direction_correct: boolean | null;
-  outcome: string | null;
-  composite_score: number | null;
+if (!HF_TOKEN) {
+  console.error("ERROR: Set HF_TOKEN environment variable");
+  process.exit(1);
+}
+if (!DATABASE_URL) {
+  console.error("ERROR: Set DATABASE_URL environment variable");
+  process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
-// Data Fetching
+// Database connection
 // ---------------------------------------------------------------------------
 
-async function fetchBenchmarkData(): Promise<BenchmarkRecord[]> {
-  console.log("[HF Sync] Fetching trade justifications from database...");
+const sql = neon(DATABASE_URL);
+const db = drizzle({ client: sql });
 
-  const justifications = await db
-    .select()
-    .from(tradeJustifications)
-    .orderBy(desc(tradeJustifications.timestamp))
-    .limit(BATCH_SIZE);
+// ---------------------------------------------------------------------------
+// Reasoning analysis helpers (inline to avoid import complexity)
+// ---------------------------------------------------------------------------
 
-  console.log(`[HF Sync] Found ${justifications.length} justifications`);
-
-  // Build outcome lookup
-  const outcomes = new Map<string, {
-    pnlPercent: number | null;
-    directionCorrect: boolean | null;
-    outcome: string;
-  }>();
-
-  try {
-    const resolutions = await db
-      .select()
-      .from(outcomeResolutions)
-      .limit(BATCH_SIZE);
-
-    for (const r of resolutions) {
-      outcomes.set(r.justificationId, {
-        pnlPercent: r.pnlPercent,
-        directionCorrect: r.directionCorrect,
-        outcome: r.outcome,
-      });
-    }
-    console.log(`[HF Sync] Found ${resolutions.length} outcome resolutions`);
-  } catch (err) {
-    console.warn(`[HF Sync] Could not fetch outcomes: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  // Build leaderboard lookup for composite scores
-  const composites = new Map<string, number>();
-  try {
-    const leaderboard = await db
-      .select()
-      .from(benchmarkLeaderboardV23)
-      .limit(100);
-
-    for (const entry of leaderboard) {
-      composites.set(entry.agentId, entry.compositeScore ?? 0);
-    }
-  } catch {
-    // Non-critical
-  }
-
-  // Format records
-  const records: BenchmarkRecord[] = justifications.map((j) => {
-    const outcome = outcomes.get(j.id);
-    const hallucinationFlags = (j.hallucinationFlags as string[] | null) ?? [];
-    const sources = (j.sources as string[] | null) ?? [];
-
-    return {
-      agent_id: j.agentId,
-      round_id: j.roundId,
-      timestamp: j.timestamp?.toISOString() ?? new Date().toISOString(),
-      action: j.action,
-      symbol: j.symbol,
-      quantity: j.quantity,
-      reasoning: j.reasoning,
-      confidence: j.confidence,
-      sources,
-      intent: j.intent,
-      predicted_outcome: j.predictedOutcome,
-      coherence_score: j.coherenceScore,
-      hallucination_flags: hallucinationFlags,
-      discipline_pass: j.disciplinePass === "pass",
-      pnl_percent: outcome?.pnlPercent ?? null,
-      direction_correct: outcome?.directionCorrect ?? null,
-      outcome: outcome?.outcome ?? null,
-      composite_score: composites.get(j.agentId) ?? null,
-    };
-  });
-
-  return records;
+function analyzeDepthInline(reasoning: string): { depthScore: number; stepCount: number; wordCount: number } {
+  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const words = reasoning.split(/\s+/);
+  const connectives = (reasoning.match(/\b(therefore|because|however|furthermore|consequently|although|moreover|thus|hence|since|given|considering|additionally|nevertheless|nonetheless)\b/gi) ?? []).length;
+  const stepCount = sentences.length;
+  const connectiveDensity = sentences.length > 0 ? connectives / sentences.length : 0;
+  const depthScore = Math.min(1, (stepCount / 8) * 0.3 + Math.min(1, connectiveDensity) * 0.3 + Math.min(1, words.length / 100) * 0.4);
+  return { depthScore: Math.round(depthScore * 100) / 100, stepCount, wordCount: words.length };
 }
 
-// ---------------------------------------------------------------------------
-// JSONL Formatting
-// ---------------------------------------------------------------------------
-
-function formatAsJsonl(records: BenchmarkRecord[]): string {
-  return records.map((r) => JSON.stringify(r)).join("\n") + "\n";
+function analyzeSourceInline(sources: string[]): { qualityScore: number; sourceCount: number } {
+  const count = sources.length;
+  const diversityScore = Math.min(1, count / 5);
+  const qualityScore = Math.round(diversityScore * 100) / 100;
+  return { qualityScore, sourceCount: count };
 }
 
-function generateDatasetCard(recordCount: number, agentCount: number): string {
-  return `---
-dataset_info:
-  features:
-    - name: agent_id
-      dtype: string
-    - name: action
-      dtype: string
-    - name: symbol
-      dtype: string
-    - name: reasoning
-      dtype: string
-    - name: confidence
-      dtype: float64
-    - name: coherence_score
-      dtype: float64
-    - name: pnl_percent
-      dtype: float64
-    - name: direction_correct
-      dtype: bool
-    - name: composite_score
-      dtype: float64
-  splits:
-    - name: train
-      num_examples: ${recordCount}
-license: mit
-task_categories:
-  - text-generation
-  - text-classification
-tags:
-  - finance
-  - trading
-  - benchmark
-  - ai-agents
-  - reasoning
-  - llm-evaluation
----
+function parsePredictionInline(reasoning: string, predictedOutcome?: string | null): { direction: string; magnitude: number | null } {
+  const text = predictedOutcome ? `${predictedOutcome} ${reasoning}` : reasoning;
+  let direction = "unspecified";
+  if (/expect.*(?:up|rise|gain|increase|bullish|higher|upside)|target.*\+\d/i.test(text)) direction = "up";
+  else if (/expect.*(?:down|fall|decline|decrease|bearish|lower|downside)|target.*-\d/i.test(text)) direction = "down";
+  else if (/consolidat|sideways|range.?bound|stable|flat/i.test(text)) direction = "flat";
 
-# MoltApp: Agentic Stock Trading Benchmark
-
-**Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
-
-## Overview
-
-MoltApp is an industry-standard benchmark for evaluating AI agent trading capabilities.
-Unlike static benchmarks, MoltApp measures agent intelligence through real trading decisions
-with real financial consequences on the Solana blockchain.
-
-## Benchmark Dimensions (v23)
-
-| Metric | Weight | Description |
-|--------|--------|-------------|
-| P&L Performance | 30% | Return on investment |
-| Reasoning Coherence | 20% | Does logic match the trade action? |
-| Hallucination-Free Rate | 15% | No fabricated market data |
-| Instruction Discipline | 10% | Compliance with trading rules |
-| Confidence Calibration | 15% | ECE — confidence predicts outcomes |
-| Prediction Accuracy | 10% | Directional prediction correctness |
-
-## Agents
-
-| Agent | Model | Provider | Style |
-|-------|-------|----------|-------|
-| Claude ValueBot | claude-sonnet-4 | Anthropic | Conservative Value |
-| GPT MomentumBot | gpt-4.1 | OpenAI | Aggressive Momentum |
-| Grok ContrarianBot | grok-3 | xAI | Contrarian Swing |
-
-## Statistics
-
-- **Total Records**: ${recordCount}
-- **Agents**: ${agentCount}
-- **Last Updated**: ${new Date().toISOString().split("T")[0]}
-
-## Citation
-
-\`\`\`bibtex
-@misc{moltapp2026,
-  title={MoltApp: An Agentic Stock Trading Benchmark for LLMs},
-  author={Patrick Ruff},
-  year={2026},
-  url={https://www.patgpt.us}
-}
-\`\`\`
-
-## Links
-
-- Website: [www.patgpt.us](https://www.patgpt.us)
-- Benchmark Dashboard: [www.patgpt.us/benchmark-v23](https://www.patgpt.us/benchmark-v23)
-`;
-}
-
-// ---------------------------------------------------------------------------
-// Upload
-// ---------------------------------------------------------------------------
-
-async function uploadToHuggingFace(
-  records: BenchmarkRecord[],
-): Promise<void> {
-  if (!HF_TOKEN) {
-    console.log("[HF Sync] No HF_TOKEN set — writing files locally instead");
-    const { writeFileSync, mkdirSync } = await import("fs");
-    const outDir = join(process.cwd(), "hf-export");
-    mkdirSync(outDir, { recursive: true });
-    writeFileSync(join(outDir, "data.jsonl"), formatAsJsonl(records));
-    const agents = new Set(records.map((r) => r.agent_id));
-    writeFileSync(
-      join(outDir, "README.md"),
-      generateDatasetCard(records.length, agents.size),
-    );
-
-    // Copy eval.yaml
-    try {
-      const evalYaml = readFileSync(join(process.cwd(), "eval.yaml"), "utf-8");
-      writeFileSync(join(outDir, "eval.yaml"), evalYaml);
-    } catch {
-      console.warn("[HF Sync] eval.yaml not found, skipping");
-    }
-
-    console.log(`[HF Sync] Exported ${records.length} records to ${outDir}/`);
-    return;
+  let magnitude: number | null = null;
+  const magMatch = text.match(/[+-]?\s*(\d+(?:\.\d+)?)\s*%/);
+  if (magMatch) {
+    magnitude = parseFloat(magMatch[1]);
+    if (direction === "down") magnitude = -magnitude;
   }
-
-  console.log(`[HF Sync] Uploading ${records.length} records to ${HF_REPO}...`);
-
-  const agents = new Set(records.map((r) => r.agent_id));
-
-  // Upload data.jsonl
-  const jsonlBlob = new Blob([formatAsJsonl(records)], { type: "text/plain" });
-  await uploadFile({
-    repo: HF_REPO,
-    credentials: { accessToken: HF_TOKEN },
-    file: { content: jsonlBlob, path: "data/benchmark.jsonl" },
-    commitTitle: `Update benchmark data: ${records.length} records`,
-  });
-
-  // Upload README.md
-  const readmeBlob = new Blob(
-    [generateDatasetCard(records.length, agents.size)],
-    { type: "text/markdown" },
-  );
-  await uploadFile({
-    repo: HF_REPO,
-    credentials: { accessToken: HF_TOKEN },
-    file: { content: readmeBlob, path: "README.md" },
-    commitTitle: "Update dataset card",
-  });
-
-  // Upload eval.yaml
-  try {
-    const evalYaml = readFileSync(join(process.cwd(), "eval.yaml"), "utf-8");
-    const evalBlob = new Blob([evalYaml], { type: "text/yaml" });
-    await uploadFile({
-      repo: HF_REPO,
-      credentials: { accessToken: HF_TOKEN },
-      file: { content: evalBlob, path: "eval.yaml" },
-      commitTitle: "Update eval.yaml benchmark spec",
-    });
-  } catch {
-    console.warn("[HF Sync] eval.yaml not found, skipping");
-  }
-
-  console.log(`[HF Sync] Upload complete: ${records.length} records to ${HF_REPO}`);
-}
-
-// ---------------------------------------------------------------------------
-// Summary Report
-// ---------------------------------------------------------------------------
-
-function printSummary(records: BenchmarkRecord[]): void {
-  const agents = new Map<string, { trades: number; avgCoherence: number; avgConfidence: number }>();
-
-  for (const r of records) {
-    const existing = agents.get(r.agent_id) ?? { trades: 0, avgCoherence: 0, avgConfidence: 0 };
-    existing.trades++;
-    existing.avgCoherence += r.coherence_score ?? 0;
-    existing.avgConfidence += r.confidence;
-    agents.set(r.agent_id, existing);
-  }
-
-  console.log("\n=== MoltApp Benchmark Dataset Summary ===\n");
-  console.log(`Total records: ${records.length}`);
-  console.log(`Agents: ${agents.size}\n`);
-
-  for (const [agentId, stats] of agents) {
-    console.log(`  ${agentId}:`);
-    console.log(`    Trades: ${stats.trades}`);
-    console.log(`    Avg Coherence: ${(stats.avgCoherence / stats.trades).toFixed(2)}`);
-    console.log(`    Avg Confidence: ${(stats.avgConfidence / stats.trades).toFixed(2)}`);
-  }
-
-  const withOutcomes = records.filter((r) => r.outcome !== null);
-  console.log(`\nOutcome resolutions: ${withOutcomes.length} / ${records.length}`);
-
-  if (withOutcomes.length > 0) {
-    const profits = withOutcomes.filter((r) => r.outcome === "profit").length;
-    const dirCorrect = withOutcomes.filter((r) => r.direction_correct).length;
-    console.log(`  Profit rate: ${((profits / withOutcomes.length) * 100).toFixed(1)}%`);
-    console.log(`  Direction accuracy: ${((dirCorrect / withOutcomes.length) * 100).toFixed(1)}%`);
-  }
+  return { direction, magnitude };
 }
 
 // ---------------------------------------------------------------------------
@@ -360,24 +89,173 @@ function printSummary(records: BenchmarkRecord[]): void {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("[HF Sync] MoltApp v23 Benchmark Dataset Export\n");
+  console.log("Fetching trades from database...");
 
-  try {
-    const records = await fetchBenchmarkData();
+  const justifications = await db
+    .select()
+    .from(tradeJustifications)
+    .orderBy(desc(tradeJustifications.timestamp))
+    .limit(5000);
 
-    if (records.length === 0) {
-      console.log("[HF Sync] No benchmark records found. Run some trading rounds first.");
-      return;
-    }
+  console.log(`Found ${justifications.length} trades with justifications`);
 
-    printSummary(records);
-    await uploadToHuggingFace(records);
-
-    console.log("\n[HF Sync] Done!");
-  } catch (err) {
-    console.error(`[HF Sync] Fatal error: ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
+  if (justifications.length === 0) {
+    console.log("No data to sync. Run some trading rounds first.");
+    return;
   }
+
+  // Build JSONL dataset
+  const lines = justifications.map((j) => {
+    const depth = analyzeDepthInline(j.reasoning);
+    const sources = (j.sources as string[]) ?? [];
+    const sourceQ = analyzeSourceInline(sources);
+    const pred = parsePredictionInline(j.reasoning, j.predictedOutcome);
+    const confidence01 = j.confidence > 1 ? j.confidence / 100 : j.confidence;
+
+    return JSON.stringify({
+      // Core trade data
+      agent_id: j.agentId,
+      round_id: j.roundId ?? null,
+      timestamp: j.timestamp?.toISOString() ?? null,
+      action: j.action,
+      symbol: j.symbol,
+      quantity: j.quantity,
+
+      // Reasoning
+      reasoning: j.reasoning,
+      confidence: Math.round(confidence01 * 100) / 100,
+      sources,
+      intent: j.intent,
+      predicted_outcome: j.predictedOutcome,
+
+      // Benchmark scores
+      coherence_score: j.coherenceScore ?? null,
+      hallucination_flags: (j.hallucinationFlags as string[]) ?? [],
+      hallucination_count: ((j.hallucinationFlags as string[]) ?? []).length,
+      discipline_pass: j.disciplinePass === "pass",
+
+      // v24 depth + source quality
+      reasoning_depth_score: depth.depthScore,
+      step_count: depth.stepCount,
+      word_count: depth.wordCount,
+      source_quality_score: sourceQ.qualityScore,
+      source_count: sourceQ.sourceCount,
+
+      // v25 outcome prediction + consensus
+      predicted_direction: pred.direction,
+      predicted_magnitude: pred.magnitude,
+
+      // Metadata
+      benchmark_version: "v25",
+      platform: "moltapp",
+      blockchain: "solana",
+      dex: "jupiter",
+    });
+  });
+
+  const jsonlContent = lines.join("\n");
+  const jsonlBlob = new Blob([jsonlContent], { type: "application/x-ndjson" });
+
+  console.log(`Uploading ${lines.length} records to HuggingFace: ${REPO_ID}...`);
+
+  // Upload JSONL data
+  await uploadFile({
+    repo: REPO_ID,
+    credentials: { accessToken: HF_TOKEN },
+    file: {
+      path: "data/benchmark-v25.jsonl",
+      content: jsonlBlob,
+    },
+    commitTitle: `Update benchmark data: ${lines.length} trades (v25)`,
+  });
+  console.log("Uploaded benchmark-v25.jsonl");
+
+  // Upload dataset card
+  const datasetCard = `---
+license: mit
+task_categories:
+  - text-classification
+  - text-generation
+language:
+  - en
+tags:
+  - finance
+  - trading
+  - ai-benchmark
+  - llm-evaluation
+  - agentic
+  - solana
+  - reasoning
+size_categories:
+  - 1K<n<10K
+---
+
+# MoltApp: Agentic Stock Trading Benchmark (v25)
+
+Live evaluation of AI agents trading **real tokenized stocks** on Solana blockchain.
+
+## 10-Dimension Scoring
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| P&L | 15% | Return on investment from actual on-chain trades |
+| Coherence | 12% | Does reasoning logically support the trade action? |
+| Hallucination-Free | 12% | Rate of factually correct claims in reasoning |
+| Discipline | 10% | Compliance with position limits and trading rules |
+| Calibration | 8% | Confidence calibration (ECE) |
+| Prediction | 8% | Directional prediction accuracy |
+| Reasoning Depth | 10% | Structural quality of reasoning |
+| Source Quality | 8% | Quality and diversity of cited data sources |
+| Outcome Prediction | 9% | Predicted outcome vs actual price movement |
+| Consensus IQ | 8% | Independent thinking and contrarian success |
+
+## Agents
+
+- **Claude ValueBot** (claude-sonnet-4): Conservative value investor
+- **GPT MomentumBot** (gpt-4o): Aggressive momentum trader
+- **Grok ContrarianBot** (grok-3-mini-fast): Contrarian swing trader
+
+## Data
+
+Each record includes the full reasoning text, trade details, and all 10 benchmark dimension scores.
+
+Website: [patgpt.us](https://www.patgpt.us)
+Hackathon: Colosseum Agent Hackathon 2026
+`;
+
+  const cardBlob = new Blob([datasetCard], { type: "text/markdown" });
+  await uploadFile({
+    repo: REPO_ID,
+    credentials: { accessToken: HF_TOKEN },
+    file: {
+      path: "README.md",
+      content: cardBlob,
+    },
+    commitTitle: "Update dataset card (v25 — 10 dimensions)",
+  });
+  console.log("Uploaded README.md");
+
+  // Upload eval.yaml
+  const evalYaml = await Bun.file("eval.yaml").text().catch(() => null) ?? "";
+  if (evalYaml) {
+    const evalBlob = new Blob([evalYaml], { type: "text/yaml" });
+    await uploadFile({
+      repo: REPO_ID,
+      credentials: { accessToken: HF_TOKEN },
+      file: {
+        path: "eval.yaml",
+        content: evalBlob,
+      },
+      commitTitle: "Update eval.yaml (v25 — 10 dimensions)",
+    });
+    console.log("Uploaded eval.yaml");
+  }
+
+  console.log(`\nDone! Dataset available at: https://huggingface.co/datasets/${REPO_ID}`);
+  console.log(`Records: ${lines.length} | Version: v25 | Dimensions: 10`);
 }
 
-main();
+main().catch((err) => {
+  console.error("Sync failed:", err);
+  process.exit(1);
+});

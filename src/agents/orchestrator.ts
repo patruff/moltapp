@@ -97,6 +97,7 @@ import {
 } from "../services/regime-reasoning.ts";
 import { recordBenchmarkScore } from "../services/benchmark-reproducibility.ts";
 import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
+import { runLendingPhase } from "../monad/lending-engine.ts";
 import {
   analyzeDeepCoherence,
   recordDeepAnalysis,
@@ -278,6 +279,19 @@ import {
 import {
   emitV22Event,
 } from "../routes/benchmark-v22.tsx";
+import {
+  recordV25Metrics,
+} from "../routes/benchmark-v25-api.ts";
+import {
+  parsePrediction,
+  analyzeConsensusIntelligence,
+  computeV25CompositeScore,
+  type V25RoundAgentData,
+} from "../services/v25-benchmark-engine.ts";
+import {
+  analyzeReasoningDepthV24,
+  analyzeSourceQualityV24,
+} from "../services/reasoning-depth-quality-engine.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -1398,6 +1412,27 @@ async function executeTradingRound(
     }
   }
 
+  // --- Monad $STONKS Lending Phase ---
+  if (process.env.LENDING_ENABLED === "true") {
+    try {
+      const agentDecisions = results.map((r) => ({
+        agentId: r.agentId,
+        decision: r.decision,
+      }));
+      const lendingResult = await runLendingPhase(roundId, agentDecisions, marketData);
+      if (lendingResult.loansCreated > 0 || lendingResult.loansSettled > 0) {
+        console.log(
+          `[Orchestrator] Lending: ${lendingResult.loansCreated} new loans, ` +
+            `${lendingResult.loansSettled} settled, ${lendingResult.totalStonksBorrowed} $STONKS moved`,
+        );
+      }
+    } catch (err) {
+      console.warn(
+        `[Orchestrator] Lending phase failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   // Track round duration for observability
   const roundDurationMs = Date.now() - new Date(timestamp).getTime();
   trackLatency(roundDurationMs);
@@ -2506,6 +2541,58 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v22 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // v25 — Outcome Prediction + Consensus Intelligence (10-dimension benchmark)
+  // -----------------------------------------------------------------------
+  try {
+    const v25AgentData: V25RoundAgentData[] = results.map((r) => ({
+      agentId: r.agentId,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+      reasoning: r.decision.reasoning,
+      confidence: normalizeConfidence(r.decision.confidence),
+      predictedOutcome: r.decision.predictedOutcome,
+    }));
+
+    for (const r of results) {
+      const d = r.decision;
+      const conf01 = normalizeConfidence(d.confidence);
+      const agentData = v25AgentData.find((a) => a.agentId === r.agentId);
+      if (!agentData) continue;
+
+      const coherence = analyzeCoherence(d.reasoning, d.action, marketData);
+      const hallucinations = detectHallucinations(d.reasoning, marketData);
+      const discipline = checkInstructionDiscipline(
+        { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
+        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
+        { cashBalance: 10000, totalValue: 10000, positions: [] },
+      );
+
+      const depth = analyzeReasoningDepthV24(d.reasoning);
+      const sourceQ = analyzeSourceQualityV24(
+        d.reasoning,
+        d.sources ?? [],
+      );
+
+      recordV25Metrics(
+        roundId,
+        agentData,
+        v25AgentData,
+        coherence.score,
+        1 - hallucinations.severity,
+        discipline.passed,
+        depth.depthScore,
+        sourceQ.qualityScore,
+      );
+    }
+
+    console.log(
+      `[Orchestrator] v25 round complete: ${results.length} agents — outcome prediction + consensus intelligence recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v25 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
