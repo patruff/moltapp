@@ -497,8 +497,8 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
       let currentTopic: string | undefined;
 
       for (const symbol of commonSymbols) {
-        const latestA = decisionsA.find((d) => d.symbol === symbol);
-        const latestB = decisionsB.find((d) => d.symbol === symbol);
+        const latestA = decisionsA.find((d: typeof decisionsA[0]) => d.symbol === symbol);
+        const latestB = decisionsB.find((d: typeof decisionsB[0]) => d.symbol === symbol);
         if (!latestA || !latestB) continue;
 
         const sameDirection =
@@ -524,8 +524,8 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
       } else {
         // Check most recent common symbol
         const lastCommon = commonSymbols[0];
-        const lastA = decisionsA.find((d) => d.symbol === lastCommon);
-        const lastB = decisionsB.find((d) => d.symbol === lastCommon);
+        const lastA = decisionsA.find((d: typeof decisionsA[0]) => d.symbol === lastCommon);
+        const lastB = decisionsB.find((d: typeof decisionsB[0]) => d.symbol === lastCommon);
         currentAgreeing =
           lastA && lastB ? lastA.action === lastB.action : false;
         currentTopic = lastCommon;
@@ -571,7 +571,7 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
 
   for (const config of configs) {
     const agentDecisionsList = decisions.filter(
-      (d) => d.agentId === config.agentId,
+      (d: typeof decisions[0]) => d.agentId === config.agentId,
     );
     const total = agentDecisionsList.length || 10; // Default if no data
 
@@ -580,9 +580,9 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
     let holds: number;
 
     if (agentDecisionsList.length > 0) {
-      buys = agentDecisionsList.filter((d) => d.action === "buy").length;
-      sells = agentDecisionsList.filter((d) => d.action === "sell").length;
-      holds = agentDecisionsList.filter((d) => d.action === "hold").length;
+      buys = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "buy").length;
+      sells = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "sell").length;
+      holds = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "hold").length;
     } else {
       // Simulated defaults based on personality
       if (config.riskTolerance === "aggressive") {
@@ -634,12 +634,12 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
   const targetSymbols = ["NVDAx", "TSLAx", "AAPLx", "SPYx", "METAx", "GOOGLx", "AMZNx", "MSFTx"];
 
   for (const symbol of targetSymbols) {
-    const symbolDecs = decisions.filter((d) => d.symbol === symbol);
+    const symbolDecs = decisions.filter((d: typeof decisions[0]) => d.symbol === symbol);
     if (symbolDecs.length > 0) {
       symbolMap.set(symbol, {
-        bullish: symbolDecs.filter((d) => d.action === "buy").length,
-        bearish: symbolDecs.filter((d) => d.action === "sell").length,
-        neutral: symbolDecs.filter((d) => d.action === "hold").length,
+        bullish: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "buy").length,
+        bearish: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "sell").length,
+        neutral: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "hold").length,
       });
     } else {
       symbolMap.set(symbol, {

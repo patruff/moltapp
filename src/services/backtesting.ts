@@ -686,9 +686,9 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   }
 
   // --- Action distribution ---
-  const buys = decisions.filter((d) => d.action === "buy").length;
-  const sells = decisions.filter((d) => d.action === "sell").length;
-  const holds = decisions.filter((d) => d.action === "hold").length;
+  const buys = decisions.filter((d: typeof decisions[0]) => d.action === "buy").length;
+  const sells = decisions.filter((d: typeof decisions[0]) => d.action === "sell").length;
+  const holds = decisions.filter((d: typeof decisions[0]) => d.action === "hold").length;
 
   // --- Trading frequency ---
   const oldest = decisions[decisions.length - 1].createdAt;
@@ -706,14 +706,14 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
           : "very-low";
 
   // --- Conviction profile ---
-  const highConviction = decisions.filter((d) => d.confidence >= 70).length;
-  const mediumConviction = decisions.filter((d) => d.confidence >= 40 && d.confidence < 70).length;
-  const lowConviction = decisions.filter((d) => d.confidence < 40).length;
-  const avgConfidence = decisions.reduce((sum, d) => sum + d.confidence, 0) / decisions.length;
+  const highConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= 70).length;
+  const mediumConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= 40 && d.confidence < 70).length;
+  const lowConviction = decisions.filter((d: typeof decisions[0]) => d.confidence < 40).length;
+  const avgConfidence = decisions.reduce((sum: number, d: typeof decisions[0]) => sum + d.confidence, 0) / decisions.length;
 
   // --- Sector preferences ---
   const sectorCounts = new Map<string, number>();
-  const actionDecisions = decisions.filter((d) => d.action !== "hold");
+  const actionDecisions = decisions.filter((d: typeof decisions[0]) => d.action !== "hold");
   for (const d of actionDecisions) {
     const sector = SECTOR_MAP[d.symbol] ?? "Other";
     sectorCounts.set(sector, (sectorCounts.get(sector) ?? 0) + 1);
@@ -747,13 +747,13 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   // --- Style scores (0-100) ---
 
   // Contrarian score: high confidence sells + low confidence buys = more contrarian
-  const highConfSells = decisions.filter((d) => d.action === "sell" && d.confidence >= 60).length;
-  const lowConfBuys = decisions.filter((d) => d.action === "buy" && d.confidence < 40).length;
+  const highConfSells = decisions.filter((d: typeof decisions[0]) => d.action === "sell" && d.confidence >= 60).length;
+  const lowConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence < 40).length;
   const contrarianSignals = highConfSells + lowConfBuys;
   const contrarianScore = Math.min(100, Math.round((contrarianSignals / Math.max(1, actionDecisions.length)) * 200));
 
   // Momentum score: high conviction buys dominating = momentum chasing
-  const highConfBuys = decisions.filter((d) => d.action === "buy" && d.confidence >= 60).length;
+  const highConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence >= 60).length;
   const momentumScore = Math.min(100, Math.round((highConfBuys / Math.max(1, actionDecisions.length)) * 150));
 
   // Value score: holds + lower frequency + diversification
@@ -761,8 +761,8 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   const valueScore = Math.min(100, Math.round(holdRatio * 100 + (1 / Math.max(0.1, avgDecisionsPerDay)) * 10));
 
   // Risk appetite: large position sizes, concentrated bets, high frequency
-  const quantities = actionDecisions.map((d) => parseFloat(d.quantity) || 0);
-  const avgQuantity = quantities.length > 0 ? quantities.reduce((s, q) => s + q, 0) / quantities.length : 0;
+  const quantities = actionDecisions.map((d: typeof decisions[0]) => parseFloat(d.quantity) || 0);
+  const avgQuantity = quantities.length > 0 ? quantities.reduce((s: number, q: number) => s + q, 0) / quantities.length : 0;
   const riskAppetiteScore = Math.min(100, Math.round(
     avgDecisionsPerDay * 10 +
     avgQuantity * 0.01 +
@@ -770,7 +770,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   ));
 
   // Diversification: unique symbols / total action decisions
-  const uniqueSymbols = new Set(actionDecisions.map((d) => d.symbol));
+  const uniqueSymbols = new Set(actionDecisions.map((d: typeof decisions[0]) => d.symbol));
   const diversificationScore = Math.min(100, Math.round(
     (uniqueSymbols.size / Math.max(1, XSTOCKS_CATALOG.length)) * 100,
   ));

@@ -327,7 +327,7 @@ export async function getAttributionBreakdown(
 
   // Also count decision-based activity for agents with no open positions
   if (sectorValues.size === 0 && data.decisions.length > 0) {
-    const actionDecisions = data.decisions.filter((d) => d.action !== "hold");
+    const actionDecisions = data.decisions.filter((d: typeof data.decisions[0]) => d.action !== "hold");
     for (const d of actionDecisions) {
       const sector = SECTOR_MAP[d.symbol] ?? "Other";
       const entry = sectorValues.get(sector) ?? { value: 0, cost: 0, symbols: new Set<string>() };
@@ -436,7 +436,7 @@ export async function getAttributionBreakdown(
  */
 export async function getFactorExposure(agentId: string): Promise<FactorExposure> {
   const data = await fetchAgentData(agentId);
-  const actionDecisions = data.decisions.filter((d) => d.action !== "hold");
+  const actionDecisions = data.decisions.filter((d: typeof data.decisions[0]) => d.action !== "hold");
 
   // --- Momentum Factor ---
   // Measures tendency to buy stocks that are already going up
@@ -759,7 +759,7 @@ export async function getTradeContributions(
       exitPrice = null;
     } else {
       // Realized P&L for sells
-      const costBasis = data.positions.find((p) => p.symbol === trade.stockSymbol);
+      const costBasis = data.positions.find((p: typeof data.positions[0]) => p.symbol === trade.stockSymbol);
       const avgCost = costBasis ? parseFloat(costBasis.averageCostBasis) : entryPrice;
       pnl = (entryPrice - avgCost) * quantity;
       exitPrice = entryPrice;
@@ -846,7 +846,7 @@ export async function getTradeContributions(
  */
 export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis> {
   const data = await fetchAgentData(agentId);
-  const actionDecisions = data.decisions.filter((d) => d.action !== "hold");
+  const actionDecisions = data.decisions.filter((d: typeof data.decisions[0]) => d.action !== "hold");
 
   // --- Decision-to-execution time ---
   let totalExecTime = 0;
@@ -855,7 +855,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
     if (d.executed === "executed" || d.executed === "confirmed") {
       // Match decision to trade by symbol + proximity
       const matchingTrade = data.trades.find(
-        (t) =>
+        (t: typeof data.trades[0]) =>
           t.stockSymbol === d.symbol &&
           Math.abs(t.createdAt.getTime() - d.createdAt.getTime()) < 60 * 1000,
       );

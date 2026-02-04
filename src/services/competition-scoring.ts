@@ -570,7 +570,7 @@ export async function getAgentScoreHistory(
       .orderBy(desc(competitionScores.createdAt))
       .limit(limit);
 
-    return rows.map((r) => ({
+    return rows.map((r: typeof rows[0]) => ({
       roundId: r.roundId,
       roundScore: parseFloat(r.roundScore),
       cumulativeScore: parseFloat(r.cumulativeScore),
