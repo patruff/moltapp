@@ -186,16 +186,17 @@ SCRIPT_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
 PROJECT_DIR="\$(dirname "\$SCRIPT_DIR")"
 BUILD_LOG="\$SCRIPT_DIR/build.log"
 
-# Load env
+# Extract OAuth token from .env (don't source entire file — has unquoted &)
 if [ -f "\$PROJECT_DIR/.env" ]; then
-    set -a; source "\$PROJECT_DIR/.env"; set +a
+    OAUTH_TOKEN=\$(grep '^ANTHROPIC_OAUTH_TOKEN=' "\$PROJECT_DIR/.env" | cut -d= -f2-)
 fi
 
 cd "\$PROJECT_DIR"
 echo "=== IMPROVEMENT SESSION START: \$(date -u) ===" >> "\$BUILD_LOG"
 
-# Unset ANTHROPIC_API_KEY so Claude uses system login
+# Use OAuth token for Claude CLI authentication (works headless/nohup)
 unset ANTHROPIC_API_KEY
+export CLAUDE_CODE_OAUTH_TOKEN="\$OAUTH_TOKEN"
 
 claude -p "You are the MoltApp code improvement agent. Your job is to make the codebase cleaner and features work better.
 

@@ -5,23 +5,24 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_LOG="$SCRIPT_DIR/build.log"
 
-# Load env
+# Extract OAuth token from .env (don't source entire file — has unquoted &)
 if [ -f "$PROJECT_DIR/.env" ]; then
-    set -a; source "$PROJECT_DIR/.env"; set +a
+    OAUTH_TOKEN=$(grep '^ANTHROPIC_OAUTH_TOKEN=' "$PROJECT_DIR/.env" | cut -d= -f2-)
 fi
 
 cd "$PROJECT_DIR"
 echo "=== IMPROVEMENT SESSION START: $(date -u) ===" >> "$BUILD_LOG"
 
-# Unset ANTHROPIC_API_KEY so Claude uses system login
+# Use OAuth token for Claude CLI authentication (works headless/nohup)
 unset ANTHROPIC_API_KEY
+export CLAUDE_CODE_OAUTH_TOKEN="$OAUTH_TOKEN"
 
 claude -p "You are the MoltApp code improvement agent. Your job is to make the codebase cleaner and features work better.
 
 ## What MoltApp Is
 MoltApp is an open benchmark for AI stock trading on Solana. Three AI agents (Claude ValueBot, GPT MomentumBot, Grok ContrarianBot) trade real tokenized equities (xStocks) via Jupiter DEX. Each agent uses a shared skill.md prompt template with customizable strategy fields, and calls 7 tools autonomously in a multi-turn loop to research and decide trades.
 
-## Current TypeScript Errors: 324
+## Current TypeScript Errors: 304
 
 ## What To Work On (PICK ONE per session — depth over breadth)
 1. **Fix TypeScript errors** — Run \`npx tsc --noEmit\` and fix errors in files we own (src/agents/, src/services/, src/routes/). These are pre-existing errors, not new ones. Focus on the EASIEST ones first.
