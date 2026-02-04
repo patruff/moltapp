@@ -150,6 +150,16 @@ import {
   recordV12AgentMetrics,
   emitV12Event,
 } from "../routes/benchmark-v12.tsx";
+import {
+  generateRoundBattles,
+  type BattleParticipant,
+} from "../services/battle-scoring-engine.ts";
+import {
+  compareAllReasoning,
+} from "../services/reasoning-battle-engine.ts";
+import {
+  emitV13Event,
+} from "../routes/benchmark-v13.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -1508,6 +1518,78 @@ async function executeTradingRound(
     errorCount: errors.length,
     tradingMode: getTradingMode(),
   });
+
+  // --- v13: Head-to-Head Agent Battles ---
+  try {
+    // Build battle participants from round results
+    const battleParticipants: BattleParticipant[] = results.map((r) => {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      return {
+        agentId: r.agentId,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        quantity: r.decision.quantity,
+        reasoning: r.decision.reasoning,
+        confidence: normConf,
+        intent: r.decision.intent ?? "value",
+        coherenceScore: normConf * 0.8 + 0.1, // Will be enriched from justification
+        hallucinationCount: 0, // Will be enriched
+        disciplinePass: true, // Will be enriched
+        pnlPercent: 0, // Will be enriched by financial tracker
+        depthScore: Math.min(1, r.decision.reasoning.split(/\s+/).length / 100),
+        originalityScore: 0.5, // Will be enriched
+      };
+    });
+
+    const battles = generateRoundBattles(roundId, battleParticipants);
+
+    console.log(
+      `[Orchestrator] v13 battles: ${battles.length} matchups, ` +
+      `winners=${battles.filter((b) => b.overallWinner).map((b) => b.overallWinner).join(",")}`,
+    );
+
+    for (const battle of battles) {
+      emitV13Event("battle_completed", {
+        battleId: battle.battleId,
+        agentA: battle.agentA.agentId,
+        agentB: battle.agentB.agentId,
+        winner: battle.overallWinner,
+        margin: battle.marginOfVictory,
+        compositeA: battle.compositeScoreA,
+        compositeB: battle.compositeScoreB,
+        highlight: battle.highlight,
+        narrativePreview: battle.narrative.slice(0, 200),
+      }, battle.overallWinner ?? undefined);
+    }
+
+    // Reasoning quality comparisons
+    const reasoningComparisons = compareAllReasoning(
+      results.map((r) => ({
+        agentId: r.agentId,
+        reasoning: r.decision.reasoning,
+      })),
+    );
+
+    for (const comp of reasoningComparisons) {
+      emitV13Event("reasoning_compared", {
+        agentA: comp.agentAId,
+        agentB: comp.agentBId,
+        winner: comp.winner,
+        scoreA: comp.agentAScore,
+        scoreB: comp.agentBScore,
+        summary: comp.summary.slice(0, 200),
+      });
+    }
+
+    emitBenchmarkEvent("v13_battles", {
+      roundId,
+      battleCount: battles.length,
+      comparisonCount: reasoningComparisons.length,
+      highlights: battles.filter((b) => b.highlight).length,
+    });
+  } catch (err) {
+    console.warn(`[Orchestrator] v13 battle generation failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // --- Round-level provenance, Elo, and audit trail ---
   try {

@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '12.0.0'
+  version: '13.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -714,6 +714,118 @@ benchmark_v12:
     classify_reasoning: '/api/v1/benchmark-v12/classify'
     quality_report: '/api/v1/benchmark-v12/quality'
     schema: '/api/v1/benchmark-v12/schema'
+
+benchmark_v13:
+  scoring_engine:
+    description: '9-pillar scoring with head-to-head battle engine, reasoning quality comparisons, and Elo rankings'
+    pillars:
+      - name: financial
+        weight: 0.16
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.16
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.12
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.10
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.08
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.08
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.10
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.10
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: battle_performance
+        weight: 0.10
+        components: ['elo_rating', 'win_rate', 'avg_margin', 'dimension_dominance']
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  battle_engine:
+    description: 'Head-to-head agent battles with 7-dimension scoring per matchup'
+    battle_dimensions:
+      - name: financial
+        weight: 0.20
+        description: 'P&L comparison for the round'
+      - name: reasoning_coherence
+        weight: 0.20
+        description: 'Coherence of reasoning vs trade action'
+      - name: reasoning_depth
+        weight: 0.15
+        description: 'Analytical depth and multi-factor coverage'
+      - name: conviction_calibration
+        weight: 0.15
+        description: 'Confidence calibration quality'
+      - name: originality
+        weight: 0.10
+        description: 'Reasoning novelty vs templated responses'
+      - name: safety
+        weight: 0.10
+        description: 'Hallucination-free rate'
+      - name: discipline
+        weight: 0.10
+        description: 'Trading rule compliance'
+    elo_system:
+      initial_rating: 1500
+      k_factor: 32
+      algorithm: 'Standard Elo with pairwise round-by-round matchups'
+    matchup_generation: 'All pairwise combinations per trading round (3 agents = 3 battles per round)'
+    highlight_detection:
+      closest_battles: 'Margin < 5%'
+      biggest_blowouts: 'Margin > 30%'
+      upsets: 'Better reasoner lost to better trader'
+      ties: 'Margin < 1.5%'
+
+  reasoning_comparison_engine:
+    description: 'Deep reasoning quality comparison between agent pairs'
+    dimensions:
+      - name: analytical_breadth
+        weight: 0.20
+        description: 'Number of analytical factors considered (valuation, technical, fundamental, macro, sentiment, sector, risk, catalyst, portfolio, market_structure)'
+      - name: evidence_quality
+        weight: 0.20
+        description: 'Concrete data citations, quantitative claims, time references vs vague assertions'
+      - name: causal_reasoning
+        weight: 0.15
+        description: 'Causal connectors (because, therefore, due to) — explains WHY not just WHAT'
+      - name: risk_awareness
+        weight: 0.15
+        description: 'Acknowledges downside scenarios, stop-loss logic, position risk'
+      - name: intellectual_honesty
+        weight: 0.10
+        description: 'Acknowledges uncertainty — says "might" not "will"'
+      - name: actionability
+        weight: 0.10
+        description: 'Specific targets, entry/exit points, position sizes — verifiable claims'
+      - name: uniqueness
+        weight: 0.10
+        description: 'Pairwise Jaccard bigram dissimilarity — penalizes copypasta'
+    sophistication_levels: [1, 2, 3, 4, 5]
+
+  api_endpoints_v13:
+    benchmark_dashboard: '/benchmark-v13'
+    data_endpoint: '/benchmark-v13/data'
+    stream_endpoint: '/benchmark-v13/stream'
+    export_endpoint: '/benchmark-v13/export'
+    battles: '/api/v1/benchmark-v13/battles'
+    battle_detail: '/api/v1/benchmark-v13/battles/:battleId'
+    elo_leaderboard: '/api/v1/benchmark-v13/elo'
+    agent_record: '/api/v1/benchmark-v13/record/:agentId'
+    head_to_head_matrix: '/api/v1/benchmark-v13/matrix'
+    highlights: '/api/v1/benchmark-v13/highlights'
+    reasoning_compare: '/api/v1/benchmark-v13/reasoning-compare'
+    reasoning_profile: '/api/v1/benchmark-v13/reasoning-profile'
+    stats: '/api/v1/benchmark-v13/stats'
+    schema: '/api/v1/benchmark-v13/schema'
+    export_jsonl: '/api/v1/benchmark-v13/export/jsonl'
+    export_csv: '/api/v1/benchmark-v13/export/csv'
 
 citation: |
   @misc{moltapp2026,

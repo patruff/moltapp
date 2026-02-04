@@ -43,7 +43,8 @@ export interface BenchmarkEvent {
     | "deep_coherence"
     | "pattern_analyzed"
     | "calibration_updated"
-    | "v11_forensic";
+    | "v11_forensic"
+    | "v13_battles";
   agentId?: string;
   data: Record<string, unknown>;
   timestamp: string;
