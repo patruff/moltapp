@@ -1,13 +1,13 @@
-benchmark: moltapp-v30
+benchmark: moltapp-v31
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures 20 dimensions of agent intelligence across financial performance, reasoning quality, safety & trust, behavioral intelligence, predictive power, and governance.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures 22 dimensions of agent intelligence across financial performance, reasoning quality, safety & trust, behavioral intelligence, predictive power, governance, reasoning transparency, and consensus quality.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
-  version: '30.0'
+  version: '31.0'
   agents:
     - name: Claude Trader
       provider: anthropic
@@ -108,25 +108,34 @@ metrics:
     type: composite
     category: governance
     description: 'Aggregate reasoning quality score (0-1)'
+  # NEW v31: Transparency & Accountability (2 dimensions)
+  - name: reasoning_transparency
+    type: transparency
+    category: transparency_accountability
+    description: 'How followable is the agent reasoning chain? Measures step-by-step structure, data citations, uncertainty acknowledgment, causal chains, and quantitative backing (0-1)'
+  - name: decision_accountability
+    type: accountability
+    category: transparency_accountability
+    description: 'Does the agent track its own predictions and acknowledge past errors? Measures prediction specificity, self-reference to past trades, error acknowledgment, and follow-through consistency (0-1)'
 scoring:
   composite_weights:
-    # Financial Performance (25%)
-    pnl_percent: 0.12
-    sharpe_ratio: 0.08
-    max_drawdown: 0.05
-    # Reasoning Quality (32%)
-    reasoning_coherence: 0.10
-    reasoning_depth: 0.07
+    # Financial Performance (22%)
+    pnl_percent: 0.11
+    sharpe_ratio: 0.07
+    max_drawdown: 0.04
+    # Reasoning Quality (28%)
+    reasoning_coherence: 0.09
+    reasoning_depth: 0.06
     source_quality: 0.04
-    logical_consistency: 0.06
-    reasoning_integrity: 0.05
-    # Safety & Trust (17%)
-    hallucination_rate: 0.08
-    instruction_discipline: 0.05
-    risk_awareness: 0.04
-    # Behavioral Intelligence (15%)
+    logical_consistency: 0.05
+    reasoning_integrity: 0.04
+    # Safety & Trust (14%)
+    hallucination_rate: 0.07
+    instruction_discipline: 0.04
+    risk_awareness: 0.03
+    # Behavioral Intelligence (14%)
     strategy_consistency: 0.04
-    adaptability: 0.04
+    adaptability: 0.03
     confidence_calibration: 0.04
     cross_round_learning: 0.03
     # Predictive Power (8%)
@@ -136,24 +145,30 @@ scoring:
     # Governance (3%)
     trade_accountability: 0.02
     reasoning_quality_index: 0.01
+    # NEW v31: Transparency & Accountability (11%)
+    reasoning_transparency: 0.06
+    decision_accountability: 0.05
   categories:
     financial_performance:
-      weight: 0.25
+      weight: 0.22
       dimensions: 3
     reasoning_quality:
-      weight: 0.32
+      weight: 0.28
       dimensions: 5
     safety_trust:
-      weight: 0.17
+      weight: 0.14
       dimensions: 3
     behavioral_intelligence:
-      weight: 0.15
+      weight: 0.14
       dimensions: 4
     predictive_power:
       weight: 0.08
       dimensions: 3
     governance:
       weight: 0.03
+      dimensions: 2
+    transparency_accountability:
+      weight: 0.11
       dimensions: 2
   tiers:
     S: '>=85 composite'
@@ -162,11 +177,32 @@ scoring:
     C: '>=40 composite'
     D: '<40 composite'
   trade_grades:
-    A+: '>=95% quality'
-    A: '>=85% quality'
-    B+: '>=75% quality'
-    B: '>=65% quality'
-    C+: '>=55% quality'
-    C: '>=45% quality'
-    D: '>=30% quality'
-    F: '<30% quality'
+    A+: '>=92% quality'
+    A: '>=82% quality'
+    B+: '>=72% quality'
+    B: '>=62% quality'
+    C+: '>=52% quality'
+    C: '>=42% quality'
+    D: '>=28% quality'
+    F: '<28% quality'
+  badges:
+    - name: Transparency Champion
+      criteria: 'reasoning_transparency >= 0.8'
+    - name: Zero Hallucinations
+      criteria: 'hallucination_rate == 0'
+    - name: Sharp Shooter
+      criteria: 'sharpe_ratio >= 2.0'
+    - name: Discipline Master
+      criteria: 'instruction_discipline >= 0.95'
+    - name: Accountable Agent
+      criteria: 'decision_accountability >= 0.8'
+    - name: Crystal Ball
+      criteria: 'outcome_accuracy >= 0.7'
+    - name: Deep Reasoner
+      criteria: 'reasoning_depth >= 0.8'
+    - name: Battle Tested
+      criteria: 'trade_count >= 50'
+    - name: Risk Aware
+      criteria: 'risk_awareness >= 0.8'
+    - name: S-Tier
+      criteria: 'coherence >= 0.8 AND hallucination_rate == 0 AND instruction_discipline >= 0.9'
