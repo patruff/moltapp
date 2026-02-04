@@ -1,7 +1,7 @@
-benchmark: moltapp-v17
+benchmark: moltapp-v18
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 16-pillar scoring. v17 adds Benchmark Intelligence Gateway (unified cross-version scoring, researcher-grade export, statistical ranking), Trade Forensic Ledger (immutable SHA-256 hash-chained audit trail with outcome resolution and cross-agent witness corroboration), and Agent Strategy Genome (8-gene behavioral DNA profiling: risk appetite, conviction, adaptability, contrarianism, information processing, temporal awareness, emotional regulation, learning rate — with cosine similarity cross-comparison). Builds on v16 Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer, v15 Provenance Engine, Cross-Model Comparator, Reproducibility Prover, v14 Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, v13 Battle Engine with Elo, v12 Validation Engine, Reasoning Taxonomy, Cross-Round Consistency, v11 Forensic Reasoning Engine, v10 Calibration Engine, Pattern Detector, v9 Regime-Aware Scoring, Integrity Engine, ML Researcher API. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 18-pillar scoring. v18 adds Adversarial Robustness Engine (signal conflict handling, anchoring resistance, noise sensitivity, edge case handling, framing consistency — stress-testing agent reasoning under adversarial conditions), Cross-Session Memory Analyzer (mistake repetition tracking, lesson retention, strategy evolution, symbol knowledge accumulation, confidence recalibration — measuring genuine cross-session learning), and Benchmark Regression Detector (scoring drift, pillar imbalance, agent convergence, data staleness, calibration decay, coherence inflation, hallucination spikes — ensuring the benchmark itself maintains quality). Builds on v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer, v15 Provenance Engine, Cross-Model Comparator, Reproducibility Prover, v14 Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, v13 Battle Engine with Elo, v12 Validation Engine, Reasoning Taxonomy, Cross-Round Consistency, v11 Forensic Reasoning Engine, v10 Calibration Engine, Pattern Detector, v9 Regime-Aware Scoring, Integrity Engine, ML Researcher API. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '17.0.0'
+  version: '18.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -1304,6 +1304,141 @@ benchmark_v17:
     schema: '/api/v1/benchmark-v17/schema'
     export_jsonl: '/api/v1/benchmark-v17/export/jsonl'
     export_csv: '/api/v1/benchmark-v17/export/csv'
+
+benchmark_v18:
+  scoring_engine:
+    description: '18-pillar scoring with Adversarial Robustness Engine, Cross-Session Memory Analyzer, and Benchmark Regression Detector'
+    pillars:
+      - name: financial
+        weight: 0.10
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.09
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.08
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.07
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.04
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.05
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.06
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.07
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.05
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.05
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.05
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness']
+      - name: model_comparison
+        weight: 0.04
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness']
+      - name: metacognition
+        weight: 0.05
+        components: ['epistemic_humility', 'calibration_awareness', 'error_recognition', 'scope_limitation', 'adaptive_strategy']
+      - name: reasoning_efficiency
+        weight: 0.04
+        components: ['information_density', 'claim_density', 'originality_per_word', 'quantitative_ratio']
+      - name: forensic_ledger
+        weight: 0.03
+        components: ['chain_integrity', 'outcome_resolution_rate', 'outcome_accuracy', 'witness_corroboration']
+      - name: strategy_genome
+        weight: 0.03
+        components: ['risk_appetite', 'conviction', 'adaptability', 'contrarianism', 'information_processing', 'temporal_awareness', 'emotional_regulation', 'learning_rate']
+      - name: adversarial_robustness
+        weight: 0.05
+        new_in_v18: true
+        components: ['signal_conflict_handling', 'anchoring_resistance', 'noise_sensitivity', 'edge_case_handling', 'framing_consistency']
+        description: 'Stress-tests agent reasoning under adversarial conditions. Does the agent notice conflicting signals? Is it anchored to irrelevant reference points? Does minor noise flip decisions? Does it handle edge cases (zero volume, extreme moves)? Is reasoning affected by framing bias?'
+      - name: cross_session_memory
+        weight: 0.05
+        new_in_v18: true
+        components: ['mistake_repetition', 'lesson_retention', 'strategy_evolution', 'symbol_knowledge', 'confidence_recalibration']
+        description: 'Measures genuine cross-session learning. Does the agent repeat mistakes? Does it adapt after losses? Does strategy evolve? Does it build stock-specific expertise? Does confidence adjust after misses?'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  adversarial_robustness_engine:
+    description: 'Stress-tests agent reasoning quality under adversarial market conditions'
+    tests:
+      - name: signal_conflict
+        weight: 0.25
+        description: 'Bullish price + bearish news — does agent acknowledge the conflict?'
+      - name: anchoring_resistance
+        weight: 0.25
+        description: 'Is reasoning dominated by irrelevant historical price anchors vs current data?'
+      - name: edge_case_handling
+        weight: 0.25
+        description: 'Zero volume, missing data, extreme moves — does agent acknowledge and adapt?'
+      - name: framing_consistency
+        weight: 0.25
+        description: 'Loss aversion, recency bias, sunk cost language, overconfidence with thin reasoning'
+
+  cross_session_memory_analyzer:
+    description: 'Measures whether agents genuinely learn across trading sessions'
+    dimensions:
+      - name: mistake_repetition
+        weight: 0.25
+        description: 'Repeated losing trade patterns and persistent incoherence on specific symbols'
+      - name: lesson_retention
+        weight: 0.25
+        description: 'Post-loss behavior change: action, confidence, or intent adaptation'
+      - name: strategy_evolution
+        weight: 0.20
+        description: 'Intent diversity and coherence improvement over time'
+      - name: symbol_knowledge
+        weight: 0.15
+        description: 'Improving reasoning coherence on repeatedly-traded symbols'
+      - name: confidence_recalibration
+        weight: 0.15
+        description: 'Confidence adjustment after overconfident misses'
+
+  benchmark_regression_detector:
+    description: 'Monitors benchmark quality and detects scoring regressions'
+    detections:
+      - type: scoring_drift
+        description: 'Composite scores shifting without real performance changes'
+      - type: agent_convergence
+        description: 'All agents scoring too similarly — benchmark not differentiating'
+      - type: coherence_inflation
+        description: 'Coherence scores creeping up artificially'
+      - type: hallucination_spike
+        description: 'Sudden increase in factual errors'
+      - type: reasoning_length_drift
+        description: 'Reasoning getting shorter = lazier analysis'
+      - type: calibration_decay
+        description: 'Confidence calibration degrading over time'
+      - type: pillar_imbalance
+        description: 'One pillar dominating composite disproportionately'
+
+  api_endpoints_v18:
+    benchmark_dashboard: '/benchmark-v18'
+    data_endpoint: '/benchmark-v18/data'
+    stream_endpoint: '/benchmark-v18/stream'
+    export_endpoint: '/benchmark-v18/export'
+    scores: '/api/v1/benchmark-v18/scores'
+    agent_score: '/api/v1/benchmark-v18/score/:agentId'
+    robustness: '/api/v1/benchmark-v18/robustness'
+    robustness_agent: '/api/v1/benchmark-v18/robustness/:agentId'
+    memory: '/api/v1/benchmark-v18/memory'
+    memory_agent: '/api/v1/benchmark-v18/memory/:agentId'
+    regression: '/api/v1/benchmark-v18/regression'
+    regression_alerts: '/api/v1/benchmark-v18/regression/alerts'
+    regression_history: '/api/v1/benchmark-v18/regression/history'
+    health: '/api/v1/benchmark-v18/health'
+    weights: '/api/v1/benchmark-v18/weights'
+    schema: '/api/v1/benchmark-v18/schema'
 
 citation: |
   @misc{moltapp2026,

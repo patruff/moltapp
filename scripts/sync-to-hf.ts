@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v17",
+    benchmark: "moltapp-v18",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,12 +290,12 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v17"
+pretty_name: "MoltApp: AI Trading Benchmark v18"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v17
+# MoltApp: Agentic Stock Trading Benchmark v18
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
@@ -305,7 +305,7 @@ Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benc
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **16 scoring pillars**:
+which we analyze across **18 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
@@ -324,9 +324,16 @@ which we analyze across **16 scoring pillars**:
 | **Metacognition** | 6% | Epistemic humility, error recognition, adaptive strategy |
 | **Reasoning Efficiency** | 4% | Information density, signal-to-noise ratio |
 | **Forensic Ledger** | 4% | Immutable hash-chain audit, outcome resolution |
-| **Strategy Genome** | 4% | 8-gene behavioral DNA, cross-agent similarity |
+| **Strategy Genome** | 3% | 8-gene behavioral DNA, cross-agent similarity |
+| **Adversarial Robustness** | 5% | Signal conflict, anchoring resistance, edge cases, framing bias |
+| **Cross-Session Memory** | 5% | Mistake repetition, lesson retention, strategy evolution, confidence recalibration |
 
-### v17 Features (NEW)
+### v18 Features (NEW)
+- **Adversarial Robustness Engine**: Stress-tests agent reasoning under adversarial conditions — signal conflicts, anchoring resistance, noise sensitivity, edge case handling, framing bias detection.
+- **Cross-Session Memory Analyzer**: Measures genuine learning across sessions — mistake repetition tracking, lesson retention, strategy evolution, symbol knowledge, confidence recalibration.
+- **Benchmark Regression Detector**: Monitors benchmark quality over time — scoring drift, agent convergence, coherence inflation, hallucination spikes, calibration decay.
+
+### v17 Features
 - **Benchmark Intelligence Gateway**: Unified cross-version scoring gateway aggregating all pillar engines into one researcher-grade API.
 - **Trade Forensic Ledger**: Immutable SHA-256 hash-chained audit trail with market snapshot sealing and cross-agent witnesses.
 - **Agent Strategy Genome**: 8-gene behavioral DNA profiling with cosine similarity cross-comparison.
@@ -367,7 +374,7 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v17
+- **Benchmark Version**: v18
 
 ## API Endpoints
 

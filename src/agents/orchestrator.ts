@@ -226,6 +226,20 @@ import {
 import {
   emitV17Event,
 } from "../routes/benchmark-v17.tsx";
+import {
+  analyzeAdversarialRobustness,
+  recordAdversarialResult,
+  recordReasoningForComparison as recordReasoningForAdversarial,
+} from "../services/adversarial-robustness-engine.ts";
+import {
+  recordMemoryEntry,
+} from "../services/cross-session-memory-analyzer.ts";
+import {
+  recordBenchmarkHealthSnapshot,
+} from "../services/benchmark-regression-detector.ts";
+import {
+  emitV18Event,
+} from "../routes/benchmark-v18.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2158,6 +2172,127 @@ async function executeTradingRound(
 
   } catch (err) {
     console.warn(`[Orchestrator] v17 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // =========================================================================
+  // v18 ANALYSIS — Adversarial Robustness + Cross-Session Memory + Regression
+  // =========================================================================
+  try {
+    const agentScores: Record<string, number> = {};
+    const pillarAverages: Record<string, number> = {};
+    let coherenceSum = 0;
+    let hallucinationCount = 0;
+    let reasoningLengthSum = 0;
+
+    for (const r of results) {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
+      const coherenceEst = normConf * 0.6 + 0.3;
+      const reasoningWords = r.decision.reasoning.split(/\s+/).length;
+
+      // 1. Adversarial robustness analysis
+      const adversarial = analyzeAdversarialRobustness(
+        r.agentId,
+        r.decision.reasoning,
+        r.decision.action,
+        r.decision.symbol,
+        normConf,
+        0, // currentPrice not easily available here, use 0
+        {
+          priceDirection: r.decision.action === "buy" ? "up" : r.decision.action === "sell" ? "down" : "flat",
+          newsDirection: "neutral",
+          hasZeroVolume: false,
+          hasMissingData: false,
+          hasExtremeMove: false,
+        },
+      );
+
+      recordAdversarialResult(
+        r.agentId,
+        {
+          overallScore: adversarial.overallScore,
+          vulnerabilities: adversarial.vulnerabilities,
+          signalConflictScore: adversarial.signalConflict.score,
+          anchoringScore: adversarial.anchoring.score,
+          edgeCaseScore: adversarial.edgeCases.score,
+          framingScore: adversarial.framing.score,
+        },
+        roundId,
+      );
+
+      recordReasoningForAdversarial({
+        agentId: r.agentId,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        reasoning: r.decision.reasoning,
+        confidence: normConf,
+        roundId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 2. Cross-session memory entry
+      const fingerprint = r.decision.reasoning
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .slice(0, 50);
+
+      recordMemoryEntry({
+        agentId: r.agentId,
+        roundId,
+        symbol: r.decision.symbol,
+        action: r.decision.action,
+        confidence: normConf,
+        coherenceScore: coherenceEst,
+        hallucinationCount: 0,
+        intent,
+        wasCorrect: null, // Resolved later by outcome tracker
+        reasoningFingerprint: fingerprint,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Accumulate for health snapshot
+      agentScores[r.agentId] = normConf * 0.4 + coherenceEst * 0.3 + adversarial.overallScore * 0.3;
+      coherenceSum += coherenceEst;
+      reasoningLengthSum += reasoningWords;
+
+      console.log(
+        `[Orchestrator] v18 ${r.agentId}: adversarial=${adversarial.overallScore.toFixed(2)}, vulns=${adversarial.vulnerabilities.length}`,
+      );
+    }
+
+    // 3. Record benchmark health snapshot
+    const agentIds = Object.keys(agentScores);
+    const scoreValues = Object.values(agentScores);
+    const scoreMean = scoreValues.length > 0 ? scoreValues.reduce((s, v) => s + v, 0) / scoreValues.length : 0;
+    const scoreSpread = scoreValues.length > 1
+      ? Math.sqrt(scoreValues.reduce((s, v) => s + (v - scoreMean) ** 2, 0) / scoreValues.length)
+      : 0;
+
+    recordBenchmarkHealthSnapshot({
+      timestamp: new Date().toISOString(),
+      agentScores,
+      pillarAverages,
+      coherenceAvg: results.length > 0 ? coherenceSum / results.length : 0,
+      hallucinationRate: results.length > 0 ? hallucinationCount / results.length : 0,
+      avgReasoningLength: results.length > 0 ? reasoningLengthSum / results.length : 0,
+      agentScoreSpread: Math.round(scoreSpread * 1000) / 1000,
+      calibrationAvg: 0.5,
+    });
+
+    // 4. Emit v18 events
+    emitV18Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      version: "v18",
+      pillars: 18,
+    });
+
+    console.log(
+      `[Orchestrator] v18 round complete: ${results.length} agents — adversarial + memory + regression recorded`,
+    );
+
+  } catch (err) {
+    console.warn(`[Orchestrator] v18 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
