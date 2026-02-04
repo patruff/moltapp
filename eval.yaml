@@ -1,7 +1,7 @@
-benchmark: moltapp-v16
+benchmark: moltapp-v17
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 14-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability, provenance integrity, model comparison, metacognition, reasoning efficiency). v16 adds Metacognition Engine (epistemic humility, calibration awareness, error recognition, scope limitation, adaptive strategy — does the agent know what it knows?) and Reasoning Efficiency Scorer (signal-to-noise ratio: information density, claim density, originality per word, quantitative ratio). Also adds 8-dimension Reasoning Depth Scorer (analytical breadth, evidence specificity, causal chains, risk awareness, temporal reasoning, comparative analysis, quantitative rigor, thesis structure). Builds on v15 Reasoning Provenance Engine, Cross-Model Comparator, Reproducibility Prover, Outcome Resolution Engine, Confidence Calibration Curves, Reasoning Volatility Tracker, Consensus Divergence Scorer, 8-dimension trade validation, reasoning taxonomy classifier, cross-round consistency, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 16-pillar scoring. v17 adds Benchmark Intelligence Gateway (unified cross-version scoring, researcher-grade export, statistical ranking), Trade Forensic Ledger (immutable SHA-256 hash-chained audit trail with outcome resolution and cross-agent witness corroboration), and Agent Strategy Genome (8-gene behavioral DNA profiling: risk appetite, conviction, adaptability, contrarianism, information processing, temporal awareness, emotional regulation, learning rate — with cosine similarity cross-comparison). Builds on v16 Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer, v15 Provenance Engine, Cross-Model Comparator, Reproducibility Prover, v14 Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, v13 Battle Engine with Elo, v12 Validation Engine, Reasoning Taxonomy, Cross-Round Consistency, v11 Forensic Reasoning Engine, v10 Calibration Engine, Pattern Detector, v9 Regime-Aware Scoring, Integrity Engine, ML Researcher API. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '16.0.0'
+  version: '17.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -1170,6 +1170,140 @@ benchmark_v16:
     schema: '/api/v1/benchmark-v16/schema'
     export_jsonl: '/api/v1/benchmark-v16/export/jsonl'
     export_csv: '/api/v1/benchmark-v16/export/csv'
+
+benchmark_v17:
+  scoring_engine:
+    description: '16-pillar scoring with Benchmark Intelligence Gateway, Trade Forensic Ledger, and Agent Strategy Genome'
+    pillars:
+      - name: financial
+        weight: 0.11
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.10
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.08
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.07
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.05
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.05
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.07
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.07
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.06
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.05
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.06
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness']
+      - name: model_comparison
+        weight: 0.05
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness']
+      - name: metacognition
+        weight: 0.06
+        components: ['epistemic_humility', 'calibration_awareness', 'error_recognition', 'scope_limitation', 'adaptive_strategy']
+      - name: reasoning_efficiency
+        weight: 0.04
+        components: ['information_density', 'claim_density', 'originality_per_word', 'quantitative_ratio']
+      - name: forensic_ledger
+        weight: 0.04
+        new_in_v17: true
+        components: ['chain_integrity', 'outcome_resolution_rate', 'outcome_accuracy', 'witness_corroboration', 'hash_verification']
+        description: 'Immutable SHA-256 hash-chained trade audit trail. Every trade sealed with market snapshot hash, cross-agent witnesses, and post-trade outcome resolution. Researchers can verify the complete chain to ensure no retroactive modifications.'
+      - name: strategy_genome
+        weight: 0.04
+        new_in_v17: true
+        components: ['risk_appetite', 'conviction', 'adaptability', 'contrarianism', 'information_processing', 'temporal_awareness', 'emotional_regulation', 'learning_rate']
+        description: '8-gene behavioral DNA profiling. Each gene scored 0-1 with phenotype classification. Cross-agent cosine similarity enables quantitative personality comparison. Genome stability tracking measures behavioral consistency over time.'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  benchmark_intelligence_gateway:
+    description: 'Unified cross-version scoring gateway that aggregates all pillar engines (v9-v17) into a single researcher-grade API'
+    features:
+      - 'Normalized 16-pillar scoring with configurable weights'
+      - 'Elo-based agent ranking with pairwise round comparisons'
+      - 'Pillar trend detection (improving/stable/declining)'
+      - 'Data quality confidence per pillar per agent'
+      - 'Benchmark health monitoring (freshness, coverage, consistency)'
+      - 'JSONL and CSV export for HuggingFace and researcher consumption'
+      - 'Aggregate strengths and weaknesses per agent'
+      - 'Win/loss streak tracking'
+
+  trade_forensic_ledger:
+    description: 'Immutable append-only ledger with SHA-256 hash chain for cryptographic verification of all trade reasoning'
+    features:
+      - 'Every entry sealed with SHA-256 hash linking to previous entry (blockchain-style)'
+      - 'Market snapshot hash at time of reasoning (prevents backfitting)'
+      - 'Cross-agent witness hashes (agents corroborate each others records)'
+      - 'Post-trade outcome resolution (PnL and correctness filled retroactively)'
+      - 'Query with filters: agent, symbol, round, coherence threshold, hallucination limit'
+      - 'Chain integrity verification endpoint'
+      - 'JSONL export for researcher replication'
+    chain_format: 'Append-only linked list, max 5000 entries, sliding window'
+    hash_algorithm: 'SHA-256'
+
+  agent_strategy_genome:
+    description: '8-gene behavioral DNA profiling for quantitative personality comparison across AI trading agents'
+    genes:
+      - name: risk_appetite
+        phenotypes: ['cautious', 'moderate', 'aggressive']
+        description: 'Actual risk-taking behavior: hold rate, trade size, confidence thresholds'
+      - name: conviction
+        phenotypes: ['inconsistent', 'moderate_conviction', 'high_conviction']
+        description: 'Confidence-quantity correlation: does the agent put money where its mouth is?'
+      - name: adaptability
+        phenotypes: ['rigid', 'semi_adaptive', 'adaptive']
+        description: 'Post-loss behavior change rate: does the agent learn from mistakes?'
+      - name: contrarianism
+        phenotypes: ['conformist', 'independent', 'contrarian']
+        description: 'Rate of going against consensus: herding vs independent thinking'
+      - name: information_processing
+        phenotypes: ['shallow_processor', 'moderate_processor', 'deep_processor']
+        description: 'Reasoning quality and coherence metrics: how well does the agent use data?'
+      - name: temporal_awareness
+        phenotypes: ['time_blind', 'occasionally_temporal', 'temporally_aware']
+        description: 'Temporal reasoning markers: short-term vs long-term thinking patterns'
+      - name: emotional_regulation
+        phenotypes: ['volatile', 'semi_regulated', 'regulated']
+        description: 'Confidence stability under market volatility: panic vs composure'
+      - name: learning_rate
+        phenotypes: ['static_learner', 'slow_learner', 'fast_learner']
+        description: 'First-half vs second-half coherence improvement: speed of behavioral improvement'
+    comparison: 'Cosine similarity across 8-gene vectors'
+    stability: 'Round-over-round genome cosine similarity'
+
+  api_endpoints_v17:
+    benchmark_dashboard: '/benchmark-v17'
+    data_endpoint: '/benchmark-v17/data'
+    stream_endpoint: '/benchmark-v17/stream'
+    export_endpoint: '/benchmark-v17/export'
+    scores: '/api/v1/benchmark-v17/scores'
+    agent_score: '/api/v1/benchmark-v17/score/:agentId'
+    pillar_history: '/api/v1/benchmark-v17/pillar-history/:agentId'
+    ledger: '/api/v1/benchmark-v17/ledger'
+    ledger_stats: '/api/v1/benchmark-v17/ledger/stats'
+    ledger_integrity: '/api/v1/benchmark-v17/ledger/integrity'
+    ledger_export: '/api/v1/benchmark-v17/ledger/export'
+    genome_agent: '/api/v1/benchmark-v17/genome/:agentId'
+    genome_compare: '/api/v1/benchmark-v17/genome/compare'
+    genome_all: '/api/v1/benchmark-v17/genome/all'
+    health: '/api/v1/benchmark-v17/health'
+    weights: '/api/v1/benchmark-v17/weights'
+    schema: '/api/v1/benchmark-v17/schema'
+    export_jsonl: '/api/v1/benchmark-v17/export/jsonl'
+    export_csv: '/api/v1/benchmark-v17/export/csv'
 
 citation: |
   @misc{moltapp2026,

@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v15",
+    benchmark: "moltapp-v17",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,22 +290,22 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v15"
+pretty_name: "MoltApp: AI Trading Benchmark v17"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v15
+# MoltApp: Agentic Stock Trading Benchmark v17
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v15](https://www.patgpt.us/benchmark-v15)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v17](https://www.patgpt.us/benchmark-v17)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **12 scoring pillars**:
+which we analyze across **16 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
@@ -320,20 +320,21 @@ which we analyze across **12 scoring pillars**:
 | **Prediction Accuracy** | 7% | Direction accuracy, target precision, resolution quality |
 | **Reasoning Stability** | 6% | Sentiment volatility, confidence volatility, intent drift |
 | **Provenance Integrity** | 7% | Pre-commit seal validity, chain integrity, cross-agent witness |
-| **Model Comparison** | 6% | Vocabulary uniqueness, reasoning independence, bias awareness |
+| **Model Comparison** | 5% | Vocabulary uniqueness, reasoning independence, bias awareness |
+| **Metacognition** | 6% | Epistemic humility, error recognition, adaptive strategy |
+| **Reasoning Efficiency** | 4% | Information density, signal-to-noise ratio |
+| **Forensic Ledger** | 4% | Immutable hash-chain audit, outcome resolution |
+| **Strategy Genome** | 4% | 8-gene behavioral DNA, cross-agent similarity |
 
-### v15 Features (NEW)
-- **Reasoning Provenance Engine**: SHA-256 pre-commit hash chains proving reasoning was produced BEFORE market outcomes — prevents backfitting.
-- **Cross-Model Reasoning Comparator**: Vocabulary DNA fingerprinting, bias asymmetry analysis, systematic divergence tracking across Claude/GPT/Grok.
-- **Benchmark Reproducibility Prover**: Formal reproducibility proofs — same inputs + same config = same scores (deterministic verification).
+### v17 Features (NEW)
+- **Benchmark Intelligence Gateway**: Unified cross-version scoring gateway aggregating all pillar engines into one researcher-grade API.
+- **Trade Forensic Ledger**: Immutable SHA-256 hash-chained audit trail with market snapshot sealing and cross-agent witnesses.
+- **Agent Strategy Genome**: 8-gene behavioral DNA profiling with cosine similarity cross-comparison.
 
-### v14 Features
-- **Outcome Resolution Engine**: Closes the prediction→result feedback loop. Resolves agent predictions against actual market movements.
-- **Confidence Calibration Curve Analyzer**: Deep reliability diagrams, ECE, Brier Score, monotonic calibration checks per agent.
-- **Reasoning Volatility Tracker**: Measures sentiment, confidence, and intent stability across rounds.
-- **Cross-Agent Consensus Divergence Scorer**: Agreement patterns, contrarian detection, convergence trends.
-- **Head-to-Head Battle Engine**: Elo ratings, 7-dimension matchup scoring, highlight detection.
-- **Reasoning Taxonomy Classifier**: 10 strategies, 6 methods, 5 structures, 10 cognitive bias detectors.
+### Prior Version Features
+- v16: Metacognition Engine, Reasoning Efficiency Scorer, 8-dimension Reasoning Depth Scorer
+- v15: Reasoning Provenance Engine, Cross-Model Comparator, Reproducibility Prover
+- v14: Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, Battle Engine, Taxonomy
 
 ### Current Metrics
 | Metric | Value |
@@ -366,19 +367,24 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v15
+- **Benchmark Version**: v17
 
 ## API Endpoints
 
-- Dashboard: \`/benchmark-v15\`
-- Data: \`/benchmark-v15/data\`
-- Stream: \`/benchmark-v15/stream\`
-- Provenance: \`/api/v1/benchmark-v15/provenance/:agentId\`
-- Cross-Model: \`/api/v1/benchmark-v15/cross-model\`
-- Fingerprint: \`/api/v1/benchmark-v15/fingerprint/:agentId\`
-- Divergence: \`/api/v1/benchmark-v15/divergence\`
-- Reproducibility: \`/api/v1/benchmark-v15/reproducibility\`
-- Schema: \`/api/v1/benchmark-v15/schema\`
+- Dashboard: \`/benchmark-v17\`
+- Data: \`/benchmark-v17/data\`
+- Stream: \`/benchmark-v17/stream\`
+- Export: \`/benchmark-v17/export\`
+- Scores: \`/api/v1/benchmark-v17/scores\`
+- Agent Score: \`/api/v1/benchmark-v17/score/:agentId\`
+- Pillar History: \`/api/v1/benchmark-v17/pillar-history/:agentId\`
+- Forensic Ledger: \`/api/v1/benchmark-v17/ledger\`
+- Ledger Stats: \`/api/v1/benchmark-v17/ledger/stats\`
+- Ledger Integrity: \`/api/v1/benchmark-v17/ledger/integrity\`
+- Strategy Genome: \`/api/v1/benchmark-v17/genome/:agentId\`
+- Genome Compare: \`/api/v1/benchmark-v17/genome/compare?a=X&b=Y\`
+- Health: \`/api/v1/benchmark-v17/health\`
+- Schema: \`/api/v1/benchmark-v17/schema\`
 
 ## Citation
 

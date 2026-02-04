@@ -1,0 +1,447 @@
+/**
+ * Agent Strategy Genome (v17)
+ *
+ * Deep behavioral DNA profiling that goes beyond surface-level metrics.
+ * Builds a multi-dimensional "genome" for each agent that captures:
+ *
+ * 1. Risk Appetite Gene — How much risk the agent actually takes vs claims
+ * 2. Conviction Gene — Relationship between confidence and position sizing
+ * 3. Adaptability Gene — How quickly the agent changes behavior after losses
+ * 4. Contrarianism Gene — How often the agent bucks consensus
+ * 5. Information Processing Gene — How well the agent uses available data
+ * 6. Temporal Awareness Gene — Short-term vs long-term thinking patterns
+ * 7. Emotional Regulation Gene — Stability under volatility
+ * 8. Learning Rate Gene — Speed of behavioral improvement over time
+ *
+ * Each gene is scored 0-1 with a descriptive phenotype classification.
+ * The genome enables researchers to compare agent "personalities" across
+ * different LLM providers in a quantitative, reproducible way.
+ */
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface Gene {
+  name: string;
+  score: number;
+  phenotype: string;
+  evidence: string[];
+  sampleSize: number;
+}
+
+export interface StrategyGenome {
+  agentId: string;
+  genes: Gene[];
+  genomeHash: string; // Deterministic hash for comparison
+  similarity: Record<string, number>; // Cosine similarity to other agents
+  dominantPhenotype: string;
+  genomeStability: number; // How stable the genome is over time (0-1)
+  lastUpdated: string;
+  tradesSampled: number;
+}
+
+export interface GenomeComparison {
+  agentA: string;
+  agentB: string;
+  cosineSimilarity: number;
+  divergentGenes: { gene: string; deltaA: number; deltaB: number }[];
+  convergentGenes: { gene: string; avgScore: number }[];
+  summary: string;
+}
+
+interface TradeObservation {
+  agentId: string;
+  action: string;
+  symbol: string;
+  quantity: number;
+  confidence: number;
+  coherenceScore: number;
+  hallucinationCount: number;
+  intent: string;
+  reasoning: string;
+  roundId: string;
+  consensusAction: string | null; // What did majority do?
+  marketVolatility: number;
+  pnlAfter: number | null;
+  timestamp: string;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+const observations = new Map<string, TradeObservation[]>();
+const genomes = new Map<string, StrategyGenome>();
+const MAX_OBSERVATIONS = 300;
+
+// ---------------------------------------------------------------------------
+// Gene scoring functions
+// ---------------------------------------------------------------------------
+
+function scoreRiskAppetite(obs: TradeObservation[]): Gene {
+  const nonHold = obs.filter((o) => o.action !== "hold");
+  const holdRate = 1 - (nonHold.length / Math.max(1, obs.length));
+  const avgQuantity = nonHold.length > 0 ? nonHold.reduce((s, o) => s + o.quantity, 0) / nonHold.length : 0;
+  const highConfTrades = nonHold.filter((o) => o.confidence > 0.7).length;
+
+  // Higher = more risk-taking
+  const score = Math.min(1, (1 - holdRate) * 0.4 + Math.min(1, avgQuantity / 2000) * 0.3 + (highConfTrades / Math.max(1, nonHold.length)) * 0.3);
+
+  const evidence: string[] = [];
+  evidence.push(`Hold rate: ${(holdRate * 100).toFixed(0)}%`);
+  evidence.push(`Avg trade size: ${avgQuantity.toFixed(0)}`);
+  evidence.push(`High-confidence trades: ${highConfTrades}/${nonHold.length}`);
+
+  let phenotype = "cautious";
+  if (score > 0.7) phenotype = "aggressive";
+  else if (score > 0.4) phenotype = "moderate";
+
+  return { name: "risk_appetite", score, phenotype, evidence, sampleSize: obs.length };
+}
+
+function scoreConviction(obs: TradeObservation[]): Gene {
+  const nonHold = obs.filter((o) => o.action !== "hold");
+  if (nonHold.length < 3) {
+    return { name: "conviction", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient data"], sampleSize: nonHold.length };
+  }
+
+  // Measure confidence-quantity correlation
+  const pairs = nonHold.map((o) => ({ conf: o.confidence, qty: o.quantity }));
+  const avgConf = pairs.reduce((s, p) => s + p.conf, 0) / pairs.length;
+  const avgQty = pairs.reduce((s, p) => s + p.qty, 0) / pairs.length;
+
+  let numerator = 0;
+  let denomConf = 0;
+  let denomQty = 0;
+  for (const p of pairs) {
+    const dc = p.conf - avgConf;
+    const dq = p.qty - avgQty;
+    numerator += dc * dq;
+    denomConf += dc * dc;
+    denomQty += dq * dq;
+  }
+  const correlation = (denomConf > 0 && denomQty > 0) ? numerator / (Math.sqrt(denomConf) * Math.sqrt(denomQty)) : 0;
+
+  // Positive correlation = high conviction (puts money where mouth is)
+  const score = Math.max(0, Math.min(1, (correlation + 1) / 2));
+
+  const evidence: string[] = [];
+  evidence.push(`Confidence-size correlation: ${correlation.toFixed(3)}`);
+  evidence.push(`Avg confidence: ${(avgConf * 100).toFixed(0)}%`);
+
+  let phenotype = "inconsistent";
+  if (score > 0.65) phenotype = "high_conviction";
+  else if (score > 0.4) phenotype = "moderate_conviction";
+
+  return { name: "conviction", score, phenotype, evidence, sampleSize: nonHold.length };
+}
+
+function scoreAdaptability(obs: TradeObservation[]): Gene {
+  // Look for behavior changes after losses
+  const withOutcome = obs.filter((o) => o.pnlAfter !== null);
+  if (withOutcome.length < 5) {
+    return { name: "adaptability", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient outcome data"], sampleSize: withOutcome.length };
+  }
+
+  let behaviorChanges = 0;
+  let opportunitiesToAdapt = 0;
+
+  for (let i = 1; i < withOutcome.length; i++) {
+    const prev = withOutcome[i - 1];
+    const curr = withOutcome[i];
+
+    if (prev.pnlAfter !== null && prev.pnlAfter < 0) {
+      opportunitiesToAdapt++;
+      // Did the agent change something?
+      const changedAction = curr.action !== prev.action;
+      const changedConfidence = Math.abs(curr.confidence - prev.confidence) > 0.1;
+      const changedIntent = curr.intent !== prev.intent;
+      if (changedAction || changedConfidence || changedIntent) {
+        behaviorChanges++;
+      }
+    }
+  }
+
+  const score = opportunitiesToAdapt > 0 ? behaviorChanges / opportunitiesToAdapt : 0.5;
+
+  const evidence: string[] = [];
+  evidence.push(`Behavior changes after loss: ${behaviorChanges}/${opportunitiesToAdapt}`);
+  evidence.push(`Adaptation rate: ${(score * 100).toFixed(0)}%`);
+
+  let phenotype = "rigid";
+  if (score > 0.6) phenotype = "adaptive";
+  else if (score > 0.3) phenotype = "semi_adaptive";
+
+  return { name: "adaptability", score, phenotype, evidence, sampleSize: withOutcome.length };
+}
+
+function scoreContrarianism(obs: TradeObservation[]): Gene {
+  const withConsensus = obs.filter((o) => o.consensusAction !== null && o.action !== "hold");
+  if (withConsensus.length < 3) {
+    return { name: "contrarianism", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient consensus data"], sampleSize: withConsensus.length };
+  }
+
+  const contrarian = withConsensus.filter((o) => o.action !== o.consensusAction).length;
+  const score = contrarian / withConsensus.length;
+
+  const evidence: string[] = [];
+  evidence.push(`Went against consensus: ${contrarian}/${withConsensus.length}`);
+  evidence.push(`Contrarian rate: ${(score * 100).toFixed(0)}%`);
+
+  let phenotype = "conformist";
+  if (score > 0.6) phenotype = "contrarian";
+  else if (score > 0.3) phenotype = "independent";
+
+  return { name: "contrarianism", score, phenotype, evidence, sampleSize: withConsensus.length };
+}
+
+function scoreInformationProcessing(obs: TradeObservation[]): Gene {
+  // How well does reasoning quality correlate with outcomes?
+  const avgCoherence = obs.reduce((s, o) => s + o.coherenceScore, 0) / Math.max(1, obs.length);
+  const hallRate = obs.filter((o) => o.hallucinationCount > 0).length / Math.max(1, obs.length);
+  const avgReasoningLength = obs.reduce((s, o) => s + o.reasoning.split(/\s+/).length, 0) / Math.max(1, obs.length);
+
+  const score = Math.min(1, avgCoherence * 0.4 + (1 - hallRate) * 0.3 + Math.min(1, avgReasoningLength / 100) * 0.3);
+
+  const evidence: string[] = [];
+  evidence.push(`Avg coherence: ${avgCoherence.toFixed(2)}`);
+  evidence.push(`Hallucination rate: ${(hallRate * 100).toFixed(0)}%`);
+  evidence.push(`Avg reasoning length: ${avgReasoningLength.toFixed(0)} words`);
+
+  let phenotype = "shallow_processor";
+  if (score > 0.7) phenotype = "deep_processor";
+  else if (score > 0.4) phenotype = "moderate_processor";
+
+  return { name: "information_processing", score, phenotype, evidence, sampleSize: obs.length };
+}
+
+function scoreTemporalAwareness(obs: TradeObservation[]): Gene {
+  // Detect temporal reasoning markers
+  const temporalPatterns = [
+    /short[\s-]term/i, /long[\s-]term/i, /near[\s-]term/i,
+    /next\s+(week|month|quarter|year)/i, /within\s+\d+\s+(day|week|hour)/i,
+    /holding\s+period/i, /time\s+horizon/i, /temporary|transient/i,
+    /sustainable|structural/i, /cycle|seasonal/i,
+  ];
+
+  let temporalMentions = 0;
+  for (const o of obs) {
+    for (const pattern of temporalPatterns) {
+      if (pattern.test(o.reasoning)) {
+        temporalMentions++;
+        break;
+      }
+    }
+  }
+
+  const score = Math.min(1, temporalMentions / Math.max(1, obs.length));
+
+  const evidence: string[] = [];
+  evidence.push(`Temporal reasoning mentions: ${temporalMentions}/${obs.length} trades`);
+
+  let phenotype = "time_blind";
+  if (score > 0.6) phenotype = "temporally_aware";
+  else if (score > 0.3) phenotype = "occasionally_temporal";
+
+  return { name: "temporal_awareness", score, phenotype, evidence, sampleSize: obs.length };
+}
+
+function scoreEmotionalRegulation(obs: TradeObservation[]): Gene {
+  // Measure confidence stability under market volatility
+  if (obs.length < 5) {
+    return { name: "emotional_regulation", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient data"], sampleSize: obs.length };
+  }
+
+  const confStdDev = Math.sqrt(
+    obs.reduce((s, o) => {
+      const avg = obs.reduce((ss, oo) => ss + oo.confidence, 0) / obs.length;
+      return s + (o.confidence - avg) ** 2;
+    }, 0) / obs.length,
+  );
+
+  // Lower std dev = more regulated
+  const score = Math.max(0, 1 - confStdDev * 3);
+
+  const evidence: string[] = [];
+  evidence.push(`Confidence std dev: ${confStdDev.toFixed(3)}`);
+
+  let phenotype = "volatile";
+  if (score > 0.6) phenotype = "regulated";
+  else if (score > 0.3) phenotype = "semi_regulated";
+
+  return { name: "emotional_regulation", score, phenotype, evidence, sampleSize: obs.length };
+}
+
+function scoreLearningRate(obs: TradeObservation[]): Gene {
+  if (obs.length < 10) {
+    return { name: "learning_rate", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient data"], sampleSize: obs.length };
+  }
+
+  // Compare first half vs second half coherence
+  const half = Math.floor(obs.length / 2);
+  const firstHalf = obs.slice(0, half);
+  const secondHalf = obs.slice(half);
+
+  const firstAvgCoherence = firstHalf.reduce((s, o) => s + o.coherenceScore, 0) / firstHalf.length;
+  const secondAvgCoherence = secondHalf.reduce((s, o) => s + o.coherenceScore, 0) / secondHalf.length;
+
+  const improvement = secondAvgCoherence - firstAvgCoherence;
+  const score = Math.max(0, Math.min(1, 0.5 + improvement * 2));
+
+  const evidence: string[] = [];
+  evidence.push(`First half coherence: ${firstAvgCoherence.toFixed(3)}`);
+  evidence.push(`Second half coherence: ${secondAvgCoherence.toFixed(3)}`);
+  evidence.push(`Improvement: ${improvement > 0 ? "+" : ""}${(improvement * 100).toFixed(1)}%`);
+
+  let phenotype = "static_learner";
+  if (score > 0.6) phenotype = "fast_learner";
+  else if (score > 0.4) phenotype = "slow_learner";
+
+  return { name: "learning_rate", score, phenotype, evidence, sampleSize: obs.length };
+}
+
+// ---------------------------------------------------------------------------
+// Genome computation
+// ---------------------------------------------------------------------------
+
+function computeGenome(agentId: string, obs: TradeObservation[]): StrategyGenome {
+  const genes: Gene[] = [
+    scoreRiskAppetite(obs),
+    scoreConviction(obs),
+    scoreAdaptability(obs),
+    scoreContrarianism(obs),
+    scoreInformationProcessing(obs),
+    scoreTemporalAwareness(obs),
+    scoreEmotionalRegulation(obs),
+    scoreLearningRate(obs),
+  ];
+
+  // Compute genome hash for comparison
+  const geneVector = genes.map((g) => g.score.toFixed(4)).join(",");
+  const genomeHash = geneVector; // Simple string for comparison
+
+  // Find dominant phenotype
+  const sorted = [...genes].sort((a, b) => b.score - a.score);
+  const dominantPhenotype = `${sorted[0].name}:${sorted[0].phenotype}`;
+
+  // Compute stability
+  const prevGenome = genomes.get(agentId);
+  let genomeStability = 0.5;
+  if (prevGenome) {
+    const prevVector = prevGenome.genes.map((g) => g.score);
+    const currVector = genes.map((g) => g.score);
+    const dotProduct = prevVector.reduce((s, v, i) => s + v * currVector[i], 0);
+    const magPrev = Math.sqrt(prevVector.reduce((s, v) => s + v * v, 0));
+    const magCurr = Math.sqrt(currVector.reduce((s, v) => s + v * v, 0));
+    genomeStability = magPrev > 0 && magCurr > 0 ? dotProduct / (magPrev * magCurr) : 0.5;
+  }
+
+  return {
+    agentId,
+    genes,
+    genomeHash,
+    similarity: {}, // Filled by cross-comparison
+    dominantPhenotype,
+    genomeStability,
+    lastUpdated: new Date().toISOString(),
+    tradesSampled: obs.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Record a trade observation for genome analysis.
+ */
+export function recordGenomeObservation(obs: TradeObservation): void {
+  const agentObs = observations.get(obs.agentId) ?? [];
+  agentObs.push(obs);
+  if (agentObs.length > MAX_OBSERVATIONS) agentObs.splice(0, agentObs.length - MAX_OBSERVATIONS);
+  observations.set(obs.agentId, agentObs);
+
+  // Recompute genome every 5 observations
+  if (agentObs.length % 5 === 0 || agentObs.length < 10) {
+    const genome = computeGenome(obs.agentId, agentObs);
+
+    // Cross-similarity with other agents
+    for (const [otherId, otherGenome] of genomes.entries()) {
+      if (otherId === obs.agentId) continue;
+      const sim = cosineSimilarity(
+        genome.genes.map((g) => g.score),
+        otherGenome.genes.map((g) => g.score),
+      );
+      genome.similarity[otherId] = sim;
+      otherGenome.similarity[obs.agentId] = sim;
+    }
+
+    genomes.set(obs.agentId, genome);
+  }
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  const dot = a.reduce((s, v, i) => s + v * b[i], 0);
+  const magA = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
+  const magB = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
+  return magA > 0 && magB > 0 ? dot / (magA * magB) : 0;
+}
+
+/**
+ * Get the genome for a specific agent.
+ */
+export function getAgentGenome(agentId: string): StrategyGenome | null {
+  return genomes.get(agentId) ?? null;
+}
+
+/**
+ * Get all agent genomes.
+ */
+export function getAllGenomes(): StrategyGenome[] {
+  return [...genomes.values()];
+}
+
+/**
+ * Compare two agents' genomes.
+ */
+export function compareGenomes(agentA: string, agentB: string): GenomeComparison | null {
+  const genA = genomes.get(agentA);
+  const genB = genomes.get(agentB);
+  if (!genA || !genB) return null;
+
+  const sim = cosineSimilarity(
+    genA.genes.map((g) => g.score),
+    genB.genes.map((g) => g.score),
+  );
+
+  const divergent: GenomeComparison["divergentGenes"] = [];
+  const convergent: GenomeComparison["convergentGenes"] = [];
+
+  for (let i = 0; i < genA.genes.length; i++) {
+    const delta = Math.abs(genA.genes[i].score - genB.genes[i].score);
+    if (delta > 0.2) {
+      divergent.push({ gene: genA.genes[i].name, deltaA: genA.genes[i].score, deltaB: genB.genes[i].score });
+    } else {
+      convergent.push({ gene: genA.genes[i].name, avgScore: (genA.genes[i].score + genB.genes[i].score) / 2 });
+    }
+  }
+
+  const summary = divergent.length === 0
+    ? `${agentA} and ${agentB} have very similar strategy genomes (similarity: ${(sim * 100).toFixed(0)}%)`
+    : `${agentA} and ${agentB} diverge on ${divergent.length} gene(s): ${divergent.map((d) => d.gene).join(", ")} (similarity: ${(sim * 100).toFixed(0)}%)`;
+
+  return { agentA, agentB, cosineSimilarity: sim, divergentGenes: divergent, convergentGenes: convergent, summary };
+}
+
+/**
+ * Get genome-based aggregate score for v17 pillar.
+ */
+export function getGenomePillarScore(agentId: string): number {
+  const genome = genomes.get(agentId);
+  if (!genome) return 0.5;
+  // Weighted average of gene scores
+  const weights = [0.10, 0.15, 0.15, 0.10, 0.20, 0.10, 0.10, 0.10];
+  return genome.genes.reduce((s, g, i) => s + g.score * (weights[i] ?? 0.125), 0);
+}

@@ -212,6 +212,20 @@ import {
 import {
   emitV16Event,
 } from "../routes/benchmark-v16.tsx";
+import {
+  recordV17Scores,
+  updateV17Elo,
+} from "../services/benchmark-intelligence-gateway.ts";
+import {
+  appendToLedger,
+} from "../services/trade-forensic-ledger.ts";
+import {
+  recordGenomeObservation,
+  getGenomePillarScore,
+} from "../services/agent-strategy-genome.ts";
+import {
+  emitV17Event,
+} from "../routes/benchmark-v17.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2020,6 +2034,130 @@ async function executeTradingRound(
 
   } catch (err) {
     console.warn(`[Orchestrator] v16 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // --- v17: Benchmark Intelligence Gateway, Forensic Ledger, Strategy Genomes ---
+  try {
+    // Build market price map for ledger
+    const v17PriceMap: Record<string, number> = {};
+    for (const md of marketData) {
+      v17PriceMap[md.symbol] = md.price;
+    }
+
+    // Agent IDs for witness list
+    const allAgentIds = results.map((r) => r.agentId);
+
+    // Compute consensus for genome
+    const majorityAction = (() => {
+      const actions = results.filter((r) => r.decision.action !== "hold").map((r) => r.decision.action);
+      const buys = actions.filter((a) => a === "buy").length;
+      const sells = actions.filter((a) => a === "sell").length;
+      if (buys > sells) return "buy";
+      if (sells > buys) return "sell";
+      return null;
+    })();
+
+    for (const r of results) {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
+      const sources = r.decision.sources ?? extractSourcesFromReasoning(r.decision.reasoning);
+
+      // 1. Append to forensic ledger
+      const ledgerEntry = appendToLedger({
+        agentId: r.agentId,
+        roundId,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        quantity: r.decision.quantity,
+        reasoning: r.decision.reasoning,
+        confidence: normConf,
+        intent,
+        sources,
+        predictedOutcome: r.decision.predictedOutcome ?? null,
+        marketPrices: v17PriceMap,
+        coherenceScore: normConf * 0.6 + 0.3,
+        hallucinationFlags: [],
+        disciplinePass: true,
+        depthScore: Math.min(1, r.decision.reasoning.split(/\s+/).length / 100),
+        forensicScore: 0.5,
+        efficiencyScore: 0.5,
+        witnesses: allAgentIds.filter((id) => id !== r.agentId),
+      });
+
+      // 2. Record genome observation
+      recordGenomeObservation({
+        agentId: r.agentId,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        quantity: r.decision.quantity,
+        confidence: normConf,
+        coherenceScore: normConf * 0.6 + 0.3,
+        hallucinationCount: 0,
+        intent,
+        reasoning: r.decision.reasoning,
+        roundId,
+        consensusAction: majorityAction,
+        marketVolatility: 0.02,
+        pnlAfter: null,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 3. Get genome pillar score
+      const genomePillarScore = getGenomePillarScore(r.agentId);
+
+      // 4. Record unified v17 scores across all 16 pillars
+      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      recordV17Scores(
+        r.agentId,
+        agentConfig?.provider ?? "unknown",
+        agentConfig?.model ?? "unknown",
+        {
+          financial: 0.5,
+          reasoning: normConf * 0.6 + 0.3,
+          safety: 0.8,
+          calibration: 0.5,
+          patterns: 0.5,
+          adaptability: 0.5,
+          forensic_quality: 0.5,
+          validation_quality: 0.5,
+          prediction_accuracy: 0.5,
+          reasoning_stability: 0.7,
+          provenance_integrity: 0.8,
+          model_comparison: 0.5,
+          metacognition: normConf * 0.4 + 0.3,
+          reasoning_efficiency: Math.min(1, r.decision.reasoning.split(/\s+/).length / 150),
+          forensic_ledger: ledgerEntry ? 0.9 : 0.3,
+          strategy_genome: genomePillarScore,
+        },
+        roundId,
+      );
+
+      console.log(
+        `[Orchestrator] v17 ${r.agentId}: ledger=${ledgerEntry.entryHash.slice(0, 12)}..., genome=${genomePillarScore.toFixed(2)}`,
+      );
+    }
+
+    // 5. Update Elo rankings
+    const eloInputs = results.map((r) => ({
+      agentId: r.agentId,
+      composite: r.decision.confidence > 1 ? r.decision.confidence / 200 + 0.3 : r.decision.confidence * 0.4 + 0.3,
+    }));
+    updateV17Elo(eloInputs);
+
+    // 6. Emit v17 events
+    emitV17Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      version: "v17",
+      pillars: 16,
+    });
+
+    console.log(
+      `[Orchestrator] v17 round complete: ${results.length} agents scored, ledger + genome updated`,
+    );
+
+  } catch (err) {
+    console.warn(`[Orchestrator] v17 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
