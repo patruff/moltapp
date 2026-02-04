@@ -399,10 +399,10 @@ reasoningDuelRoutes.get("/matchup", async (c) => {
 
     const totalDuels = duels.length;
     const avgCohA = entriesA.length > 0
-      ? entriesA.reduce((s, e) => s + (e.coherenceScore ?? 0), 0) / entriesA.length
+      ? entriesA.reduce((s: number, e: typeof entriesA[0]) => s + (e.coherenceScore ?? 0), 0) / entriesA.length
       : 0;
     const avgCohB = entriesB.length > 0
-      ? entriesB.reduce((s, e) => s + (e.coherenceScore ?? 0), 0) / entriesB.length
+      ? entriesB.reduce((s: number, e: typeof entriesB[0]) => s + (e.coherenceScore ?? 0), 0) / entriesB.length
       : 0;
 
     return c.json({
@@ -448,7 +448,7 @@ reasoningDuelRoutes.get("/stats", async (c) => {
       .groupBy(tradeJustifications.agentId);
 
     const rankings = agentStats
-      .map((s) => ({
+      .map((s: typeof agentStats[0]) => ({
         agentId: s.agentId,
         totalTrades: Number(s.totalTrades),
         avgCoherence: Math.round((Number(s.avgCoherence) || 0) * 100) / 100,
@@ -459,7 +459,7 @@ reasoningDuelRoutes.get("/stats", async (c) => {
           hold: Number(s.holdCount),
         },
       }))
-      .sort((a, b) => b.avgCoherence - a.avgCoherence);
+      .sort((a: { avgCoherence: number }, b: { avgCoherence: number }) => b.avgCoherence - a.avgCoherence);
 
     return c.json({
       ok: true,

@@ -482,12 +482,12 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
       const agentB = configs[j];
 
       // Get decisions from both agents on same symbols
-      const decisionsA = decisions.filter((d) => d.agentId === agentA.agentId);
-      const decisionsB = decisions.filter((d) => d.agentId === agentB.agentId);
+      const decisionsA = decisions.filter((d: typeof decisions[0]) => d.agentId === agentA.agentId);
+      const decisionsB = decisions.filter((d: typeof decisions[0]) => d.agentId === agentB.agentId);
 
       // Find overlapping symbols
-      const symbolsA = new Set(decisionsA.map((d) => d.symbol));
-      const symbolsB = new Set(decisionsB.map((d) => d.symbol));
+      const symbolsA = new Set(decisionsA.map((d: typeof decisionsA[0]) => d.symbol));
+      const symbolsB = new Set(decisionsB.map((d: typeof decisionsB[0]) => d.symbol));
       const commonSymbols = [...symbolsA].filter((s) => symbolsB.has(s));
 
       let agreements = 0;

@@ -49,7 +49,15 @@ log_error() {
 
 # --- State management ---
 init_state() {
+    # Ensure state file has correct schema (reset if missing or stale format)
+    local needs_reset=false
     if [ ! -f "$STATE_FILE" ]; then
+        needs_reset=true
+    elif ! jq -e '.improvement_sessions_launched' "$STATE_FILE" > /dev/null 2>&1; then
+        needs_reset=true
+    fi
+
+    if [ "$needs_reset" = true ]; then
         cat > "$STATE_FILE" << 'STATEEOF'
 {
     "heartbeat_count": 0,

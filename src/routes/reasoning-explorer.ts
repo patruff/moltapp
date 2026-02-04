@@ -251,7 +251,7 @@ reasoningExplorerRoutes.get("/trends", async (c) => {
       .groupBy(sql`date_trunc('day', ${tradeJustifications.timestamp})`)
       .orderBy(sql`date_trunc('day', ${tradeJustifications.timestamp})`);
 
-    const trends = dailyStats.map((d) => ({
+    const trends = dailyStats.map((d: typeof dailyStats[0]) => ({
       date: d.date,
       avgCoherence: Math.round((Number(d.avgCoherence) || 0) * 1000) / 1000,
       avgConfidence: Math.round((Number(d.avgConfidence) || 0) * 1000) / 1000,
@@ -418,7 +418,7 @@ reasoningExplorerRoutes.get("/controversial", async (c) => {
         symbol: entry.symbol,
         distinctActions: Number(entry.actionCount),
         avgCoherence: Math.round((Number(entry.avgCoherence) || 0) * 100) / 100,
-        reasonings: reasonings.map((r) => ({
+        reasonings: reasonings.map((r: typeof reasonings[0]) => ({
           agentId: r.agentId,
           action: r.action,
           reasoning: r.reasoning.slice(0, 300),
@@ -497,17 +497,17 @@ reasoningExplorerRoutes.get("/exemplars", async (c) => {
 
     return c.json({
       ok: true,
-      bestReasoning: best.map((r) => ({
+      bestReasoning: best.map((r: typeof best[0]) => ({
         ...r,
         reasoning: r.reasoning.slice(0, 500),
         wordCount: r.reasoning.split(/\s+/).length,
       })),
-      worstReasoning: worst.map((r) => ({
+      worstReasoning: worst.map((r: typeof worst[0]) => ({
         ...r,
         reasoning: r.reasoning.slice(0, 500),
         wordCount: r.reasoning.split(/\s+/).length,
       })),
-      mostVerbose: verbose.map((r) => ({
+      mostVerbose: verbose.map((r: typeof verbose[0]) => ({
         id: r.id,
         agentId: r.agentId,
         action: r.action,
@@ -572,13 +572,13 @@ reasoningExplorerRoutes.get("/intent-analysis", async (c) => {
 
     // Compute weighted averages
     for (const intent of Object.keys(byIntent)) {
-      const rows = intentStats.filter((r) => r.intent === intent);
-      const totalCount = rows.reduce((s, r) => s + Number(r.count), 0);
+      const rows = intentStats.filter((r: typeof intentStats[0]) => r.intent === intent);
+      const totalCount = rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.count), 0);
       byIntent[intent].avgCoherence = totalCount > 0
-        ? Math.round(rows.reduce((s, r) => s + Number(r.avgCoherence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
+        ? Math.round(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgCoherence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
         : 0;
       byIntent[intent].avgConfidence = totalCount > 0
-        ? Math.round(rows.reduce((s, r) => s + Number(r.avgConfidence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
+        ? Math.round(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgConfidence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
         : 0;
     }
 
