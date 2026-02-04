@@ -118,7 +118,7 @@ export class ClaudeTrader extends BaseTradingAgent {
       system,
       messages,
       tools,
-      temperature: 0.3,
+      temperature: this.config.temperature,
     });
 
     // Parse response
