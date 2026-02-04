@@ -80,10 +80,10 @@ benchmarkApiRoutes.get("/export/json", async (c) => {
     const records = await query;
 
     const filtered = agentFilter
-      ? records.filter((r) => r.agentId === agentFilter)
+      ? records.filter((r: any) => r.agentId === agentFilter)
       : records;
 
-    const formatted = filtered.map((r) => ({
+    const formatted = filtered.map((r: any) => ({
       id: r.id,
       agent_id: r.agentId,
       action: r.action,
@@ -103,7 +103,7 @@ benchmarkApiRoutes.get("/export/json", async (c) => {
     }));
 
     if (format === "jsonl") {
-      const jsonl = formatted.map((r) => JSON.stringify(r)).join("\n");
+      const jsonl = formatted.map((r: any) => JSON.stringify(r)).join("\n");
       c.header("Content-Type", "application/jsonl");
       c.header("Content-Disposition", 'attachment; filename="molt-benchmark.jsonl"');
       return c.body(jsonl);
@@ -142,7 +142,7 @@ benchmarkApiRoutes.get("/export/csv", async (c) => {
       "reasoning_length", "sources_count", "round_id", "timestamp",
     ];
 
-    const rows = records.map((r) => [
+    const rows = records.map((r: any) => [
       r.id,
       r.agentId,
       r.action,
@@ -161,8 +161,8 @@ benchmarkApiRoutes.get("/export/csv", async (c) => {
 
     const csv = [
       headers.join(","),
-      ...rows.map((row) =>
-        row.map((cell) => {
+      ...rows.map((row: any) =>
+        row.map((cell: any) => {
           const str = String(cell);
           return str.includes(",") || str.includes('"') || str.includes("\n")
             ? `"${str.replace(/"/g, '""')}"`
@@ -368,7 +368,7 @@ benchmarkApiRoutes.get("/validate", async (c) => {
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(5000);
 
-    const benchmarkRecords: BenchmarkRecord[] = records.map((r) => ({
+    const benchmarkRecords: BenchmarkRecord[] = records.map((r: any) => ({
       id: r.id,
       agent_id: r.agentId,
       agent_provider: inferProvider(r.agentId),

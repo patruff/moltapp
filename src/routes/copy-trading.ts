@@ -183,7 +183,7 @@ copyTradingRoutes.delete("/follow/:followerId", async (c) => {
 
   return c.json({
     message: `Unfollowed ${deleted.length} agent(s)`,
-    unfollowed: deleted.map((f) => ({
+    unfollowed: deleted.map((f: any) => ({
       targetAgentId: f.targetAgentId,
       finalPortfolioValue: parseFloat(f.portfolioValue),
       totalPnl: parseFloat(f.totalPnl),
@@ -219,7 +219,7 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
     // use empty
   }
 
-  const portfolios = follows.map((f) => {
+  const portfolios = follows.map((f: any) => {
     const positions = (f.positions as CopyPosition[]) ?? [];
     const config = getAgentConfig(f.targetAgentId);
 
@@ -269,8 +269,8 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
   });
 
   // Aggregate
-  const totalValue = portfolios.reduce((s, p) => s + p.totalValue, 0);
-  const totalInitial = portfolios.reduce((s, p) => s + p.initialCapital, 0);
+  const totalValue = portfolios.reduce((s: any, p: any) => s + p.totalValue, 0);
+  const totalInitial = portfolios.reduce((s: any, p: any) => s + p.initialCapital, 0);
 
   return c.json({
     followerId,
@@ -281,7 +281,7 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
       totalPnl: Math.round((totalValue - totalInitial) * 100) / 100,
       totalPnlPercent: totalInitial > 0 ? Math.round(((totalValue - totalInitial) / totalInitial) * 10000) / 100 : 0,
       agentsFollowed: portfolios.length,
-      totalTradesCopied: portfolios.reduce((s, p) => s + p.tradesCopied, 0),
+      totalTradesCopied: portfolios.reduce((s: any, p: any) => s + p.tradesCopied, 0),
     },
     portfolios,
   });
@@ -313,7 +313,7 @@ copyTradingRoutes.get("/history/:followerId", async (c) => {
 
   return c.json({
     followerId,
-    trades: trades.map((t) => {
+    trades: trades.map((t: any) => {
       const config = getAgentConfig(t.sourceAgentId);
       return {
         id: t.id,
@@ -388,7 +388,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
         ),
       );
 
-    const copiedIds = new Set(existingCopyIds.map((r) => r.sourceDecisionId));
+    const copiedIds = new Set(existingCopyIds.map((r: any) => r.sourceDecisionId));
 
     // Get agent's recent decisions
     const recentDecisions = await db
@@ -399,7 +399,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
       .limit(50);
 
     // Filter to new, uncopied decisions
-    const newDecisions = recentDecisions.filter((d) => !copiedIds.has(d.id));
+    const newDecisions = recentDecisions.filter((d: any) => !copiedIds.has(d.id));
 
     if (newDecisions.length === 0) {
       syncResults.push({ agentId: follow.targetAgentId, agentName, newDecisions: 0, tradesCopied: 0 });
@@ -549,7 +549,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
       agentId: follow.targetAgentId,
       agentName,
       newDecisions: newDecisions.length,
-      tradesCopied: newDecisions.filter((d) => d.action !== "hold").length,
+      tradesCopied: newDecisions.filter((d: any) => d.action !== "hold").length,
     });
   }
 
@@ -577,7 +577,7 @@ copyTradingRoutes.get("/leaderboard", async (c) => {
       .orderBy(desc(sql`CAST(${copyFollowers.portfolioValue} AS NUMERIC)`))
       .limit(limit);
 
-    const leaderboard = followers.map((f, i) => {
+    const leaderboard = followers.map((f: any, i: any) => {
       const config = getAgentConfig(f.targetAgentId);
       return {
         rank: i + 1,

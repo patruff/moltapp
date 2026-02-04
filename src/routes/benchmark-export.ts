@@ -102,7 +102,7 @@ benchmarkExportRoutes.get("/export/jsonl", async (c) => {
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(limit);
 
-    const lines = records.map((r) => JSON.stringify(formatRecord(r)));
+    const lines = records.map((r: any) => JSON.stringify(formatRecord(r)));
     const body = lines.join("\n") + (lines.length > 0 ? "\n" : "");
 
     c.header("Content-Type", "application/x-ndjson");
@@ -149,7 +149,7 @@ benchmarkExportRoutes.get("/export/csv", async (c) => {
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(limit);
 
-    const rows = records.map((r) => [
+    const rows = records.map((r: any) => [
       r.id,
       r.agentId,
       r.action,
@@ -170,7 +170,7 @@ benchmarkExportRoutes.get("/export/csv", async (c) => {
 
     const csv = [
       headers.join(","),
-      ...rows.map((row) => row.map(csvEscape).join(",")),
+      ...rows.map((row: any) => row.map(csvEscape).join(",")),
     ].join("\n");
 
     c.header("Content-Type", "text/csv; charset=utf-8");

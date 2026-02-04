@@ -60,7 +60,7 @@ benchmarkResearcherApiRoutes.get("/dataset", async (c) => {
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(limit);
 
-    const records = rows.map((r) => ({
+    const records = rows.map((r: any) => ({
       id: r.id,
       agent_id: r.agentId,
       action: r.action,
@@ -84,7 +84,7 @@ benchmarkResearcherApiRoutes.get("/dataset", async (c) => {
     }
 
     // JSONL format
-    const jsonl = records.map((r) => JSON.stringify(r)).join("\n");
+    const jsonl = records.map((r: any) => JSON.stringify(r)).join("\n");
     c.header("Content-Type", "application/jsonl");
     c.header("Content-Disposition", "attachment; filename=molt-benchmark-v9.jsonl");
     return c.body(jsonl);
@@ -360,7 +360,7 @@ benchmarkResearcherApiRoutes.get("/export/csv", async (c) => {
       "reasoning_length", "round_id", "timestamp",
     ];
 
-    const csvRows = rows.map((r) => [
+    const csvRows = rows.map((r: any) => [
       r.id,
       r.agentId,
       r.action,
