@@ -15,3 +15,4 @@ export { portfolioSnapshots, competitionScores } from "./portfolio-snapshots.ts"
 export { tradeJustifications, benchmarkSnapshots } from "./trade-reasoning.ts";
 export { reasoningForensicReports, reasoningIntegrityViolations, agentReasoningHealth } from "./reasoning-forensics.ts";
 export { outcomeResolutions, calibrationSnapshots, benchmarkLeaderboardV23 } from "./benchmark-v23.ts";
+export { reasoningDepthAnalysis, sourceQualityAnalysis, benchmarkLeaderboardV24, benchmarkRoundSnapshotsV24 } from "./benchmark-v24.ts";

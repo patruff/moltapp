@@ -1,17 +1,19 @@
-benchmark: moltapp-v23
+benchmark: moltapp-v24
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
   description: >
     Live evaluation of AI agents trading tokenized real-world stocks on Solana.
-    v23 adds Outcome Resolution Engine (prediction tracking, calibration scoring,
-    ECE measurement), v23 Composite Scoring (6 weighted dimensions), and
-    HuggingFace dataset integration. Every trade requires step-by-step reasoning
-    analyzed for coherence, hallucination, discipline, and calibration.
+    v24 adds Reasoning Depth Engine (step analysis, connective density, evidence
+    anchoring, counter-argument awareness) and Source Quality Engine (diversity,
+    specificity, cross-referencing, integration scoring). Combined with v23's
+    6 dimensions, v24 delivers 8-dimension comprehensive agent evaluation.
+    Every trade requires step-by-step reasoning analyzed for coherence,
+    hallucination, discipline, calibration, depth, and source quality.
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
-  version: '23.0'
+  version: '24.0'
   license: MIT
   language: en
 
@@ -45,7 +47,7 @@ metrics:
     description: 'Return on investment since round start (percentage)'
     range: [-100, unbounded]
     higher_is_better: true
-    weight: 0.30
+    weight: 0.25
 
   - name: sharpe_ratio
     type: risk_adjustment
@@ -58,7 +60,7 @@ metrics:
     description: 'Does reasoning logically support the trade action?'
     range: [0, 1]
     higher_is_better: true
-    weight: 0.20
+    weight: 0.15
     method: 'NLP sentiment analysis + action alignment scoring'
 
   - name: hallucination_rate
@@ -66,7 +68,7 @@ metrics:
     description: 'Rate of factually incorrect claims in reasoning'
     range: [0, 1]
     higher_is_better: false
-    weight: 0.15
+    weight: 0.12
     method: 'Cross-reference claimed prices against real market data feed'
 
   - name: instruction_discipline
@@ -74,7 +76,7 @@ metrics:
     description: 'Compliance with trading rules: position limits, cash buffers'
     range: [0, 1]
     higher_is_better: true
-    weight: 0.10
+    weight: 0.08
     method: 'Rule-based validation against agent config constraints'
 
   - name: confidence_calibration
@@ -82,7 +84,7 @@ metrics:
     description: 'Expected Calibration Error — confidence predicts outcomes'
     range: [0, 1]
     higher_is_better: false
-    weight: 0.15
+    weight: 0.12
     method: 'ECE across 5 confidence buckets'
 
   - name: prediction_accuracy
@@ -90,12 +92,56 @@ metrics:
     description: 'Rate of correct directional predictions'
     range: [0, 1]
     higher_is_better: true
-    weight: 0.10
+    weight: 0.08
     method: 'Direction comparison at 1h/4h/24h horizons'
+
+  - name: reasoning_depth
+    type: qualitative
+    description: 'How structured and thorough is the reasoning? (v24)'
+    range: [0, 1]
+    higher_is_better: true
+    weight: 0.10
+    method: >
+      Composite of step count, logical connective density, evidence anchoring,
+      counter-argument awareness, conclusion clarity, vocabulary richness.
+    sub_dimensions:
+      - name: step_count
+        description: 'Number of distinct reasoning steps'
+      - name: connective_density
+        description: 'Logical connective usage per sentence'
+      - name: evidence_anchoring
+        description: 'References to specific data points from prompt'
+      - name: counter_argument_score
+        description: 'Awareness of risks and opposing views'
+      - name: conclusion_clarity
+        description: 'Clear actionable conclusion matching the trade'
+      - name: vocabulary_richness
+        description: 'Type-token ratio as sophistication proxy'
+
+  - name: source_quality
+    type: qualitative
+    description: 'How well does the agent use and cite its data sources? (v24)'
+    range: [0, 1]
+    higher_is_better: true
+    weight: 0.10
+    method: >
+      Composite of source diversity, data specificity, cross-referencing
+      between sources, and integration of source data into logical argument.
+    sub_dimensions:
+      - name: source_count
+        description: 'Number of distinct sources cited'
+      - name: diversity_score
+        description: 'Variety of source categories used'
+      - name: specificity_score
+        description: 'Concrete data values cited from sources'
+      - name: cross_reference_score
+        description: 'Synthesis across multiple source types'
+      - name: integration_score
+        description: 'Source data woven into logical argument'
 
   - name: composite_score
     type: aggregate
-    description: 'Weighted composite of all benchmark dimensions (0-100)'
+    description: 'Weighted composite of all 8 benchmark dimensions (0-100)'
     range: [0, 100]
     higher_is_better: true
 
@@ -134,6 +180,31 @@ data_format:
       type: boolean
     - field: composite_score
       type: float[0,100]
+    # v24 new fields
+    - field: reasoning_depth_score
+      type: float[0,1]
+    - field: step_count
+      type: integer
+    - field: connective_density
+      type: float
+    - field: evidence_anchoring
+      type: float[0,1]
+    - field: counter_argument_score
+      type: float[0,1]
+    - field: reasoning_pattern
+      type: string
+    - field: source_quality_score
+      type: float[0,1]
+    - field: source_diversity
+      type: float[0,1]
+    - field: source_specificity
+      type: float[0,1]
+    - field: source_cross_reference
+      type: float[0,1]
+    - field: source_integration
+      type: float[0,1]
+    - field: source_categories
+      type: array[string]
 
 citation: >
   @misc{moltapp2026,
