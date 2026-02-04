@@ -39,6 +39,7 @@ export const ErrorCodes = {
   STOCK_NOT_FOUND: { status: 404, code: "stock_not_found" },
   WALLET_NOT_FOUND: { status: 404, code: "wallet_not_found" },
   AGENT_NOT_FOUND: { status: 404, code: "agent_not_found" },
+  DECISION_NOT_FOUND: { status: 404, code: "decision_not_found" },
 
   // 429 Too Many Requests
   RATE_LIMITED: { status: 429, code: "rate_limited" },

@@ -21,6 +21,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { tradeReactions } from "../db/schema/trade-reactions.ts";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { getAgentConfig } from "../agents/orchestrator.ts";
+import { apiError } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -79,26 +80,12 @@ commentRoutes.get("/:decisionId", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   const decision = await getDecision(decisionId);
   if (!decision) {
-    return c.json(
-      {
-        error: "not_found",
-        code: "not_found",
-        details: `Decision ${decisionId} not found`,
-      },
-      404,
-    );
+    return apiError(c, "DECISION_NOT_FOUND", `Decision ${decisionId} not found`);
   }
 
   const config = getAgentConfig(decision.agentId);
@@ -163,14 +150,7 @@ commentRoutes.post("/:decisionId/comments", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   // Parse and validate body
@@ -178,42 +158,18 @@ commentRoutes.post("/:decisionId/comments", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      {
-        error: "invalid_json",
-        code: "invalid_json",
-        details: "Request body must be valid JSON",
-      },
-      400,
-    );
+    return apiError(c, "INVALID_JSON", "Request body must be valid JSON");
   }
 
   const parsed = commentSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
   }
 
   // Check decision exists
   const decision = await getDecision(decisionId);
   if (!decision) {
-    return c.json(
-      {
-        error: "not_found",
-        code: "not_found",
-        details: `Decision ${decisionId} not found`,
-      },
-      404,
-    );
+    return apiError(c, "DECISION_NOT_FOUND", `Decision ${decisionId} not found`);
   }
 
   // Insert comment
@@ -251,14 +207,7 @@ commentRoutes.get("/:decisionId/comments", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   const limitStr = c.req.query("limit");
@@ -303,14 +252,7 @@ commentRoutes.post("/:decisionId/react", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   // Parse and validate body
@@ -318,42 +260,18 @@ commentRoutes.post("/:decisionId/react", async (c) => {
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      {
-        error: "invalid_json",
-        code: "invalid_json",
-        details: "Request body must be valid JSON",
-      },
-      400,
-    );
+    return apiError(c, "INVALID_JSON", "Request body must be valid JSON");
   }
 
   const parsed = reactionSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: parsed.error.issues.map((i) => ({
-          path: i.path.join("."),
-          message: i.message,
-        })),
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
   }
 
   // Check decision exists
   const decision = await getDecision(decisionId);
   if (!decision) {
-    return c.json(
-      {
-        error: "not_found",
-        code: "not_found",
-        details: `Decision ${decisionId} not found`,
-      },
-      404,
-    );
+    return apiError(c, "DECISION_NOT_FOUND", `Decision ${decisionId} not found`);
   }
 
   // Upsert reaction (one per reactor per decision)
@@ -393,14 +311,7 @@ commentRoutes.post("/:decisionId/react", async (c) => {
     });
   } catch (error) {
     console.error("[Comments] Failed to upsert reaction:", error);
-    return c.json(
-      {
-        error: "internal_error",
-        code: "internal_error",
-        details: "Failed to save reaction",
-      },
-      500,
-    );
+    return apiError(c, "INTERNAL_ERROR", "Failed to save reaction");
   }
 });
 
@@ -413,14 +324,7 @@ commentRoutes.get("/:decisionId/reactions", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   const counts = await getReactionCounts(decisionId);
@@ -440,28 +344,14 @@ commentRoutes.delete("/:decisionId/react", async (c) => {
   const decisionId = parseInt(decisionIdStr, 10);
 
   if (isNaN(decisionId)) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "decisionId must be a number",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "decisionId must be a number");
   }
 
   let body: unknown;
   try {
     body = await c.req.json();
   } catch {
-    return c.json(
-      {
-        error: "invalid_json",
-        code: "invalid_json",
-        details: "Request body must be valid JSON with reactorId",
-      },
-      400,
-    );
+    return apiError(c, "INVALID_JSON", "Request body must be valid JSON with reactorId");
   }
 
   const schema = z.object({
@@ -469,14 +359,7 @@ commentRoutes.delete("/:decisionId/react", async (c) => {
   });
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "reactorId is required",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "reactorId is required");
   }
 
   await db
