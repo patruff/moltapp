@@ -1,7 +1,7 @@
-benchmark: moltapp-v8
+benchmark: moltapp-v9
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features reasoning-enforced trading (Zod-validated), market-regime-aware coherence scoring, benchmark evidence collection with sliding-window aggregation, cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, structured dataset exports, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with regime-aware 5-pillar scoring (financial, reasoning, safety, calibration, adaptability), cross-trade reasoning integrity verification (flip-flop, copypasta, confidence drift, source fabrication, reasoning regression detection), ML researcher API with JSONL/CSV exports and reproducibility artifacts, reasoning-enforced trading (Zod-validated), benchmark evidence collection, cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '8.0.0'
+  version: '9.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -381,6 +381,97 @@ reasoning_enforcement_v8:
       discipline: 0.15
       calibration: 0.10
       win_rate: 0.10
+
+benchmark_v9:
+  scoring_engine:
+    description: 'Regime-aware 5-pillar scoring with sliding-window aggregation (50-trade window per agent)'
+    pillars:
+      - name: financial
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+        regime_weights: { bull: 0.30, bear: 0.15, volatile: 0.20, sideways: 0.20 }
+      - name: reasoning
+        components: ['coherence', 'depth', 'consistency']
+        regime_weights: { bull: 0.20, bear: 0.30, volatile: 0.20, sideways: 0.25 }
+      - name: safety
+        components: ['hallucination_free_rate', 'discipline_compliance']
+        regime_weights: { bull: 0.20, bear: 0.25, volatile: 0.20, sideways: 0.25 }
+      - name: calibration
+        components: ['confidence_outcome_correlation', 'ece', 'monotonic_quartiles']
+        regime_weights: { bull: 0.15, bear: 0.15, volatile: 0.20, sideways: 0.15 }
+      - name: adaptability
+        components: ['cross_regime_consistency', 'performance_variance']
+        regime_weights: { bull: 0.15, bear: 0.15, volatile: 0.20, sideways: 0.15 }
+    grades: 'A+ (>=0.95) through F (<0.40)'
+    window_size: 50
+
+  reasoning_integrity:
+    description: 'Cross-trade reasoning consistency verification — detects integrity issues that per-trade analysis misses'
+    checks:
+      - type: flip_flop
+        description: 'Detects stance reversals on same stock within 24 hours without new information'
+        severity_range: ['medium', 'high']
+      - type: copypasta
+        description: 'Detects >80% Jaccard similarity in reasoning across different trades'
+        severity_range: ['medium', 'high']
+      - type: confidence_drift
+        description: 'Detects systematic over/under confidence relative to coherence scores'
+        severity_range: ['low', 'high']
+      - type: source_fabrication
+        description: 'Flags unrecognized data source claims not in the valid source catalog'
+        severity_range: ['low', 'low']
+      - type: reasoning_regression
+        description: 'Detects declining coherence trend by comparing first-half vs second-half of trade history'
+        severity_range: ['medium', 'high']
+    scoring: 'Starts at 1.0, deducted per violation: low=0.02, medium=0.05, high=0.10, critical=0.20'
+    cross_agent:
+      herding_detection: 'Percentage of rounds where all agents take the same action'
+      diversity_score: 'Jensen-Shannon divergence of intent distributions'
+      collusion_detection: 'Jaccard similarity of reasoning text (threshold: 0.6)'
+
+  researcher_api:
+    description: 'Structured API for ML researchers with machine-readable exports and reproducibility artifacts'
+    endpoints:
+      dataset: '/api/v1/researcher/dataset'
+      statistics: '/api/v1/researcher/statistics'
+      pillar_analysis: '/api/v1/researcher/pillar-analysis'
+      integrity: '/api/v1/researcher/integrity'
+      cross_agent: '/api/v1/researcher/cross-agent'
+      regime_analysis: '/api/v1/researcher/regime-analysis'
+      csv_export: '/api/v1/researcher/export/csv'
+      reproducibility: '/api/v1/researcher/reproducibility'
+      schema: '/api/v1/researcher/schema'
+      violations: '/api/v1/researcher/violations'
+    formats: ['jsonl', 'json', 'csv']
+    reproducibility:
+      hash_algorithm: SHA-256
+      snapshot_exports: true
+      scoring_config_included: true
+
+  benchmark_dashboard_v9:
+    endpoint: '/benchmark-v9'
+    data_endpoint: '/benchmark-v9/data'
+    features:
+      - 'Regime-aware 5-pillar leaderboard with grades'
+      - 'Rank change indicators (up/down/same)'
+      - 'Integrity score per agent'
+      - 'Cross-agent herding and diversity metrics'
+      - 'Live brain feed ticker'
+      - 'HuggingFace dataset badge'
+      - 'Auto-refresh every 30 seconds'
+
+api_endpoints_v9:
+  benchmark_v9_page: '/benchmark-v9'
+  benchmark_v9_data: '/benchmark-v9/data'
+  researcher_dataset: '/api/v1/researcher/dataset'
+  researcher_statistics: '/api/v1/researcher/statistics'
+  researcher_pillars: '/api/v1/researcher/pillar-analysis'
+  researcher_integrity: '/api/v1/researcher/integrity'
+  researcher_cross_agent: '/api/v1/researcher/cross-agent'
+  researcher_regime: '/api/v1/researcher/regime-analysis'
+  researcher_csv: '/api/v1/researcher/export/csv'
+  researcher_reproducibility: '/api/v1/researcher/reproducibility'
+  researcher_schema: '/api/v1/researcher/schema'
+  researcher_violations: '/api/v1/researcher/violations'
 
 citation: |
   @misc{moltapp2026,
