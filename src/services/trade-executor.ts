@@ -211,6 +211,9 @@ export async function executeDecision(req: ExecutionRequest): Promise<ExecutionR
       // Track volume
       totalVolumeUSDC += parseFloat(result.tradeResult.usdcAmount);
 
+      // Note: DB recording (trades + positions) is handled inside
+      // executeBuy/executeSell in trading.ts — no duplicate insert needed here.
+
       // Emit live trade event
       eventBus.emit("trade_executed", {
         agentId: req.agentId,

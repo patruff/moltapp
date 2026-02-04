@@ -2,7 +2,12 @@ import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { trades, positions, wallets } from "../db/schema/index.ts";
 import { eq, and, sql } from "drizzle-orm";
-import { getOrder, signJupiterTransaction, executeOrder } from "./jupiter.ts";
+import {
+  getOrder,
+  signJupiterTransaction,
+  signJupiterTransactionDirect,
+  executeOrder,
+} from "./jupiter.ts";
 import { getStockBySymbol } from "./stocks.ts";
 import {
   USDC_MINT_MAINNET,
@@ -15,6 +20,8 @@ import {
   getAddressEncoder,
   getProgramDerivedAddress,
 } from "@solana/kit";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
 
 // ---------------------------------------------------------------------------
 // Constants (same patterns as wallets.ts / withdrawal.ts)
@@ -31,6 +38,11 @@ const MIN_SOL_FOR_FEES = 10_000_000n; // 0.01 SOL in lamports
 // ---------------------------------------------------------------------------
 
 function getUsdcMint(): string {
+  // Use mainnet USDC if RPC points to mainnet (regardless of NODE_ENV)
+  const rpcUrl = env.SOLANA_RPC_URL || "";
+  if (rpcUrl.includes("mainnet") || rpcUrl.includes("helius")) {
+    return USDC_MINT_MAINNET;
+  }
   return env.NODE_ENV === "production" ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
 }
 
@@ -53,6 +65,81 @@ async function getAtaAddress(
     ],
   });
   return pda;
+}
+
+// ---------------------------------------------------------------------------
+// Agent Wallet Resolution (env-based, bypasses Turnkey + DB wallets table)
+// ---------------------------------------------------------------------------
+
+/** Map agent IDs to their env var prefixes for wallet keys */
+const AGENT_WALLET_ENV: Record<string, { publicEnv: string; privateEnv: string }> = {
+  "claude-value-investor": {
+    publicEnv: "ANTHROPIC_WALLET_PUBLIC",
+    privateEnv: "ANTHROPIC_WALLET_PRIVATE",
+  },
+  "gpt-momentum-trader": {
+    publicEnv: "OPENAI_WALLET_PUBLIC",
+    privateEnv: "OPENAI_WALLET_PRIVATE",
+  },
+  "grok-contrarian": {
+    publicEnv: "GROK_WALLET_PUBLIC",
+    privateEnv: "GROK_WALLET_PRIVATE",
+  },
+};
+
+interface ResolvedWallet {
+  publicKey: string;
+  keypair: Keypair;
+}
+
+/**
+ * Resolve an agent's wallet from environment variables.
+ * Falls back to DB wallet lookup + Turnkey if env keys aren't set.
+ */
+async function resolveAgentWallet(agentId: string): Promise<ResolvedWallet> {
+  const envConfig = AGENT_WALLET_ENV[agentId];
+
+  if (envConfig) {
+    const pubKey = process.env[envConfig.publicEnv];
+    const privKey = process.env[envConfig.privateEnv];
+
+    if (pubKey && privKey) {
+      const keypair = Keypair.fromSecretKey(bs58.decode(privKey));
+      return { publicKey: pubKey, keypair };
+    }
+  }
+
+  // Fallback: DB wallet lookup (requires Turnkey for signing — will throw
+  // if Turnkey isn't configured, which is expected for direct signing mode)
+  const walletRecords = await db
+    .select()
+    .from(wallets)
+    .where(eq(wallets.agentId, agentId))
+    .limit(1);
+
+  if (walletRecords.length === 0) {
+    throw new Error(
+      `wallet_not_found: no wallet for agent ${agentId}. ` +
+        `Set ${envConfig?.publicEnv ?? "???"}/${envConfig?.privateEnv ?? "???"} in .env`,
+    );
+  }
+
+  // DB wallet path — no keypair available, Turnkey signing will be used
+  return { publicKey: walletRecords[0].publicKey, keypair: null as any };
+}
+
+/**
+ * Sign a Jupiter transaction: uses direct Keypair if available, else Turnkey.
+ */
+async function signTransaction(
+  base64Transaction: string,
+  wallet: ResolvedWallet,
+): Promise<string> {
+  if (wallet.keypair) {
+    return signJupiterTransactionDirect(base64Transaction, wallet.keypair);
+  }
+  // Fallback to Turnkey
+  return signJupiterTransaction(base64Transaction, wallet.publicKey);
 }
 
 // ---------------------------------------------------------------------------
@@ -111,8 +198,8 @@ async function checkUsdcBalance(walletPublicKey: string): Promise<bigint> {
 /**
  * Execute a stock buy order.
  *
- * Flow: validate -> balance check -> Jupiter order -> Turnkey sign ->
- *       Jupiter execute -> record trade -> upsert position
+ * Flow: validate -> resolve wallet -> balance check -> Jupiter order ->
+ *       sign (direct Keypair or Turnkey) -> execute -> record trade -> upsert position
  */
 export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
   // 1. Validate stock
@@ -123,17 +210,8 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
     );
   }
 
-  // 2. Get wallet
-  const walletRecords = await db
-    .select()
-    .from(wallets)
-    .where(eq(wallets.agentId, req.agentId))
-    .limit(1);
-
-  if (walletRecords.length === 0) {
-    throw new Error("wallet_not_found: no wallet for this agent");
-  }
-  const wallet = walletRecords[0];
+  // 2. Get wallet (env-based with DB fallback)
+  const wallet = await resolveAgentWallet(req.agentId);
 
   // 3. Validate amount
   const usdcAmount = new Decimal(req.usdcAmount);
@@ -172,11 +250,8 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
     taker: wallet.publicKey,
   });
 
-  // 6. Sign transaction
-  const signedBase64 = await signJupiterTransaction(
-    order.transaction,
-    wallet.publicKey
-  );
+  // 6. Sign transaction (direct Keypair or Turnkey fallback)
+  const signedBase64 = await signTransaction(order.transaction, wallet);
 
   // 7. Execute
   const result = await executeOrder({
@@ -258,8 +333,8 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
 /**
  * Execute a stock sell order.
  *
- * Flow: validate -> position check -> Jupiter order -> Turnkey sign ->
- *       Jupiter execute -> record trade -> update position
+ * Flow: validate -> resolve wallet -> position check -> Jupiter order ->
+ *       sign (direct Keypair or Turnkey) -> execute -> record trade -> update position
  */
 export async function executeSell(req: TradeRequest): Promise<TradeResult> {
   // 1. Validate stock
@@ -270,17 +345,8 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
     );
   }
 
-  // 2. Get wallet
-  const walletRecords = await db
-    .select()
-    .from(wallets)
-    .where(eq(wallets.agentId, req.agentId))
-    .limit(1);
-
-  if (walletRecords.length === 0) {
-    throw new Error("wallet_not_found: no wallet for this agent");
-  }
-  const wallet = walletRecords[0];
+  // 2. Get wallet (env-based with DB fallback)
+  const wallet = await resolveAgentWallet(req.agentId);
 
   // 3. Validate quantity
   if (!req.stockQuantity) {
@@ -339,11 +405,8 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
     );
   }
 
-  // 8. Sign + Execute
-  const signedBase64 = await signJupiterTransaction(
-    order.transaction,
-    wallet.publicKey
-  );
+  // 8. Sign + Execute (direct Keypair or Turnkey fallback)
+  const signedBase64 = await signTransaction(order.transaction, wallet);
 
   const result = await executeOrder({
     signedTransaction: signedBase64,

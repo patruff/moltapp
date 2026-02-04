@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  // Required
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  MOLTBOOK_APP_KEY: z.string().min(1, "MOLTBOOK_APP_KEY is required"),
-  JUPITER_API_KEY: z.string().min(1, "JUPITER_API_KEY is required"),
-  ADMIN_PASSWORD: z.string().min(1, "ADMIN_PASSWORD is required"),
+  // Required in development, optional in Lambda (loaded from Secrets Manager)
+  DATABASE_URL: z.string().default(""),
+  MOLTBOOK_APP_KEY: z.string().default(""),
+  JUPITER_API_KEY: z.string().default(""),
+  ADMIN_PASSWORD: z.string().default(""),
   PORT: z.coerce.number().default(3000),
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -22,6 +22,22 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   XAI_API_KEY: z.string().optional(),
+
+  // Monad / $STONKS lending layer
+  MONAD_RPC_URL: z.string().optional(),
+  STONKS_TOKEN_ADDRESS: z.string().optional(),
+  MONAD_DEPLOYER_PRIVATE_KEY: z.string().optional(),
+  CLAUDE_MONAD_PRIVATE_KEY: z.string().optional(),
+  GPT_MONAD_PRIVATE_KEY: z.string().optional(),
+  GROK_MONAD_PRIVATE_KEY: z.string().optional(),
+  LENDING_ENABLED: z
+    .string()
+    .optional()
+    .default("false")
+    .transform((val) => val === "true"),
+
+  // Brave Search for real market research
+  BRAVE_API_KEY: z.string().optional(),
 
   // Future (optional for now)
   TURNKEY_API_PRIVATE_KEY: z.string().optional(),
@@ -57,12 +73,19 @@ async function loadSecretsFromAWS(): Promise<void> {
   const response = await client.send(command);
 
   if (response.SecretString) {
-    const secrets = JSON.parse(response.SecretString) as Record<
-      string,
-      string
-    >;
-    for (const [key, value] of Object.entries(secrets)) {
-      process.env[key] = value;
+    try {
+      const secrets = JSON.parse(response.SecretString) as Record<
+        string,
+        string
+      >;
+      for (const [key, value] of Object.entries(secrets)) {
+        process.env[key] = value;
+      }
+    } catch {
+      console.warn(
+        "SECRET_ARN secret is not valid JSON — skipping secret injection. " +
+          "Populate moltapp/production with a JSON object of key-value pairs.",
+      );
     }
   }
 }

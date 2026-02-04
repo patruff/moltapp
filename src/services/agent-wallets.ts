@@ -78,26 +78,26 @@ const MIN_SOL = 0.01;
  */
 const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
   {
-    agentId: "claude-trader",
-    agentName: "Claude Trader",
+    agentId: "claude-value-investor",
+    agentName: "Claude ValueBot",
     publicKey:
-      process.env.CLAUDE_WALLET_ADDRESS ||
+      process.env.ANTHROPIC_WALLET_PUBLIC ||
       "11111111111111111111111111111111", // Placeholder
     provider: "anthropic",
   },
   {
-    agentId: "gpt-trader",
-    agentName: "GPT Trader",
+    agentId: "gpt-momentum-trader",
+    agentName: "GPT MomentumBot",
     publicKey:
-      process.env.GPT_WALLET_ADDRESS ||
+      process.env.OPENAI_WALLET_PUBLIC ||
       "11111111111111111111111111111111", // Placeholder
     provider: "openai",
   },
   {
-    agentId: "grok-trader",
-    agentName: "Grok Trader",
+    agentId: "grok-contrarian",
+    agentName: "Grok ContrarianBot",
     publicKey:
-      process.env.GROK_WALLET_ADDRESS ||
+      process.env.GROK_WALLET_PUBLIC ||
       "11111111111111111111111111111111", // Placeholder
     provider: "xai",
   },

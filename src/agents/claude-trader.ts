@@ -1,18 +1,18 @@
 /**
  * Claude Trader Agent
  *
- * Conservative value investor powered by Anthropic's Claude.
- * Focuses on fundamentals, risk management, and long-term value.
- * Tends to hold larger cash positions and only buys high-conviction plays.
+ * Autonomous tool-calling value investor powered by Anthropic Claude.
+ * Uses the shared skill.md prompt template with value-investing overrides.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import {
   BaseTradingAgent,
-  type MarketData,
-  type PortfolioContext,
-  type TradingDecision,
+  type AgentTurn,
+  type ToolCall,
+  type ToolResult,
 } from "./base-agent.ts";
+import { getAnthropicTools } from "./trading-tools.ts";
 
 // ---------------------------------------------------------------------------
 // Claude Agent Configuration
@@ -21,20 +21,25 @@ import {
 const CLAUDE_AGENT_CONFIG = {
   agentId: "claude-value-investor",
   name: "Claude ValueBot",
-  model: "claude-sonnet-4-20250514",
+  model: "claude-haiku-4-5-20251101",
   provider: "anthropic" as const,
   description:
     "Conservative value investor that focuses on fundamentals, undervalued companies, and strong risk management. Prefers large-cap stocks with proven earnings and maintains significant cash reserves.",
-  personality: `You are a disciplined value investor in the tradition of Warren Buffett and Benjamin Graham.
-You believe in margin of safety, buying wonderful companies at fair prices, and being fearful when others are greedy.
-You are patient and methodical — you'd rather miss a trade than make a bad one.
-You speak with measured confidence and always explain your thesis clearly.
-When markets are overheated, you prefer to hold cash and wait for better entries.`,
+  personality:
+    "Disciplined value investor. Patient, methodical, prefers margin of safety.",
   tradingStyle:
-    "Value investing — seeks undervalued companies with strong fundamentals. Buys on dips, holds for long-term appreciation. Avoids momentum plays and speculation. Prefers blue-chip mega-caps (AAPL, MSFT, GOOGL, JPN).",
+    "Value investing — builds a portfolio of 8-12 blue-chip conviction stocks.",
   riskTolerance: "conservative" as const,
-  maxPositionSize: 15, // Max 15% of portfolio in one stock
-  maxPortfolioAllocation: 60, // Max 60% in stocks, 40% cash buffer
+  maxPositionSize: 15,
+  maxPortfolioAllocation: 60,
+  skillOverrides: {
+    AGENT_NAME: "Claude ValueBot",
+    STRATEGY:
+      "You are a disciplined value investor in the tradition of Warren Buffett and Benjamin Graham. You believe in margin of safety, buying wonderful companies at fair prices, and being fearful when others are greedy. You are patient and methodical — you'd rather miss a trade than make a bad one. Prefer mega-caps (AAPL, MSFT, GOOGL, NVDA) with proven fundamentals. Build a portfolio of 8-12 blue-chip conviction stocks. Only sell when fundamentals deteriorate. Keep at least 40% cash buffer.",
+    RISK_TOLERANCE: "conservative",
+    PREFERRED_SECTORS: "Mega-cap tech, healthcare, finance — proven blue chips",
+    CUSTOM_RULES: "",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -48,10 +53,6 @@ export class ClaudeTrader extends BaseTradingAgent {
     super(CLAUDE_AGENT_CONFIG);
   }
 
-  /**
-   * Lazily initialize the Anthropic client.
-   * Throws a descriptive error if the API key is not configured.
-   */
   private getClient(): Anthropic {
     if (!this.client) {
       const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -65,111 +66,96 @@ export class ClaudeTrader extends BaseTradingAgent {
     return this.client;
   }
 
-  /**
-   * Analyze market data using Claude to produce a trading decision.
-   *
-   * Claude is prompted as a conservative value investor. It analyzes current
-   * prices, 24h changes, volume, and the agent's portfolio to decide whether
-   * to buy, sell, or hold.
-   */
-  async analyze(
-    marketData: MarketData[],
-    portfolio: PortfolioContext,
-  ): Promise<TradingDecision> {
-    try {
-      const client = this.getClient();
+  // -----------------------------------------------------------------------
+  // Provider-specific tool-calling implementation
+  // -----------------------------------------------------------------------
 
-      const systemPrompt = this.buildSystemPrompt();
-      const userPrompt = this.buildUserPrompt(marketData, portfolio);
-
-      const response = await client.messages.create({
-        model: this.config.model,
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
-        temperature: 0.3, // Low temperature for more consistent, conservative decisions
-      });
-
-      // Extract text from response
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        return this.fallbackHold("Claude returned no text response");
-      }
-
-      const decision = this.parseLLMResponse(textBlock.text);
-
-      // Apply conservative guardrails
-      return this.applyGuardrails(decision, portfolio);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[ClaudeTrader] Analysis failed: ${message}`);
-      return this.fallbackHold(message);
-    }
+  getProviderTools() {
+    return getAnthropicTools();
   }
 
-  /**
-   * Apply conservative guardrails specific to Claude's value investing style.
-   * - Reject low-confidence trades (< 40%)
-   * - Enforce position size limits
-   * - Ensure sufficient cash buffer
-   */
-  private applyGuardrails(
-    decision: TradingDecision,
-    portfolio: PortfolioContext,
-  ): TradingDecision {
-    // Don't trade on low confidence
-    if (decision.action !== "hold" && decision.confidence < 40) {
-      return {
-        ...decision,
-        action: "hold",
-        quantity: 0,
-        reasoning: `[GUARDRAIL] Original confidence (${decision.confidence}%) below 40% threshold. Defaulting to hold. Original reasoning: ${decision.reasoning}`,
-      };
+  buildInitialMessages(userMessage: string): any[] {
+    return [{ role: "user", content: userMessage }];
+  }
+
+  appendToolResults(
+    messages: any[],
+    turn: AgentTurn,
+    results: ToolResult[],
+  ): any[] {
+    // Build the assistant message with tool_use blocks
+    const assistantContent: any[] = [];
+
+    // Add text if present
+    if (turn.textResponse) {
+      assistantContent.push({ type: "text", text: turn.textResponse });
     }
 
-    // For buys, enforce position limits
-    if (decision.action === "buy") {
-      const maxBuy =
-        portfolio.totalValue * (this.config.maxPositionSize / 100);
-      if (decision.quantity > maxBuy) {
-        decision.quantity = Math.floor(maxBuy * 100) / 100;
-        decision.reasoning += ` [GUARDRAIL: Position capped at ${this.config.maxPositionSize}% of portfolio = $${decision.quantity.toFixed(2)}]`;
-      }
+    // Add tool_use blocks
+    for (const tc of turn.toolCalls) {
+      assistantContent.push({
+        type: "tool_use",
+        id: tc.id,
+        name: tc.name,
+        input: tc.arguments,
+      });
+    }
 
-      // Ensure cash buffer
-      const minCash =
-        portfolio.totalValue *
-        ((100 - this.config.maxPortfolioAllocation) / 100);
-      const cashAfterTrade = portfolio.cashBalance - decision.quantity;
-      if (cashAfterTrade < minCash) {
-        const adjustedQuantity = Math.max(
-          0,
-          portfolio.cashBalance - minCash,
-        );
-        if (adjustedQuantity <= 0) {
-          return {
-            ...decision,
-            action: "hold",
-            quantity: 0,
-            reasoning: `[GUARDRAIL] Insufficient cash buffer. Need $${minCash.toFixed(2)} minimum cash (${100 - this.config.maxPortfolioAllocation}% of portfolio). Original: ${decision.reasoning}`,
-          };
-        }
-        decision.quantity = Math.floor(adjustedQuantity * 100) / 100;
-        decision.reasoning += ` [GUARDRAIL: Buy reduced to $${decision.quantity.toFixed(2)} to maintain ${100 - this.config.maxPortfolioAllocation}% cash buffer]`;
+    // Build tool_result user message
+    const toolResultContent = results.map((r) => ({
+      type: "tool_result" as const,
+      tool_use_id: r.toolCallId,
+      content: r.result,
+    }));
+
+    return [
+      ...messages,
+      { role: "assistant", content: assistantContent },
+      { role: "user", content: toolResultContent },
+    ];
+  }
+
+  async callWithTools(
+    system: string,
+    messages: any[],
+    tools: any[],
+  ): Promise<AgentTurn> {
+    const client = this.getClient();
+
+    const response = await client.messages.create({
+      model: this.config.model,
+      max_tokens: 2048,
+      system,
+      messages,
+      tools,
+      temperature: 0.3,
+    });
+
+    // Parse response
+    const toolCalls: ToolCall[] = [];
+    let textResponse: string | null = null;
+
+    for (const block of response.content) {
+      if (block.type === "tool_use") {
+        toolCalls.push({
+          id: block.id,
+          name: block.name,
+          arguments: block.input as Record<string, any>,
+        });
+      } else if (block.type === "text") {
+        textResponse = (textResponse ?? "") + block.text;
       }
     }
 
-    return decision;
+    let stopReason: AgentTurn["stopReason"] = "end_turn";
+    if (response.stop_reason === "tool_use") stopReason = "tool_use";
+    else if (response.stop_reason === "max_tokens") stopReason = "max_tokens";
+
+    return { toolCalls, textResponse, stopReason };
   }
 }
 
 /**
  * Singleton Claude trader instance.
- * All trading rounds share this instance to reuse the Anthropic client.
  */
 export const claudeTrader = new ClaudeTrader();

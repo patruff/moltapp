@@ -33,7 +33,7 @@ export interface LeaderboardData {
 // Cache (module-level singleton)
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes — short for live demo
 let cache: LeaderboardData | null = null;
 let refreshPromise: Promise<void> | null = null;
 

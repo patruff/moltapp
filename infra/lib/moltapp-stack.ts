@@ -59,6 +59,33 @@ export class MoltappStack extends cdk.Stack {
       },
     );
 
+    // --- DynamoDB Table for $STONKS Lending State (Monad) ---
+    const lendingStateTable = new dynamodb.Table(this, "LendingStateTable", {
+      tableName: "moltapp-lending-state",
+      partitionKey: { name: "loanId", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "createdAt", type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      timeToLiveAttribute: "ttl",
+    });
+
+    lendingStateTable.addGlobalSecondaryIndex({
+      indexName: "by-borrower",
+      partitionKey: {
+        name: "borrowerId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: { name: "createdAt", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    lendingStateTable.addGlobalSecondaryIndex({
+      indexName: "by-status",
+      partitionKey: { name: "status", type: dynamodb.AttributeType.STRING },
+      sortKey: { name: "createdAt", type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
     // --- Lambda Function (API server) ---
     const fn = new nodejs.NodejsFunction(this, "ApiFunction", {
       entry: "../src/lambda.ts",
@@ -72,6 +99,7 @@ export class MoltappStack extends cdk.Stack {
         SECRET_ARN: secret.secretArn,
         AGENT_STATE_TABLE: agentStateTable.tableName,
         TRADING_ROUNDS_TABLE: tradingRoundsTable.tableName,
+        LENDING_STATE_TABLE: lendingStateTable.tableName,
       },
       bundling: {
         format: nodejs.OutputFormat.ESM,
@@ -88,6 +116,7 @@ export class MoltappStack extends cdk.Stack {
     secret.grantRead(fn);
     agentStateTable.grantReadWriteData(fn);
     tradingRoundsTable.grantReadWriteData(fn);
+    lendingStateTable.grantReadWriteData(fn);
 
     // --- Trading Round Lambda (dedicated for scheduled trading) ---
     const tradingFn = new nodejs.NodejsFunction(this, "TradingFunction", {
@@ -102,6 +131,7 @@ export class MoltappStack extends cdk.Stack {
         SECRET_ARN: secret.secretArn,
         AGENT_STATE_TABLE: agentStateTable.tableName,
         TRADING_ROUNDS_TABLE: tradingRoundsTable.tableName,
+        LENDING_STATE_TABLE: lendingStateTable.tableName,
       },
       bundling: {
         format: nodejs.OutputFormat.ESM,
@@ -118,6 +148,7 @@ export class MoltappStack extends cdk.Stack {
     secret.grantRead(tradingFn);
     agentStateTable.grantReadWriteData(tradingFn);
     tradingRoundsTable.grantReadWriteData(tradingFn);
+    lendingStateTable.grantReadWriteData(tradingFn);
 
     // --- EventBridge Rule: Trigger trading every 30 minutes ---
     const tradingSchedule = new events.Rule(this, "TradingSchedule", {
@@ -287,6 +318,11 @@ export class MoltappStack extends cdk.Stack {
     new cdk.CfnOutput(this, "TradingRoundsTableName", {
       value: tradingRoundsTable.tableName,
       description: "DynamoDB table for trading round history",
+    });
+
+    new cdk.CfnOutput(this, "LendingStateTableName", {
+      value: lendingStateTable.tableName,
+      description: "DynamoDB table for $STONKS lending state",
     });
 
     new cdk.CfnOutput(this, "TradingScheduleArn", {

@@ -4,6 +4,11 @@ import * as schema from "./schema/index.ts";
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 async function createDb() {
+  if (!env.DATABASE_URL) {
+    console.warn("DATABASE_URL not set — database queries will fail");
+    return null as any;
+  }
+
   if (isLambda) {
     const { neon } = await import("@neondatabase/serverless");
     const { drizzle } = await import("drizzle-orm/neon-http");

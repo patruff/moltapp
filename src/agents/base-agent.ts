@@ -2,9 +2,14 @@
  * Base Agent Types & Abstract Class
  *
  * Defines the core interfaces and abstract base class for all AI trading agents
- * competing on MoltApp. Each agent has a unique personality, LLM backend, and
- * trading strategy. They analyze market data and return structured trade decisions.
+ * competing on MoltApp. Agents are autonomous tool-calling agents that gather
+ * their own information via tools and persist investment theses across rounds.
  */
+
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { executeTool, type ToolContext } from "./trading-tools.ts";
 
 // ---------------------------------------------------------------------------
 // Core Types
@@ -39,6 +44,8 @@ export interface TradingDecision {
   intent?: string;
   /** What the agent predicts will happen */
   predictedOutcome?: string;
+  /** Portfolio thesis status — why holding, or what changed */
+  thesisStatus?: string;
 }
 
 /** Portfolio position for agent context */
@@ -73,6 +80,8 @@ export interface AgentConfig {
   maxPositionSize: number;
   maxPortfolioAllocation: number;
   walletAddress?: string;
+  /** Optional overrides for skill.md template placeholders */
+  skillOverrides?: Record<string, string>;
 }
 
 /** Aggregate stats for an agent */
@@ -104,15 +113,75 @@ export interface TradingRoundResult {
 }
 
 // ---------------------------------------------------------------------------
+// Tool-Calling Types
+// ---------------------------------------------------------------------------
+
+/** A tool call from the LLM */
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, any>;
+}
+
+/** Result of executing a tool call */
+export interface ToolResult {
+  toolCallId: string;
+  result: string;
+}
+
+/** A single turn in the agent conversation */
+export interface AgentTurn {
+  toolCalls: ToolCall[];
+  textResponse: string | null;
+  stopReason: "tool_use" | "end_turn" | "max_tokens";
+}
+
+// ---------------------------------------------------------------------------
+// Skill Template Loader
+// ---------------------------------------------------------------------------
+
+const SKILL_DEFAULTS: Record<string, string> = {
+  AGENT_NAME: "Trading Agent",
+  STRATEGY:
+    "Build a diversified portfolio of 8-12 stocks. Research fundamentals and technicals. HOLD unless your thesis changes materially.",
+  RISK_TOLERANCE: "moderate",
+  PREFERRED_SECTORS: "(no sector preference)",
+  CUSTOM_RULES: "",
+};
+
+let skillTemplate: string | null = null;
+
+function getSkillTemplate(): string {
+  if (!skillTemplate) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const skillPath = resolve(__dirname, "skill.md");
+    skillTemplate = readFileSync(skillPath, "utf-8");
+  }
+  return skillTemplate;
+}
+
+export function loadSkillPrompt(overrides?: Record<string, string>): string {
+  let skill = getSkillTemplate();
+  const merged = { ...SKILL_DEFAULTS, ...overrides };
+  for (const [key, value] of Object.entries(merged)) {
+    skill = skill.replaceAll(`{{${key}}}`, value);
+  }
+  return skill;
+}
+
+// ---------------------------------------------------------------------------
 // Abstract Base Class
 // ---------------------------------------------------------------------------
+
+/** Max tool-calling turns before forcing a decision */
+const MAX_TURNS = 8;
 
 /**
  * Abstract base class for all AI trading agents.
  *
- * Subclasses must implement `analyze()` which calls their respective LLM
- * to produce a TradingDecision. The base class provides common helpers for
- * prompt construction, decision validation, and error handling.
+ * Subclasses implement provider-specific tool-calling methods.
+ * The base class orchestrates the tool-calling loop via runAgentLoop().
  */
 export abstract class BaseTradingAgent {
   readonly config: AgentConfig;
@@ -138,103 +207,153 @@ export abstract class BaseTradingAgent {
   }
 
   // -------------------------------------------------------------------------
-  // Abstract method — each agent implements its own LLM call
+  // Abstract methods — each provider implements its own tool-calling API
+  // -------------------------------------------------------------------------
+
+  /** Make a single LLM call with tools and return the response turn */
+  abstract callWithTools(
+    system: string,
+    messages: any[],
+    tools: any[],
+  ): Promise<AgentTurn>;
+
+  /** Get tools in the provider's native format */
+  abstract getProviderTools(): any[];
+
+  /** Build initial messages array from a user message string */
+  abstract buildInitialMessages(userMessage: string): any[];
+
+  /** Append tool results to the conversation messages */
+  abstract appendToolResults(
+    messages: any[],
+    turn: AgentTurn,
+    results: ToolResult[],
+  ): any[];
+
+  // -------------------------------------------------------------------------
+  // Public API — analyze() delegates to the tool-calling loop
   // -------------------------------------------------------------------------
 
   /**
    * Analyze market data and portfolio context to produce a trading decision.
-   * This is the core method each agent subclass must implement.
+   * This is the main entry point called by the orchestrator.
    */
-  abstract analyze(
+  async analyze(
     marketData: MarketData[],
     portfolio: PortfolioContext,
-  ): Promise<TradingDecision>;
+  ): Promise<TradingDecision> {
+    try {
+      return await this.runAgentLoop(marketData, portfolio);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[${this.config.name}] Agent loop failed: ${message}`);
+      return this.fallbackHold(message);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Tool-Calling Loop
+  // -------------------------------------------------------------------------
+
+  /**
+   * Run the autonomous tool-calling loop:
+   * 1. Load skill.md as system prompt
+   * 2. Build initial user message with top movers summary
+   * 3. Loop: call LLM → if tool calls, execute tools → if text, parse decision
+   * 4. Return TradingDecision
+   */
+  protected async runAgentLoop(
+    marketData: MarketData[],
+    portfolio: PortfolioContext,
+  ): Promise<TradingDecision> {
+    // System prompt from skill.md with agent-specific overrides
+    const system = loadSkillPrompt(this.config.skillOverrides);
+
+    // Build initial user message with top movers summary
+    const topMovers = [...marketData]
+      .filter((d) => d.change24h !== null)
+      .sort((a, b) => Math.abs(b.change24h!) - Math.abs(a.change24h!))
+      .slice(0, 10)
+      .map(
+        (d) =>
+          `${d.symbol}: $${d.price.toFixed(2)} (${d.change24h! >= 0 ? "+" : ""}${d.change24h!.toFixed(2)}%)`,
+      )
+      .join(", ");
+
+    const positionSummary =
+      portfolio.positions.length > 0
+        ? portfolio.positions
+            .map((p) => `${p.symbol} (${p.unrealizedPnlPercent >= 0 ? "+" : ""}${p.unrealizedPnlPercent.toFixed(1)}%)`)
+            .join(", ")
+        : "no positions yet";
+
+    const userMessage = `New trading round. Top movers: ${topMovers}. You have ${portfolio.positions.length} positions (${positionSummary}), $${portfolio.cashBalance.toFixed(2)} cash, $${portfolio.totalValue.toFixed(2)} total value. Use your tools to research, then decide.`;
+
+    // Get tools in provider format
+    const tools = this.getProviderTools();
+    let messages = this.buildInitialMessages(userMessage);
+
+    // Tool context for executing tool calls
+    const ctx: ToolContext = {
+      agentId: this.config.agentId,
+      portfolio,
+      marketData,
+    };
+
+    // Tool-calling loop
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const agentTurn = await this.callWithTools(system, messages, tools);
+
+      if (agentTurn.stopReason === "tool_use" && agentTurn.toolCalls.length > 0) {
+        // Execute all tool calls
+        const results: ToolResult[] = [];
+        for (const tc of agentTurn.toolCalls) {
+          console.log(
+            `[${this.config.name}] Tool call: ${tc.name}(${JSON.stringify(tc.arguments).slice(0, 100)})`,
+          );
+          const result = await executeTool(tc.name, tc.arguments, ctx);
+          results.push({ toolCallId: tc.id, result });
+        }
+
+        // Append assistant turn + tool results to messages
+        messages = this.appendToolResults(messages, agentTurn, results);
+        continue;
+      }
+
+      // Text response — try to parse a trading decision
+      if (agentTurn.textResponse) {
+        try {
+          return this.parseLLMResponse(agentTurn.textResponse);
+        } catch (err) {
+          console.warn(
+            `[${this.config.name}] Failed to parse response on turn ${turn + 1}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          // If max_tokens, try partial parse; otherwise continue
+          if (agentTurn.stopReason === "max_tokens") {
+            return this.fallbackHold("Response truncated (max_tokens)");
+          }
+          // If end_turn but parse failed, give up
+          if (agentTurn.stopReason === "end_turn") {
+            return this.fallbackHold(
+              `Could not parse decision: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+      }
+
+      // No text and no tool calls — shouldn't happen, but guard against it
+      if (!agentTurn.textResponse && agentTurn.toolCalls.length === 0) {
+        return this.fallbackHold("Empty response from LLM");
+      }
+    }
+
+    // Exhausted all turns without a decision
+    return this.fallbackHold("Max turns exceeded (8)");
+  }
 
   // -------------------------------------------------------------------------
   // Shared Helpers
   // -------------------------------------------------------------------------
-
-  /**
-   * Build the system prompt incorporating the agent's personality and strategy.
-   */
-  protected buildSystemPrompt(): string {
-    return `You are ${this.config.name}, an AI stock trading agent on MoltApp — a competitive trading platform where AI agents trade real tokenized stocks on Solana.
-
-PERSONALITY: ${this.config.personality}
-
-TRADING STYLE: ${this.config.tradingStyle}
-
-RISK TOLERANCE: ${this.config.riskTolerance}
-
-RULES:
-- You trade tokenized real stocks (xStocks) on Solana via Jupiter Protocol.
-- Available stocks include: AAPLx, AMZNx, GOOGLx, METAx, MSFTx, NVDAx, TSLAx, SPYx, QQQx, COINx, MSTRx, HOODx, NFLXx, PLTRx, GMEx, and others.
-- You compete against other AI agents on a public leaderboard ranked by P&L.
-- Max position size: ${this.config.maxPositionSize}% of portfolio per stock.
-- Max portfolio allocation: ${this.config.maxPortfolioAllocation}% in stocks (rest in USDC cash).
-- You MUST respond with valid JSON only. No markdown, no explanation outside the JSON.
-
-RESPONSE FORMAT (strict JSON):
-{
-  "action": "buy" | "sell" | "hold",
-  "symbol": "STOCKx",
-  "quantity": <number>,
-  "reasoning": "<DETAILED step-by-step analysis: what data you looked at, what signals you found, WHY this action makes sense>",
-  "confidence": <0-100>,
-  "sources": ["<data sources you used: e.g. 'market_price_feed', '24h_price_change', 'portfolio_state', 'news_feed', 'technical_indicators'>"],
-  "intent": "<your strategy: 'momentum' | 'mean_reversion' | 'value' | 'hedge' | 'contrarian' | 'arbitrage'>",
-  "predictedOutcome": "<what you expect to happen next with this stock>"
-}
-
-IMPORTANT — BENCHMARK RULES:
-- Your reasoning MUST be detailed and honest. Explain your ACTUAL logic step by step.
-- You MUST cite which data sources informed your decision in the "sources" array.
-- You MUST classify your strategic intent. This is an AI benchmark — we measure reasoning quality.
-- Do NOT fabricate prices or data. Only reference data shown to you.
-
-For "buy": quantity is USDC amount to spend.
-For "sell": quantity is number of shares to sell.
-For "hold": quantity should be 0, symbol can be any stock you analyzed.`;
-  }
-
-  /**
-   * Build the user prompt with current market data and portfolio context.
-   */
-  protected buildUserPrompt(
-    marketData: MarketData[],
-    portfolio: PortfolioContext,
-  ): string {
-    const marketSection = marketData
-      .map((d) => {
-        const change = d.change24h !== null ? `${d.change24h > 0 ? "+" : ""}${d.change24h.toFixed(2)}%` : "N/A";
-        const vol = d.volume24h !== null ? `$${(d.volume24h / 1_000_000).toFixed(1)}M` : "N/A";
-        return `  ${d.symbol} (${d.name}): $${d.price.toFixed(2)} | 24h: ${change} | Vol: ${vol}`;
-      })
-      .join("\n");
-
-    const positionSection =
-      portfolio.positions.length > 0
-        ? portfolio.positions
-            .map((p) => {
-              const pnlStr = `${p.unrealizedPnl >= 0 ? "+" : ""}$${p.unrealizedPnl.toFixed(2)} (${p.unrealizedPnlPercent >= 0 ? "+" : ""}${p.unrealizedPnlPercent.toFixed(1)}%)`;
-              return `  ${p.symbol}: ${p.quantity.toFixed(4)} shares @ $${p.averageCostBasis.toFixed(2)} avg | Current: $${p.currentPrice.toFixed(2)} | PnL: ${pnlStr}`;
-            })
-            .join("\n")
-        : "  (No open positions)";
-
-    return `CURRENT MARKET DATA:
-${marketSection}
-
-YOUR PORTFOLIO:
-  Cash (USDC): $${portfolio.cashBalance.toFixed(2)}
-  Total Value: $${portfolio.totalValue.toFixed(2)}
-  Total PnL: ${portfolio.totalPnl >= 0 ? "+" : ""}$${portfolio.totalPnl.toFixed(2)} (${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(1)}%)
-
-YOUR CURRENT POSITIONS:
-${positionSection}
-
-Analyze the market data and your portfolio. Make ONE trading decision. Respond with JSON only.`;
-  }
 
   /**
    * Parse and validate an LLM response into a TradingDecision.
@@ -287,6 +406,7 @@ Analyze the market data and your portfolio. Make ONE trading decision. Respond w
 
     const intent = typeof parsed.intent === "string" ? parsed.intent : undefined;
     const predictedOutcome = typeof parsed.predictedOutcome === "string" ? parsed.predictedOutcome : undefined;
+    const thesisStatus = typeof parsed.thesisStatus === "string" ? parsed.thesisStatus : undefined;
 
     return {
       action: parsed.action,
@@ -298,6 +418,7 @@ Analyze the market data and your portfolio. Make ONE trading decision. Respond w
       sources: sources.length > 0 ? sources : undefined,
       intent,
       predictedOutcome,
+      thesisStatus,
     };
   }
 

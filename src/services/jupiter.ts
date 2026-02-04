@@ -1,6 +1,7 @@
 import { env } from "../config/env.ts";
 import { JUPITER_API_BASE_URL } from "../config/constants.ts";
 import { getTurnkeySigner } from "./wallet.ts";
+import { Keypair, VersionedTransaction } from "@solana/web3.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,6 +131,23 @@ export async function signJupiterTransaction(
   Buffer.from(signature).copy(signedTx, signaturesOffset, 0, 64);
 
   return signedTx.toString("base64");
+}
+
+/**
+ * Sign a Jupiter-returned base64 transaction using a direct Keypair.
+ *
+ * Uses @solana/web3.js VersionedTransaction.sign() which handles all the
+ * wire-format details internally. This allows agents to trade with private
+ * keys from .env without needing Turnkey infrastructure.
+ */
+export function signJupiterTransactionDirect(
+  base64Transaction: string,
+  keypair: Keypair,
+): string {
+  const txBytes = Buffer.from(base64Transaction, "base64");
+  const tx = VersionedTransaction.deserialize(txBytes);
+  tx.sign([keypair]);
+  return Buffer.from(tx.serialize()).toString("base64");
 }
 
 // ---------------------------------------------------------------------------

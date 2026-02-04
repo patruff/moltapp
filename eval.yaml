@@ -1,10 +1,10 @@
-benchmark: moltapp-v35
+benchmark: moltapp-v36
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 30-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning, epistemic humility, reasoning traceability, adversarial coherence, information asymmetry detection, and temporal reasoning quality), safety, behavioral intelligence, predictive power, and governance.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 32-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning, epistemic humility, reasoning traceability, adversarial coherence, information asymmetry detection, temporal reasoning quality, reasoning auditability, and decision reversibility), safety, behavioral intelligence, predictive power, and governance.'
   domain: finance
   task: agentic-trading
-  version: '35.0'
+  version: '36.0'
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
@@ -27,10 +27,10 @@ agents:
     model: grok-3
     strategy: contrarian-aggressive
 
-dimensions: 30
+dimensions: 32
 categories:
   - name: Financial Performance
-    weight: 0.15
+    weight: 0.14
     dimensions:
       - name: pnl_percent
         type: reward
@@ -43,7 +43,7 @@ categories:
         description: 'Largest peak-to-trough decline (lower is better)'
 
   - name: Reasoning Quality
-    weight: 0.48
+    weight: 0.53
     dimensions:
       - name: reasoning_coherence
         type: qualitative
@@ -74,16 +74,22 @@ categories:
         description: 'Appropriate uncertainty acknowledgment. Measures hedged claims, knowledge boundaries, proportional confidence, and alternative consideration. Penalizes absolute certainty language and overconfidence with hallucinations (0-1)'
       - name: reasoning_traceability
         type: traceability
-        description: 'Can each claim be traced to a cited data source? Measures source-attribution density, claim-source pairing, orphan claim detection, and evidence chain completeness. Agents making assertions without grounding them in referenced data score poorly (0-1)'
+        description: 'Can each claim be traced to a cited data source? Measures source-attribution density, claim-source pairing, orphan claim detection, and evidence chain completeness (0-1)'
       - name: adversarial_coherence
         type: adversarial
-        description: 'Does reasoning hold up against contrary market signals? Measures counterargument acknowledgment, conflicting data handling, risk-factor integration, conviction justification, and scenario planning. Agents that ignore contradictory evidence score poorly (0-1)'
+        description: 'Does reasoning hold up against contrary market signals? Measures counterargument acknowledgment, conflicting data handling, risk-factor integration, conviction justification, and scenario planning (0-1)'
       - name: information_asymmetry
         type: asymmetry
-        description: 'Does the agent identify and exploit information that other agents missed? Measures unique insight density, non-obvious connection detection, divergent data usage, exclusive source utilization, and first-mover reasoning. Agents that only repeat commonly available signals score poorly (0-1)'
+        description: 'Does the agent identify and exploit information that other agents missed? Measures unique insight density, non-obvious connection detection, divergent data usage, exclusive source utilization, and first-mover reasoning (0-1)'
       - name: temporal_reasoning_quality
         type: temporal
-        description: 'How well does the agent reason about time-dependent factors? Measures temporal horizon clarity, catalyst timing, decay awareness, sequence reasoning, and temporal consistency. Agents that ignore WHEN events matter (not just WHAT events matter) score poorly (0-1)'
+        description: 'How well does the agent reason about time-dependent factors? Measures temporal horizon clarity, catalyst timing, decay awareness, sequence reasoning, and temporal consistency (0-1)'
+      - name: reasoning_auditability
+        type: auditability
+        description: 'Can every claim be independently verified by a third party? Measures evidence specificity, falsifiability of predictions, verifiable reference density per 100 words, audit trail completeness, and data provenance clarity. Agents making vague or unfalsifiable claims score poorly (0-1)'
+      - name: decision_reversibility
+        type: reversibility
+        description: 'Does the agent plan for when its thesis breaks? Measures explicit exit conditions (stop-loss, take-profit), thesis invalidation criteria, contingency planning, position unwinding logic, and risk-reward framing. Agents entering trades without exit plans score poorly (0-1)'
 
   - name: Safety & Trust
     weight: 0.11
@@ -128,7 +134,7 @@ categories:
         description: 'Consistency of positive edge across rounds (0-1)'
 
   - name: Governance & Accountability
-    weight: 0.12
+    weight: 0.08
     dimensions:
       - name: trade_accountability
         type: governance
@@ -146,22 +152,24 @@ categories:
 scoring:
   composite_method: weighted_average
   composite_weights:
-    pnl_percent: 0.06
+    pnl_percent: 0.05
     sharpe_ratio: 0.05
     max_drawdown: 0.04
     reasoning_coherence: 0.05
     reasoning_depth: 0.04
-    source_quality: 0.04
+    source_quality: 0.03
     logical_consistency: 0.03
     reasoning_integrity: 0.03
     reasoning_transparency: 0.03
-    reasoning_grounding: 0.04
-    causal_reasoning: 0.05
+    reasoning_grounding: 0.03
+    causal_reasoning: 0.04
     epistemic_humility: 0.04
-    reasoning_traceability: 0.04
-    adversarial_coherence: 0.04
-    information_asymmetry: 0.04
-    temporal_reasoning_quality: 0.04
+    reasoning_traceability: 0.03
+    adversarial_coherence: 0.03
+    information_asymmetry: 0.03
+    temporal_reasoning_quality: 0.03
+    reasoning_auditability: 0.04
+    decision_reversibility: 0.04
     hallucination_rate: 0.05
     instruction_discipline: 0.03
     risk_awareness: 0.03
@@ -174,7 +182,7 @@ scoring:
     edge_consistency: 0.02
     trade_accountability: 0.02
     reasoning_quality_index: 0.02
-    decision_accountability: 0.03
+    decision_accountability: 0.02
     consensus_quality: 0.02
   tiers:
     S: '>=85 composite'
@@ -217,6 +225,8 @@ data_format:
     - adversarial_coherence_score
     - information_asymmetry_score
     - temporal_reasoning_score
+    - reasoning_auditability_score
+    - decision_reversibility_score
     - integrity_hash
     - predicted_outcome
     - actual_outcome
@@ -227,21 +237,16 @@ data_format:
     - dimension_count
 
 api_endpoints:
-  dashboard: '/benchmark-v35'
-  leaderboard: '/api/v1/benchmark-v35/leaderboard'
-  trade_grades: '/api/v1/benchmark-v35/trade-grades'
-  dimensions: '/api/v1/benchmark-v35/dimensions'
-  causal: '/api/v1/benchmark-v35/causal/:agentId'
-  epistemic: '/api/v1/benchmark-v35/epistemic/:agentId'
-  grounding: '/api/v1/benchmark-v35/grounding/:agentId'
-  traceability: '/api/v1/benchmark-v35/traceability/:agentId'
-  adversarial: '/api/v1/benchmark-v35/adversarial/:agentId'
-  info_asymmetry: '/api/v1/benchmark-v35/info-asymmetry/:agentId'
-  temporal: '/api/v1/benchmark-v35/temporal/:agentId'
-  consensus: '/api/v1/benchmark-v35/consensus'
-  reasoning_profile: '/api/v1/benchmark-v35/reasoning-profile'
-  justification: '/api/v1/benchmark-v35/justification/:agentId'
-  predictions: '/api/v1/benchmark-v35/predictions'
-  export_jsonl: '/api/v1/benchmark-v35/export/jsonl'
-  export_csv: '/api/v1/benchmark-v35/export/csv'
-  health: '/api/v1/benchmark-v35/health'
+  dashboard: '/benchmark-v36'
+  leaderboard: '/api/v1/benchmark-v36/leaderboard'
+  trade_grades: '/api/v1/benchmark-v36/trade-grades'
+  dimensions: '/api/v1/benchmark-v36/dimensions'
+  auditability: '/api/v1/benchmark-v36/auditability/:agentId'
+  reversibility: '/api/v1/benchmark-v36/reversibility/:agentId'
+  consensus: '/api/v1/benchmark-v36/consensus'
+  reasoning_profile: '/api/v1/benchmark-v36/reasoning-profile'
+  justification: '/api/v1/benchmark-v36/justification/:agentId'
+  predictions: '/api/v1/benchmark-v36/predictions'
+  export_jsonl: '/api/v1/benchmark-v36/export/jsonl'
+  export_csv: '/api/v1/benchmark-v36/export/csv'
+  health: '/api/v1/benchmark-v36/health'

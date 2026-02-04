@@ -63,11 +63,16 @@ const {
   scoreInformationAsymmetry,
   scoreTemporalReasoningQuality,
 } = await import("../src/services/v35-benchmark-engine.ts");
+// Import v36 scoring functions
+const {
+  scoreReasoningAuditability,
+  scoreDecisionReversibility,
+} = await import("../src/services/v36-benchmark-engine.ts");
 
-// Merge justifications with decision data into benchmark records (v35: 30-dimension)
+// Merge justifications with decision data into benchmark records (v36: 32-dimension)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
-  // Compute v35 scores for each record
+  // Compute v34-v36 scores for each record
   const causalScore = scoreCausalReasoning(j.reasoning);
   const epistemicScore = scoreEpistemicHumility(
     j.reasoning,
@@ -95,6 +100,18 @@ const records = justifications.map((j) => {
     j.reasoning,
     j.predictedOutcome ?? null,
   );
+  // v36 new dimensions
+  const auditabilityScore = scoreReasoningAuditability(
+    j.reasoning,
+    (j.sources as string[]) ?? [],
+    {},
+  );
+  const reversibilityScore = scoreDecisionReversibility(
+    j.reasoning,
+    j.action ?? "hold",
+    j.confidence,
+    j.predictedOutcome ?? null,
+  );
   return {
     agent_id: j.agentId,
     agent_action: j.action,
@@ -115,10 +132,12 @@ const records = justifications.map((j) => {
     adversarial_coherence_score: adversarialScore,
     information_asymmetry_score: infoAsymmetryScore,
     temporal_reasoning_score: temporalReasoningScore,
+    reasoning_auditability_score: auditabilityScore,
+    decision_reversibility_score: reversibilityScore,
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "35.0",
-    dimension_count: 30,
+    benchmark_version: "36.0",
+    dimension_count: 32,
   };
 });
 
@@ -209,10 +228,12 @@ quality scores.
 | \`adversarial_coherence_score\` | Reasoning robustness against contrary signals (0-100) |
 | \`information_asymmetry_score\` | Unique insight detection beyond common signals (0-100) |
 | \`temporal_reasoning_score\` | Quality of time-dependent factor reasoning (0-100) |
+| \`reasoning_auditability_score\` | Third-party verifiability of claims (0-100) |
+| \`decision_reversibility_score\` | Exit planning and thesis invalidation quality (0-100) |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 35.0) |
-| \`dimension_count\` | Number of scoring dimensions (30) |
+| \`benchmark_version\` | Benchmark version (e.g. 36.0) |
+| \`dimension_count\` | Number of scoring dimensions (32) |
 
 ## Citation
 

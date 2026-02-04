@@ -35,11 +35,11 @@ export interface CircuitBreakerConfig {
 }
 
 const DEFAULT_CONFIG: CircuitBreakerConfig = {
-  maxTradeUsdc: 50,
+  maxTradeUsdc: 5,         // $1-5 trades
   dailyLossLimitPercent: 10,
-  cooldownSeconds: 600,
+  cooldownSeconds: 7200,   // 2 hours — portfolio-hold strategy
   positionLimitPercent: 25,
-  maxDailyTrades: 20,
+  maxDailyTrades: 6,       // ~2 per agent per day
 };
 
 // ---------------------------------------------------------------------------

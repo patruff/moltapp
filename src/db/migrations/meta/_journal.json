@@ -71,6 +71,13 @@
       "when": 1770199420281,
       "tag": "0009_wide_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1770201991404,
+      "tag": "0010_safe_night_thrasher",
+      "breakpoints": true
     }
   ]
 }
