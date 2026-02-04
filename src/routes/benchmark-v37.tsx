@@ -147,7 +147,7 @@ benchmarkV37Routes.get("/", (c) => {
         <span><span class="dot" style="background:${dotClr(t.causalReasoningScore)}"></span>Causal ${t.causalReasoningScore.toFixed(0)}</span>
         <span><span class="dot" style="background:${dotClr(t.reasoningAuditabilityScore)}"></span>Audit ${t.reasoningAuditabilityScore.toFixed(0)}</span>
         <span><span class="dot" style="background:${dotClr(t.decisionReversibilityScore)}"></span>Revrb ${t.decisionReversibilityScore.toFixed(0)}</span>
-        <span><span class="dot" style="background:${dotClr(t.reasoningSynthesisScore)}"></span>Comp ${t.reasoningSynthesisScore.toFixed(0)}</span>
+        <span><span class="dot" style="background:${dotClr(t.reasoningComposabilityScore)}"></span>Comp ${t.reasoningComposabilityScore.toFixed(0)}</span>
         <span><span class="dot" style="background:${dotClr(t.strategicForesightScore)}"></span>Fore ${t.strategicForesightScore.toFixed(0)}</span>
         <span><span class="dot" style="background:${dotClr(t.informationAsymmetryScore)}"></span>InfoA ${t.informationAsymmetryScore.toFixed(0)}</span>
         <span><span class="dot" style="background:${dotClr(t.temporalReasoningScore)}"></span>Temp ${t.temporalReasoningScore.toFixed(0)}</span>

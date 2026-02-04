@@ -108,20 +108,20 @@ feedRoutes.get("/summary", async (c) => {
         totalDecisions,
         totalReactions,
         totalComments,
-        agentBreakdown: perAgent.map((a) => ({
+        agentBreakdown: perAgent.map((a: typeof perAgent[0]) => ({
           agentId: a.agentId,
           agentName: getAgentConfig(a.agentId)?.name ?? a.agentId,
           decisions: Number(a.count),
           averageConfidence: Math.round(Number(a.avgConfidence) * 10) / 10,
         })),
         actionDistribution: actionDist.reduce(
-          (acc, d) => {
+          (acc: Record<string, number>, d: typeof actionDist[0]) => {
             acc[d.action] = Number(d.count);
             return acc;
           },
           {} as Record<string, number>,
         ),
-        topSymbols: topSymbols.map((s) => ({
+        topSymbols: topSymbols.map((s: typeof topSymbols[0]) => ({
           symbol: s.symbol,
           tradeCount: Number(s.count),
         })),
@@ -171,7 +171,7 @@ feedRoutes.get("/", async (c) => {
       .where(conditions);
 
     // Batch fetch reactions and comments for all decisions
-    const decisionIds = decisions.map((d) => d.id);
+    const decisionIds = decisions.map((d: typeof agentDecisions.$inferSelect) => d.id);
     const feedEntries = await enrichDecisionsWithSocial(decisions, decisionIds);
 
     return c.json({
@@ -232,7 +232,7 @@ feedRoutes.get("/:agentId", async (c) => {
       .from(agentDecisions)
       .where(eq(agentDecisions.agentId, agentId));
 
-    const decisionIds = decisions.map((d) => d.id);
+    const decisionIds = decisions.map((d: typeof agentDecisions.$inferSelect) => d.id);
     const feedEntries = await enrichDecisionsWithSocial(decisions, decisionIds);
 
     return c.json({

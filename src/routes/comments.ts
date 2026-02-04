@@ -143,7 +143,7 @@ commentRoutes.get("/:decisionId", async (c) => {
       timestamp: decision.createdAt,
     },
     reactions: reactionCounts,
-    comments: comments.map((c) => ({
+    comments: comments.map((c: typeof tradeComments.$inferSelect) => ({
       id: c.id,
       authorId: c.authorId,
       authorName: c.authorName,
@@ -281,7 +281,7 @@ commentRoutes.get("/:decisionId/comments", async (c) => {
 
   return c.json({
     decisionId,
-    comments: comments.map((c) => ({
+    comments: comments.map((c: typeof tradeComments.$inferSelect) => ({
       id: c.id,
       authorId: c.authorId,
       authorName: c.authorName,

@@ -502,7 +502,7 @@ export async function buildCorrelationMatrix(
       .limit(100);
 
     // Convert to numeric sequence: buy=1, sell=-1, hold=0
-    const sequence = decisions.map((d) => {
+    const sequence = decisions.map((d: typeof agentDecisions.$inferSelect) => {
       if (d.action === "buy") return 1;
       if (d.action === "sell") return -1;
       return 0;

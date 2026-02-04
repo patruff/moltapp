@@ -24,6 +24,7 @@ import {
   getAgentPortfolio,
   runTradingRound,
 } from "../agents/orchestrator.ts";
+import { agentDecisions } from "../db/schema/agent-decisions.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -162,7 +163,7 @@ agentRoutes.get("/:agentId/trades", async (c) => {
   return c.json({
     agentId,
     agentName: config.name,
-    trades: history.decisions.map((d) => ({
+    trades: history.decisions.map((d: typeof agentDecisions.$inferSelect) => ({
       id: d.id,
       action: d.action,
       symbol: d.symbol,

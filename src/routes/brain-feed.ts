@@ -231,7 +231,7 @@ brainFeedRoutes.get("/highlights", async (c) => {
     }
 
     // Sort by "interestingness": low coherence first, then high confidence
-    highlights.sort((a, b) => {
+    highlights.sort((a: typeof tradeJustifications.$inferSelect, b: typeof tradeJustifications.$inferSelect) => {
       const scoreA = (a.coherenceScore ?? 1) - (a.confidence ?? 0) * 0.3;
       const scoreB = (b.coherenceScore ?? 1) - (b.confidence ?? 0) * 0.3;
       return scoreA - scoreB;
@@ -284,7 +284,7 @@ brainFeedRoutes.get("/stats", async (c) => {
       .from(tradeJustifications)
       .groupBy(tradeJustifications.agentId);
 
-    const agentStats = stats.map((s) => ({
+    const agentStats = stats.map((s: typeof stats[0]) => ({
       agentId: s.agentId,
       totalTrades: Number(s.totalTrades),
       avgCoherence: Math.round((Number(s.avgCoherence) || 0) * 100) / 100,
@@ -302,7 +302,7 @@ brainFeedRoutes.get("/stats", async (c) => {
         overallCoherence:
           agentStats.length > 0
             ? Math.round(
-                (agentStats.reduce((sum, a) => sum + a.avgCoherence, 0) /
+                (agentStats.reduce((sum: number, a: typeof agentStats[0]) => sum + a.avgCoherence, 0) /
                   agentStats.length) *
                   100,
               ) / 100
@@ -310,7 +310,7 @@ brainFeedRoutes.get("/stats", async (c) => {
         overallHallucinationRate:
           agentStats.length > 0
             ? Math.round(
-                (agentStats.reduce((sum, a) => sum + a.hallucinationRate, 0) /
+                (agentStats.reduce((sum: number, a: typeof agentStats[0]) => sum + a.hallucinationRate, 0) /
                   agentStats.length) *
                   100,
               ) / 100
@@ -369,11 +369,11 @@ brainFeedRoutes.get("/:agentId", async (c) => {
     // Calculate agent-specific benchmark scores
     const total = Number(countResult[0]?.count ?? 0);
     const avgCoherence = justifications.length > 0
-      ? justifications.reduce((s, j) => s + (j.coherenceScore ?? 0), 0) / justifications.length
+      ? justifications.reduce((s: number, j: typeof justifications[0]) => s + (j.coherenceScore ?? 0), 0) / justifications.length
       : 0;
 
     const hallucinationCount = justifications.filter(
-      (j) => j.hallucinationFlags && (j.hallucinationFlags as string[]).length > 0,
+      (j: typeof justifications[0]) => j.hallucinationFlags && (j.hallucinationFlags as string[]).length > 0,
     ).length;
 
     return c.json({
