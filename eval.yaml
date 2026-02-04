@@ -1,7 +1,7 @@
-benchmark: moltapp-v14
+benchmark: moltapp-v15
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 10-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability). v14 adds Outcome Resolution Engine (prediction→result feedback loop), Confidence Calibration Curve Analyzer (ECE/Brier/reliability diagrams), Reasoning Volatility Tracker (sentiment/confidence/intent drift), and Cross-Agent Consensus Divergence Scorer (agreement patterns, contrarian alpha). Includes 8-dimension trade validation engine, reasoning taxonomy classifier (10 strategy types, 6 analytical methods, 5 reasoning structures, cognitive bias detection with 10 pattern types, sophistication levels 1-5), cross-round consistency tracker, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 12-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability, provenance integrity, model comparison). v15 adds Reasoning Provenance Engine (SHA-256 pre-commit hash chains proving reasoning preceded outcomes), Cross-Model Reasoning Comparator (fingerprinting how Claude/GPT/Grok reason differently — vocabulary DNA, bias asymmetries, divergence analysis), and Benchmark Reproducibility Prover (formal reproducibility proofs for deterministic scoring verification). Also includes: Outcome Resolution Engine, Confidence Calibration Curves, Reasoning Volatility Tracker, Consensus Divergence Scorer, 8-dimension trade validation, reasoning taxonomy classifier, cross-round consistency, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '14.0.0'
+  version: '15.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -928,6 +928,104 @@ benchmark_v14:
     consensus_recent: '/api/v1/benchmark-v14/consensus/recent'
     export_v14: '/api/v1/benchmark-v14/export/v14'
     schema: '/api/v1/benchmark-v14/schema'
+
+benchmark_v15:
+  scoring_engine:
+    description: '12-pillar scoring with reasoning provenance, cross-model comparison, and reproducibility proofs'
+    pillars:
+      - name: financial
+        weight: 0.13
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.12
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.10
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.09
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.06
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.06
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.09
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.09
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.07
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.06
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.07
+        new_in_v15: true
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness', 'temporal_ordering']
+        description: 'Cryptographic proof that reasoning was produced BEFORE market outcomes — prevents backfitting. SHA-256 hash chains with cross-agent witnesses.'
+      - name: model_comparison
+        weight: 0.06
+        new_in_v15: true
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness', 'divergence_quality']
+        description: 'Cross-model reasoning fingerprinting — measures how independently each model reasons vs herding. Vocabulary DNA, bias asymmetries, divergence analysis.'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  reasoning_provenance_engine:
+    description: 'Cryptographic proof that reasoning preceded outcomes — the anti-backfitting pillar'
+    features:
+      - 'Pre-commit SHA-256 hash of reasoning text before trade execution'
+      - 'Linked hash chain (each proof references previous proof hash)'
+      - 'Market data snapshot seal at time of reasoning'
+      - 'Cross-agent witness hashes (each agent witnesses others chains)'
+      - 'Temporal ordering enforcement (strictly increasing timestamps)'
+      - 'Merkle root over all round proofs for round-level sealing'
+    verification: 'Any researcher can verify proof integrity via /api/v1/benchmark-v15/provenance/verify'
+    chain_format: 'Append-only linked list, max 1000 proofs per agent, sliding window'
+
+  cross_model_comparator:
+    description: 'Model fingerprinting — how do Claude/GPT/Grok reason differently about the same data?'
+    analysis_dimensions:
+      - 'Bigram Jaccard similarity between agent reasoning texts'
+      - 'Vocabulary DNA: unique words per model, top bigrams, vocabulary size'
+      - 'Sentiment tendency: bullish/bearish/neutral rates per model'
+      - 'Confidence patterns: mean, stdDev, overconfidence ratio'
+      - 'Reasoning style: avg length, bigram density, uniqueness score'
+      - 'Herding detection: when all models agree vs when they diverge'
+      - 'Systematic disagreement tracking across model pairs'
+      - 'Bias asymmetry analysis: which model leans most bullish/bearish'
+    window_size: 500
+
+  benchmark_reproducibility_prover:
+    description: 'Formal reproducibility proofs — same inputs + same config = same scores (deterministic verification)'
+    features:
+      - 'Deterministic JSON serialization (sorted keys) for stable hashing'
+      - 'Input hash: SHA-256 of all scoring inputs (market data, agent decisions)'
+      - 'Config hash: SHA-256 of scoring algorithm parameters and weights'
+      - 'Output hash: SHA-256 of all computed scores'
+      - 'Cross-run comparison: detects non-determinism (same inputs, different outputs)'
+      - 'Reproducibility rate metric: % of scoring runs that are deterministic'
+      - 'Exportable artifact for researcher verification'
+    window_size: 500
+
+  api_endpoints_v15:
+    benchmark_dashboard: '/benchmark-v15'
+    data_endpoint: '/benchmark-v15/data'
+    stream_endpoint: '/benchmark-v15/stream'
+    provenance_agent: '/api/v1/benchmark-v15/provenance/:agentId'
+    provenance_stats: '/api/v1/benchmark-v15/provenance'
+    provenance_verify: '/api/v1/benchmark-v15/provenance/verify'
+    reproducibility_round: '/api/v1/benchmark-v15/reproducibility/:roundId'
+    reproducibility_report: '/api/v1/benchmark-v15/reproducibility'
+    reproducibility_export: '/api/v1/benchmark-v15/reproducibility/export'
+    fingerprint_agent: '/api/v1/benchmark-v15/fingerprint/:agentId'
+    divergence_report: '/api/v1/benchmark-v15/divergence'
+    cross_model_stats: '/api/v1/benchmark-v15/cross-model'
+    schema: '/api/v1/benchmark-v15/schema'
 
 citation: |
   @misc{moltapp2026,

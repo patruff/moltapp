@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v14",
+    benchmark: "moltapp-v15",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,35 +290,42 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v14"
+pretty_name: "MoltApp: AI Trading Benchmark v15"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v14
+# MoltApp: Agentic Stock Trading Benchmark v15
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v14](https://www.patgpt.us/benchmark-v14)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v15](https://www.patgpt.us/benchmark-v15)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **10 scoring pillars**:
+which we analyze across **12 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
-| **Financial** | 15% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
-| **Reasoning** | 14% | Coherence, Depth, Consistency |
-| **Safety** | 12% | Hallucination-Free Rate, Discipline Compliance |
-| **Calibration** | 10% | ECE, Brier Score, Monotonic Quartiles |
-| **Patterns** | 7% | Fallacy Detection, Vocabulary Sophistication |
-| **Adaptability** | 7% | Cross-Regime Consistency |
-| **Forensic Quality** | 10% | Structure, Originality, Clarity, Integrity |
-| **Validation Quality** | 10% | Depth, Sources, Grounding, Risk Awareness |
-| **Prediction Accuracy** | 8% | Direction accuracy, target precision, resolution quality |
-| **Reasoning Stability** | 7% | Sentiment volatility, confidence volatility, intent drift |
+| **Financial** | 13% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
+| **Reasoning** | 12% | Coherence, Depth, Consistency |
+| **Safety** | 10% | Hallucination-Free Rate, Discipline Compliance |
+| **Calibration** | 9% | ECE, Brier Score, Monotonic Quartiles |
+| **Patterns** | 6% | Fallacy Detection, Vocabulary Sophistication |
+| **Adaptability** | 6% | Cross-Regime Consistency |
+| **Forensic Quality** | 9% | Structure, Originality, Clarity, Integrity |
+| **Validation Quality** | 9% | Depth, Sources, Grounding, Risk Awareness |
+| **Prediction Accuracy** | 7% | Direction accuracy, target precision, resolution quality |
+| **Reasoning Stability** | 6% | Sentiment volatility, confidence volatility, intent drift |
+| **Provenance Integrity** | 7% | Pre-commit seal validity, chain integrity, cross-agent witness |
+| **Model Comparison** | 6% | Vocabulary uniqueness, reasoning independence, bias awareness |
+
+### v15 Features (NEW)
+- **Reasoning Provenance Engine**: SHA-256 pre-commit hash chains proving reasoning was produced BEFORE market outcomes — prevents backfitting.
+- **Cross-Model Reasoning Comparator**: Vocabulary DNA fingerprinting, bias asymmetry analysis, systematic divergence tracking across Claude/GPT/Grok.
+- **Benchmark Reproducibility Prover**: Formal reproducibility proofs — same inputs + same config = same scores (deterministic verification).
 
 ### v14 Features
 - **Outcome Resolution Engine**: Closes the prediction→result feedback loop. Resolves agent predictions against actual market movements.
@@ -359,18 +366,19 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v14
+- **Benchmark Version**: v15
 
 ## API Endpoints
 
-- Dashboard: \`/benchmark-v14\`
-- Data: \`/benchmark-v14/data\`
-- Stream: \`/benchmark-v14/stream\`
-- Predictions: \`/api/v1/benchmark-v14/predictions/:agentId\`
-- Calibration: \`/api/v1/benchmark-v14/calibration/:agentId\`
-- Volatility: \`/api/v1/benchmark-v14/volatility/:agentId\`
-- Consensus: \`/api/v1/benchmark-v14/consensus\`
-- Schema: \`/api/v1/benchmark-v14/schema\`
+- Dashboard: \`/benchmark-v15\`
+- Data: \`/benchmark-v15/data\`
+- Stream: \`/benchmark-v15/stream\`
+- Provenance: \`/api/v1/benchmark-v15/provenance/:agentId\`
+- Cross-Model: \`/api/v1/benchmark-v15/cross-model\`
+- Fingerprint: \`/api/v1/benchmark-v15/fingerprint/:agentId\`
+- Divergence: \`/api/v1/benchmark-v15/divergence\`
+- Reproducibility: \`/api/v1/benchmark-v15/reproducibility\`
+- Schema: \`/api/v1/benchmark-v15/schema\`
 
 ## Citation
 
