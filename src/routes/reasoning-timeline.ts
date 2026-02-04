@@ -18,6 +18,7 @@ import {
   buildAgentTimeline,
   getAllTimelines,
 } from "../services/reasoning-timeline.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const reasoningTimelineRoutes = new Hono();
 
@@ -92,7 +93,7 @@ reasoningTimelineRoutes.get("/compare", (c) => {
   const agentB = c.req.query("b");
 
   if (!agentA || !agentB) {
-    return c.json({ ok: false, error: "Both 'a' and 'b' query params required" }, 400);
+    return apiError(c, "VALIDATION_FAILED", "Both 'a' and 'b' query params required");
   }
 
   const timelineA = buildAgentTimeline(agentA);

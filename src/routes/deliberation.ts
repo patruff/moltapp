@@ -14,6 +14,7 @@ import {
   getDeliberationConfig,
   configureDeliberation,
 } from "../services/pre-trade-deliberation.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const deliberationRoutes = new Hono();
 
@@ -54,7 +55,7 @@ deliberationRoutes.get("/:id", (c) => {
   }
 
   if (!result) {
-    return c.json({ ok: false, error: "Deliberation not found" }, 404);
+    return apiError(c, "DELIBERATION_NOT_FOUND");
   }
 
   return c.json({
@@ -71,10 +72,7 @@ deliberationRoutes.get("/round/:roundId", (c) => {
   const result = getDeliberationForRound(roundId);
 
   if (!result) {
-    return c.json(
-      { ok: false, error: `No deliberation found for round ${roundId}` },
-      404,
-    );
+    return apiError(c, "DELIBERATION_NOT_FOUND", `Round: ${roundId}`);
   }
 
   return c.json({
