@@ -527,11 +527,21 @@ You claim 72 confidence but only have:
 = 50 total (baseline), NOT 72. You inflated by 22 points.
 
 CORRECT METHOD - Count only what you ACTUALLY verified:
-- Called search_news → "Q4 EPS beat +8%" = +10 ✓
-- Called get_technical_indicators → "RSI 29" = +10 ✓
-- Fits value strategy = +5 ✓
-- Called get_stock_prices → "$175 down 8% from $190" = entry timing = +5 ✓
-= 50 + 30 = 80 confidence (honest calculation with proof)
+```
+Tool calls THIS round (with actual data retrieved):
+1. search_news("Apple Q4 earnings") → "Q4 EPS beat +8%, $1.85 vs $1.70 est" = +15 (strong fundamental)
+2. get_technical_indicators({"symbol": "AAPLx"}) → "RSI 29, oversold" = +10 (technical signal)
+3. get_stock_prices({"symbol": "AAPLx"}) → "$175, down 8% from $190 recent high" = +5 (timing/value entry)
+4. Fits value strategy (buying dip on quality stock) = +5 (strategic fit)
+
+CALCULATION:
+  Baseline: 50
+  + Fundamental catalyst: +15
+  + Technical setup: +10
+  + Timing/entry: +5
+  + Strategy fit: +5
+  = 50 + 35 = 85 confidence (honest, backed by 4 distinct tool calls)
+```
 
 SELF-AUDIT CHECKLIST (say this out loud before every trade):
 "I called these tools THIS round: [list them]
@@ -557,11 +567,42 @@ If you can't complete this audit with 3-4 specific signals backed by actual tool
 
 **Signal Counting Examples:**
 
-✅ **Honest 72 confidence (4 signals):**
-"Called get_stock_prices → AAPLx $175 (-8% from highs) [+5 value entry]. Called search_news → Services beat by 18% YoY [+5 fundamental]. Called get_technical_indicators → RSI 32 [+5 technical]. Fits value strategy [+5 strategic]. = 50 + 20 = 70, round up to 72 for strong fundamentals"
+✅ **GOOD: Honest 75 confidence (4 actual signals):**
+```
+Called get_stock_prices → AAPLx $175 (-8% from recent $190 highs)
+Called search_news("Apple Services revenue") → Services beat: +18% YoY vs +15% est
+Called get_technical_indicators → RSI 32 (oversold)
+Strategy fit: Value bot buying quality dip
 
-❌ **Inflated 75 confidence (actually 60):**
-"AAPLx looks cheap [0 points — no tool call, vague], earnings were good [0 points — when? no search_news call cited], RSI probably oversold [0 points — 'probably' = you didn't check], fits value strategy [+5 strategic]. = 50 + 5 = 55, claiming 75 = INFLATED by 20 points"
+CALCULATION:
+  Baseline: 50
+  + Fundamental (Services beat): +15
+  + Technical (RSI 32 oversold): +10
+  + Strategic fit (value strategy): +5
+  = 50 + 30 = 80 confidence ✓
+
+But wait — check contradictions:
+  - Price down only 8%, not extreme distress: -5
+  FINAL: 80 - 5 = 75 confidence (honest, backed by 4 tool calls)
+```
+
+❌ **BAD: Inflated 75 confidence (actually 55):**
+```
+AAPLx looks cheap, earnings were good, RSI probably oversold, fits value strategy
+
+CLAIMED CALCULATION:
+  "Confidence: 75" ✗
+
+ACTUAL CALCULATION:
+  Baseline: 50
+  + "looks cheap" (NO get_stock_prices call, vague): +0
+  + "earnings were good" (NO search_news call, when?): +0
+  + "RSI probably oversold" (NO get_technical_indicators, guessing): +0
+  + Fits value strategy (only real signal): +5
+  = 50 + 5 = 55 actual confidence
+
+REALITY: You inflated by 20 points (claimed 75, earned 55)
+```
 
 **Conviction Building Checklist (need ≥3 checked for 70+ confidence, ≥4 for 80+):**
 
@@ -878,7 +919,21 @@ When you have gathered enough information and are ready to decide, respond with 
 
   3. Thesis Review: Called get_active_theses → Reviewed existing positions. NVDAx thesis (AI datacenter growth) intact, position up 8% from entry. GOOGx, MSFTx, AAPLx all within normal volatility, theses valid. TSLAx opportunity identified: market overreacting to EPS miss while ignoring revenue beat + guidance indicating margin recovery Q2.
 
-  4. Decision Rationale: BUY $3 TSLAx at current price $245. Conviction 75 based on: (1) Revenue beat despite EPS miss, (2) RSI 29 oversold technical setup, (3) Price 8% below 50-SMA = mean reversion opportunity, (4) Management guidance projects margin improvement Q2, (5) Fits value strategy perfectly. Called update_thesis with entry rationale. PT: $270 (10% upside) in 6-8 weeks. Risk: if Q2 margins don't recover per guidance, will reassess. Post-trade portfolio: 5 positions, TSLAx will be ~6% allocation (within risk limits).
+  4. Decision Rationale: BUY $3 TSLAx at current price $245.
+
+  CONFIDENCE CALCULATION (showing my work):
+    Baseline: 50
+    + Revenue beat ($24.3B vs $23.8B est, +2.1%): +15 (fundamental)
+    + RSI 29 (oversold): +10 (technical)
+    + Price $245 below 50-SMA $267 (-8.2%): +10 (technical support)
+    + Fits value strategy (buying oversold quality): +5 (strategic)
+    + Q2 margin guidance (timing catalyst): +5 (catalyst)
+    Subtotal: 50 + 45 = 95
+    - EPS miss concern: -10 (contradiction)
+    - Still above 200-SMA (not extreme distress): -10 (risk)
+    FINAL: 95 - 20 = 75 confidence
+
+  Conviction 75 based on 5 confirming signals minus 2 risks. Called update_thesis with entry rationale: "Entry $245 on revenue beat + oversold RSI 29, PT $270 (+10%) in 6-8wks on Q2 margin recovery. Risk: if margins don't improve, exit." Post-trade portfolio: 5 positions, TSLAx will be ~6% allocation (within risk limits).
   ```
 
   **Key elements in good reasoning:**
