@@ -89,6 +89,14 @@ import { recordComparisonEntry } from "../routes/benchmark-comparison.ts";
 import { recordRoundForIntegrity } from "../services/benchmark-integrity.ts";
 import { recordQualityDataPoint } from "../services/adaptive-quality-gate.ts";
 import { recordRoundResult as recordLeaderboardRoundResult } from "../services/leaderboard-evolution.ts";
+import { conductRoundPeerReview } from "../services/peer-review.ts";
+import { analyzeReasoningDepth } from "../services/reasoning-depth.ts";
+import {
+  detectMarketRegime,
+  recordRegimeTradeEntry,
+} from "../services/regime-reasoning.ts";
+import { recordBenchmarkScore } from "../services/benchmark-reproducibility.ts";
+import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -802,6 +810,63 @@ async function executeTradingRound(
           hallucinations.severity,
           discipline.passed,
         );
+
+        // --- NEW: Reasoning depth analysis ---
+        try {
+          const depthScore = analyzeReasoningDepth(
+            decision.reasoning,
+            decision.action,
+            agent.agentId,
+            decision.symbol,
+            roundId,
+          );
+          console.log(
+            `[Orchestrator] ${agent.name} depth: ${depthScore.overall.toFixed(2)} (${depthScore.classification}), ` +
+            `angles=${depthScore.angleCount}`,
+          );
+
+          // Feed benchmark reproducibility engine
+          recordBenchmarkScore(agent.agentId, roundId, {
+            coherence: coherence.score,
+            depth: depthScore.overall,
+            hallucinationRate: hallucinations.severity,
+            discipline: discipline.passed ? 1 : 0,
+            confidence: normalizedConf,
+          });
+
+          // Emit SSE benchmark events
+          emitBenchmarkEvent("trade_reasoning", {
+            action: decision.action,
+            symbol: decision.symbol,
+            confidence: normalizedConf,
+            intent,
+            reasoningPreview: decision.reasoning.slice(0, 200),
+          }, agent.agentId);
+
+          emitBenchmarkEvent("coherence_scored", {
+            score: coherence.score,
+            explanation: coherence.explanation,
+            signalCount: coherence.signals.length,
+          }, agent.agentId);
+
+          emitBenchmarkEvent("depth_analyzed", {
+            overall: depthScore.overall,
+            classification: depthScore.classification,
+            angleCount: depthScore.angleCount,
+          }, agent.agentId);
+
+          if (hallucinations.flags.length > 0) {
+            emitBenchmarkEvent("hallucination_flagged", {
+              flags: hallucinations.flags,
+              severity: hallucinations.severity,
+              symbol: decision.symbol,
+            }, agent.agentId);
+          }
+        } catch (err) {
+          console.warn(
+            `[Orchestrator] Depth/stream analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       } catch (err) {
         console.warn(
           `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -1042,6 +1107,79 @@ async function executeTradingRound(
   } catch (err) {
     console.warn(`[Orchestrator] Leaderboard evolution failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  // --- NEW: Market regime detection + regime-tagged scoring ---
+  try {
+    const regimeSnapshot = detectMarketRegime(
+      marketData.map((d) => ({
+        symbol: d.symbol,
+        price: d.price,
+        change24h: d.change24h,
+      })),
+    );
+    console.log(
+      `[Orchestrator] Market regime: ${regimeSnapshot.regime} (avg: ${regimeSnapshot.avgChange}%, vol: ${regimeSnapshot.changeStdDev.toFixed(2)})`,
+    );
+
+    emitBenchmarkEvent("regime_detected", {
+      regime: regimeSnapshot.regime,
+      avgChange: regimeSnapshot.avgChange,
+      volatility: regimeSnapshot.changeStdDev,
+      stocksUp: regimeSnapshot.stocksUp,
+      stocksDown: regimeSnapshot.stocksDown,
+    });
+
+    // Tag each agent's trade with the current regime
+    for (const r of results) {
+      recordRegimeTradeEntry(
+        r.agentId,
+        regimeSnapshot.regime,
+        0.5, // coherence will be filled from justification
+        0.5, // depth will be filled from depth analyzer
+        false,
+        r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+        r.decision.action,
+        roundId,
+      );
+    }
+  } catch (err) {
+    console.warn(`[Orchestrator] Regime detection failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // --- NEW: Peer review — agents critique each other's reasoning ---
+  try {
+    const roundDecisions = results.map((r) => ({
+      agentId: r.agentId,
+      reasoning: r.decision.reasoning,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+      confidence: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+    }));
+
+    const peerReport = conductRoundPeerReview(roundDecisions, roundId);
+    console.log(
+      `[Orchestrator] Peer review: ${peerReport.reviews.length} reviews, ` +
+      `disagreement=${(peerReport.disagreementRate * 100).toFixed(0)}%, ` +
+      `best=${peerReport.bestReviewed?.agentId ?? "none"} (${peerReport.bestReviewed?.avgScore?.toFixed(2) ?? 0})`,
+    );
+
+    emitBenchmarkEvent("peer_review", {
+      reviewCount: peerReport.reviews.length,
+      disagreementRate: peerReport.disagreementRate,
+      bestReviewed: peerReport.bestReviewed,
+      mostControversial: peerReport.mostControversial,
+    });
+  } catch (err) {
+    console.warn(`[Orchestrator] Peer review failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // Emit round completed event
+  emitBenchmarkEvent("round_completed", {
+    roundId,
+    agentCount: results.length,
+    errorCount: errors.length,
+    tradingMode: getTradingMode(),
+  });
 
   return {
     roundId,

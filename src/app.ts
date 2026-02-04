@@ -102,6 +102,8 @@ import { benchmarkCertificationRoutes } from "./routes/benchmark-certification.t
 import { reasoningDuelRoutes } from "./routes/reasoning-duel.ts";
 import { benchmarkExportRoutes } from "./routes/benchmark-export.ts";
 import { benchmarkComparisonRoutes } from "./routes/benchmark-comparison.ts";
+import { benchmarkStreamRoutes } from "./routes/benchmark-stream.ts";
+import { benchmarkResearchRoutes } from "./routes/benchmark-research.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -377,6 +379,12 @@ app.route("/api/v1/export", benchmarkExportRoutes);
 
 // Benchmark Comparison (public -- head-to-head, rankings, dominance matrix, statistical tests)
 app.route("/api/v1/compare", benchmarkComparisonRoutes);
+
+// Benchmark Stream (public -- SSE live stream of benchmark events: reasoning, scoring, reviews)
+app.route("/api/v1/benchmark-stream", benchmarkStreamRoutes);
+
+// Benchmark Research API (public -- structured queries for researchers, statistical tests, reproducibility)
+app.route("/api/v1/research", benchmarkResearchRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
