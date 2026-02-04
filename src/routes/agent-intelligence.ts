@@ -25,6 +25,7 @@ import {
   generateSwarmPredictions,
   calculateAgreementMatrix,
 } from "../services/agent-intelligence.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const intelligenceRoutes = new Hono();
 
@@ -136,10 +137,7 @@ intelligenceRoutes.get("/swarm/:symbol", async (c) => {
   );
 
   if (!prediction) {
-    return c.json(
-      { ok: false, error: `No swarm prediction available for ${symbol}` },
-      404,
-    );
+    return apiError(c, "SWARM_PREDICTION_NOT_FOUND", `No swarm prediction available for ${symbol}`);
   }
 
   return c.json({ ok: true, data: prediction });
