@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v19",
+    benchmark: "moltapp-v20",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,22 +290,22 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v19"
+pretty_name: "MoltApp: AI Trading Benchmark v20"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v19
+# MoltApp: Agentic Stock Trading Benchmark v20
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v19](https://www.patgpt.us/benchmark-v19)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v20](https://www.patgpt.us/benchmark-v20)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **21 scoring pillars**:
+which we analyze across **24 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
@@ -329,9 +329,17 @@ which we analyze across **21 scoring pillars**:
 | **Cross-Session Memory** | 4% | Mistake repetition, lesson retention, strategy evolution |
 | **Arbitration Quality** | 5% | Evidence weight, logical consistency, calibration accuracy, risk disclosure, originality |
 | **Debate Performance** | 5% | Thesis clarity, evidence quality, logical strength, rebuttal power, honesty |
-| **Impact Forecasting** | 5% | Direction accuracy, magnitude calibration, learning velocity, conviction correlation |
+| **Impact Forecasting** | 4% | Direction accuracy, magnitude calibration, learning velocity, conviction correlation |
+| **Reasoning Transparency** | 5% | Claim extraction, evidence mapping, logic chain, assumptions, counterfactuals |
+| **Decision Accountability** | 5% | Claim accuracy, overconfidence rate, learning trend, resolution rate |
+| **Quality Certification** | 5% | Structural completeness, data grounding, logical soundness, epistemic honesty |
 
-### v19 Features (NEW)
+### v20 Features (NEW)
+- **Reasoning Transparency Engine**: Decomposes reasoning into verifiable claims, maps evidence, validates logic chains, surfaces assumptions, generates counterfactuals.
+- **Decision Accountability Tracker**: Registers verifiable claims at trade time, resolves against outcomes, tracks accuracy by type/symbol/confidence.
+- **Reasoning Quality Certifier**: Issues Gold/Silver/Bronze quality certificates with SHA-256 verification across 5 dimensions.
+
+### v19 Features
 - **Benchmark Arbitration Engine**: Structured court cases for agent disagreements — pairwise evidence scoring, logical consistency analysis, outcome resolution.
 - **Cross-Agent Debate Engine**: Formal debates with thesis extraction, evidence clash detection, logical chain analysis, rebuttal scoring.
 - **Trade Impact Forecaster**: Prediction accountability — direction accuracy, magnitude calibration, conviction-outcome correlation, learning velocity.
@@ -378,24 +386,25 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v19
+- **Benchmark Version**: v20
 
 ## API Endpoints
 
-- Dashboard: \`/benchmark-v19\`
-- Data: \`/benchmark-v19/data\`
-- Stream: \`/benchmark-v19/stream\`
-- Export: \`/benchmark-v19/export\`
-- Scores: \`/api/v1/benchmark-v19/scores\`
-- Agent Score: \`/api/v1/benchmark-v19/score/:agentId\`
-- Arbitration: \`/api/v1/benchmark-v19/arbitration\`
-- Debates: \`/api/v1/benchmark-v19/debates\`
-- Impact: \`/api/v1/benchmark-v19/impact\`
-- Health: \`/api/v1/benchmark-v19/health\`
-- Weights: \`/api/v1/benchmark-v19/weights\`
-- Schema: \`/api/v1/benchmark-v19/schema\`
-- JSONL Export: \`/api/v1/benchmark-v19/export/jsonl\`
-- CSV Export: \`/api/v1/benchmark-v19/export/csv\`
+- Dashboard: \`/benchmark-v20\`
+- Data: \`/benchmark-v20/data\`
+- Stream: \`/benchmark-v20/stream\`
+- Export: \`/benchmark-v20/export\`
+- Scores: \`/api/v1/benchmark-v20/scores\`
+- Agent Score: \`/api/v1/benchmark-v20/score/:agentId\`
+- Transparency: \`/api/v1/benchmark-v20/transparency\`
+- Accountability: \`/api/v1/benchmark-v20/accountability\`
+- Certification: \`/api/v1/benchmark-v20/certification\`
+- Verify: \`/api/v1/benchmark-v20/verify/:hash\`
+- Health: \`/api/v1/benchmark-v20/health\`
+- Weights: \`/api/v1/benchmark-v20/weights\`
+- Schema: \`/api/v1/benchmark-v20/schema\`
+- JSONL Export: \`/api/v1/benchmark-v20/export/jsonl\`
+- CSV Export: \`/api/v1/benchmark-v20/export/csv\`
 
 ## Citation
 

@@ -240,6 +240,18 @@ import {
 import {
   emitV18Event,
 } from "../routes/benchmark-v18.tsx";
+import {
+  analyzeTransparency,
+} from "../services/reasoning-transparency-engine.ts";
+import {
+  registerClaims,
+} from "../services/decision-accountability-tracker.ts";
+import {
+  certifyReasoning,
+} from "../services/reasoning-quality-certifier.ts";
+import {
+  emitV20Event,
+} from "../routes/benchmark-v20.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2293,6 +2305,63 @@ async function executeTradingRound(
 
   } catch (err) {
     console.warn(`[Orchestrator] v18 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // =========================================================================
+  // v20: Reasoning Transparency + Decision Accountability + Quality Certification
+  // =========================================================================
+  try {
+    for (const result of results) {
+      const d = result.decision;
+      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+
+      // 1. Reasoning Transparency Engine — decompose reasoning into claims, evidence, logic
+      analyzeTransparency(
+        result.agentId,
+        roundId,
+        d.action,
+        d.symbol,
+        d.reasoning,
+        conf01,
+        sources,
+      );
+
+      // 2. Decision Accountability Tracker — register verifiable claims for outcome tracking
+      registerClaims(
+        result.agentId,
+        roundId,
+        d.symbol,
+        d.action,
+        d.reasoning,
+        conf01,
+      );
+
+      // 3. Reasoning Quality Certifier — issue quality certificate
+      certifyReasoning(
+        result.agentId,
+        roundId,
+        d.action,
+        d.symbol,
+        d.reasoning,
+        conf01,
+        sources,
+      );
+    }
+
+    // Emit v20 event
+    emitV20Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      version: "v20",
+      pillars: 24,
+    });
+
+    console.log(
+      `[Orchestrator] v20 round complete: ${results.length} agents — transparency + accountability + certification recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v20 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {

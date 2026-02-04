@@ -1,7 +1,7 @@
-benchmark: moltapp-v19
+benchmark: moltapp-v20
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 21-pillar scoring. v19 adds Benchmark Arbitration Engine (pairwise reasoning arbitration with evidence weight, logical consistency, calibration accuracy, risk disclosure, originality scoring — structured court cases for every agent disagreement), Cross-Agent Debate Engine (structured formal debates with thesis extraction, evidence clash detection, logical chain analysis, rebuttal scoring, intellectual honesty — adversarial reasoning transparency), and Trade Impact Forecaster (direction accuracy, magnitude calibration, horizon awareness, conviction-outcome correlation, learning velocity — prediction accountability). Builds on v18 Adversarial Robustness, Cross-Session Memory, Regression Detector, v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency, v15 Provenance, Cross-Model Comparator, v14 Outcome Resolution, Calibration Curves, v13 Battle Engine, v12 Validation Engine, v11 Forensic Engine, v10 Calibration, v9 Regime-Aware Scoring. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 24-pillar scoring. v20 adds Reasoning Transparency Engine (claim extraction, evidence mapping, logic chain validation, assumption surfacing, counterfactual analysis — makes every agent decision fully auditable claim-by-claim), Decision Accountability Tracker (claim registration, outcome resolution, accuracy scoring, learning detection, overconfidence mapping — every claim an agent makes gets checked), and Reasoning Quality Certifier (Gold/Silver/Bronze quality certificates with structural completeness, data grounding, logical soundness, epistemic honesty, actionability — SHA-256 verifiable certificates for each trade). Builds on v19 Arbitration, Debates, Impact Forecasting, v18 Adversarial Robustness, Cross-Session Memory, Regression Detector, v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency, v15 Provenance, Cross-Model Comparator, v14 Outcome Resolution, Calibration Curves, v13 Battle Engine, v12 Validation Engine, v11 Forensic Engine, v10 Calibration, v9 Regime-Aware Scoring. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '19.0.0'
+  version: '20.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -1614,6 +1614,170 @@ benchmark_v19:
     schema: '/api/v1/benchmark-v19/schema'
     export_jsonl: '/api/v1/benchmark-v19/export/jsonl'
     export_csv: '/api/v1/benchmark-v19/export/csv'
+
+benchmark_v20:
+  scoring_engine:
+    description: '24-pillar scoring with Reasoning Transparency Engine, Decision Accountability Tracker, and Reasoning Quality Certifier'
+    pillars:
+      - name: financial
+        weight: 0.08
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.07
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.06
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.06
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.03
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.04
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.05
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.05
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.04
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.04
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.04
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness']
+      - name: model_comparison
+        weight: 0.03
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness']
+      - name: metacognition
+        weight: 0.04
+        components: ['epistemic_humility', 'calibration_awareness', 'error_recognition', 'scope_limitation', 'adaptive_strategy']
+      - name: reasoning_efficiency
+        weight: 0.03
+        components: ['information_density', 'claim_density', 'originality_per_word', 'quantitative_ratio']
+      - name: forensic_ledger
+        weight: 0.03
+        components: ['chain_integrity', 'outcome_resolution_rate', 'outcome_accuracy', 'witness_corroboration']
+      - name: strategy_genome
+        weight: 0.03
+        components: ['risk_appetite', 'conviction', 'adaptability', 'contrarianism', 'information_processing', 'temporal_awareness', 'emotional_regulation', 'learning_rate']
+      - name: adversarial_robustness
+        weight: 0.04
+        components: ['signal_conflict_handling', 'anchoring_resistance', 'noise_sensitivity', 'edge_case_handling', 'framing_consistency']
+      - name: cross_session_memory
+        weight: 0.04
+        components: ['mistake_repetition', 'lesson_retention', 'strategy_evolution', 'symbol_knowledge', 'confidence_recalibration']
+      - name: arbitration_quality
+        weight: 0.04
+        components: ['evidence_weight', 'logical_consistency', 'calibration_accuracy', 'risk_disclosure', 'originality']
+      - name: debate_performance
+        weight: 0.04
+        components: ['thesis_clarity', 'evidence_quality', 'logical_strength', 'rebuttal_power', 'intellectual_honesty']
+      - name: impact_forecasting
+        weight: 0.04
+        components: ['direction_accuracy', 'magnitude_calibration', 'conviction_outcome_correlation', 'horizon_awareness', 'learning_velocity']
+      - name: reasoning_transparency
+        weight: 0.05
+        new_in_v20: true
+        components: ['claim_density', 'evidence_coverage', 'logic_validity', 'assumption_awareness', 'counterfactual_depth']
+        description: 'Decomposes agent reasoning into verifiable components. Extracts every factual claim, maps claims to evidence sources, validates logical chain from premises to conclusion, surfaces unstated assumptions, and generates counterfactual scenarios. Moves from "did the agent reason well?" to "here is exactly how the agent reasoned, claim by claim."'
+      - name: decision_accountability
+        weight: 0.05
+        new_in_v20: true
+        components: ['claim_accuracy', 'overconfidence_rate', 'learning_trend', 'resolution_rate', 'calibration_by_type']
+        description: 'Registers specific verifiable claims at trade time and resolves them against subsequent market data. Tracks directional accuracy, price target hits, overconfidence patterns, and learning velocity. The "receipts" engine — every claim an agent makes gets checked.'
+      - name: quality_certification
+        weight: 0.05
+        new_in_v20: true
+        components: ['structural_completeness', 'data_grounding', 'logical_soundness', 'epistemic_honesty', 'actionability']
+        description: 'Issues verifiable quality certificates (Gold/Silver/Bronze) based on 5-dimensional analysis. Certificates are SHA-256 signed and can be independently verified. Gold requires all dimensions >= 0.8, Silver >= 0.6, Bronze >= 0.4.'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  reasoning_transparency_engine:
+    description: 'Makes every agent decision fully auditable and decomposable into verifiable components'
+    dimensions:
+      - name: claim_density
+        weight: 0.20
+        description: 'Number of factual claims per 20 words of reasoning (price, trend, fundamental, sentiment, prediction, comparison, risk)'
+      - name: evidence_coverage
+        weight: 0.25
+        description: 'Fraction of claims directly supported by cited data sources'
+      - name: logic_validity
+        weight: 0.25
+        description: 'Fraction of logic chain steps that are valid (no contradictions between premises and conclusions)'
+      - name: assumption_awareness
+        weight: 0.15
+        description: 'Inversely proportional to number of high-criticality unstated assumptions (market conditions, data quality, risk appetite, time horizon)'
+      - name: counterfactual_depth
+        weight: 0.15
+        description: 'Number of counterfactual scenarios generated — what would change the agent mind'
+    claim_types: ['price', 'trend', 'fundamental', 'sentiment', 'prediction', 'comparison', 'risk', 'general']
+    evidence_strengths: ['direct', 'indirect', 'inferred']
+    assumption_categories: ['market_conditions', 'data_quality', 'model_behavior', 'time_horizon', 'risk_appetite']
+
+  decision_accountability_tracker:
+    description: 'Closes the feedback loop between agent PREDICTIONS and OUTCOMES at the claim level'
+    claim_types: ['directional', 'price_target', 'time_horizon', 'comparative', 'categorical']
+    resolution_statuses: ['pending', 'correct', 'incorrect', 'expired', 'unverifiable']
+    features:
+      - 'Claim registration at trade time'
+      - 'Automatic outcome resolution against market data'
+      - 'Accuracy by claim type, symbol, and confidence bucket'
+      - 'Overconfidence rate tracking (high-confidence misses)'
+      - 'Learning trend detection (improving / stable / declining)'
+      - 'Composite accountability score (0-1)'
+
+  reasoning_quality_certifier:
+    description: 'Issues verifiable multi-dimensional quality certificates for agent reasoning'
+    certification_levels:
+      gold: 'All 5 dimensions >= 0.8 — exemplary reasoning'
+      silver: 'All 5 dimensions >= 0.6 — solid reasoning'
+      bronze: 'All 5 dimensions >= 0.4 — acceptable reasoning'
+      uncertified: 'Any dimension < 0.4 — reasoning needs improvement'
+    dimensions:
+      - name: structural_completeness
+        weight: 0.20
+        description: 'Does reasoning have thesis statement + evidence markers + conclusion?'
+      - name: data_grounding
+        weight: 0.25
+        description: 'Are factual claims backed by quantitative data and temporal references?'
+      - name: logical_soundness
+        weight: 0.20
+        description: 'Are there causal connectors? Any internal contradictions or circular reasoning?'
+      - name: epistemic_honesty
+        weight: 0.15
+        description: 'Does agent acknowledge uncertainty? Penalizes overconfidence markers.'
+      - name: actionability
+        weight: 0.20
+        description: 'Does reasoning lead to clear, executable decision with risk management?'
+    verification: 'SHA-256 hash verification via /api/v1/benchmark-v20/verify/:hash'
+    validity_days: 7
+
+  api_endpoints_v20:
+    benchmark_dashboard: '/benchmark-v20'
+    data_endpoint: '/benchmark-v20/data'
+    stream_endpoint: '/benchmark-v20/stream'
+    export_endpoint: '/benchmark-v20/export'
+    scores: '/api/v1/benchmark-v20/scores'
+    agent_score: '/api/v1/benchmark-v20/score/:agentId'
+    transparency: '/api/v1/benchmark-v20/transparency'
+    transparency_agent: '/api/v1/benchmark-v20/transparency/:agentId'
+    accountability: '/api/v1/benchmark-v20/accountability'
+    accountability_agent: '/api/v1/benchmark-v20/accountability/:agentId'
+    certification: '/api/v1/benchmark-v20/certification'
+    certification_agent: '/api/v1/benchmark-v20/certification/:agentId'
+    verify_certificate: '/api/v1/benchmark-v20/verify/:hash'
+    health: '/api/v1/benchmark-v20/health'
+    weights: '/api/v1/benchmark-v20/weights'
+    schema: '/api/v1/benchmark-v20/schema'
+    export_jsonl: '/api/v1/benchmark-v20/export/jsonl'
+    export_csv: '/api/v1/benchmark-v20/export/csv'
 
 citation: |
   @misc{moltapp2026,

@@ -1,0 +1,510 @@
+/**
+ * Decision Accountability Tracker (v20)
+ *
+ * Closes the feedback loop between agent PREDICTIONS and OUTCOMES.
+ * Unlike simple P&L tracking, this measures the quality of the agent's
+ * reasoning PROCESS by checking if the specific claims it made came true.
+ *
+ * Key features:
+ * 1. CLAIM REGISTRATION: Records specific verifiable claims at trade time
+ * 2. OUTCOME RESOLUTION: Checks claims against subsequent market data
+ * 3. ACCOUNTABILITY SCORING: Rates each agent's claim accuracy over time
+ * 4. LEARNING DETECTION: Measures whether agents improve their claims
+ * 5. OVERCONFIDENCE MAPPING: Identifies systematic overconfidence patterns
+ *
+ * This is the "receipts" engine — every claim an agent makes gets checked.
+ */
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface RegisteredClaim {
+  id: string;
+  agentId: string;
+  roundId: string;
+  symbol: string;
+  action: string;
+  /** The claim text */
+  claim: string;
+  /** Type: directional, price_target, time_horizon, comparative */
+  claimType: "directional" | "price_target" | "time_horizon" | "comparative" | "categorical";
+  /** Confidence at time of claim */
+  confidence: number;
+  /** Parsed direction if directional */
+  direction?: "up" | "down" | "flat";
+  /** Parsed target price if price_target */
+  targetPrice?: number;
+  /** Parsed time horizon in hours */
+  horizonHours?: number;
+  /** When the claim was made */
+  timestamp: string;
+  /** Resolution status */
+  status: "pending" | "correct" | "incorrect" | "expired" | "unverifiable";
+  /** Resolution details */
+  resolution?: string;
+  /** Resolved at timestamp */
+  resolvedAt?: string;
+}
+
+export interface AccountabilityProfile {
+  agentId: string;
+  totalClaims: number;
+  resolvedClaims: number;
+  correctClaims: number;
+  incorrectClaims: number;
+  pendingClaims: number;
+  accuracyRate: number;
+  overconfidenceRate: number;
+  /** Accuracy by claim type */
+  byType: Record<string, { total: number; correct: number; accuracy: number }>;
+  /** Accuracy by symbol */
+  bySymbol: Record<string, { total: number; correct: number; accuracy: number }>;
+  /** Accuracy by confidence bucket */
+  byConfidence: { bucket: string; total: number; correct: number; accuracy: number }[];
+  /** Is accuracy improving over time? */
+  learningTrend: "improving" | "stable" | "declining";
+  /** Composite accountability score 0-1 */
+  accountabilityScore: number;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
+const claimRegistry = new Map<string, RegisteredClaim[]>();
+const MAX_CLAIMS_PER_AGENT = 500;
+
+// ---------------------------------------------------------------------------
+// Claim Registration
+// ---------------------------------------------------------------------------
+
+/**
+ * Register verifiable claims from an agent's reasoning.
+ */
+export function registerClaims(
+  agentId: string,
+  roundId: string,
+  symbol: string,
+  action: string,
+  reasoning: string,
+  confidence: number,
+): RegisteredClaim[] {
+  const claims: RegisteredClaim[] = [];
+  const conf01 = confidence > 1 ? confidence / 100 : confidence;
+
+  // Extract directional claims
+  const directionMatch = extractDirection(reasoning, action);
+  if (directionMatch) {
+    claims.push({
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      agentId,
+      roundId,
+      symbol,
+      action,
+      claim: directionMatch.text,
+      claimType: "directional",
+      confidence: conf01,
+      direction: directionMatch.direction,
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    });
+  }
+
+  // Extract price target claims
+  const priceTargets = extractPriceTargets(reasoning, symbol);
+  for (const pt of priceTargets) {
+    claims.push({
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_pt`,
+      agentId,
+      roundId,
+      symbol,
+      action,
+      claim: pt.text,
+      claimType: "price_target",
+      confidence: conf01,
+      targetPrice: pt.price,
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    });
+  }
+
+  // Extract time horizon claims
+  const horizonMatch = extractHorizon(reasoning);
+  if (horizonMatch) {
+    claims.push({
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_th`,
+      agentId,
+      roundId,
+      symbol,
+      action,
+      claim: horizonMatch.text,
+      claimType: "time_horizon",
+      confidence: conf01,
+      horizonHours: horizonMatch.hours,
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    });
+  }
+
+  // Extract categorical claims (will outperform, will underperform)
+  const categoricalClaims = extractCategoricalClaims(reasoning, symbol);
+  for (const cc of categoricalClaims) {
+    claims.push({
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_cat`,
+      agentId,
+      roundId,
+      symbol,
+      action,
+      claim: cc,
+      claimType: "categorical",
+      confidence: conf01,
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    });
+  }
+
+  // Store claims
+  const existing = claimRegistry.get(agentId) ?? [];
+  existing.unshift(...claims);
+  if (existing.length > MAX_CLAIMS_PER_AGENT) existing.length = MAX_CLAIMS_PER_AGENT;
+  claimRegistry.set(agentId, existing);
+
+  return claims;
+}
+
+function extractDirection(reasoning: string, action: string): { text: string; direction: "up" | "down" | "flat" } | null {
+  const lower = reasoning.toLowerCase();
+
+  if (action === "buy" || /\b(?:will\s+rise|expected?\s+to\s+increase|upside|bullish|higher)\b/i.test(lower)) {
+    return {
+      text: `Expects price to move up (action: ${action})`,
+      direction: "up",
+    };
+  }
+  if (action === "sell" || /\b(?:will\s+fall|expected?\s+to\s+decrease|downside|bearish|lower)\b/i.test(lower)) {
+    return {
+      text: `Expects price to move down (action: ${action})`,
+      direction: "down",
+    };
+  }
+  if (action === "hold" || /\b(?:sideways|flat|range[\s-]bound|consolidat)\b/i.test(lower)) {
+    return {
+      text: `Expects price to remain flat (action: ${action})`,
+      direction: "flat",
+    };
+  }
+
+  return null;
+}
+
+function extractPriceTargets(reasoning: string, _symbol: string): { text: string; price: number }[] {
+  const targets: { text: string; price: number }[] = [];
+  const patterns = [
+    /target\s+(?:price\s+)?(?:of\s+)?\$?([\d,.]+)/gi,
+    /(?:reach|hit|test)\s+\$?([\d,.]+)/gi,
+    /\$?([\d,.]+)\s+(?:target|level|resistance|support)/gi,
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(reasoning)) !== null) {
+      const price = parseFloat(match[1].replace(/,/g, ""));
+      if (price > 0 && price < 100000) {
+        targets.push({
+          text: `Price target: $${price.toFixed(2)}`,
+          price,
+        });
+      }
+    }
+  }
+
+  return targets.slice(0, 3);
+}
+
+function extractHorizon(reasoning: string): { text: string; hours: number } | null {
+  const patterns: [RegExp, number][] = [
+    [/\b(?:next\s+few\s+hours?|intraday|today)\b/i, 8],
+    [/\b(?:overnight|tomorrow|24\s*h)\b/i, 24],
+    [/\b(?:this\s+week|next\s+few\s+days|short[\s-]term)\b/i, 120],
+    [/\b(?:next\s+week|coming\s+week)\b/i, 168],
+    [/\b(?:medium[\s-]term|next\s+month|coming\s+weeks)\b/i, 720],
+    [/\b(?:long[\s-]term|next\s+quarter|several\s+months)\b/i, 2160],
+  ];
+
+  for (const [pattern, hours] of patterns) {
+    const match = reasoning.match(pattern);
+    if (match) {
+      return { text: `Time horizon: ${match[0]}`, hours };
+    }
+  }
+
+  return null;
+}
+
+function extractCategoricalClaims(reasoning: string, symbol: string): string[] {
+  const claims: string[] = [];
+  const lower = reasoning.toLowerCase();
+
+  if (/\b(?:outperform|beat\s+the\s+market|alpha)\b/i.test(lower)) {
+    claims.push(`${symbol} will outperform the market`);
+  }
+  if (/\b(?:underperform|lag\s+(?:the\s+)?market|drag)\b/i.test(lower)) {
+    claims.push(`${symbol} will underperform the market`);
+  }
+  if (/\b(?:recovery|rebound|bounce\s+back)\b/i.test(lower)) {
+    claims.push(`${symbol} expected to recover`);
+  }
+  if (/\b(?:correction|pullback|dip)\b/i.test(lower)) {
+    claims.push(`${symbol} expected to correct`);
+  }
+
+  return claims;
+}
+
+// ---------------------------------------------------------------------------
+// Outcome Resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve pending claims against actual market data.
+ * Call this periodically (e.g., after each trading round).
+ */
+export function resolvePendingClaims(
+  currentPrices: Map<string, number>,
+  previousPrices: Map<string, number>,
+): { resolved: number; correct: number; incorrect: number } {
+  let resolved = 0;
+  let correct = 0;
+  let incorrect = 0;
+  const now = new Date();
+
+  for (const [_agentId, claims] of claimRegistry.entries()) {
+    for (const claim of claims) {
+      if (claim.status !== "pending") continue;
+
+      // Check if claim has expired (default: 48 hours)
+      const claimAge = (now.getTime() - new Date(claim.timestamp).getTime()) / 3600000;
+      const maxAge = claim.horizonHours ?? 48;
+
+      if (claimAge > maxAge) {
+        // Try to resolve before expiring
+        const resolveResult = tryResolve(claim, currentPrices, previousPrices);
+        if (resolveResult !== null) {
+          claim.status = resolveResult ? "correct" : "incorrect";
+          claim.resolution = resolveResult ? "Claim verified against market data" : "Claim contradicted by market data";
+          if (resolveResult) correct++;
+          else incorrect++;
+        } else {
+          claim.status = "expired";
+          claim.resolution = "Could not verify within time horizon";
+        }
+        claim.resolvedAt = now.toISOString();
+        resolved++;
+        continue;
+      }
+
+      // Try early resolution for directional claims
+      if (claim.claimType === "directional" && claim.direction) {
+        const currentPrice = currentPrices.get(claim.symbol.toLowerCase());
+        const prevPrice = previousPrices.get(claim.symbol.toLowerCase());
+        if (currentPrice && prevPrice && prevPrice > 0) {
+          const pctChange = (currentPrice - prevPrice) / prevPrice;
+          // Resolve if move > 2%
+          if (Math.abs(pctChange) > 0.02) {
+            const moved = pctChange > 0 ? "up" : "down";
+            const isCorrect = moved === claim.direction || (claim.direction === "flat" && Math.abs(pctChange) < 0.01);
+            claim.status = isCorrect ? "correct" : "incorrect";
+            claim.resolution = `Price moved ${(pctChange * 100).toFixed(1)}% (${moved}), predicted ${claim.direction}`;
+            claim.resolvedAt = now.toISOString();
+            resolved++;
+            if (isCorrect) correct++;
+            else incorrect++;
+          }
+        }
+      }
+    }
+  }
+
+  return { resolved, correct, incorrect };
+}
+
+function tryResolve(
+  claim: RegisteredClaim,
+  currentPrices: Map<string, number>,
+  previousPrices: Map<string, number>,
+): boolean | null {
+  const currentPrice = currentPrices.get(claim.symbol.toLowerCase());
+  const prevPrice = previousPrices.get(claim.symbol.toLowerCase());
+
+  if (!currentPrice || !prevPrice || prevPrice === 0) return null;
+
+  if (claim.claimType === "directional" && claim.direction) {
+    const pctChange = (currentPrice - prevPrice) / prevPrice;
+    if (claim.direction === "up") return pctChange > 0;
+    if (claim.direction === "down") return pctChange < 0;
+    if (claim.direction === "flat") return Math.abs(pctChange) < 0.02;
+  }
+
+  if (claim.claimType === "price_target" && claim.targetPrice) {
+    const tolerance = claim.targetPrice * 0.05;
+    return Math.abs(currentPrice - claim.targetPrice) < tolerance;
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Accountability Scoring
+// ---------------------------------------------------------------------------
+
+/**
+ * Build full accountability profile for an agent.
+ */
+export function getAccountabilityProfile(agentId: string): AccountabilityProfile {
+  const claims = claimRegistry.get(agentId) ?? [];
+  const resolved = claims.filter((c) => c.status === "correct" || c.status === "incorrect");
+  const correctClaims = claims.filter((c) => c.status === "correct");
+  const incorrectClaims = claims.filter((c) => c.status === "incorrect");
+  const pendingClaims = claims.filter((c) => c.status === "pending");
+
+  // By type
+  const byType: Record<string, { total: number; correct: number; accuracy: number }> = {};
+  for (const claim of resolved) {
+    if (!byType[claim.claimType]) byType[claim.claimType] = { total: 0, correct: 0, accuracy: 0 };
+    byType[claim.claimType].total++;
+    if (claim.status === "correct") byType[claim.claimType].correct++;
+  }
+  for (const key of Object.keys(byType)) {
+    byType[key].accuracy = byType[key].total > 0 ? Math.round((byType[key].correct / byType[key].total) * 100) / 100 : 0;
+  }
+
+  // By symbol
+  const bySymbol: Record<string, { total: number; correct: number; accuracy: number }> = {};
+  for (const claim of resolved) {
+    if (!bySymbol[claim.symbol]) bySymbol[claim.symbol] = { total: 0, correct: 0, accuracy: 0 };
+    bySymbol[claim.symbol].total++;
+    if (claim.status === "correct") bySymbol[claim.symbol].correct++;
+  }
+  for (const key of Object.keys(bySymbol)) {
+    bySymbol[key].accuracy = bySymbol[key].total > 0 ? Math.round((bySymbol[key].correct / bySymbol[key].total) * 100) / 100 : 0;
+  }
+
+  // By confidence bucket
+  const buckets = [
+    { label: "0.0-0.2", min: 0, max: 0.2 },
+    { label: "0.2-0.4", min: 0.2, max: 0.4 },
+    { label: "0.4-0.6", min: 0.4, max: 0.6 },
+    { label: "0.6-0.8", min: 0.6, max: 0.8 },
+    { label: "0.8-1.0", min: 0.8, max: 1.0 },
+  ];
+  const byConfidence = buckets.map((b) => {
+    const inBucket = resolved.filter((c) => c.confidence >= b.min && c.confidence < (b.max === 1.0 ? 1.01 : b.max));
+    const correctInBucket = inBucket.filter((c) => c.status === "correct").length;
+    return {
+      bucket: b.label,
+      total: inBucket.length,
+      correct: correctInBucket,
+      accuracy: inBucket.length > 0 ? Math.round((correctInBucket / inBucket.length) * 100) / 100 : 0,
+    };
+  });
+
+  // Overconfidence rate
+  const highConfResolved = resolved.filter((c) => c.confidence > 0.7);
+  const highConfWrong = highConfResolved.filter((c) => c.status === "incorrect").length;
+  const overconfidenceRate = highConfResolved.length > 0
+    ? Math.round((highConfWrong / highConfResolved.length) * 100) / 100
+    : 0;
+
+  // Learning trend: compare first half vs second half accuracy
+  const halfIdx = Math.floor(resolved.length / 2);
+  const firstHalf = resolved.slice(halfIdx);
+  const secondHalf = resolved.slice(0, halfIdx);
+  const firstAcc = firstHalf.length > 0 ? firstHalf.filter((c) => c.status === "correct").length / firstHalf.length : 0;
+  const secondAcc = secondHalf.length > 0 ? secondHalf.filter((c) => c.status === "correct").length / secondHalf.length : 0;
+  let learningTrend: "improving" | "stable" | "declining" = "stable";
+  if (secondAcc - firstAcc > 0.05) learningTrend = "improving";
+  if (firstAcc - secondAcc > 0.05) learningTrend = "declining";
+
+  // Accuracy rate
+  const accuracyRate = resolved.length > 0
+    ? Math.round((correctClaims.length / resolved.length) * 100) / 100
+    : 0;
+
+  // Composite accountability score
+  const accountabilityScore = Math.round((
+    accuracyRate * 0.35 +
+    (1 - overconfidenceRate) * 0.25 +
+    (learningTrend === "improving" ? 0.8 : learningTrend === "stable" ? 0.5 : 0.2) * 0.20 +
+    Math.min(1, resolved.length / 20) * 0.20
+  ) * 100) / 100;
+
+  return {
+    agentId,
+    totalClaims: claims.length,
+    resolvedClaims: resolved.length,
+    correctClaims: correctClaims.length,
+    incorrectClaims: incorrectClaims.length,
+    pendingClaims: pendingClaims.length,
+    accuracyRate,
+    overconfidenceRate,
+    byType,
+    bySymbol,
+    byConfidence,
+    learningTrend,
+    accountabilityScore,
+  };
+}
+
+/**
+ * Get all accountability profiles.
+ */
+export function getAllAccountabilityProfiles(): Record<string, AccountabilityProfile> {
+  const profiles: Record<string, AccountabilityProfile> = {};
+  for (const agentId of claimRegistry.keys()) {
+    profiles[agentId] = getAccountabilityProfile(agentId);
+  }
+  return profiles;
+}
+
+/**
+ * Get accountability pillar score for an agent (0-1).
+ */
+export function getAccountabilityPillarScore(agentId: string): number {
+  const profile = getAccountabilityProfile(agentId);
+  return profile.accountabilityScore;
+}
+
+/**
+ * Get aggregate accountability stats.
+ */
+export function getAccountabilityStats(): {
+  totalClaimsTracked: number;
+  totalResolved: number;
+  overallAccuracy: number;
+  mostAccountable: string | null;
+  leastAccountable: string | null;
+} {
+  let totalClaims = 0;
+  let totalResolved = 0;
+  let totalCorrect = 0;
+  let best = { id: "", score: 0 };
+  let worst = { id: "", score: 1 };
+
+  for (const agentId of claimRegistry.keys()) {
+    const profile = getAccountabilityProfile(agentId);
+    totalClaims += profile.totalClaims;
+    totalResolved += profile.resolvedClaims;
+    totalCorrect += profile.correctClaims;
+    if (profile.accountabilityScore > best.score) best = { id: agentId, score: profile.accountabilityScore };
+    if (profile.accountabilityScore < worst.score) worst = { id: agentId, score: profile.accountabilityScore };
+  }
+
+  return {
+    totalClaimsTracked: totalClaims,
+    totalResolved,
+    overallAccuracy: totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * 100) / 100 : 0,
+    mostAccountable: best.id || null,
+    leastAccountable: worst.id || null,
+  };
+}
