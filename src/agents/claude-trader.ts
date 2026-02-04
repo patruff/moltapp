@@ -5,7 +5,7 @@
  * Uses the shared skill.md prompt template with value-investing overrides.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -13,6 +13,7 @@ import {
   type ToolResult,
 } from "./base-agent.ts";
 import { getAnthropicTools } from "./trading-tools.ts";
+import { createAnthropicClientGetter } from "./client-factory.ts";
 
 // ---------------------------------------------------------------------------
 // Claude Agent Configuration
@@ -47,23 +48,11 @@ const CLAUDE_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class ClaudeTrader extends BaseTradingAgent {
-  private client: Anthropic | null = null;
+  private getClient: () => Anthropic;
 
   constructor() {
     super(CLAUDE_AGENT_CONFIG);
-  }
-
-  private getClient(): Anthropic {
-    if (!this.client) {
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        throw new Error(
-          "ANTHROPIC_API_KEY environment variable is not set. Claude agent cannot trade.",
-        );
-      }
-      this.client = new Anthropic({ apiKey });
-    }
-    return this.client;
+    this.getClient = createAnthropicClientGetter();
   }
 
   // -----------------------------------------------------------------------

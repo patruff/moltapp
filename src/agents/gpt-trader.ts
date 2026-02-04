@@ -5,7 +5,7 @@
  * Uses the shared skill.md prompt template with momentum strategy overrides.
  */
 
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -17,6 +17,7 @@ import {
   appendOpenAIToolResults,
   parseOpenAIResponse,
 } from "./openai-compatible-utils.ts";
+import { createOpenAIClientGetter } from "./client-factory.ts";
 
 // ---------------------------------------------------------------------------
 // GPT Agent Configuration
@@ -53,23 +54,11 @@ const GPT_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class GPTTrader extends BaseTradingAgent {
-  private client: OpenAI | null = null;
+  private getClient: () => OpenAI;
 
   constructor() {
     super(GPT_AGENT_CONFIG);
-  }
-
-  private getClient(): OpenAI {
-    if (!this.client) {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error(
-          "OPENAI_API_KEY environment variable is not set. GPT agent cannot trade.",
-        );
-      }
-      this.client = new OpenAI({ apiKey });
-    }
-    return this.client;
+    this.getClient = createOpenAIClientGetter();
   }
 
   // -----------------------------------------------------------------------

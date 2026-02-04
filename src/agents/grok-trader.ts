@@ -6,7 +6,7 @@
  * template with contrarian strategy overrides.
  */
 
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -18,6 +18,7 @@ import {
   appendOpenAIToolResults,
   parseOpenAIResponse,
 } from "./openai-compatible-utils.ts";
+import { createXAIClientGetter } from "./client-factory.ts";
 
 // ---------------------------------------------------------------------------
 // Grok Agent Configuration
@@ -54,26 +55,11 @@ const GROK_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class GrokTrader extends BaseTradingAgent {
-  private client: OpenAI | null = null;
+  private getClient: () => OpenAI;
 
   constructor() {
     super(GROK_AGENT_CONFIG);
-  }
-
-  private getClient(): OpenAI {
-    if (!this.client) {
-      const apiKey = process.env.XAI_API_KEY;
-      if (!apiKey) {
-        throw new Error(
-          "XAI_API_KEY environment variable is not set. Grok agent cannot trade.",
-        );
-      }
-      this.client = new OpenAI({
-        apiKey,
-        baseURL: "https://api.x.ai/v1",
-      });
-    }
-    return this.client;
+    this.getClient = createXAIClientGetter();
   }
 
   // -----------------------------------------------------------------------
