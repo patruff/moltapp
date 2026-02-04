@@ -82,6 +82,8 @@ import {
 import { recordTradeForAttribution } from "../services/strategy-attribution.ts";
 import { recordHallucinationAnalysis } from "../services/hallucination-tracker.ts";
 import { recordReasoningEntry } from "../services/reasoning-profile.ts";
+import { recordTimelineSnapshot } from "../services/reasoning-timeline.ts";
+import { recordIntelligenceEntry } from "../services/agent-intelligence-report.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -727,6 +729,41 @@ async function executeTradingRound(
           confidence: normalizedConf,
           intent,
           coherenceScore: coherence.score,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Feed timeline analyzer and intelligence report generator
+        const sentimentScore = coherence.signals.reduce((s, sig) => {
+          if (sig.type === "bullish") return s + sig.weight * 0.1;
+          if (sig.type === "bearish") return s - sig.weight * 0.1;
+          return s;
+        }, 0);
+
+        recordTimelineSnapshot({
+          agentId: agent.agentId,
+          roundId,
+          action: decision.action,
+          symbol: decision.symbol,
+          reasoning: decision.reasoning,
+          confidence: normalizedConf,
+          intent,
+          coherenceScore: coherence.score,
+          hallucinationCount: hallucinations.flags.length,
+          wordCount: decision.reasoning.split(/\s+/).length,
+          sentimentScore: Math.max(-1, Math.min(1, sentimentScore)),
+          timestamp: new Date().toISOString(),
+        });
+
+        recordIntelligenceEntry({
+          agentId: agent.agentId,
+          action: decision.action,
+          symbol: decision.symbol,
+          reasoning: decision.reasoning,
+          confidence: normalizedConf,
+          intent,
+          coherenceScore: coherence.score,
+          hallucinationCount: hallucinations.flags.length,
+          disciplinePass: discipline.passed,
           timestamp: new Date().toISOString(),
         });
       } catch (err) {

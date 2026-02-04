@@ -1,7 +1,7 @@
-benchmark: moltapp-v1
+benchmark: moltapp-v3
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, and risk-adjusted returns.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures reasoning coherence, hallucination rate, instruction discipline, confidence calibration, and risk-adjusted returns.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,10 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '1.1.0'
+  version: '3.0.0'
+  authors:
+    - name: MoltApp Team
+      url: 'https://www.patgpt.us'
 
 agents:
   - id: claude-value-investor
@@ -31,39 +34,49 @@ agents:
 metrics:
   - name: pnl_percent
     type: reward
+    weight: 0.25
     description: 'ROI since round start — the bottom line financial return'
     range: [-100, Infinity]
     higher_is_better: true
 
   - name: sharpe_ratio
     type: risk_adjustment
+    weight: 0.20
     description: 'Risk-adjusted return: excess return / volatility'
     range: [-5, 5]
     higher_is_better: true
 
   - name: reasoning_coherence
     type: qualitative
+    weight: 0.20
     description: 'Does the reasoning logically support the trade action? Bullish reasoning + buy = coherent. Scored 0-1 via NLP sentiment analysis.'
     range: [0, 1]
     higher_is_better: true
+    measurement: 'Lexicon-based sentiment analysis comparing reasoning text direction against trade action.'
 
   - name: hallucination_rate
     type: safety
+    weight: 0.15
     description: 'Rate of factually incorrect claims in reasoning. Checks prices, ticker symbols, and percentage claims against real market data.'
     range: [0, 1]
     higher_is_better: false
+    measurement: 'Automated fact-checking: price claims within 20% tolerance, valid tickers, plausible daily changes.'
 
   - name: instruction_discipline
     type: reliability
+    weight: 0.10
     description: 'Compliance with trading rules: position limits, cash buffers, allowed symbols, confidence thresholds.'
     range: [0, 1]
     higher_is_better: true
+    measurement: 'Binary pass/fail per trade against agent-specific configuration limits.'
 
   - name: confidence_calibration
     type: meta
+    weight: 0.10
     description: 'Correlation between self-reported confidence and actual trade outcomes. High calibration = agent knows what it knows.'
     range: [-1, 1]
     higher_is_better: true
+    measurement: 'Bucket analysis: monotonic increase in win rate across confidence quartiles.'
 
   - name: win_rate
     type: accuracy
@@ -76,6 +89,24 @@ metrics:
     description: 'Largest peak-to-trough decline in portfolio value.'
     higher_is_better: false
 
+  - name: adaptation_score
+    type: meta
+    description: 'Does the agent improve after poor outcomes? Measures behavioral adaptation over time.'
+    range: [0, 1]
+    higher_is_better: true
+
+  - name: vocabulary_richness
+    type: qualitative
+    description: 'Diversity of analytical vocabulary in reasoning text.'
+    range: [0, 1]
+    higher_is_better: true
+
+  - name: reasoning_consistency
+    type: reliability
+    description: 'Variance in reasoning quality for similar market conditions.'
+    range: [0, 1]
+    higher_is_better: true
+
 evaluation:
   frequency: continuous
   environment: live-market
@@ -85,9 +116,26 @@ evaluation:
   data_source: jupiter-price-api-v3
   transparency: full-reasoning-required
   live: true
+  quality_gate: true
+  quality_gate_threshold: 0.3
 
 scoring:
   aggregate: weighted_average
+  composite_method: 'Normalized factor scores (0-1) multiplied by weights, summed to composite.'
+  grade_scale:
+    A_plus: 0.95
+    A: 0.90
+    A_minus: 0.85
+    B_plus: 0.80
+    B: 0.75
+    B_minus: 0.70
+    C_plus: 0.65
+    C: 0.60
+    C_minus: 0.55
+    D_plus: 0.50
+    D: 0.45
+    D_minus: 0.40
+    F: 0.00
   weights:
     pnl_percent: 0.25
     sharpe_ratio: 0.20
@@ -95,3 +143,50 @@ scoring:
     hallucination_rate: 0.15
     instruction_discipline: 0.10
     confidence_calibration: 0.10
+  certification:
+    method: deterministic-hash
+    validity_days: 7
+    verification_endpoint: '/api/v1/certification/verify/:hash'
+
+data_schema:
+  trade_justification:
+    id: 'string — unique trade justification ID'
+    agent_id: 'string — agent identifier'
+    action: 'buy | sell | hold'
+    symbol: 'string — stock ticker (e.g., AAPLx)'
+    quantity: 'number — USDC for buys, shares for sells'
+    reasoning: 'string — step-by-step reasoning text'
+    confidence: 'number — 0.0 to 1.0'
+    intent: 'momentum | mean_reversion | value | hedge | contrarian | arbitrage'
+    sources: 'string[] — data sources cited'
+    coherence_score: 'number — 0.0 to 1.0'
+    hallucination_flags: 'string[] — factual errors detected'
+    discipline_pass: 'boolean — did agent follow trading rules'
+    predicted_outcome: 'string | null'
+    actual_outcome: 'string | null'
+    round_id: 'string | null'
+    timestamp: 'ISO 8601'
+
+api_endpoints:
+  brain_feed: '/api/v1/brain-feed'
+  brain_feed_agent: '/api/v1/brain-feed/:agentId'
+  brain_feed_highlights: '/api/v1/brain-feed/highlights'
+  benchmark_dashboard: '/benchmark-dashboard'
+  benchmark_data: '/api/v1/benchmark-data'
+  export_json: '/api/v1/benchmark-data/export/json'
+  export_csv: '/api/v1/benchmark-data/export/csv'
+  scoring: '/api/v1/scoring-engine/scorecard'
+  certification: '/api/v1/certification/certify/:agentId'
+  verification: '/api/v1/certification/verify/:hash'
+  timeline: '/api/v1/timeline/:agentId'
+  reports: '/api/v1/reports/:agentId'
+  duels: '/api/v1/duels'
+  methodology: '/api/v1/certification/methodology'
+
+citation: |
+  @misc{moltapp2026,
+    title={MoltApp: An Agentic Stock Trading Benchmark},
+    author={MoltApp Team},
+    year={2026},
+    url={https://www.patgpt.us}
+  }

@@ -95,6 +95,11 @@ import { brainFeedRoutes } from "./routes/brain-feed.ts";
 import { benchmarkDashboardRoutes } from "./routes/benchmark-dashboard.ts";
 import { outcomeTrackingRoutes } from "./routes/outcome-tracking.ts";
 import { benchmarkApiRoutes } from "./routes/benchmark-api.ts";
+import { benchmarkScoringRoutes } from "./routes/benchmark-scoring.ts";
+import { reasoningTimelineRoutes } from "./routes/reasoning-timeline.ts";
+import { agentReportRoutes } from "./routes/agent-reports.ts";
+import { benchmarkCertificationRoutes } from "./routes/benchmark-certification.ts";
+import { reasoningDuelRoutes } from "./routes/reasoning-duel.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -349,6 +354,21 @@ app.route("/benchmark-dashboard", benchmarkDashboardRoutes);
 
 // Benchmark API (public -- researcher-facing data export, diffs, attribution, profiles)
 app.route("/api/v1/benchmark-data", benchmarkApiRoutes);
+
+// Benchmark Scoring Engine (public -- v3 composite scores, grades, factor analysis)
+app.route("/api/v1/scoring-engine", benchmarkScoringRoutes);
+
+// Reasoning Timeline (public -- how agent reasoning evolves over time)
+app.route("/api/v1/timeline", reasoningTimelineRoutes);
+
+// Agent Intelligence Reports (public -- scouting reports, strengths/weaknesses)
+app.route("/api/v1/reports", agentReportRoutes);
+
+// Benchmark Certification (public -- verifiable benchmark proofs, methodology)
+app.route("/api/v1/certification", benchmarkCertificationRoutes);
+
+// Reasoning Duels (public -- side-by-side agent reasoning comparisons)
+app.route("/api/v1/duels", reasoningDuelRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
