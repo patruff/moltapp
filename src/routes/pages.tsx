@@ -405,6 +405,11 @@ pages.get("/agent/:id", async (c) => {
               const isActive = t.status === "active";
               const isBullish = t.direction === "bullish";
               const isBearish = t.direction === "bearish";
+
+              // Find matching position to show current P&L
+              const matchingPosition = portfolio.positions.find((p: any) => p.symbol === t.symbol);
+              const currentPnlPercent = matchingPosition?.unrealizedPnlPercent;
+
               return (
                 <div class={`border-l-2 ${isActive ? "border-blue-500" : "border-gray-700"} pl-4 pb-3`}>
                   <div class="flex items-start gap-2 mb-2">
@@ -424,6 +429,15 @@ pages.get("/agent/:id", async (c) => {
                     {t.conviction != null && (
                       <span class="text-gray-500 text-xs">
                         Conviction: {t.conviction}/10
+                      </span>
+                    )}
+                    {isActive && currentPnlPercent != null && (
+                      <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        currentPnlPercent > 0 ? "bg-green-900/30 text-profit" :
+                        currentPnlPercent < 0 ? "bg-red-900/30 text-loss" :
+                        "bg-gray-800 text-gray-400"
+                      }`}>
+                        {pnlSign(currentPnlPercent)}{Number(currentPnlPercent).toFixed(1)}% current
                       </span>
                     )}
                     <span class="text-gray-600 text-xs ml-auto">
