@@ -87,9 +87,9 @@ async function refreshLeaderboard(): Promise<void> {
   const allPositions = await db.select().from(positions);
 
   // Step 3: Fetch live Jupiter prices for all unique mints
-  const uniqueMints: string[] = [
+  const uniqueMints = [
     ...new Set(allPositions.map((p: PositionRow) => p.mintAddress)),
-  ];
+  ] as string[];
   const priceMap =
     uniqueMints.length > 0 ? await getPrices(uniqueMints) : {};
 
@@ -129,7 +129,7 @@ async function refreshLeaderboard(): Promise<void> {
   // Step 6: Compute per-agent metrics using Decimal.js
   let totalVolumeDecimal = new Decimal(0);
 
-  const entries: LeaderboardEntry[] = allAgents.map((agent) => {
+  const entries: LeaderboardEntry[] = allAgents.map((agent: any) => {
     const agentPositions = allPositions.filter(
       (p: PositionRow) => p.agentId === agent.id
     );

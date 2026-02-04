@@ -264,7 +264,7 @@ export async function replayRound(roundId: string): Promise<{
     ? roundDecisions.reduce((s: number, d: DecisionRow) => s + d.confidence, 0) / roundDecisions.length
     : 0;
 
-  const stockFocus: string[] = [...new Set(roundDecisions.filter((d: DecisionRow) => d.action !== "hold").map((d: DecisionRow) => d.symbol))];
+  const stockFocus = [...new Set(roundDecisions.filter((d: DecisionRow) => d.action !== "hold").map((d: DecisionRow) => d.symbol))] as string[];
 
   // Agreement rate
   const pairCount = roundDecisions.length * (roundDecisions.length - 1) / 2;
@@ -419,7 +419,7 @@ async function buildRoundContext(
   });
 
   // Determine consensus
-  const actions = allDecisions.map((d) => d.action);
+  const actions = allDecisions.map((d: any) => d.action);
   const uniqueActions = new Set(actions);
   const consensus: "unanimous" | "majority" | "split" =
     uniqueActions.size === 1 ? "unanimous" : actions.length >= 3 && actions.filter((a: string) => a === actions[0]).length >= 2 ? "majority" : "split";
@@ -430,8 +430,8 @@ async function buildRoundContext(
     agreementSummary = `All agents agreed to ${actions[0]}`;
   } else if (consensus === "majority") {
     const majorityAction = Object.entries(
-      actions.reduce<Record<string, number>>((acc, a: string) => { acc[a] = (acc[a] || 0) + 1; return acc; }, {}),
-    ).sort(([, a]: [string, number], [, b]: [string, number]) => b - a)[0]?.[0] ?? "hold";
+      actions.reduce((acc: Record<string, number>, a: string) => { acc[a] = (acc[a] || 0) + 1; return acc; }, {}),
+    ).sort(([, a], [, b]) => (b as number) - (a as number))[0]?.[0] ?? "hold";
     agreementSummary = `Majority chose to ${majorityAction}, but agents diverged on approach`;
   } else {
     agreementSummary = "Complete disagreement — each agent took a different approach";
@@ -469,7 +469,7 @@ async function buildPortfolioAtTime(
   return {
     estimatedCashBalance: Math.max(0, cashBalance),
     positionCount: symbols.size,
-    recentPriorTrades: priorTrades.slice(0, 5).map((t) => ({
+    recentPriorTrades: priorTrades.slice(0, 5).map((t: any) => ({
       side: t.side,
       symbol: t.stockSymbol,
       quantity: t.stockQuantity,
@@ -656,7 +656,7 @@ async function buildDecisionTimeline(
 
   const configs = getAgentConfigs();
 
-  return decisions.map((d) => {
+  return decisions.map((d: any) => {
     const config = configs.find((c) => c.agentId === d.agentId);
     const isTarget = d.agentId === agentId;
     return {

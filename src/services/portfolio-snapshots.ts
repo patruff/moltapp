@@ -449,7 +449,7 @@ export async function getAgentTimeline(
       .orderBy(desc(portfolioSnapshots.createdAt))
       .limit(limit);
 
-    snapshots = dbSnapshots.map((row) => ({
+    snapshots = dbSnapshots.map((row: any) => ({
       id: row.id,
       agentId: row.agentId,
       roundId: row.roundId,

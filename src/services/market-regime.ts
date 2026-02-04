@@ -599,7 +599,7 @@ export async function getRegimeAgentCorrelation(): Promise<RegimeAgentCorrelatio
 
   // Build per-agent, per-regime performance
   const agentResults = configs.map((config) => {
-    const agentDecs = allDecisions.filter((d) => d.agentId === config.agentId);
+    const agentDecs = allDecisions.filter((d: any) => d.agentId === config.agentId);
 
     const performanceByRegime: Record<string, {
       avgConfidence: number;

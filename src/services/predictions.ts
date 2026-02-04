@@ -678,13 +678,13 @@ export async function getActivePredictions(symbol?: string) {
   // Filter by symbol if provided
   const filtered = symbol
     ? results.filter(
-        (p) => p.symbol.toLowerCase() === symbol.toLowerCase(),
+        (p: any) => p.symbol.toLowerCase() === symbol.toLowerCase(),
       )
     : results;
 
   // Attach market data for each prediction
   const withMarkets = await Promise.all(
-    filtered.map(async (pred) => {
+    filtered.map(async (pred: any) => {
       const [market] = await db
         .select()
         .from(predictionMarkets)

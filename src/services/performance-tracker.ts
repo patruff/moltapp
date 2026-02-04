@@ -220,16 +220,16 @@ export async function computeAgentPerformance(agentId: string): Promise<AgentPer
     risk,
     trading: {
       totalTrades: agentTrades.length,
-      buyCount: agentTrades.filter((t) => t.side === "buy").length,
-      sellCount: agentTrades.filter((t) => t.side === "sell").length,
-      holdCount: agentDecisionRows.filter((d) => d.action === "hold").length,
+      buyCount: agentTrades.filter((t: any) => t.side === "buy").length,
+      sellCount: agentTrades.filter((t: any) => t.side === "sell").length,
+      holdCount: agentDecisionRows.filter((d: any) => d.action === "hold").length,
       winRate: sellAnalysis.winRate,
       avgWin: round2(sellAnalysis.avgWin),
       avgLoss: round2(sellAnalysis.avgLoss),
       profitFactor: round2(sellAnalysis.profitFactor),
       avgHoldTimeHours: round2(sellAnalysis.avgHoldTimeHours),
       avgTradeSize: agentTrades.length > 0
-        ? round2(agentTrades.reduce((s, t) => s + parseFloat(t.usdcAmount), 0) / agentTrades.length)
+        ? round2(agentTrades.reduce((s: any, t: any) => s + parseFloat(t.usdcAmount), 0) / agentTrades.length)
         : 0,
       largestWin: round2(sellAnalysis.largestWin),
       largestLoss: round2(sellAnalysis.largestLoss),

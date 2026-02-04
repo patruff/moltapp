@@ -162,7 +162,7 @@ export async function calculatePortfolioMetrics(
     .where(eq(positions.agentId, agentId));
 
   // Build trade records
-  const tradeRecords: TradeRecord[] = allTrades.map((t) => ({
+  const tradeRecords: TradeRecord[] = allTrades.map((t: any) => ({
     id: t.id,
     agentId: t.agentId,
     side: t.side,
@@ -178,7 +178,7 @@ export async function calculatePortfolioMetrics(
   const { realizedPnl, tradeOutcomes } = calculateRealizedPnl(tradeRecords);
 
   // Calculate unrealized P&L from open positions
-  const unrealizedPnl = currentPositions.reduce((sum, pos) => {
+  const unrealizedPnl = currentPositions.reduce((sum: any, pos: any) => {
     const costBasis = parseFloat(pos.averageCostBasis);
     const qty = parseFloat(pos.quantity);
     // We don't have current prices here, so unrealized is estimated at 0
@@ -697,7 +697,7 @@ export async function calculateRollingPerformance(
       .where(and(eq(trades.agentId, agentId), gte(trades.createdAt, since)))
       .orderBy(asc(trades.createdAt));
 
-    const records: TradeRecord[] = periodTrades.map((t) => ({
+    const records: TradeRecord[] = periodTrades.map((t: any) => ({
       id: t.id,
       agentId: t.agentId,
       side: t.side,

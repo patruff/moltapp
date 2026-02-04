@@ -528,7 +528,7 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
         const lastB = decisionsB.find((d: typeof decisionsB[0]) => d.symbol === lastCommon);
         currentAgreeing =
           lastA && lastB ? lastA.action === lastB.action : false;
-        currentTopic = lastCommon;
+        currentTopic = lastCommon as string | undefined;
       }
 
       const agreementRate =

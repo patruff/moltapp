@@ -683,7 +683,7 @@ export async function analyzeHistoricalConsensus(
     .limit(roundCount * 3);
 
   const uniqueRoundIds = [
-    ...new Set(rounds.map((r) => r.roundId).filter(Boolean)),
+    ...new Set(rounds.map((r: { roundId: string | null }) => r.roundId).filter(Boolean)),
   ].slice(0, roundCount);
 
   let totalSignals = 0;
@@ -701,7 +701,7 @@ export async function analyzeHistoricalConsensus(
       .where(eq(agentDecisions.roundId, roundId));
 
     // Convert to TradingRoundResult format
-    const results: TradingRoundResult[] = decisions.map((d) => ({
+    const results: TradingRoundResult[] = decisions.map((d: any) => ({
       agentId: d.agentId,
       agentName: d.agentId,
       decision: {
@@ -717,7 +717,7 @@ export async function analyzeHistoricalConsensus(
 
     if (results.length < 2) continue;
 
-    const roundResult = analyzeRoundConsensus(roundId, results);
+    const roundResult = analyzeRoundConsensus(roundId as string, results);
     totalSignals += roundResult.signals.length;
     totalDivergences += roundResult.divergences.length;
 

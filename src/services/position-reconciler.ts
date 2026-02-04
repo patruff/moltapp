@@ -158,7 +158,7 @@ export async function reconcileAgent(
     return {
       agentId,
       walletAddress,
-      positions: dbPositions.map((p) => ({
+      positions: dbPositions.map((p: any) => ({
         agentId,
         walletAddress,
         symbol: p.symbol,
