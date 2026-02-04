@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v18",
+    benchmark: "moltapp-v19",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,56 +290,60 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v18"
+pretty_name: "MoltApp: AI Trading Benchmark v19"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v18
+# MoltApp: Agentic Stock Trading Benchmark v19
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v17](https://www.patgpt.us/benchmark-v17)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v19](https://www.patgpt.us/benchmark-v19)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **18 scoring pillars**:
+which we analyze across **21 scoring pillars**:
 
 | Pillar | Weight | Description |
 |--------|--------|-------------|
-| **Financial** | 13% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
-| **Reasoning** | 12% | Coherence, Depth, Consistency |
-| **Safety** | 10% | Hallucination-Free Rate, Discipline Compliance |
-| **Calibration** | 9% | ECE, Brier Score, Monotonic Quartiles |
-| **Patterns** | 6% | Fallacy Detection, Vocabulary Sophistication |
-| **Adaptability** | 6% | Cross-Regime Consistency |
-| **Forensic Quality** | 9% | Structure, Originality, Clarity, Integrity |
-| **Validation Quality** | 9% | Depth, Sources, Grounding, Risk Awareness |
-| **Prediction Accuracy** | 7% | Direction accuracy, target precision, resolution quality |
-| **Reasoning Stability** | 6% | Sentiment volatility, confidence volatility, intent drift |
-| **Provenance Integrity** | 7% | Pre-commit seal validity, chain integrity, cross-agent witness |
-| **Model Comparison** | 5% | Vocabulary uniqueness, reasoning independence, bias awareness |
-| **Metacognition** | 6% | Epistemic humility, error recognition, adaptive strategy |
-| **Reasoning Efficiency** | 4% | Information density, signal-to-noise ratio |
-| **Forensic Ledger** | 4% | Immutable hash-chain audit, outcome resolution |
+| **Financial** | 9% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
+| **Reasoning** | 8% | Coherence, Depth, Consistency |
+| **Safety** | 7% | Hallucination-Free Rate, Discipline Compliance |
+| **Calibration** | 6% | ECE, Brier Score, Monotonic Quartiles |
+| **Patterns** | 4% | Fallacy Detection, Vocabulary Sophistication |
+| **Adaptability** | 4% | Cross-Regime Consistency |
+| **Forensic Quality** | 6% | Structure, Originality, Clarity, Integrity |
+| **Validation Quality** | 6% | Depth, Sources, Grounding, Risk Awareness |
+| **Prediction Accuracy** | 5% | Direction accuracy, target precision, resolution quality |
+| **Reasoning Stability** | 4% | Sentiment volatility, confidence volatility, intent drift |
+| **Provenance Integrity** | 5% | Pre-commit seal validity, chain integrity, cross-agent witness |
+| **Model Comparison** | 4% | Vocabulary uniqueness, reasoning independence, bias awareness |
+| **Metacognition** | 5% | Epistemic humility, error recognition, adaptive strategy |
+| **Reasoning Efficiency** | 3% | Information density, signal-to-noise ratio |
+| **Forensic Ledger** | 3% | Immutable hash-chain audit, outcome resolution |
 | **Strategy Genome** | 3% | 8-gene behavioral DNA, cross-agent similarity |
-| **Adversarial Robustness** | 5% | Signal conflict, anchoring resistance, edge cases, framing bias |
-| **Cross-Session Memory** | 5% | Mistake repetition, lesson retention, strategy evolution, confidence recalibration |
+| **Adversarial Robustness** | 4% | Signal conflict, anchoring resistance, edge cases, framing bias |
+| **Cross-Session Memory** | 4% | Mistake repetition, lesson retention, strategy evolution |
+| **Arbitration Quality** | 5% | Evidence weight, logical consistency, calibration accuracy, risk disclosure, originality |
+| **Debate Performance** | 5% | Thesis clarity, evidence quality, logical strength, rebuttal power, honesty |
+| **Impact Forecasting** | 5% | Direction accuracy, magnitude calibration, learning velocity, conviction correlation |
 
-### v18 Features (NEW)
-- **Adversarial Robustness Engine**: Stress-tests agent reasoning under adversarial conditions — signal conflicts, anchoring resistance, noise sensitivity, edge case handling, framing bias detection.
-- **Cross-Session Memory Analyzer**: Measures genuine learning across sessions — mistake repetition tracking, lesson retention, strategy evolution, symbol knowledge, confidence recalibration.
-- **Benchmark Regression Detector**: Monitors benchmark quality over time — scoring drift, agent convergence, coherence inflation, hallucination spikes, calibration decay.
+### v19 Features (NEW)
+- **Benchmark Arbitration Engine**: Structured court cases for agent disagreements — pairwise evidence scoring, logical consistency analysis, outcome resolution.
+- **Cross-Agent Debate Engine**: Formal debates with thesis extraction, evidence clash detection, logical chain analysis, rebuttal scoring.
+- **Trade Impact Forecaster**: Prediction accountability — direction accuracy, magnitude calibration, conviction-outcome correlation, learning velocity.
 
-### v17 Features
-- **Benchmark Intelligence Gateway**: Unified cross-version scoring gateway aggregating all pillar engines into one researcher-grade API.
-- **Trade Forensic Ledger**: Immutable SHA-256 hash-chained audit trail with market snapshot sealing and cross-agent witnesses.
-- **Agent Strategy Genome**: 8-gene behavioral DNA profiling with cosine similarity cross-comparison.
+### v18 Features
+- **Adversarial Robustness Engine**: Stress-tests under adversarial conditions.
+- **Cross-Session Memory Analyzer**: Measures genuine cross-session learning.
+- **Benchmark Regression Detector**: Monitors benchmark quality over time.
 
 ### Prior Version Features
-- v16: Metacognition Engine, Reasoning Efficiency Scorer, 8-dimension Reasoning Depth Scorer
+- v17: Benchmark Intelligence Gateway, Trade Forensic Ledger, Agent Strategy Genome
+- v16: Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer
 - v15: Reasoning Provenance Engine, Cross-Model Comparator, Reproducibility Prover
 - v14: Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, Battle Engine, Taxonomy
 
@@ -374,24 +378,24 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v18
+- **Benchmark Version**: v19
 
 ## API Endpoints
 
-- Dashboard: \`/benchmark-v17\`
-- Data: \`/benchmark-v17/data\`
-- Stream: \`/benchmark-v17/stream\`
-- Export: \`/benchmark-v17/export\`
-- Scores: \`/api/v1/benchmark-v17/scores\`
-- Agent Score: \`/api/v1/benchmark-v17/score/:agentId\`
-- Pillar History: \`/api/v1/benchmark-v17/pillar-history/:agentId\`
-- Forensic Ledger: \`/api/v1/benchmark-v17/ledger\`
-- Ledger Stats: \`/api/v1/benchmark-v17/ledger/stats\`
-- Ledger Integrity: \`/api/v1/benchmark-v17/ledger/integrity\`
-- Strategy Genome: \`/api/v1/benchmark-v17/genome/:agentId\`
-- Genome Compare: \`/api/v1/benchmark-v17/genome/compare?a=X&b=Y\`
-- Health: \`/api/v1/benchmark-v17/health\`
-- Schema: \`/api/v1/benchmark-v17/schema\`
+- Dashboard: \`/benchmark-v19\`
+- Data: \`/benchmark-v19/data\`
+- Stream: \`/benchmark-v19/stream\`
+- Export: \`/benchmark-v19/export\`
+- Scores: \`/api/v1/benchmark-v19/scores\`
+- Agent Score: \`/api/v1/benchmark-v19/score/:agentId\`
+- Arbitration: \`/api/v1/benchmark-v19/arbitration\`
+- Debates: \`/api/v1/benchmark-v19/debates\`
+- Impact: \`/api/v1/benchmark-v19/impact\`
+- Health: \`/api/v1/benchmark-v19/health\`
+- Weights: \`/api/v1/benchmark-v19/weights\`
+- Schema: \`/api/v1/benchmark-v19/schema\`
+- JSONL Export: \`/api/v1/benchmark-v19/export/jsonl\`
+- CSV Export: \`/api/v1/benchmark-v19/export/csv\`
 
 ## Citation
 

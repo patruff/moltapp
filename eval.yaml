@@ -1,7 +1,7 @@
-benchmark: moltapp-v18
+benchmark: moltapp-v19
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 18-pillar scoring. v18 adds Adversarial Robustness Engine (signal conflict handling, anchoring resistance, noise sensitivity, edge case handling, framing consistency — stress-testing agent reasoning under adversarial conditions), Cross-Session Memory Analyzer (mistake repetition tracking, lesson retention, strategy evolution, symbol knowledge accumulation, confidence recalibration — measuring genuine cross-session learning), and Benchmark Regression Detector (scoring drift, pillar imbalance, agent convergence, data staleness, calibration decay, coherence inflation, hallucination spikes — ensuring the benchmark itself maintains quality). Builds on v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer, v15 Provenance Engine, Cross-Model Comparator, Reproducibility Prover, v14 Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, v13 Battle Engine with Elo, v12 Validation Engine, Reasoning Taxonomy, Cross-Round Consistency, v11 Forensic Reasoning Engine, v10 Calibration Engine, Pattern Detector, v9 Regime-Aware Scoring, Integrity Engine, ML Researcher API. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 21-pillar scoring. v19 adds Benchmark Arbitration Engine (pairwise reasoning arbitration with evidence weight, logical consistency, calibration accuracy, risk disclosure, originality scoring — structured court cases for every agent disagreement), Cross-Agent Debate Engine (structured formal debates with thesis extraction, evidence clash detection, logical chain analysis, rebuttal scoring, intellectual honesty — adversarial reasoning transparency), and Trade Impact Forecaster (direction accuracy, magnitude calibration, horizon awareness, conviction-outcome correlation, learning velocity — prediction accountability). Builds on v18 Adversarial Robustness, Cross-Session Memory, Regression Detector, v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency, v15 Provenance, Cross-Model Comparator, v14 Outcome Resolution, Calibration Curves, v13 Battle Engine, v12 Validation Engine, v11 Forensic Engine, v10 Calibration, v9 Regime-Aware Scoring. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '18.0.0'
+  version: '19.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -1439,6 +1439,181 @@ benchmark_v18:
     health: '/api/v1/benchmark-v18/health'
     weights: '/api/v1/benchmark-v18/weights'
     schema: '/api/v1/benchmark-v18/schema'
+
+benchmark_v19:
+  scoring_engine:
+    description: '21-pillar scoring with Benchmark Arbitration Engine, Cross-Agent Debate Engine, and Trade Impact Forecaster'
+    pillars:
+      - name: financial
+        weight: 0.09
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.08
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.07
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.06
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.04
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.04
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.06
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.06
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.05
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.04
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.05
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness']
+      - name: model_comparison
+        weight: 0.04
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness']
+      - name: metacognition
+        weight: 0.05
+        components: ['epistemic_humility', 'calibration_awareness', 'error_recognition', 'scope_limitation', 'adaptive_strategy']
+      - name: reasoning_efficiency
+        weight: 0.03
+        components: ['information_density', 'claim_density', 'originality_per_word', 'quantitative_ratio']
+      - name: forensic_ledger
+        weight: 0.03
+        components: ['chain_integrity', 'outcome_resolution_rate', 'outcome_accuracy', 'witness_corroboration']
+      - name: strategy_genome
+        weight: 0.03
+        components: ['risk_appetite', 'conviction', 'adaptability', 'contrarianism', 'information_processing', 'temporal_awareness', 'emotional_regulation', 'learning_rate']
+      - name: adversarial_robustness
+        weight: 0.04
+        components: ['signal_conflict_handling', 'anchoring_resistance', 'noise_sensitivity', 'edge_case_handling', 'framing_consistency']
+      - name: cross_session_memory
+        weight: 0.04
+        components: ['mistake_repetition', 'lesson_retention', 'strategy_evolution', 'symbol_knowledge', 'confidence_recalibration']
+      - name: arbitration_quality
+        weight: 0.05
+        new_in_v19: true
+        components: ['evidence_weight', 'logical_consistency', 'calibration_accuracy', 'risk_disclosure', 'originality']
+        description: 'Pairwise reasoning arbitration — structured court cases comparing agent reasoning quality. Who cited better evidence? Whose logic was more consistent? Who disclosed risks? Outcome tracking reveals who was right.'
+      - name: debate_performance
+        weight: 0.05
+        new_in_v19: true
+        components: ['thesis_clarity', 'evidence_quality', 'logical_strength', 'rebuttal_power', 'intellectual_honesty']
+        description: 'Cross-agent formal debates with evidence clash detection, logical chain analysis, and rebuttal scoring. Makes agent reasoning adversarial and testable.'
+      - name: impact_forecasting
+        weight: 0.05
+        new_in_v19: true
+        components: ['direction_accuracy', 'magnitude_calibration', 'conviction_outcome_correlation', 'horizon_awareness', 'learning_velocity']
+        description: 'Trade impact prediction accountability. Agents must produce verifiable forecasts: direction, magnitude, timeframe. Tracks whether agents learn to predict better over time.'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  benchmark_arbitration_engine:
+    description: 'Structured court cases for every agent disagreement round — who had the better reasoning?'
+    dimensions:
+      - name: evidence_weight
+        weight: 0.25
+        description: 'Which agent cited more concrete, verifiable data (dollar amounts, percentages, metrics)?'
+      - name: logical_consistency
+        weight: 0.25
+        description: 'Whose reasoning had fewer internal contradictions and more causal connectors?'
+      - name: calibration_accuracy
+        weight: 0.20
+        description: 'Whose confidence better matched the evidence quality?'
+      - name: risk_disclosure
+        weight: 0.15
+        description: 'Who better identified potential downsides?'
+      - name: originality
+        weight: 0.15
+        description: 'Who brought novel analysis vs templated responses?'
+    features:
+      - 'Pairwise arbitration for every round'
+      - 'Outcome resolution (who was right after price moves)'
+      - 'Disagreement tracking (buy vs sell on same stock)'
+      - 'Win/loss/tie records per agent'
+      - 'Strength/weakness dimension identification'
+      - 'Trend detection (improving/stable/declining)'
+
+  cross_agent_debate_engine:
+    description: 'Structured formal debates making agent reasoning adversarial and testable'
+    features:
+      - 'Thesis extraction from reasoning text'
+      - 'Supporting point identification'
+      - 'Weakness detection (hedging, circularity, no quantitative claims)'
+      - 'Evidence clash detection (contradictions, data gaps, emphasis differences)'
+      - 'Logical chain comparison (connector density, causal claims)'
+      - 'Rebuttal strength measurement'
+      - 'Debate quality scoring'
+    debate_dimensions:
+      - name: thesis_clarity
+        weight: 0.15
+      - name: evidence_quality
+        weight: 0.30
+      - name: logical_strength
+        weight: 0.25
+      - name: rebuttal_power
+        weight: 0.15
+      - name: intellectual_honesty
+        weight: 0.15
+
+  trade_impact_forecaster:
+    description: 'Prediction accountability engine — agents must produce verifiable forecasts'
+    features:
+      - 'Direction prediction from reasoning (up/down/flat)'
+      - 'Magnitude extraction from natural language'
+      - 'Horizon extraction (intraday to 3+ months)'
+      - 'Batch resolution against actual market data'
+      - 'Confidence bucket analysis (does high confidence predict better?)'
+      - 'Learning velocity (is prediction improving?)'
+      - 'Win/loss streak tracking'
+      - 'Per-symbol accuracy breakdown'
+    dimensions:
+      - name: direction_accuracy
+        weight: 0.30
+        description: 'Did buy→up and sell→down?'
+      - name: magnitude_calibration
+        weight: 0.15
+        description: 'How close was predicted % to actual %?'
+      - name: conviction_correlation
+        weight: 0.20
+        description: 'Does higher confidence predict better outcomes?'
+      - name: horizon_awareness
+        weight: 0.10
+        description: 'Does agent specify timeframe for predictions?'
+      - name: learning_velocity
+        weight: 0.25
+        description: 'Is prediction accuracy improving over time?'
+
+  api_endpoints_v19:
+    benchmark_dashboard: '/benchmark-v19'
+    data_endpoint: '/benchmark-v19/data'
+    stream_endpoint: '/benchmark-v19/stream'
+    export_endpoint: '/benchmark-v19/export'
+    scores: '/api/v1/benchmark-v19/scores'
+    agent_score: '/api/v1/benchmark-v19/score/:agentId'
+    arbitration: '/api/v1/benchmark-v19/arbitration'
+    arbitration_agent: '/api/v1/benchmark-v19/arbitration/:agentId'
+    arbitration_case: '/api/v1/benchmark-v19/arbitration/case/:caseId'
+    arbitration_disagreements: '/api/v1/benchmark-v19/arbitration/disagreements'
+    debates: '/api/v1/benchmark-v19/debates'
+    debate_agent: '/api/v1/benchmark-v19/debates/:agentId'
+    debate_detail: '/api/v1/benchmark-v19/debates/detail/:debateId'
+    impact: '/api/v1/benchmark-v19/impact'
+    impact_agent: '/api/v1/benchmark-v19/impact/:agentId'
+    impact_forecasts: '/api/v1/benchmark-v19/impact/forecasts'
+    impact_pending: '/api/v1/benchmark-v19/impact/pending'
+    health: '/api/v1/benchmark-v19/health'
+    weights: '/api/v1/benchmark-v19/weights'
+    schema: '/api/v1/benchmark-v19/schema'
+    export_jsonl: '/api/v1/benchmark-v19/export/jsonl'
+    export_csv: '/api/v1/benchmark-v19/export/csv'
 
 citation: |
   @misc{moltapp2026,
