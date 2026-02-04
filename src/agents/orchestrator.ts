@@ -252,6 +252,16 @@ import {
 import {
   emitV20Event,
 } from "../routes/benchmark-v20.tsx";
+import {
+  validateReasoningChain,
+  recordChainValidation,
+} from "../services/reasoning-chain-validator.ts";
+import {
+  recordTradeForProfiling,
+} from "../services/agent-strategy-profiler.ts";
+import {
+  emitV21Event,
+} from "../routes/benchmark-v21.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -2362,6 +2372,47 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v20 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // =========================================================================
+  // v21: Reasoning Chain Validation + Agent Strategy Profiling
+  // =========================================================================
+  try {
+    for (const result of results) {
+      const d = result.decision;
+      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
+
+      // 1. Reasoning Chain Validator — decompose and validate logical structure
+      const chainResult = validateReasoningChain(d.reasoning, d.action, d.symbol);
+      recordChainValidation(result.agentId, chainResult);
+
+      // 2. Agent Strategy Profiler — track multi-dimensional strategy behavior
+      recordTradeForProfiling(result.agentId, {
+        action: d.action,
+        symbol: d.symbol,
+        reasoning: d.reasoning,
+        confidence: conf01,
+        intent,
+        sources,
+        coherenceScore: 0.5, // will be overwritten by coherence analyzer if available
+      });
+    }
+
+    // Emit v21 event
+    emitV21Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      version: "v21",
+      pillars: 26,
+    });
+
+    console.log(
+      `[Orchestrator] v21 round complete: ${results.length} agents — chain validation + strategy profiling recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v21 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {

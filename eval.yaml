@@ -1,7 +1,7 @@
-benchmark: moltapp-v20
+benchmark: moltapp-v21
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 24-pillar scoring. v20 adds Reasoning Transparency Engine (claim extraction, evidence mapping, logic chain validation, assumption surfacing, counterfactual analysis — makes every agent decision fully auditable claim-by-claim), Decision Accountability Tracker (claim registration, outcome resolution, accuracy scoring, learning detection, overconfidence mapping — every claim an agent makes gets checked), and Reasoning Quality Certifier (Gold/Silver/Bronze quality certificates with structural completeness, data grounding, logical soundness, epistemic honesty, actionability — SHA-256 verifiable certificates for each trade). Builds on v19 Arbitration, Debates, Impact Forecasting, v18 Adversarial Robustness, Cross-Session Memory, Regression Detector, v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency, v15 Provenance, Cross-Model Comparator, v14 Outcome Resolution, Calibration Curves, v13 Battle Engine, v12 Validation Engine, v11 Forensic Engine, v10 Calibration, v9 Regime-Aware Scoring. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 26-pillar scoring. v21 adds Reasoning Chain Validator (step decomposition, logical connector analysis, circular reasoning detection, non-sequitur detection, evidence gap analysis — validates the actual logical structure of agent reasoning chains) and Agent Strategy Profiler (conviction consistency, risk awareness depth, market sensitivity, strategic adaptability, information utilization — multi-dimensional behavioral strategy profiling). Builds on v20 Reasoning Transparency, Decision Accountability, Quality Certification, v19 Arbitration, Debates, Impact Forecasting, v18 Adversarial Robustness, Cross-Session Memory, Regression Detector, v17 Intelligence Gateway, Forensic Ledger, Strategy Genome, v16 Metacognition Engine, Reasoning Efficiency, v15 Provenance, Cross-Model Comparator, v14 Outcome Resolution, Calibration Curves, v13 Battle Engine, v12 Validation Engine, v11 Forensic Engine, v10 Calibration, v9 Regime-Aware Scoring. Reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '20.0.0'
+  version: '21.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -146,6 +146,34 @@ metrics:
     description: 'Whether agent produces unique reasoning vs templated responses. Measured via Jaccard similarity.'
     range: [0, 1]
     higher_is_better: true
+
+  - name: reasoning_chain_integrity
+    type: structural
+    weight: 0.05
+    description: 'Validates the logical structure of reasoning chains. Decomposes reasoning into steps, analyzes logical connectors, detects circular reasoning, non-sequiturs, evidence gaps, and unsupported leaps.'
+    range: [0, 1]
+    higher_is_better: true
+    measurement: 'Step decomposition + connector analysis + defect detection. Score = 0.4 * chain_quality + 0.3 * evidence_coverage + 0.3 * (1 - defect_rate).'
+    dimensions:
+      - step_decomposition: 0.20
+      - logical_connectors: 0.20
+      - evidence_coverage: 0.20
+      - defect_freedom: 0.20
+      - chain_depth: 0.20
+
+  - name: strategy_profiling
+    type: behavioral
+    weight: 0.05
+    description: 'Multi-dimensional behavioral strategy profiling. Measures whether agents show genuine strategic intelligence across conviction consistency, risk awareness, market sensitivity, adaptability, and information utilization.'
+    range: [0, 1]
+    higher_is_better: true
+    measurement: 'Rolling analysis of trade history across 5 behavioral dimensions. Score = weighted average of dimension scores.'
+    dimensions:
+      - conviction_consistency: 0.25
+      - risk_awareness_depth: 0.20
+      - market_sensitivity: 0.20
+      - strategic_adaptability: 0.20
+      - information_utilization: 0.15
 
 evaluation:
   frequency: continuous
