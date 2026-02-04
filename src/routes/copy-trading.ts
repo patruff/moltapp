@@ -631,7 +631,7 @@ copyTradingRoutes.get("/agents/:agentId/followers", async (c) => {
       agentId,
       agentName: config.name,
       followerCount: followers.length,
-      followers: followers.map((f) => ({
+      followers: followers.map((f: typeof followers[0]) => ({
         followerId: f.followerId,
         followerName: f.followerName,
         initialCapital: parseFloat(f.initialCapital),
@@ -644,11 +644,11 @@ copyTradingRoutes.get("/agents/:agentId/followers", async (c) => {
       })),
       aggregateStats: {
         totalFollowers: followers.length,
-        activeFollowers: followers.filter((f) => f.isActive === "true").length,
-        totalCopiedCapital: followers.reduce((s, f) => s + parseFloat(f.initialCapital), 0),
+        activeFollowers: followers.filter((f: typeof followers[0]) => f.isActive === "true").length,
+        totalCopiedCapital: followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.initialCapital), 0),
         avgFollowerPnl: followers.length > 0
           ? Math.round(
-              (followers.reduce((s, f) => s + parseFloat(f.totalPnlPercent), 0) / followers.length) *
+              (followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.totalPnlPercent), 0) / followers.length) *
                 100,
             ) / 100
           : 0,
@@ -723,7 +723,7 @@ copyTradingRoutes.get("/stats", async (c) => {
             }
           : null,
         perAgent: getAgentConfigs().map((config) => {
-          const followers = agentFollowCounts.find((a) => a.agentId === config.agentId);
+          const followers = agentFollowCounts.find((a: typeof agentFollowCounts[0]) => a.agentId === config.agentId);
           return {
             agentId: config.agentId,
             agentName: config.name,
