@@ -147,6 +147,12 @@ import {
   type V36TradeGrade,
 } from "../services/v36-benchmark-engine.ts";
 import {
+  gradeTrade as gradeTradeV37,
+  scoreAgent as scoreAgentV37,
+  createRoundSummary as createV37RoundSummary,
+  type V37TradeGrade,
+} from "../services/v37-benchmark-engine.ts";
+import {
   recordDriftSnapshot,
   buildDriftSnapshot,
 } from "../services/reasoning-drift-detector.ts";
@@ -2930,6 +2936,91 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(`[Orchestrator] v36 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // v37 Benchmark: 34-Dimension Scoring (Reasoning Composability + Strategic Foresight)
+  // -----------------------------------------------------------------------
+  try {
+    const v37Trades: V37TradeGrade[] = [];
+    const v37MarketPrices: Record<string, number> = {};
+    for (const d of marketData) {
+      v37MarketPrices[d.symbol.toLowerCase()] = d.price;
+    }
+    const v37PeerActions = results.map((r) => ({
+      agentId: r.agentId,
+      action: r.decision.action,
+      symbol: r.decision.symbol,
+    }));
+    const allReasoningsV37 = results.map((r) => r.decision.reasoning);
+
+    for (const r of results) {
+      const d = r.decision;
+      const conf01V37 = normalizeConfidence(d.confidence);
+      const coherenceV37 = analyzeCoherence(d.reasoning, d.action, marketData);
+      const hallucinationsV37 = detectHallucinations(d.reasoning, marketData);
+      const disciplineV37 = checkInstructionDiscipline(
+        { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01V37 },
+        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
+        { cashBalance: 10000, totalValue: 10000, positions: [] },
+      );
+
+      const sourcesV37 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
+      const intentV37 = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const peerReasoningsV37 = allReasoningsV37.filter((_: string, i: number) => results[i].agentId !== r.agentId);
+
+      const gradeV37 = gradeTradeV37({
+        agentId: r.agentId,
+        roundId,
+        symbol: d.symbol,
+        action: d.action,
+        reasoning: d.reasoning,
+        confidence: conf01V37,
+        intent: intentV37,
+        coherenceScore: coherenceV37.score,
+        hallucinationFlags: hallucinationsV37.flags,
+        disciplinePassed: disciplineV37.passed,
+        sources: sourcesV37,
+        predictedOutcome: d.predictedOutcome ?? null,
+        previousPredictions: [],
+        marketPrices: v37MarketPrices,
+        peerActions: v37PeerActions.filter((p: { agentId: string }) => p.agentId !== r.agentId),
+        peerReasonings: peerReasoningsV37,
+        quantity: d.quantity ?? 0,
+      });
+
+      v37Trades.push(gradeV37);
+    }
+
+    // Score each agent across all their v37 trades
+    const v37Scores = [];
+    for (const r of results) {
+      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      if (!agentConfig) continue;
+
+      const agentTrades = v37Trades.filter((t) => t.agentId === r.agentId);
+      const score = scoreAgentV37({
+        agentId: r.agentId,
+        agentName: agentConfig.name,
+        provider: agentConfig.provider,
+        model: agentConfig.model,
+        trades: agentTrades,
+        pnlPercent: 0,
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+      });
+      v37Scores.push(score);
+    }
+
+    // Create round summary
+    const regimeV37 = detectMarketRegime(marketData).regime ?? "unknown";
+    createV37RoundSummary(roundId, v37Scores, v37Trades, regimeV37);
+
+    console.log(
+      `[Orchestrator] v37 round complete: ${results.length} agents — 34-dimension reasoning composability + strategic foresight scoring recorded`,
+    );
+  } catch (err) {
+    console.warn(`[Orchestrator] v37 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {

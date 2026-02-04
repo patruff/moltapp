@@ -68,11 +68,16 @@ const {
   scoreReasoningAuditability,
   scoreDecisionReversibility,
 } = await import("../src/services/v36-benchmark-engine.ts");
+// Import v37 scoring functions
+const {
+  scoreReasoningComposability,
+  scoreStrategicForesight,
+} = await import("../src/services/v37-benchmark-engine.ts");
 
-// Merge justifications with decision data into benchmark records (v36: 32-dimension)
+// Merge justifications with decision data into benchmark records (v37: 34-dimension)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
-  // Compute v34-v36 scores for each record
+  // Compute v34-v37 scores for each record
   const causalScore = scoreCausalReasoning(j.reasoning);
   const epistemicScore = scoreEpistemicHumility(
     j.reasoning,
@@ -100,7 +105,7 @@ const records = justifications.map((j) => {
     j.reasoning,
     j.predictedOutcome ?? null,
   );
-  // v36 new dimensions
+  // v36 dimensions
   const auditabilityScore = scoreReasoningAuditability(
     j.reasoning,
     (j.sources as string[]) ?? [],
@@ -111,6 +116,19 @@ const records = justifications.map((j) => {
     j.action ?? "hold",
     j.confidence,
     j.predictedOutcome ?? null,
+  );
+  // v37 new dimensions
+  const composabilityScore = scoreReasoningComposability(
+    j.reasoning,
+    (j.sources as string[]) ?? [],
+    [],
+  );
+  const foresightScore = scoreStrategicForesight(
+    j.reasoning,
+    j.action ?? "hold",
+    j.confidence,
+    (j.sources as string[]) ?? [],
+    j.quantity ?? 0,
   );
   return {
     agent_id: j.agentId,
@@ -134,10 +152,12 @@ const records = justifications.map((j) => {
     temporal_reasoning_score: temporalReasoningScore,
     reasoning_auditability_score: auditabilityScore,
     decision_reversibility_score: reversibilityScore,
+    reasoning_composability_score: composabilityScore,
+    strategic_foresight_score: foresightScore,
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "36.0",
-    dimension_count: 32,
+    benchmark_version: "37.0",
+    dimension_count: 34,
   };
 });
 
@@ -230,10 +250,12 @@ quality scores.
 | \`temporal_reasoning_score\` | Quality of time-dependent factor reasoning (0-100) |
 | \`reasoning_auditability_score\` | Third-party verifiability of claims (0-100) |
 | \`decision_reversibility_score\` | Exit planning and thesis invalidation quality (0-100) |
+| \`reasoning_composability_score\` | Multi-source synthesis and modular argument quality (0-100) |
+| \`strategic_foresight_score\` | Second-order effects, scenario planning, portfolio thinking (0-100) |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 36.0) |
-| \`dimension_count\` | Number of scoring dimensions (32) |
+| \`benchmark_version\` | Benchmark version (e.g. 37.0) |
+| \`dimension_count\` | Number of scoring dimensions (34) |
 
 ## Citation
 

@@ -1,22 +1,25 @@
 #!/bin/bash
-# MoltApp Overnight Heartbeat
+# MoltApp Code Improvement Heartbeat
 #
-# Runs every ~2 hours — focused on actual platform improvement:
-# 1. Runs a trading round (agents analyze, decide, execute)
-# 2. Checks agent health (wallet balances, trade success)
-# 3. Syncs benchmark data to HuggingFace
-# 4. Launches an autonomous improvement session (code quality, bugs, testing)
-# 5. Pushes changes to GitHub
+# Runs every 30 minutes — focused on code quality and platform improvement:
+# 1. Checks TypeScript health
+# 2. Checks agent health (are agent configs valid, can they be instantiated)
+# 3. Launches an autonomous improvement session (bug fixes, testing, skill.md, agent quality)
+# 4. Pushes changes to GitHub
+#
+# This heartbeat does NOT run trading rounds.
+# Trading happens separately via `npx tsx scripts/heartbeat.ts --once`.
 #
 # Usage:
 #   ./scripts/heartbeat.sh              # Single run
 #   ./scripts/install-heartbeat.sh      # Install as launchd service
 #
 # What this does NOT do:
+# - Trading rounds (decouple trading from code improvement)
 # - Forum engagement / social media posting
 # - Voting on other projects
 # - AI-generated content for marketing
-# This script builds and improves the product.
+# - Creating new benchmark dashboard versions
 
 set -uo pipefail
 
@@ -50,13 +53,9 @@ init_state() {
         cat > "$STATE_FILE" << 'STATEEOF'
 {
     "heartbeat_count": 0,
-    "trading_rounds": 0,
-    "build_sessions_launched": 0,
-    "last_trading_round": "",
-    "last_build_session": "",
-    "last_hf_sync": "",
-    "consecutive_trade_failures": 0,
-    "total_trades_executed": 0
+    "improvement_sessions_launched": 0,
+    "last_improvement_session": "",
+    "ts_errors_last_check": 0
 }
 STATEEOF
     fi
@@ -80,42 +79,20 @@ increment_state() {
 }
 
 # ============================================================
-# TASK 1: Run Trading Round
+# TASK 1: TypeScript Health Check
 # ============================================================
 
-run_trading_round() {
-    log "Running trading round..."
+check_typescript() {
+    log "Running TypeScript check..."
+    local ts_errors
+    ts_errors=$(cd "$PROJECT_DIR" && npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
 
-    local output
-    output=$(cd "$PROJECT_DIR" && npx tsx scripts/heartbeat.ts --once 2>&1)
-    local exit_code=$?
+    set_state "ts_errors_last_check" "$ts_errors"
 
-    if [ $exit_code -eq 0 ]; then
-        log "Trading round completed successfully"
-        increment_state "trading_rounds"
-        set_state "last_trading_round" "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
-        set_state "consecutive_trade_failures" "0"
-
-        # Count executed trades from output
-        local executed=$(echo "$output" | grep -c "\[OK\]" || true)
-        if [ "$executed" -gt 0 ]; then
-            local current_total=$(get_state "total_trades_executed")
-            current_total=${current_total:-0}
-            set_state "total_trades_executed" "$((current_total + executed))"
-            log "  $executed trades executed this round"
-        fi
-
-        # Log agent decisions
-        echo "$output" | grep -E "\[(OK|FAIL|SKIP)\]" | while IFS= read -r line; do
-            log "  $line"
-        done
+    if [ "$ts_errors" -gt 0 ]; then
+        log "  $ts_errors TypeScript errors detected"
     else
-        increment_state "consecutive_trade_failures"
-        local failures=$(get_state "consecutive_trade_failures")
-        log_error "Trading round failed (failure #$failures)"
-        echo "$output" | tail -5 | while IFS= read -r line; do
-            log "  $line"
-        done
+        log "  TypeScript: clean"
     fi
 }
 
@@ -126,12 +103,10 @@ run_trading_round() {
 check_agent_health() {
     log "Checking agent health..."
 
-    # Check if the app can serve data
     local agents_output
     agents_output=$(cd "$PROJECT_DIR" && npx tsx -e "
         import { readFileSync } from 'fs';
-        import { resolve, dirname } from 'path';
-        import { fileURLToPath } from 'url';
+        import { resolve } from 'path';
         try {
             for (const line of readFileSync(resolve(process.cwd(), '.env'), 'utf-8').split('\n')) {
                 const t = line.trim();
@@ -182,23 +157,7 @@ check_agent_health() {
 }
 
 # ============================================================
-# TASK 3: TypeScript Health Check
-# ============================================================
-
-check_typescript() {
-    log "Running TypeScript check..."
-    local ts_errors
-    ts_errors=$(cd "$PROJECT_DIR" && npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
-
-    if [ "$ts_errors" -gt 0 ]; then
-        log "  $ts_errors TypeScript errors detected (pre-existing)"
-    else
-        log "  TypeScript: clean"
-    fi
-}
-
-# ============================================================
-# TASK 4: Launch Autonomous Improvement Session
+# TASK 3: Launch Autonomous Improvement Session
 # ============================================================
 
 launch_improvement_session() {
@@ -206,7 +165,7 @@ launch_improvement_session() {
     if [ -f "$BUILD_PID_FILE" ]; then
         local pid=$(cat "$BUILD_PID_FILE")
         if kill -0 "$pid" 2>/dev/null; then
-            log "Improvement session already running (PID: $pid)"
+            log "Improvement session already running (PID: $pid), skipping"
             return
         else
             log "Previous session (PID: $pid) has ended"
@@ -216,55 +175,62 @@ launch_improvement_session() {
 
     log "Launching autonomous improvement session..."
 
-    cat > "$SCRIPT_DIR/run-build.sh" << 'BUILDSCRIPT'
+    local ts_errors=$(get_state "ts_errors_last_check")
+    ts_errors=${ts_errors:-0}
+
+    cat > "$SCRIPT_DIR/run-build.sh" << BUILDSCRIPT
 #!/bin/bash
 set -uo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-BUILD_LOG="$SCRIPT_DIR/build.log"
+SCRIPT_DIR="\$(cd "\$(dirname "\$0")" && pwd)"
+PROJECT_DIR="\$(dirname "\$SCRIPT_DIR")"
+BUILD_LOG="\$SCRIPT_DIR/build.log"
 
 # Load env
-if [ -f "$PROJECT_DIR/.env" ]; then
-    set -a; source "$PROJECT_DIR/.env"; set +a
+if [ -f "\$PROJECT_DIR/.env" ]; then
+    set -a; source "\$PROJECT_DIR/.env"; set +a
 fi
 
-cd "$PROJECT_DIR"
-echo "=== IMPROVEMENT SESSION START: $(date -u) ===" >> "$BUILD_LOG"
+cd "\$PROJECT_DIR"
+echo "=== IMPROVEMENT SESSION START: \$(date -u) ===" >> "\$BUILD_LOG"
 
 # Unset ANTHROPIC_API_KEY so Claude uses system login
 unset ANTHROPIC_API_KEY
 
-claude -p "You are the MoltApp autonomous improvement agent. Your job is to make the trading platform better.
+claude -p "You are the MoltApp code improvement agent. Your job is to make the codebase cleaner and features work better.
 
 ## What MoltApp Is
-MoltApp is an open benchmark for AI stock trading on Solana. Three autonomous AI agents (Claude, GPT, Grok) trade real tokenized equities (xStocks) via Jupiter DEX. Each agent uses a shared skill.md prompt template with customizable strategy fields, and calls 7 tools autonomously in a multi-turn loop to research and decide trades.
+MoltApp is an open benchmark for AI stock trading on Solana. Three AI agents (Claude ValueBot, GPT MomentumBot, Grok ContrarianBot) trade real tokenized equities (xStocks) via Jupiter DEX. Each agent uses a shared skill.md prompt template with customizable strategy fields, and calls 7 tools autonomously in a multi-turn loop to research and decide trades.
 
-## What To Work On (PICK ONE per session)
-1. **Bug fixes** — Run \`npx tsc --noEmit\` and fix any TypeScript errors in files we own (src/agents/, src/services/, src/routes/pages.tsx)
-2. **Test the API** — Check that /api/v1/agents, /api/v1/agents/:id/portfolio, /api/v1/agents/:id/trades return sensible data
-3. **Improve skill.md** — Make the agent prompt better: clearer instructions, better strategy examples, better tool usage guidance
-4. **Improve agent profiles** — Make /agent/:id pages show more useful data (reasoning quality, thesis history, performance charts)
-5. **Fix the leaderboard** — Ensure / (main page) loads correctly and shows all agents with accurate P&L
-6. **README improvements** — Keep the README accurate and useful for developers who want to build their own agents
-7. **Circuit breaker tuning** — Review src/services/circuit-breaker.ts settings and adjust if they're too restrictive or too loose
+## Current TypeScript Errors: ${ts_errors}
 
-## Rules
+## What To Work On (PICK ONE per session — depth over breadth)
+1. **Fix TypeScript errors** — Run \\\`npx tsc --noEmit\\\` and fix errors in files we own (src/agents/, src/services/, src/routes/). These are pre-existing errors, not new ones. Focus on the EASIEST ones first.
+2. **Improve skill.md** — Read src/agents/skill.md and make the prompt clearer: better tool usage examples, clearer decision criteria, better strategy guidance so agents make smarter trades
+3. **Test API endpoints** — Check /api/v1/agents, /api/v1/agents/:id/portfolio, /api/v1/agents/:id/trades work correctly. Fix any broken endpoints.
+4. **Improve agent profile pages** — Read src/routes/pages.tsx and improve the /agent/:id page: better layout, more useful data display, thesis history
+5. **Fix the leaderboard** — Ensure the main page (/) loads correctly and shows all agents with accurate portfolio values and P&L
+6. **Clean up dead code** — Remove unused imports, dead variables, commented-out code in files you're already editing
+
+## STRICT RULES
 - ONLY modify files you've read first
-- ALWAYS run \`npx tsc --noEmit\` before committing to verify no new errors
-- Commit with descriptive messages
+- ALWAYS run \\\`npx tsc --noEmit\\\` before committing to verify no NEW errors
+- Commit with clear, descriptive messages
 - Push to GitHub after meaningful work
-- Update .planning/STATE.md with what you accomplished
 - Focus on ONE area per session — depth over breadth
-- Do NOT add new benchmark dashboard versions (v35, v36, etc.) — we have enough
+- Do NOT create new benchmark versions (v37, v38, etc.) — we already have too many
+- Do NOT create new files unless absolutely necessary — prefer editing existing ones
 - Do NOT write forum posts or marketing content
-- Do NOT add unnecessary abstractions or over-engineer" \
-    --dangerously-skip-permissions \
-    --max-budget-usd 2 \
-    --model sonnet \
-    >> "$BUILD_LOG" 2>&1
+- Do NOT add unnecessary abstractions or over-engineer
+- Do NOT touch eval.yaml, sync-to-hf.ts, or benchmark engine files
+- Do NOT add new routes to app.ts
+- Keep changes small and focused" \\
+    --dangerously-skip-permissions \\
+    --max-budget-usd 1.50 \\
+    --model sonnet \\
+    >> "\$BUILD_LOG" 2>&1
 
-echo "=== IMPROVEMENT SESSION END: $(date -u) ===" >> "$BUILD_LOG"
+echo "=== IMPROVEMENT SESSION END: \$(date -u) ===" >> "\$BUILD_LOG"
 BUILDSCRIPT
     chmod +x "$SCRIPT_DIR/run-build.sh"
 
@@ -274,12 +240,12 @@ BUILDSCRIPT
     disown $new_pid 2>/dev/null
     echo "$new_pid" > "$BUILD_PID_FILE"
     log "Improvement session launched (PID: $new_pid)"
-    increment_state "build_sessions_launched"
-    set_state "last_build_session" "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
+    increment_state "improvement_sessions_launched"
+    set_state "last_improvement_session" "\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\""
 }
 
 # ============================================================
-# TASK 5: Push Changes
+# TASK 4: Push Changes
 # ============================================================
 
 push_changes() {
@@ -288,7 +254,7 @@ push_changes() {
     if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
         log "Pushing git changes..."
         git add -A
-        git commit -m "heartbeat: trading round + health check #$(get_state 'heartbeat_count')
+        git commit -m "heartbeat: code improvement cycle #$(get_state 'heartbeat_count')
 
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>" 2>/dev/null || true
         git push origin main 2>/dev/null && log "Pushed to GitHub" || log_error "Failed to push"
@@ -309,19 +275,16 @@ main() {
     local count=$(get_state "heartbeat_count")
     log "Heartbeat #$count"
 
-    # 1. Run trading round (agents analyze market, make decisions, execute trades)
-    run_trading_round
-
-    # 2. Check agent health (portfolio values, positions, cash balances)
-    check_agent_health
-
-    # 3. TypeScript health check
+    # 1. TypeScript health check
     check_typescript
 
-    # 4. Launch improvement session (if none running)
+    # 2. Check agent health (portfolio values, positions, cash)
+    check_agent_health
+
+    # 3. Launch improvement session (if none running)
     launch_improvement_session
 
-    # 5. Push any state changes
+    # 4. Push any state changes
     push_changes
 
     log "HEARTBEAT COMPLETE — $(date -u)"

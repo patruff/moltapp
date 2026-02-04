@@ -112,7 +112,7 @@ benchmarkV37ApiRoutes.get("/trade-grades", (c) => {
         temporalReasoning: g.temporalReasoningScore,
         marketMicrostructure: g.reasoningAuditabilityScore,
         decisionReversibility: g.decisionReversibilityScore,
-        reasoningSynthesisQuality: g.reasoningSynthesisScore,
+        reasoningComposability: g.reasoningComposabilityScore,
         strategicForesight: g.strategicForesightScore,
       },
       hallucinationFlags: g.hallucinationFlags,
@@ -163,7 +163,7 @@ benchmarkV37ApiRoutes.get("/dimensions", (c) => {
           { key: "temporalReasoningQuality", label: "Temporal Reasoning", weight: weights.temporalReasoningQuality, description: "How well agent reasons about time-dependent factors" },
           { key: "reasoningAuditability", label: "Reasoning Auditability", weight: weights.reasoningAuditability, description: "Can every claim be independently verified? Evidence specificity, falsifiability, verifiable reference density, audit trail completeness" },
           { key: "decisionReversibility", label: "Decision Reversibility", weight: weights.decisionReversibility, description: "Does the agent plan for when its thesis breaks? Exit conditions, invalidation criteria, contingency planning, risk-reward framing" },
-          { key: "reasoningSynthesisQuality", label: "Reasoning Composability", weight: weights.reasoningSynthesisQuality, description: "Can reasoning sub-components be recombined into novel strategies? Modularity of argument structure, reusable reasoning patterns, cross-domain applicability", isNew: true },
+          { key: "reasoningComposability", label: "Reasoning Composability", weight: weights.reasoningComposability, description: "Can reasoning sub-components be recombined into novel strategies? Modularity of argument structure, reusable reasoning patterns, cross-domain applicability", isNew: true },
           { key: "strategicForesight", label: "Strategic Foresight", weight: weights.strategicForesight, description: "Does the agent anticipate second-order effects and future market states? Scenario planning depth, cascading impact analysis, anticipatory positioning", isNew: true },
         ],
       },
@@ -221,7 +221,7 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
     });
   }
 
-  const scores = trades.map((t) => t.reasoningSynthesisScore);
+  const scores = trades.map((t) => t.reasoningComposabilityScore);
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
@@ -231,13 +231,13 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
     weak: scores.filter((s) => s < 40).length,
   };
 
-  const sorted = [...trades].sort((a, b) => b.reasoningSynthesisScore - a.reasoningSynthesisScore);
+  const sorted = [...trades].sort((a, b) => b.reasoningComposabilityScore - a.reasoningComposabilityScore);
 
   const topTrades = sorted.slice(0, 5).map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
-    composabilityScore: t.reasoningSynthesisScore,
+    composabilityScore: t.reasoningComposabilityScore,
     sourceQuality: t.sourceQualityScore,
     overallGrade: t.overallGrade,
     reasoning: t.reasoning.slice(0, 300),
@@ -248,7 +248,7 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
-    composabilityScore: t.reasoningSynthesisScore,
+    composabilityScore: t.reasoningComposabilityScore,
     overallGrade: t.overallGrade,
     reasoning: t.reasoning.slice(0, 200),
     gradedAt: t.gradedAt,
@@ -522,7 +522,7 @@ benchmarkV37ApiRoutes.get("/reasoning-profile", (c) => {
       temporalReasoning: s.dimensions.temporalReasoningQuality,
       reasoningAuditability: s.dimensions.reasoningAuditability,
       decisionReversibility: s.dimensions.decisionReversibility,
-      reasoningSynthesisQuality: s.dimensions.reasoningSynthesisQuality,
+      reasoningComposability: s.dimensions.reasoningComposability,
       strategicForesight: s.dimensions.strategicForesight,
     },
   }));
@@ -552,7 +552,7 @@ benchmarkV37ApiRoutes.get("/justification/:agentId", (c) => {
       hallucinationFlags: t.hallucinationFlags,
       auditabilityScore: t.reasoningAuditabilityScore,
       reversibilityScore: t.decisionReversibilityScore,
-      composabilityScore: t.reasoningSynthesisScore,
+      composabilityScore: t.reasoningComposabilityScore,
       foresightScore: t.strategicForesightScore,
       overallGrade: t.overallGrade,
       gradedAt: t.gradedAt,
@@ -642,7 +642,7 @@ benchmarkV37ApiRoutes.get("/export/jsonl", (c) => {
     temporal_reasoning_score: t.temporalReasoningScore,
     reasoning_auditability_score: t.reasoningAuditabilityScore,
     decision_reversibility_score: t.decisionReversibilityScore,
-    reasoning_composability_score: t.reasoningSynthesisScore,
+    reasoning_composability_score: t.reasoningComposabilityScore,
     strategic_foresight_score: t.strategicForesightScore,
     integrity_hash: t.integrityHash,
     predicted_outcome: t.predictedOutcome,
@@ -670,7 +670,7 @@ benchmarkV37ApiRoutes.get("/export/csv", (c) => {
   const scores = getAgentScores();
   const header = "agent_id,agent_name,provider,model,composite_score,tier,trade_count,reasoning_auditability,decision_reversibility,reasoning_composability,strategic_foresight\n";
   const rows = scores.map((s) =>
-    `${s.agentId},${s.agentName},${s.provider},${s.model},${s.compositeScore},${s.tier},${s.tradeCount},${s.dimensions.reasoningAuditability},${s.dimensions.decisionReversibility},${s.dimensions.reasoningSynthesisQuality},${s.dimensions.strategicForesight}`,
+    `${s.agentId},${s.agentName},${s.provider},${s.model},${s.compositeScore},${s.tier},${s.tradeCount},${s.dimensions.reasoningAuditability},${s.dimensions.decisionReversibility},${s.dimensions.reasoningComposability},${s.dimensions.strategicForesight}`,
   ).join("\n");
 
   return new Response(header + rows + "\n", {

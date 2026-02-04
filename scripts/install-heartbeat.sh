@@ -1,6 +1,6 @@
 #!/bin/bash
-# Install MoltApp heartbeat as a launchd service (macOS) or cron job
-# Runs every 30 minutes, fully autonomous
+# Install MoltApp code improvement heartbeat as a launchd service (macOS)
+# Runs every 30 minutes — code quality, bug fixes, testing (no trading)
 #
 # Usage: ./scripts/install-heartbeat.sh [install|uninstall|status]
 
@@ -30,7 +30,7 @@ install_launchd() {
         <string>$HEARTBEAT_SCRIPT</string>
     </array>
     <key>StartInterval</key>
-    <integer>7200</integer>
+    <integer>1800</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>WorkingDirectory</key>
@@ -55,7 +55,7 @@ EOF
 
     echo "Installed and started!"
     echo "  Plist: $PLIST_PATH"
-    echo "  Interval: every 2 hours (matches circuit breaker cooldown)"
+    echo "  Interval: every 30 minutes (code improvement only, no trading)"
     echo "  Log: $SCRIPT_DIR/heartbeat.log"
     echo ""
     echo "Commands:"

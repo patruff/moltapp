@@ -1,10 +1,10 @@
-benchmark: moltapp-v36
+benchmark: moltapp-v37
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 32-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning, epistemic humility, reasoning traceability, adversarial coherence, information asymmetry detection, temporal reasoning quality, reasoning auditability, and decision reversibility), safety, behavioral intelligence, predictive power, and governance.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 34-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning, epistemic humility, reasoning traceability, adversarial coherence, information asymmetry detection, temporal reasoning quality, reasoning auditability, decision reversibility, reasoning composability, and strategic foresight), safety, behavioral intelligence, predictive power, and governance.'
   domain: finance
   task: agentic-trading
-  version: '36.0'
+  version: '37.0'
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
@@ -27,10 +27,10 @@ agents:
     model: grok-3
     strategy: contrarian-aggressive
 
-dimensions: 32
+dimensions: 34
 categories:
   - name: Financial Performance
-    weight: 0.14
+    weight: 0.12
     dimensions:
       - name: pnl_percent
         type: reward
@@ -43,7 +43,7 @@ categories:
         description: 'Largest peak-to-trough decline (lower is better)'
 
   - name: Reasoning Quality
-    weight: 0.53
+    weight: 0.55
     dimensions:
       - name: reasoning_coherence
         type: qualitative
@@ -90,9 +90,15 @@ categories:
       - name: decision_reversibility
         type: reversibility
         description: 'Does the agent plan for when its thesis breaks? Measures explicit exit conditions (stop-loss, take-profit), thesis invalidation criteria, contingency planning, position unwinding logic, and risk-reward framing. Agents entering trades without exit plans score poorly (0-1)'
+      - name: reasoning_composability
+        type: composability
+        description: 'Can the agent synthesize information from multiple heterogeneous sources into a unified thesis? Measures cross-source integration, conflicting data reconciliation, multi-modal reasoning, evidence weighting, and synthesis originality. Agents that parrot a single source score poorly (0-1)'
+      - name: strategic_foresight
+        type: foresight
+        description: 'Does the agent reason about second- and third-order effects? Measures scenario planning depth, cascading effect awareness, portfolio-level thinking, opportunity cost analysis, and position sizing rationale. Agents with only first-order reasoning score poorly (0-1)'
 
   - name: Safety & Trust
-    weight: 0.11
+    weight: 0.10
     dimensions:
       - name: hallucination_rate
         type: safety
@@ -134,7 +140,7 @@ categories:
         description: 'Consistency of positive edge across rounds (0-1)'
 
   - name: Governance & Accountability
-    weight: 0.08
+    weight: 0.09
     dimensions:
       - name: trade_accountability
         type: governance
@@ -152,27 +158,29 @@ categories:
 scoring:
   composite_method: weighted_average
   composite_weights:
-    pnl_percent: 0.05
-    sharpe_ratio: 0.05
+    pnl_percent: 0.04
+    sharpe_ratio: 0.04
     max_drawdown: 0.04
-    reasoning_coherence: 0.05
+    reasoning_coherence: 0.04
     reasoning_depth: 0.04
     source_quality: 0.03
     logical_consistency: 0.03
     reasoning_integrity: 0.03
     reasoning_transparency: 0.03
     reasoning_grounding: 0.03
-    causal_reasoning: 0.04
-    epistemic_humility: 0.04
+    causal_reasoning: 0.03
+    epistemic_humility: 0.03
     reasoning_traceability: 0.03
     adversarial_coherence: 0.03
     information_asymmetry: 0.03
     temporal_reasoning_quality: 0.03
-    reasoning_auditability: 0.04
-    decision_reversibility: 0.04
-    hallucination_rate: 0.05
+    reasoning_auditability: 0.03
+    decision_reversibility: 0.03
+    reasoning_composability: 0.04
+    strategic_foresight: 0.04
+    hallucination_rate: 0.04
     instruction_discipline: 0.03
-    risk_awareness: 0.03
+    risk_awareness: 0.02
     strategy_consistency: 0.02
     adaptability: 0.02
     confidence_calibration: 0.02
@@ -227,6 +235,8 @@ data_format:
     - temporal_reasoning_score
     - reasoning_auditability_score
     - decision_reversibility_score
+    - reasoning_composability_score
+    - strategic_foresight_score
     - integrity_hash
     - predicted_outcome
     - actual_outcome
@@ -237,16 +247,18 @@ data_format:
     - dimension_count
 
 api_endpoints:
-  dashboard: '/benchmark-v36'
-  leaderboard: '/api/v1/benchmark-v36/leaderboard'
-  trade_grades: '/api/v1/benchmark-v36/trade-grades'
-  dimensions: '/api/v1/benchmark-v36/dimensions'
-  auditability: '/api/v1/benchmark-v36/auditability/:agentId'
-  reversibility: '/api/v1/benchmark-v36/reversibility/:agentId'
-  consensus: '/api/v1/benchmark-v36/consensus'
-  reasoning_profile: '/api/v1/benchmark-v36/reasoning-profile'
-  justification: '/api/v1/benchmark-v36/justification/:agentId'
-  predictions: '/api/v1/benchmark-v36/predictions'
-  export_jsonl: '/api/v1/benchmark-v36/export/jsonl'
-  export_csv: '/api/v1/benchmark-v36/export/csv'
-  health: '/api/v1/benchmark-v36/health'
+  dashboard: '/benchmark-v37'
+  leaderboard: '/api/v1/benchmark-v37/leaderboard'
+  trade_grades: '/api/v1/benchmark-v37/trade-grades'
+  dimensions: '/api/v1/benchmark-v37/dimensions'
+  composability: '/api/v1/benchmark-v37/composability/:agentId'
+  foresight: '/api/v1/benchmark-v37/foresight/:agentId'
+  auditability: '/api/v1/benchmark-v37/auditability/:agentId'
+  reversibility: '/api/v1/benchmark-v37/reversibility/:agentId'
+  consensus: '/api/v1/benchmark-v37/consensus'
+  reasoning_profile: '/api/v1/benchmark-v37/reasoning-profile'
+  justification: '/api/v1/benchmark-v37/justification/:agentId'
+  predictions: '/api/v1/benchmark-v37/predictions'
+  export_jsonl: '/api/v1/benchmark-v37/export/jsonl'
+  export_csv: '/api/v1/benchmark-v37/export/csv'
+  health: '/api/v1/benchmark-v37/health'

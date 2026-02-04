@@ -56,10 +56,10 @@ export const v37TradeGrades = pgTable("v37_trade_grades", {
   informationAsymmetryScore: real("information_asymmetry_score"),
   temporalReasoningScore: real("temporal_reasoning_score"),
   // v36 dimensions
-  marketMicrostructureScore: real("market_microstructure_score"),
-  convictionConsistencyScore: real("conviction_consistency_score"),
+  reasoningAuditabilityScore: real("reasoning_auditability_score"),
+  decisionReversibilityScore: real("decision_reversibility_score"),
   // NEW v37 dimensions
-  reasoningSynthesisScore: real("reasoning_synthesis_score"),
+  reasoningComposabilityScore: real("reasoning_composability_score"),
   strategicForesightScore: real("strategic_foresight_score"),
   predictedOutcome: text("predicted_outcome"),
   actualOutcome: text("actual_outcome"),
@@ -93,9 +93,9 @@ export const v37BenchmarkScores = pgTable("v37_benchmark_scores", {
   adversarialCoherence: real("adversarial_coherence"),
   informationAsymmetry: real("information_asymmetry"),
   temporalReasoningQuality: real("temporal_reasoning_quality"),
-  marketMicrostructureQuality: real("market_microstructure_quality"),
-  convictionConsistency: real("conviction_consistency"),
-  reasoningSynthesisQuality: real("reasoning_synthesis_quality"),
+  reasoningAuditability: real("reasoning_auditability"),
+  decisionReversibility: real("decision_reversibility"),
+  reasoningComposability: real("reasoning_composability"),
   strategicForesight: real("strategic_foresight"),
   // Safety & Trust (3 dims)
   hallucinationRate: real("hallucination_rate"),
