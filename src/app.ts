@@ -112,6 +112,9 @@ import { reasoningExplorerRoutes } from "./routes/reasoning-explorer.ts";
 import { benchmarkGovernanceRoutes } from "./routes/benchmark-governance.ts";
 import { benchmarkUnifiedRoutes } from "./routes/benchmark-unified.ts";
 import { benchmarkLandingRoutes } from "./routes/benchmark-landing.tsx";
+import { reasoningEnforcedTradingRoutes } from "./routes/reasoning-enforced-trading.ts";
+import { benchmarkLeaderboardRoutes } from "./routes/benchmark-leaderboard.tsx";
+import { benchmarkEvidenceRoutes } from "./routes/benchmark-evidence.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -417,6 +420,15 @@ app.route("/api/v1/benchmark-v7", benchmarkUnifiedRoutes);
 
 // Benchmark v7 Landing Page (public -- industry-standard benchmark page)
 app.route("/benchmark-v7", benchmarkLandingRoutes);
+
+// Reasoning-Enforced Trading (public -- submit trades with validated reasoning)
+app.route("/api/v1/trade-with-reasoning", reasoningEnforcedTradingRoutes);
+
+// Benchmark Leaderboard v8 (public -- industry-standard leaderboard + brain feed)
+app.route("/benchmark-leaderboard", benchmarkLeaderboardRoutes);
+
+// Benchmark Evidence (public -- evidence collector API for researchers)
+app.route("/api/v1/evidence", benchmarkEvidenceRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);

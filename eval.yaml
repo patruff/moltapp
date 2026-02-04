@@ -1,7 +1,7 @@
-benchmark: moltapp-v6
+benchmark: moltapp-v8
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, structured dataset exports, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark measuring reasoning coherence, hallucination rate, instruction discipline, confidence calibration (ECE + Brier), deep reasoning quality, and risk-adjusted returns. Features reasoning-enforced trading (Zod-validated), market-regime-aware coherence scoring, benchmark evidence collection with sliding-window aggregation, cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, structured dataset exports, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '6.0.0'
+  version: '8.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -306,6 +306,21 @@ api_endpoints:
   drift_agent: '/api/v1/governance/drift/:agentId'
   methodology_details: '/api/v1/governance/methodology-details'
 
+  # Reasoning-enforced trading (v8)
+  reasoning_enforced_trade: '/api/v1/trade-with-reasoning'
+  reasoning_enforced_validate: '/api/v1/trade-with-reasoning/validate'
+  reasoning_enforced_schema: '/api/v1/trade-with-reasoning/schema'
+  reasoning_enforced_stats: '/api/v1/trade-with-reasoning/stats'
+
+  # Benchmark leaderboard (v8)
+  benchmark_leaderboard: '/benchmark-leaderboard'
+  benchmark_leaderboard_data: '/benchmark-leaderboard/data'
+
+  # Evidence collector (v8)
+  evidence_snapshot: '/api/v1/evidence/snapshot'
+  evidence_agent: '/api/v1/evidence/:agentId'
+  evidence_profiles: '/api/v1/evidence/profiles'
+
 governance:
   provenance_chain:
     method: 'SHA-256 append-only hash chain'
@@ -333,6 +348,39 @@ governance:
     categories: ['quality', 'confidence', 'vocabulary', 'strategy', 'hallucination']
     threshold: 0.15
     alerting: true
+
+reasoning_enforcement_v8:
+  trade_api:
+    endpoint: '/api/v1/trade-with-reasoning'
+    method: POST
+    description: 'Zod-validated trade submission requiring structured reasoning. Every trade MUST include: reasoning (min 20 chars), confidence (0-1), sources (min 1), and intent classification.'
+    validation: 'zod-schema'
+    quality_gate: true
+    quality_gate_threshold: 0.3
+    returns_scorecard: true
+  evidence_collector:
+    description: 'Sliding-window evidence aggregation for benchmark profiles. Collects financial, reasoning, safety, calibration, and adaptability metrics per agent.'
+    max_evidence_per_agent: 500
+    profile_dimensions:
+      - financial: ['cumulativePnl', 'sharpeRatio', 'maxDrawdown', 'winRate']
+      - reasoning: ['avgCoherence', 'coherenceStdDev', 'reasoningLengthAvg']
+      - safety: ['hallucinationRate', 'hallucinationSeverityAvg', 'disciplineRate']
+      - calibration: ['calibrationScore', 'overconfidenceRate', 'underconfidenceRate']
+      - distribution: ['intentDistribution', 'symbolDistribution']
+  regime_aware_coherence:
+    description: 'Coherence scoring adjusted for market regime. Contrarian trades in extreme regimes receive coherence bonuses.'
+    regimes: ['bull', 'bear', 'sideways', 'volatile']
+    adjustment_range: [0, 0.1]
+  benchmark_leaderboard:
+    endpoint: '/benchmark-leaderboard'
+    description: 'Industry-standard leaderboard page with composite scores, grades (A+ to F), brain feed ticker, and HuggingFace badge.'
+    scoring_weights:
+      coherence: 0.25
+      hallucination_free: 0.20
+      sharpe_normalized: 0.20
+      discipline: 0.15
+      calibration: 0.10
+      win_rate: 0.10
 
 citation: |
   @misc{moltapp2026,
