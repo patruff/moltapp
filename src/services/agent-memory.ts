@@ -939,7 +939,7 @@ export async function loadMemoryFromDB(agentId: string): Promise<void> {
 
     // Find matching trade
     const matchingTrade = recentTrades.find(
-      (t) =>
+      (t: typeof recentTrades[0]) =>
         t.stockSymbol === decision.symbol &&
         t.agentId === decision.agentId &&
         Math.abs(
