@@ -321,7 +321,7 @@ export async function getAgentAnalytics(
   const hourlyActivity = computeHourlyActivity(decisions);
 
   // Fetch social metrics
-  const decisionIds = decisions.map((d) => d.id);
+  const decisionIds = decisions.map((d: typeof decisions[0]) => d.id);
   const socialMetrics = await computeSocialMetrics(decisionIds);
 
   // Get recent highlights (most reacted / highest confidence decisions)
@@ -410,7 +410,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
   // Build rankings
   const rankings: ArenaRanking[] = [];
   for (const config of configs) {
-    const agentDecisionsList = allDecisions.filter((d) => d.agentId === config.agentId);
+    const agentDecisionsList = allDecisions.filter((d: typeof allDecisions[0]) => d.agentId === config.agentId);
 
     // Get portfolio
     let portfolio = { cashBalance: 10000, positions: [] as Array<{ currentPrice: number; quantity: number }>, totalValue: 10000, totalPnl: 0, totalPnlPercent: 0 };
@@ -421,18 +421,18 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
     }
 
     // Social score (reactions + comments)
-    const decisionIds = agentDecisionsList.map((d) => d.id);
+    const decisionIds = agentDecisionsList.map((d: typeof agentDecisionsList[0]) => d.id);
     const socialMetrics = decisionIds.length > 0 ? await computeSocialMetrics(decisionIds) : { totalReactions: 0, totalComments: 0, bullishReactions: 0, bearishReactions: 0, avgReactionsPerDecision: 0, communityAgreement: 0 };
     const socialScore = socialMetrics.totalReactions + socialMetrics.totalComments * 2;
 
     // Win rate
-    const buysSells = agentDecisionsList.filter((d) => d.action !== "hold");
-    const highConfidence = buysSells.filter((d) => d.confidence >= 50);
+    const buysSells = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action !== "hold");
+    const highConfidence = buysSells.filter((d: typeof buysSells[0]) => d.confidence >= 50);
     const winRate = buysSells.length > 0 ? (highConfidence.length / buysSells.length) * 100 : 0;
 
     // Avg confidence
     const avgConf = agentDecisionsList.length > 0
-      ? agentDecisionsList.reduce((sum, d) => sum + d.confidence, 0) / agentDecisionsList.length
+      ? agentDecisionsList.reduce((sum: number, d: typeof agentDecisionsList[0]) => sum + d.confidence, 0) / agentDecisionsList.length
       : 0;
 
     const lastDecision = agentDecisionsList[0];
