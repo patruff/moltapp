@@ -5,6 +5,7 @@ import { getLeaderboard } from "../services/leaderboard.ts";
 import type { LeaderboardEntry } from "../services/leaderboard.ts";
 import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agents/orchestrator.ts";
 import { getAgentWallet } from "../services/agent-wallets.ts";
+import { getThesisHistory } from "../services/agent-theses.ts";
 import { db } from "../db/index.ts";
 import { trades } from "../db/schema/index.ts";
 
@@ -237,8 +238,8 @@ pages.get("/agent/:id", async (c) => {
     );
   }
 
-  // Fetch agent config, portfolio, trade history, wallet, and on-chain trades in parallel
-  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades] = await Promise.all([
+  // Fetch agent config, portfolio, trade history, wallet, on-chain trades, and thesis history in parallel
+  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades, thesisHistory] = await Promise.all([
     Promise.resolve(getAgentConfig(agentId)),
     getAgentPortfolio(agentId).catch(() => ({
       cashBalance: 0,
@@ -271,6 +272,7 @@ pages.get("/agent/:id", async (c) => {
       .orderBy(desc(trades.createdAt))
       .limit(20)
       .catch(() => [] as any[]),
+    getThesisHistory(agentId, 10).catch(() => [] as any[]),
   ]);
 
   return c.render(
@@ -392,6 +394,66 @@ pages.get("/agent/:id", async (c) => {
           </div>
         )}
       </div>
+
+      {/* Investment Theses History */}
+      {thesisHistory.length > 0 && (
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+          <h2 class="text-lg font-bold text-white mb-1">Investment Theses</h2>
+          <p class="text-xs text-gray-500 mb-4">Agent's documented investment reasoning for each stock position.</p>
+          <div class="space-y-4">
+            {thesisHistory.map((t: any) => {
+              const isActive = t.status === "active";
+              const isBullish = t.direction === "bullish";
+              const isBearish = t.direction === "bearish";
+              return (
+                <div class={`border-l-2 ${isActive ? "border-blue-500" : "border-gray-700"} pl-4 pb-3`}>
+                  <div class="flex items-start gap-2 mb-2">
+                    <span class="text-white text-sm font-bold">{t.symbol}</span>
+                    <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
+                      isActive ? "bg-blue-900/50 text-blue-400" : "bg-gray-800 text-gray-500"
+                    }`}>
+                      {t.status.toUpperCase()}
+                    </span>
+                    <span class={`text-xs px-2 py-0.5 rounded ${
+                      isBullish ? "bg-green-900/30 text-profit" :
+                      isBearish ? "bg-red-900/30 text-loss" :
+                      "bg-gray-800 text-gray-400"
+                    }`}>
+                      {t.direction}
+                    </span>
+                    {t.conviction != null && (
+                      <span class="text-gray-500 text-xs">
+                        Conviction: {t.conviction}/10
+                      </span>
+                    )}
+                    <span class="text-gray-600 text-xs ml-auto">
+                      {t.updatedAt ? formatTimeAgo(new Date(t.updatedAt)) : "—"}
+                    </span>
+                  </div>
+                  <p class="text-gray-300 text-sm mb-2 leading-relaxed">{t.thesis}</p>
+                  <div class="flex gap-4 text-xs text-gray-500">
+                    {t.entryPrice && (
+                      <span>Entry: <span class="text-gray-400">${formatCurrency(t.entryPrice)}</span></span>
+                    )}
+                    {t.targetPrice && (
+                      <span>Target: <span class="text-gray-400">${formatCurrency(t.targetPrice)}</span></span>
+                    )}
+                    {t.entryPrice && t.targetPrice && (
+                      <span class={pnlColor(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}>
+                        {pnlSign(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}
+                        {(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100).toFixed(1)}% expected
+                      </span>
+                    )}
+                  </div>
+                  {t.closedReason && (
+                    <p class="text-gray-500 text-xs mt-2 italic">Closed: {t.closedReason}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* On-Chain Trade History */}
       <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
