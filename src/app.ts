@@ -125,6 +125,8 @@ import { benchmarkV12Routes } from "./routes/benchmark-v12.tsx";
 import { benchmarkV12ApiRoutes } from "./routes/benchmark-v12-api.ts";
 import { benchmarkV13Routes } from "./routes/benchmark-v13.tsx";
 import { benchmarkV13ApiRoutes } from "./routes/benchmark-v13-api.ts";
+import { benchmarkV14Routes } from "./routes/benchmark-v14.tsx";
+import { benchmarkV14ApiRoutes } from "./routes/benchmark-v14-api.ts";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -469,6 +471,12 @@ app.route("/benchmark-v13", benchmarkV13Routes);
 
 // Benchmark v13 Battle API (public -- battles, Elo, reasoning comparisons, exports)
 app.route("/api/v1/benchmark-v13", benchmarkV13ApiRoutes);
+
+// Benchmark v14 Dashboard (public -- 10-pillar scoring, outcome resolution, calibration)
+app.route("/benchmark-v14", benchmarkV14Routes);
+
+// Benchmark v14 API (public -- predictions, calibration, volatility, consensus, exports)
+app.route("/api/v1/benchmark-v14", benchmarkV14ApiRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);

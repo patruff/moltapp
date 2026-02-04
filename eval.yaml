@@ -1,7 +1,7 @@
-benchmark: moltapp-v12
+benchmark: moltapp-v14
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 8-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality), 8-dimension trade validation engine (structural validity, reasoning depth, source verification, price grounding, temporal consistency, confidence calibration, action-reasoning alignment, risk awareness), reasoning taxonomy classifier (10 strategy types, 6 analytical methods, 5 reasoning structures, cognitive bias detection with 10 pattern types, sophistication levels 1-5, theme extraction, fingerprint diversity), cross-round consistency tracker (stance consistency, conviction stability, narrative coherence, strategy alignment, reasoning evolution trend detection), forensic reasoning engine, confidence calibration engine (ECE + Brier Score), reasoning pattern detector (logical fallacy detection, vocabulary sophistication), ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, composite Elo rankings, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 10-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability). v14 adds Outcome Resolution Engine (prediction→result feedback loop), Confidence Calibration Curve Analyzer (ECE/Brier/reliability diagrams), Reasoning Volatility Tracker (sentiment/confidence/intent drift), and Cross-Agent Consensus Divergence Scorer (agreement patterns, contrarian alpha). Includes 8-dimension trade validation engine, reasoning taxonomy classifier (10 strategy types, 6 analytical methods, 5 reasoning structures, cognitive bias detection with 10 pattern types, sophistication levels 1-5), cross-round consistency tracker, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '13.0.0'
+  version: '14.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -826,6 +826,108 @@ benchmark_v13:
     schema: '/api/v1/benchmark-v13/schema'
     export_jsonl: '/api/v1/benchmark-v13/export/jsonl'
     export_csv: '/api/v1/benchmark-v13/export/csv'
+
+benchmark_v14:
+  scoring_engine:
+    description: '10-pillar scoring with outcome resolution, calibration curves, reasoning volatility, and consensus intelligence'
+    pillars:
+      - name: financial
+        weight: 0.15
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.14
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.12
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.10
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.07
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.07
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.10
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.10
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.08
+        new_in_v14: true
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality', 'prediction_score']
+        description: 'Do the agents forward-looking predictions actually come true? Resolves predicted outcomes against actual market movements.'
+      - name: reasoning_stability
+        weight: 0.07
+        new_in_v14: true
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift', 'conviction_flip_rate']
+        description: 'Is the agents reasoning consistent across rounds, or does it flip-flop?'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  outcome_resolution_engine:
+    description: 'Closes the prediction-to-outcome feedback loop — the critical missing piece in AI trading benchmarks'
+    features:
+      - 'Registers forward-looking predictions from agent reasoning'
+      - 'Infers directional intent (up/down/flat) from prediction text'
+      - 'Extracts target prices and time horizons from natural language'
+      - 'Resolves predictions against actual market movements'
+      - 'Computes prediction quality scores (direction + target accuracy + calibration)'
+      - 'Builds per-agent prediction profiles with calibration buckets'
+      - 'Tracks ECE, Brier score, and monotonic calibration per agent'
+    resolution_triggers: ['time_expiry (default 24h)', 'significant_price_movement (>2%)']
+
+  confidence_calibration_analyzer:
+    description: 'Deep calibration analysis with reliability diagrams for each agent'
+    metrics:
+      - 'ECE (Expected Calibration Error): weighted average of |accuracy - confidence| per bin'
+      - 'MCE (Maximum Calibration Error): worst-case bin error'
+      - 'Brier Score: mean squared probabilistic prediction error'
+      - 'Overconfidence Ratio: fraction where confidence > accuracy'
+      - 'Monotonic Calibration: does higher confidence → better outcomes?'
+      - 'Suggested Calibration Factor: optimal confidence multiplier'
+    reliability_diagram:
+      bins: 10
+      visualization: 'Confidence (x-axis) vs Accuracy (y-axis), perfect = diagonal'
+
+  reasoning_volatility_tracker:
+    description: 'Measures reasoning consistency/volatility across trading rounds'
+    dimensions:
+      - 'Sentiment Volatility: std deviation of bullish/bearish tone across rounds'
+      - 'Confidence Volatility: std deviation of self-reported confidence'
+      - 'Intent Drift Rate: fraction of rounds where strategy intent changed'
+      - 'Conviction Flip Rate: how often agent reverses buy↔sell on same stock'
+      - 'Length Variability: coefficient of variation of reasoning word count'
+    stability_score: 'Composite 0-1 weighted average of 5 stability dimensions'
+    trend_detection: 'Compares recent 10 rounds vs older rounds to detect stabilizing/volatile trends'
+
+  consensus_divergence_scorer:
+    description: 'Cross-agent agreement analysis — measures collective intelligence vs independent thinking'
+    metrics:
+      - 'Agreement Score per round: fraction of agents in majority action'
+      - 'Unanimous Rate: fraction of rounds with perfect agreement'
+      - 'Split Rate: fraction of rounds with no majority'
+      - 'Per-Agent Stance: conformist, independent, or contrarian classification'
+      - 'Convergence Trend: are agents converging or diverging over time?'
+      - 'Consensus Accuracy: does the majority tend to be right?'
+    controversy_detection: 'Flags rounds with lowest agreement scores as most interesting'
+
+  api_endpoints_v14:
+    benchmark_dashboard: '/benchmark-v14'
+    data_endpoint: '/benchmark-v14/data'
+    stream_endpoint: '/benchmark-v14/stream'
+    predictions_agent: '/api/v1/benchmark-v14/predictions/:agentId'
+    predictions_all: '/api/v1/benchmark-v14/predictions'
+    calibration_agent: '/api/v1/benchmark-v14/calibration/:agentId'
+    calibration_compare: '/api/v1/benchmark-v14/calibration'
+    volatility_agent: '/api/v1/benchmark-v14/volatility/:agentId'
+    volatility_compare: '/api/v1/benchmark-v14/volatility'
+    consensus: '/api/v1/benchmark-v14/consensus'
+    consensus_recent: '/api/v1/benchmark-v14/consensus/recent'
+    export_v14: '/api/v1/benchmark-v14/export/v14'
+    schema: '/api/v1/benchmark-v14/schema'
 
 citation: |
   @misc{moltapp2026,

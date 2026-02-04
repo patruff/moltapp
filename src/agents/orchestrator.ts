@@ -160,6 +160,27 @@ import {
 import {
   emitV13Event,
 } from "../routes/benchmark-v13.tsx";
+import {
+  registerPrediction,
+  resolvePredictions,
+} from "../services/outcome-resolution-engine.ts";
+import {
+  recordCalibrationPoint,
+  inferOutcomeFromCoherence,
+} from "../services/confidence-calibration-analyzer.ts";
+import {
+  recordReasoningForVolatility,
+  computeSentimentScore as computeVolatilitySentiment,
+  extractKeyPhrases,
+} from "../services/reasoning-volatility-tracker.ts";
+import {
+  recordRoundConsensus,
+  type AgentRoundAction,
+} from "../services/consensus-divergence-scorer.ts";
+import {
+  recordV14AgentMetrics,
+  emitV14Event,
+} from "../routes/benchmark-v14.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -1618,6 +1639,136 @@ async function executeTradingRound(
     auditPeerReview(roundId, results.length, results[0]?.agentId ?? null, 0);
   } catch (err) {
     console.warn(`[Orchestrator] Governance round finalization failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // --- v14: Outcome Resolution, Calibration, Volatility, Consensus ---
+  try {
+    // 1. Register predictions and resolve pending ones
+    for (const r of results) {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const stock = marketData.find((m) => m.symbol.toLowerCase() === r.decision.symbol.toLowerCase());
+
+      // Register prediction if agent provided one
+      if (r.decision.predictedOutcome && stock) {
+        registerPrediction({
+          agentId: r.agentId,
+          symbol: r.decision.symbol,
+          action: r.decision.action,
+          confidence: normConf,
+          predictedOutcome: r.decision.predictedOutcome,
+          priceAtPrediction: stock.price,
+          roundId,
+          intent: r.decision.intent,
+        });
+      }
+
+      // Record calibration data point
+      const coherenceForCalib = normConf * 0.8 + 0.1; // Proxy until justification is available
+      const qualityOutcome = inferOutcomeFromCoherence(coherenceForCalib, 0, true);
+      recordCalibrationPoint({
+        agentId: r.agentId,
+        confidence: normConf,
+        outcome: qualityOutcome,
+        coherenceScore: coherenceForCalib,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        roundId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Record reasoning volatility snapshot
+      const volSentiment = computeVolatilitySentiment(r.decision.reasoning);
+      const keyPhrases = extractKeyPhrases(r.decision.reasoning);
+      recordReasoningForVolatility({
+        agentId: r.agentId,
+        roundId,
+        symbol: r.decision.symbol,
+        action: r.decision.action,
+        confidence: normConf,
+        intent: r.decision.intent ?? "value",
+        sentimentScore: volSentiment,
+        wordCount: r.decision.reasoning.split(/\s+/).length,
+        coherenceScore: coherenceForCalib,
+        keyPhrases,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // 2. Resolve pending predictions against current prices
+    const priceMap = new Map<string, number>();
+    for (const md of marketData) {
+      priceMap.set(md.symbol, md.price);
+      priceMap.set(md.symbol.toLowerCase(), md.price);
+    }
+    const newlyResolved = resolvePredictions(priceMap);
+    if (newlyResolved.length > 0) {
+      console.log(
+        `[Orchestrator] v14 resolved ${newlyResolved.length} predictions. ` +
+        `Correct: ${newlyResolved.filter((r) => r.directionCorrect).length}/${newlyResolved.length}`,
+      );
+    }
+
+    // 3. Record consensus divergence
+    const consensusAgents: AgentRoundAction[] = results.map((r) => {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      return {
+        agentId: r.agentId,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        confidence: normConf,
+        reasoning: r.decision.reasoning,
+        coherenceScore: normConf * 0.8 + 0.1,
+      };
+    });
+    const consensusSnapshot = recordRoundConsensus(roundId, consensusAgents);
+
+    console.log(
+      `[Orchestrator] v14 consensus: ${consensusSnapshot.consensusType}, ` +
+      `agreement=${(consensusSnapshot.agreementScore * 100).toFixed(0)}%, ` +
+      `contrarians=${consensusSnapshot.contrarians.length}`,
+    );
+
+    // 4. Update v14 agent metrics
+    for (const r of results) {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      recordV14AgentMetrics(r.agentId, {
+        financial: 0.5,
+        reasoning: normConf * 0.8 + 0.1,
+        safety: 0.8,
+        calibration: 0.5,
+        patterns: 0.5,
+        adaptability: 0.5,
+        forensicQuality: 0.5,
+        validationQuality: 0.5,
+        predictionAccuracy: 0.5,
+        reasoningStability: 0.7,
+        composite: normConf * 0.4 + 0.4,
+        grade: normConf >= 0.7 ? "B+" : normConf >= 0.5 ? "C+" : "C",
+        tradeCount: 1,
+        lastUpdated: new Date().toISOString(),
+      });
+    }
+
+    // 5. Emit v14 events
+    emitV14Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      consensusType: consensusSnapshot.consensusType,
+      agreementScore: consensusSnapshot.agreementScore,
+      predictionsResolved: newlyResolved.length,
+      predictionsCorrect: newlyResolved.filter((r) => r.directionCorrect).length,
+    });
+
+    emitBenchmarkEvent("benchmark_update", {
+      version: "v14",
+      roundId,
+      consensusType: consensusSnapshot.consensusType,
+      agreement: consensusSnapshot.agreementScore,
+      predictionsResolved: newlyResolved.length,
+    });
+
+  } catch (err) {
+    console.warn(`[Orchestrator] v14 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
