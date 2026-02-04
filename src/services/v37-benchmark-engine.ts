@@ -2,24 +2,21 @@
  * V37 Benchmark Engine — 34-Dimension AI Trading Benchmark
  *
  * Extends v36's 32-dimension framework with:
- * - Reasoning Synthesis Quality: Can the agent synthesize information from
- *   multiple heterogeneous sources into a unified, coherent thesis? Measures
- *   cross-source integration, conflicting data reconciliation, multi-modal
- *   reasoning (price + volume + news + sentiment), evidence weighting, and
- *   synthesis originality. Agents that parrot a single source score poorly.
- *
- * - Strategic Foresight: Does the agent reason about second- and third-order
- *   effects, not just immediate price direction? Measures scenario planning
- *   depth, cascading effect awareness, portfolio-level thinking, opportunity
- *   cost analysis, and position sizing rationale. Agents that only say
- *   "price will go up" without strategic context score poorly.
+ * - Reasoning Composability: Can the agent's reasoning be decomposed into
+ *   independent, reusable modules? Measures argument modularity, cross-trade
+ *   reasoning reuse, hierarchical argument structure, transferable insight
+ *   detection, and synthesis quality.
+ * - Strategic Foresight: Does the agent anticipate second-order effects and
+ *   plan multiple moves ahead? Measures catalyst chain identification,
+ *   scenario branching, opportunity cost awareness, portfolio-level strategic
+ *   thinking, and multi-timeframe integration.
  *
  * Categories (34 dimensions):
  * - Financial Performance (3): pnl, sharpe, drawdown
  * - Reasoning Quality (17): coherence, depth, source, consistency,
  *   integrity, transparency, grounding, causal, epistemic,
- *   traceability, adversarial, info asymmetry, temporal,
- *   auditability, reversibility, synthesis (NEW), foresight (NEW)
+ *   traceability, adversarial, info asymmetry, temporal, auditability,
+ *   reversibility, composability (NEW), foresight (NEW)
  * - Safety & Trust (3): hallucination, discipline, risk awareness
  * - Behavioral Intelligence (4): consistency, adaptability, calibration, learning
  * - Predictive Power (3): outcome, regime, edge
@@ -28,7 +25,23 @@
 
 import { createHash } from "crypto";
 
-// Import inherited scoring functions from v36
+// Re-export inherited scoring functions from v36
+export {
+  scoreGrounding,
+  scoreConsensusQuality,
+  scoreTransparency,
+  scoreAccountability,
+  scoreCausalReasoning,
+  scoreEpistemicHumility,
+  scoreReasoningTraceability,
+  scoreAdversarialCoherence,
+  scoreInformationAsymmetry,
+  scoreTemporalReasoningQuality,
+  scoreReasoningAuditability,
+  scoreDecisionReversibility,
+} from "./v36-benchmark-engine.ts";
+
+// Import for internal use
 import {
   scoreGrounding,
   scoreConsensusQuality,
@@ -44,22 +57,6 @@ import {
   scoreDecisionReversibility,
 } from "./v36-benchmark-engine.ts";
 
-// Re-export for consumers
-export {
-  scoreGrounding,
-  scoreConsensusQuality,
-  scoreTransparency,
-  scoreAccountability,
-  scoreCausalReasoning,
-  scoreEpistemicHumility,
-  scoreReasoningTraceability,
-  scoreAdversarialCoherence,
-  scoreInformationAsymmetry,
-  scoreTemporalReasoningQuality,
-  scoreReasoningAuditability,
-  scoreDecisionReversibility,
-};
-
 // ---------------------------------------------------------------------------
 // Types for the 34 dimensions
 // ---------------------------------------------------------------------------
@@ -69,7 +66,7 @@ export interface V37DimensionScores {
   pnlPercent: number;
   sharpeRatio: number;
   maxDrawdown: number;
-  // Reasoning Quality (17 dims — 15 from v36 + synthesis + foresight)
+  // Reasoning Quality (17 dims — 15 from v36 + composability + foresight)
   coherence: number;
   reasoningDepth: number;
   sourceQuality: number;
@@ -85,8 +82,8 @@ export interface V37DimensionScores {
   temporalReasoningQuality: number;
   reasoningAuditability: number;
   decisionReversibility: number;
-  reasoningComposability: number;  // NEW
-  strategicForesight: number;          // NEW
+  reasoningComposability: number;   // NEW
+  strategicForesight: number;       // NEW
   // Safety & Trust (3 dims)
   hallucinationRate: number;
   instructionDiscipline: number;
@@ -148,7 +145,7 @@ export interface V37TradeGrade {
   reasoningAuditabilityScore: number;
   decisionReversibilityScore: number;
   reasoningComposabilityScore: number;   // NEW
-  strategicForesightScore: number;    // NEW
+  strategicForesightScore: number;       // NEW
   integrityHash: string;
   predictedOutcome: string | null;
   actualOutcome: string | null;
@@ -178,7 +175,7 @@ export interface V37RoundSummary {
   avgReasoningAuditability: number;
   avgDecisionReversibility: number;
   avgReasoningComposability: number;   // NEW
-  avgStrategicForesight: number;    // NEW
+  avgStrategicForesight: number;       // NEW
 }
 
 // ---------------------------------------------------------------------------
@@ -190,31 +187,31 @@ const tradeGrades: V37TradeGrade[] = [];
 const roundSummaries: V37RoundSummary[] = [];
 
 // ---------------------------------------------------------------------------
-// Dimension weights (must sum to 1.0) — 34 entries
+// Dimension weights (must sum to ~1.0) — 34 entries
 // ---------------------------------------------------------------------------
 
 const DIMENSION_WEIGHTS: Record<keyof V37DimensionScores, number> = {
-  pnlPercent: 0.04,
-  sharpeRatio: 0.04,
+  pnlPercent: 0.04,                // reduced from 0.05
+  sharpeRatio: 0.04,               // reduced from 0.05
   maxDrawdown: 0.04,
-  coherence: 0.04,
+  coherence: 0.04,                 // reduced from 0.05
   reasoningDepth: 0.04,
   sourceQuality: 0.03,
   logicalConsistency: 0.03,
   reasoningIntegrity: 0.03,
   reasoningTransparency: 0.03,
   reasoningGrounding: 0.03,
-  causalReasoning: 0.03,
-  epistemicHumility: 0.03,
+  causalReasoning: 0.03,           // reduced from 0.04
+  epistemicHumility: 0.03,         // reduced from 0.04
   reasoningTraceability: 0.03,
   adversarialCoherence: 0.03,
   informationAsymmetry: 0.03,
   temporalReasoningQuality: 0.03,
-  reasoningAuditability: 0.03,
-  decisionReversibility: 0.03,
-  reasoningComposability: 0.04,   // NEW
-  strategicForesight: 0.04,           // NEW
-  hallucinationRate: 0.04,
+  reasoningAuditability: 0.03,     // reduced from 0.04
+  decisionReversibility: 0.03,     // reduced from 0.04
+  reasoningComposability: 0.03,    // NEW
+  strategicForesight: 0.03,        // NEW
+  hallucinationRate: 0.04,         // reduced from 0.05
   instructionDiscipline: 0.03,
   riskAwareness: 0.02,
   strategyConsistency: 0.02,
@@ -226,7 +223,7 @@ const DIMENSION_WEIGHTS: Record<keyof V37DimensionScores, number> = {
   edgeConsistency: 0.02,
   tradeAccountability: 0.02,
   reasoningQualityIndex: 0.02,
-  decisionAccountability: 0.02,
+  decisionAccountability: 0.03,
   consensusQuality: 0.02,
 };
 
@@ -254,181 +251,135 @@ function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "
 }
 
 // ---------------------------------------------------------------------------
-// NEW v37: Reasoning Synthesis Quality
+// NEW v37: Reasoning Composability
 // ---------------------------------------------------------------------------
 
 /**
- * Can the agent synthesize information from multiple heterogeneous sources
- * into a unified, coherent investment thesis? This dimension distinguishes
- * agents that truly integrate multiple data streams from agents that
- * merely list facts from a single source.
+ * Can the agent's reasoning be decomposed into independent, reusable modules?
+ * Measures argument modularity (are claims self-contained?), cross-trade
+ * reasoning reuse (does the agent build on previous insights?), hierarchical
+ * argument structure (thesis -> sub-claims -> evidence), transferable insight
+ * detection (reasoning applicable beyond this specific trade), and synthesis
+ * quality (how well sub-arguments combine into a coherent whole).
  *
  * Measures:
- * 1. Cross-Source Integration (0-20): Does reasoning weave together data from
- *    multiple source types (price, volume, news, fundamentals, sentiment)?
- * 2. Conflicting Data Reconciliation (0-20): When sources disagree, does the
- *    agent acknowledge and resolve the conflict?
- * 3. Multi-Modal Reasoning (0-20): Does the agent combine quantitative
- *    (numbers, percentages) with qualitative (narrative, context) reasoning?
- * 4. Evidence Weighting (0-20): Does the agent assign different weights to
- *    different evidence, explaining why some data matters more?
- * 5. Synthesis Originality (0-20): Does the combined analysis yield a novel
- *    insight, or just restate what each source said independently?
+ * 1. Argument Modularity (0-20): Are claims self-contained and separable?
+ * 2. Cross-Trade Reasoning Reuse (0-20): Does agent build on previous insights?
+ * 3. Hierarchical Structure (0-20): thesis -> sub-claims -> evidence?
+ * 4. Transferable Insights (0-20): General principles that apply beyond this trade?
+ * 5. Synthesis Quality (0-20): Do sub-arguments combine into a coherent whole?
  */
 export function scoreReasoningComposability(
   reasoning: string,
   sources: string[],
   peerReasonings: string[],
+  previousReasonings: string[],
 ): number {
   let score = 0;
   const maxScore = 100;
 
-  // 1. Cross-Source Integration (0-20)
-  let crossSourceScore = 0;
+  // 1. Argument Modularity (0-20)
+  // Detect self-contained claims with connectors like "independently", "separately",
+  // "first...", "second...", numbered arguments, bullet-style reasoning
+  let modularityScore = 0;
 
-  // Count distinct data domain references in reasoning
-  const dataDomains = [
-    { pattern: /\b(?:price|trading\s+at|\$[\d,.]+|quote|bid|ask)\b/i, domain: "price" },
-    { pattern: /\b(?:volume|liquidity|traded\s+[\d,]+|ADV|average\s+daily)\b/i, domain: "volume" },
-    { pattern: /\b(?:news|headline|announced|report(?:ed|s)|earnings|guidance)\b/i, domain: "news" },
-    { pattern: /\b(?:P\/E|revenue|margin|EPS|fundamentals?|valuation|book\s+value)\b/i, domain: "fundamentals" },
-    { pattern: /\b(?:sentiment|mood|fear|greed|bullish\s+consensus|bearish\s+consensus)\b/i, domain: "sentiment" },
-    { pattern: /\b(?:RSI|MACD|moving\s+average|bollinger|technical|support|resistance)\b/i, domain: "technical" },
-    { pattern: /\b(?:sector|peer|industry|correlation|relative\s+to|compared\s+to)\b/i, domain: "sector" },
-    { pattern: /\b(?:macro|Fed|interest\s+rate|GDP|inflation|CPI|employment)\b/i, domain: "macro" },
-  ];
+  const independencePatterns = /\b(?:independently|separately|on its own|in isolation|standalone|self[- ]contained|distinct(?:ly)?|each factor|taken alone)\b/gi;
+  const independenceMatches = reasoning.match(independencePatterns) ?? [];
+  modularityScore += Math.min(8, independenceMatches.length * 4);
 
-  const detectedDomains = new Set<string>();
-  for (const { pattern, domain } of dataDomains) {
-    if (pattern.test(reasoning)) {
-      detectedDomains.add(domain);
+  // Sequential/numbered arguments
+  const sequentialPatterns = /\b(?:first(?:ly)?[,:]|second(?:ly)?[,:]|third(?:ly)?[,:]|fourth(?:ly)?[,:]|1[\.\)]\s|2[\.\)]\s|3[\.\)]\s|4[\.\)]\s|point\s+(?:one|two|three|four)|argument\s+\d|reason\s+\d)\b/gi;
+  const sequentialMatches = reasoning.match(sequentialPatterns) ?? [];
+  modularityScore += Math.min(8, sequentialMatches.length * 3);
+
+  // Bullet-style or list-style reasoning
+  const bulletPatterns = /(?:^|\n)\s*[-*>]\s+\S/gm;
+  const bulletMatches = reasoning.match(bulletPatterns) ?? [];
+  modularityScore += Math.min(4, bulletMatches.length * 2);
+
+  score += Math.min(20, modularityScore);
+
+  // 2. Cross-Trade Reasoning Reuse (0-20)
+  // Detect callbacks to previous analysis like "consistent with my thesis",
+  // "as I noted", "building on", "reaffirming", "updating my view"
+  let reuseScore = 0;
+
+  const callbackPatterns = /\b(?:consistent with (?:my|our|the) (?:thesis|view|analysis|prior)|as I (?:noted|mentioned|observed|argued)|building on (?:my|our|the|previous)|reaffirming (?:my|our|the)|updating (?:my|our) (?:view|thesis|model|outlook)|in line with (?:my|our) (?:previous|earlier|prior)|confirms? (?:my|our) (?:earlier|previous|prior)|reinforc(?:es?|ing) (?:my|our) (?:thesis|view|conviction)|as previously (?:discussed|noted|analyzed|stated))\b/gi;
+  const callbackMatches = reasoning.match(callbackPatterns) ?? [];
+  reuseScore += Math.min(12, callbackMatches.length * 4);
+
+  // Cross-reference with actual previous reasonings
+  if (previousReasonings.length > 0) {
+    // Check if key phrases from previous reasoning appear
+    let sharedConcepts = 0;
+    for (const prev of previousReasonings) {
+      const prevWords = prev.toLowerCase().split(/\s+/).filter((w) => w.length > 5);
+      const currentWords = new Set(reasoning.toLowerCase().split(/\s+/));
+      const overlap = prevWords.filter((w) => currentWords.has(w)).length;
+      if (overlap >= 3) sharedConcepts++;
     }
-  }
-
-  // Integration connectors — language that bridges domains
-  const integrationPatterns = /\b(?:combined\s+with|together\s+with|in\s+light\s+of|considering\s+(?:both|all)|cross-referencing|triangulat|corroborat|alongside|when\s+viewed\s+(?:together|holistically)|the\s+confluence\s+of|synthesizing|integrating|taking\s+into\s+account\s+both)\b/gi;
-  const integrationMatches = reasoning.match(integrationPatterns) ?? [];
-
-  if (detectedDomains.size >= 4) crossSourceScore = 14;
-  else if (detectedDomains.size >= 3) crossSourceScore = 10;
-  else if (detectedDomains.size >= 2) crossSourceScore = 6;
-  else crossSourceScore = 2;
-
-  crossSourceScore += Math.min(6, integrationMatches.length * 3);
-  score += Math.min(20, crossSourceScore);
-
-  // 2. Conflicting Data Reconciliation (0-20)
-  let conflictScore = 0;
-
-  const conflictPatterns = /\b(?:however|despite|although|on\s+the\s+other\s+hand|conflicting|contradicts?|mixed\s+signals?|divergen(?:ce|t)|while\s+.*\s+suggests?|tension\s+between|at\s+odds\s+with|notwithstanding)\b/gi;
-  const conflictMatches = reasoning.match(conflictPatterns) ?? [];
-
-  const resolutionPatterns = /\b(?:on\s+balance|net\s+(?:effect|result)|weighing|overall|ultimately|the\s+(?:stronger|weaker)\s+signal|I\s+(?:prioritize|weight|favor)|this\s+outweighs|more\s+important(?:ly)?|the\s+decisive\s+factor|tips?\s+the\s+(?:scale|balance))\b/gi;
-  const resolutionMatches = reasoning.match(resolutionPatterns) ?? [];
-
-  if (conflictMatches.length > 0 && resolutionMatches.length > 0) {
-    // Acknowledged conflict AND resolved it
-    conflictScore = 14 + Math.min(6, resolutionMatches.length * 3);
-  } else if (conflictMatches.length > 0) {
-    // Acknowledged conflict but didn't resolve
-    conflictScore = 8;
-  } else if (detectedDomains.size >= 3) {
-    // Multiple domains but no conflict mentioned — could mean everything aligns
-    conflictScore = 10;
+    reuseScore += Math.min(8, sharedConcepts * 4);
   } else {
-    conflictScore = 4;
+    // No previous reasoning to compare — partial credit for self-referential structure
+    reuseScore += 3;
   }
 
-  score += Math.min(20, conflictScore);
+  score += Math.min(20, reuseScore);
 
-  // 3. Multi-Modal Reasoning (0-20)
-  let multiModalScore = 0;
+  // 3. Hierarchical Structure (0-20)
+  // Detect thesis -> sub-claims -> evidence structure.
+  // Look for "my thesis is", "supporting this:", "evidence:", "because", "therefore"
+  let hierarchyScore = 0;
 
-  // Quantitative markers
-  const quantPatterns = /(?:\$[\d,.]+|[\d,.]+%|\d+x|\d+\.\d+|ratio\s+of|per\s+share|basis\s+points?)/gi;
-  const quantMatches = reasoning.match(quantPatterns) ?? [];
+  const thesisPatterns = /\b(?:my thesis (?:is|remains)|(?:core|central|main|overall) (?:thesis|argument|claim|view)|I (?:believe|argue|contend|maintain) that|the (?:key|main) (?:point|takeaway) is)\b/gi;
+  const thesisMatches = reasoning.match(thesisPatterns) ?? [];
+  hierarchyScore += Math.min(6, thesisMatches.length * 3);
 
-  // Qualitative/narrative markers
-  const qualPatterns = /\b(?:narrative|story|thesis|context|sentiment|perception|tone|mood|expectation|market\s+psychology|investor\s+(?:confidence|fear)|backdrop)\b/gi;
-  const qualMatches = reasoning.match(qualPatterns) ?? [];
+  const subClaimPatterns = /\b(?:supporting this[,:]|sub-?claim|in support|additional(?:ly)?[,:]|furthermore[,:]|moreover[,:]|another (?:factor|reason|point)|a (?:key|second|further) (?:factor|point|consideration))\b/gi;
+  const subClaimMatches = reasoning.match(subClaimPatterns) ?? [];
+  hierarchyScore += Math.min(6, subClaimMatches.length * 3);
 
-  // Causal/logical connectors
-  const causalPatterns = /\b(?:because|therefore|consequently|implies|leads\s+to|results?\s+in|driven\s+by|caused\s+by|as\s+a\s+result)\b/gi;
-  const causalMatches = reasoning.match(causalPatterns) ?? [];
+  const evidencePatterns = /\b(?:evidence[:\s]|the data (?:shows?|suggests?|indicates?)|because\b|therefore\b|this is (?:supported|evidenced|shown) by|as (?:shown|demonstrated|indicated) by|proof (?:of|that)|specifically[,:])\b/gi;
+  const evidenceMatches = reasoning.match(evidencePatterns) ?? [];
+  hierarchyScore += Math.min(8, evidenceMatches.length * 3);
 
-  const hasQuant = quantMatches.length >= 2;
-  const hasQual = qualMatches.length >= 1;
-  const hasCausal = causalMatches.length >= 2;
+  score += Math.min(20, hierarchyScore);
 
-  if (hasQuant && hasQual && hasCausal) multiModalScore = 18;
-  else if (hasQuant && hasQual) multiModalScore = 14;
-  else if (hasQuant && hasCausal) multiModalScore = 12;
-  else if (hasQuant) multiModalScore = 8;
-  else multiModalScore = 4;
+  // 4. Transferable Insights (0-20)
+  // Detect general principles the agent articulates that apply beyond this trade.
+  // e.g. "sectors with X tend to Y", "when interest rates Z, tech stocks..."
+  let transferScore = 0;
 
-  // Bonus for explicit quant-to-qual bridge
-  if (/\b(?:this\s+(?:data|number|metric)\s+(?:suggests?|indicates?|means?)|quantitatively|the\s+numbers?\s+(?:tell|show|suggest))\b/i.test(reasoning)) {
-    multiModalScore += 2;
-  }
+  const generalPrinciplePatterns = /\b(?:sectors? with .{3,30} tend to|when (?:interest rates?|inflation|the Fed|GDP|earnings|volatility) .{3,30}(?:stocks?|equities|bonds?|crypto|assets?)|historically[,:]|as a (?:general )?rule|in (?:general|principle)|this pattern (?:suggests|indicates|shows)|a broader (?:trend|pattern|lesson)|the (?:lesson|takeaway|implication) (?:here )?is|this (?:applies|extends|generalizes) (?:to|beyond)|more (?:broadly|generally))\b/gi;
+  const generalPrincipleMatches = reasoning.match(generalPrinciplePatterns) ?? [];
+  transferScore += Math.min(12, generalPrincipleMatches.length * 4);
 
-  score += Math.min(20, multiModalScore);
+  // Framework-level thinking
+  const frameworkPatterns = /\b(?:framework|mental model|heuristic|rule of thumb|first principles?|structural(?:ly)?|systematic(?:ally)?|paradigm|regime[- ]dependent|cycle[- ](?:dependent|aware)|macro (?:framework|lens|perspective))\b/gi;
+  const frameworkMatches = reasoning.match(frameworkPatterns) ?? [];
+  transferScore += Math.min(8, frameworkMatches.length * 3);
 
-  // 4. Evidence Weighting (0-20)
-  let weightingScore = 0;
+  score += Math.min(20, transferScore);
 
-  const weightingPatterns = /\b(?:more\s+(?:important(?:ly)?|significant(?:ly)?|relevant|weight)|less\s+(?:important|significant|relevant)|primary\s+(?:driver|factor|reason)|secondary\s+(?:factor|consideration)|the\s+(?:key|main|primary|critical)\s+(?:factor|driver|signal|indicator)|weighted\s+(?:by|toward)|strongest\s+signal|weakest\s+signal|I\s+(?:emphasize|de-emphasize|discount|prioritize)|carries?\s+more\s+weight)\b/gi;
-  const weightingMatches = reasoning.match(weightingPatterns) ?? [];
+  // 5. Synthesis Quality (0-20)
+  // Are sub-arguments combined coherently? Reward "combining these factors",
+  // "on balance", "weighing X against Y", "net assessment"
+  let synthesisScore = 0;
 
-  weightingScore += Math.min(12, weightingMatches.length * 4);
-
-  // Explicit ranking of evidence
-  const rankingPatterns = /\b(?:first(?:ly)?|second(?:ly)?|third(?:ly)?|most\s+important(?:ly)?|least\s+important(?:ly)?|primarily|additionally|moreover|furthermore)\b/gi;
-  const rankingMatches = reasoning.match(rankingPatterns) ?? [];
-  weightingScore += Math.min(8, rankingMatches.length * 2);
-
-  score += Math.min(20, weightingScore);
-
-  // 5. Synthesis Originality (0-20)
-  let originalityScore = 0;
-
-  // Check if the conclusion goes beyond just restating inputs
-  const synthesisPatterns = /\b(?:this\s+combination|taken\s+together|the\s+(?:bigger|broader|larger)\s+picture|connecting\s+the\s+dots|what\s+this\s+means\s+(?:is|for)|my\s+(?:thesis|conclusion|view)\s+is|putting\s+it\s+(?:all\s+)?together|the\s+(?:key\s+)?insight|I\s+(?:conclude|believe|assess)\s+that|the\s+(?:net|overall)\s+(?:thesis|takeaway|conclusion))\b/gi;
+  const synthesisPatterns = /\b(?:combining these (?:factors|arguments|points|considerations)|on balance|weighing .{3,30} against|net assessment|all (?:things )?considered|taking (?:everything|all) (?:into account|together)|in (?:sum|summary|aggregate|total)|the (?:combined|cumulative|overall|net) (?:effect|impact|picture|view)|pulling (?:it|this|these) (?:all )?together|synthesizing|the (?:bottom line|upshot) is)\b/gi;
   const synthesisMatches = reasoning.match(synthesisPatterns) ?? [];
+  synthesisScore += Math.min(12, synthesisMatches.length * 4);
 
-  originalityScore += Math.min(10, synthesisMatches.length * 4);
+  // Connective tissue between arguments
+  const connectivePatterns = /\b(?:this (?:combined|coupled|paired) with|together (?:with|these)|in conjunction (?:with)?|alongside|coupled with|layered on top|in addition to the (?:above|previous)|building on (?:this|the above))\b/gi;
+  const connectiveMatches = reasoning.match(connectivePatterns) ?? [];
+  synthesisScore += Math.min(8, connectiveMatches.length * 3);
 
-  // Check for unique insight compared to peers
-  if (peerReasonings.length > 0) {
-    const ownWords = new Set(reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 4));
-    let uniqueWordCount = 0;
-    const peerWords = new Set<string>();
-    for (const peer of peerReasonings) {
-      for (const w of peer.toLowerCase().split(/\s+/).filter((w) => w.length > 4)) {
-        peerWords.add(w);
-      }
-    }
-    for (const w of ownWords) {
-      if (!peerWords.has(w)) uniqueWordCount++;
-    }
-    const uniqueRatio = ownWords.size > 0 ? uniqueWordCount / ownWords.size : 0;
-    if (uniqueRatio >= 0.3) originalityScore += 6;
-    else if (uniqueRatio >= 0.15) originalityScore += 4;
-    else originalityScore += 2;
-  } else {
-    originalityScore += 4; // No peers to compare — partial credit
-  }
+  score += Math.min(20, synthesisScore);
 
-  // Bonus for source diversity in synthesis
-  if (sources.length >= 3 && detectedDomains.size >= 3) {
-    originalityScore += 2;
-  }
-
-  score += Math.min(20, originalityScore);
-
-  // Bonus: reasoning length indicates synthesis effort
-  const wordCount = reasoning.split(/\s+/).length;
-  if (wordCount >= 100 && detectedDomains.size >= 3) {
-    score += 3;
+  // Bonus: high source count suggests modular research
+  if (sources.length >= 4) {
+    score += Math.min(5, (sources.length - 3) * 2);
   }
 
   return Math.round(Math.min(maxScore, Math.max(0, score)));
@@ -439,125 +390,141 @@ export function scoreReasoningComposability(
 // ---------------------------------------------------------------------------
 
 /**
- * Does the agent reason about second- and third-order effects, not just
- * immediate price direction? This distinguishes shallow "price will go up"
- * reasoning from sophisticated strategic thinking.
+ * Does the agent anticipate second-order effects and plan multiple moves ahead?
+ * Measures catalyst chain identification (A causes B causes C), scenario
+ * branching (if X then Y, else Z), opportunity cost awareness (what am I
+ * giving up?), portfolio-level strategic thinking (how does this trade fit the
+ * bigger picture), and multi-timeframe integration (short/medium/long term
+ * reasoning).
  *
  * Measures:
- * 1. Scenario Planning Depth (0-20): Does agent consider multiple future
- *    scenarios (bull, bear, base case)?
- * 2. Cascading Effect Awareness (0-20): Does agent reason about second-
- *    and third-order consequences (e.g., "if rates rise, then housing slows,
- *    then banks lose mortgage revenue")?
- * 3. Portfolio-Level Thinking (0-20): Does the agent consider how this trade
- *    fits within the broader portfolio, not just the single-stock thesis?
- * 4. Opportunity Cost Analysis (0-20): Does the agent consider what it's
- *    giving up by making this trade instead of alternatives?
- * 5. Position Sizing Rationale (0-20): Does the agent explain why this
- *    specific quantity / allocation, not just direction?
+ * 1. Catalyst Chain Identification (0-20): Multi-step cause-effect chains
+ * 2. Scenario Branching (0-20): If/then/else reasoning
+ * 3. Opportunity Cost Awareness (0-20): What agent considered but rejected
+ * 4. Portfolio-Level Thinking (0-20): How trade fits overall portfolio
+ * 5. Multi-Timeframe Integration (0-20): Different time horizons
  */
 export function scoreStrategicForesight(
   reasoning: string,
   action: string,
-  confidence: number,
+  predictedOutcome: string | null,
   sources: string[],
-  quantity: number,
 ): number {
   let score = 0;
   const maxScore = 100;
 
-  // 1. Scenario Planning Depth (0-20)
-  let scenarioScore = 0;
+  // Combine reasoning + predicted outcome for analysis
+  const fullText = reasoning + (predictedOutcome ? " " + predictedOutcome : "");
 
-  const scenarioPatterns = /\b(?:(?:bull|bear|base)\s+case|scenario|(?:best|worst|most\s+likely)\s+(?:case|outcome)|if\s+.*\s+then|upside\s+scenario|downside\s+scenario|in\s+the\s+event\s+(?:of|that)|should\s+.*\s+(?:happen|occur|materialize)|alternatively|under\s+(?:adverse|favorable)\s+conditions|stress\s+(?:case|test|scenario))\b/gi;
-  const scenarioMatches = reasoning.match(scenarioPatterns) ?? [];
+  // 1. Catalyst Chain Identification (0-20)
+  // Detect multi-step cause-effect chains: "If earnings beat, institutional buying
+  // increases, pushing price past resistance"
+  let chainScore = 0;
 
-  scenarioScore += Math.min(12, scenarioMatches.length * 4);
+  const causalChainPatterns = /\b(?:(?:which|this) (?:will|would|could|should|may) (?:lead|cause|trigger|result|drive|push|pull|force|spark|prompt) .{3,60}(?:which|that|causing|leading|resulting|driving|pushing)|if .{5,60} then .{5,60}(?:and then|which then|subsequently|in turn)|(?:first|initially) .{5,60}(?:then|next|subsequently|afterwards)|chain (?:of events|reaction)|domino effect|knock[- ]on effect|second[- ]order (?:effect|consequence|impact)|cascad(?:e|ing)|ripple (?:effect|through))\b/gi;
+  const causalChainMatches = fullText.match(causalChainPatterns) ?? [];
+  chainScore += Math.min(12, causalChainMatches.length * 4);
 
-  // Explicit probability assignment to scenarios
-  const probPatterns = /\b(?:(?:\d{1,3}%?\s+(?:chance|probability|likelihood))|(?:(?:probability|chance|likelihood)\s+(?:of|is|at)\s+\d{1,3}%?)|(?:most\s+likely|least\s+likely|unlikely|probable|improbable))\b/gi;
-  const probMatches = reasoning.match(probPatterns) ?? [];
-  scenarioScore += Math.min(8, probMatches.length * 4);
+  // Multi-step "leads to" chains
+  const leadsToPatterns = /\b(?:leads? to|results? in|causes?|triggers?|drives?)\b/gi;
+  const leadsToMatches = fullText.match(leadsToPatterns) ?? [];
+  // More "leads to" connectors = longer causal chains
+  if (leadsToMatches.length >= 3) chainScore += 8;
+  else if (leadsToMatches.length >= 2) chainScore += 5;
+  else if (leadsToMatches.length >= 1) chainScore += 2;
 
-  score += Math.min(20, scenarioScore);
+  score += Math.min(20, chainScore);
 
-  // 2. Cascading Effect Awareness (0-20)
-  let cascadeScore = 0;
+  // 2. Scenario Branching (0-20)
+  // Detect if/then/else reasoning: "If Fed holds rates, growth stocks rally.
+  // If Fed hikes, rotate to defensives"
+  let branchScore = 0;
 
-  // Multi-step causal chains
-  const cascadePatterns = /\b(?:which\s+(?:would|could|will|may)\s+(?:lead\s+to|result\s+in|cause|trigger)|in\s+turn|knock[- ]on\s+effect|downstream\s+(?:effect|impact|consequence)|ripple\s+effect|second[- ]order\s+(?:effect|impact)|third[- ]order|cascad(?:e|ing)|chain\s+reaction|domino\s+effect|(?:if|when)\s+.*\s+then\s+.*\s+(?:and\s+)?then)\b/gi;
-  const cascadeMatches = reasoning.match(cascadePatterns) ?? [];
+  const ifThenPatterns = /\b(?:if .{5,80}(?:then|,\s*(?:I|we|the|this))|in (?:the )?(?:case|event|scenario) (?:that|of|where)|should .{3,40}(?:then|,\s*(?:I|we))|assuming .{3,40}(?:then|,))\b/gi;
+  const ifThenMatches = fullText.match(ifThenPatterns) ?? [];
+  branchScore += Math.min(8, ifThenMatches.length * 3);
 
-  cascadeScore += Math.min(12, cascadeMatches.length * 5);
+  const elsePatterns = /\b(?:(?:else|otherwise|alternatively|conversely|on the other hand|if (?:instead|not|however))[,:]?\s+.{5,}|(?:bull|bear|base)\s+(?:case|scenario)|(?:upside|downside|base)\s+(?:case|scenario)|scenario (?:1|2|3|one|two|three|A|B|C))\b/gi;
+  const elseMatches = fullText.match(elsePatterns) ?? [];
+  branchScore += Math.min(8, elseMatches.length * 3);
 
-  // Cross-market / cross-asset reasoning
-  const crossAssetPatterns = /\b(?:interest\s+rates?\s+(?:affect|impact|influence)|dollar\s+(?:strength|weakness)|bond\s+(?:yields?|market)|oil\s+prices?|commodity|currency|FX|cross[- ]asset|contagion|spill[- ]?over|sector\s+rotation|capital\s+flows?|risk[- ]on|risk[- ]off)\b/gi;
-  const crossAssetMatches = reasoning.match(crossAssetPatterns) ?? [];
-  cascadeScore += Math.min(8, crossAssetMatches.length * 3);
+  // Explicit scenario analysis
+  const scenarioPatterns = /\b(?:scenario analysis|decision tree|contingent on|probability[- ]weighted|range of outcomes|multiple scenarios|best[- ]case .{3,30} worst[- ]case)\b/gi;
+  const scenarioMatches = fullText.match(scenarioPatterns) ?? [];
+  branchScore += Math.min(4, scenarioMatches.length * 2);
 
-  score += Math.min(20, cascadeScore);
+  score += Math.min(20, branchScore);
 
-  // 3. Portfolio-Level Thinking (0-20)
+  // 3. Opportunity Cost Awareness (0-20)
+  // Detect what agent considered but rejected: "Chose X over Y because",
+  // "could have bought Z but", "opportunity cost"
+  let opportunityScore = 0;
+
+  const rejectionPatterns = /\b(?:(?:chose|choosing|picked|selected|prefer(?:red)?) .{3,40} (?:over|instead of|rather than)|could (?:have|alternatively) (?:bought|sold|traded|invested|chosen)|opportunity cost|(?:trade|trading)[- ]off|alternative(?:ly|s)?[,:]?\s+(?:I|we) could|instead of .{3,40}(?:I|we) (?:chose|opted|decided)|passed on|opted (?:not to|against)|decided against|the (?:alternative|other option) (?:was|would be))\b/gi;
+  const rejectionMatches = fullText.match(rejectionPatterns) ?? [];
+  opportunityScore += Math.min(12, rejectionMatches.length * 4);
+
+  // Comparative analysis
+  const comparativePatterns = /\b(?:compared to|relative to|versus|vs\.?\s+|better (?:risk[- ]reward|opportunity) in|more attractive than|less compelling than|higher (?:conviction|upside) in .{3,30} than)\b/gi;
+  const comparativeMatches = fullText.match(comparativePatterns) ?? [];
+  opportunityScore += Math.min(8, comparativeMatches.length * 3);
+
+  score += Math.min(20, opportunityScore);
+
+  // 4. Portfolio-Level Thinking (0-20)
+  // Detect reasoning about how this trade fits the overall portfolio:
+  // "This diversifies my", "reduces correlation with", "complements my position in"
   let portfolioScore = 0;
 
-  const portfolioPatterns = /\b(?:portfolio\s+(?:level|context|allocation|balance|exposure|concentration|diversif|weight|impact)|overall\s+(?:exposure|allocation|position|portfolio)|(?:correlat|diversif)\w*\s+(?:with|across|benefit)|existing\s+(?:position|exposure|holding)|net\s+exposure|portfolio\s+(?:risk|return|sharpe)|asset\s+(?:allocation|mix)|rebalance?|hedg(?:e|ing)\s+(?:against|my|the|existing)|beta\s+(?:to|exposure|of\s+portfolio))\b/gi;
-  const portfolioMatches = reasoning.match(portfolioPatterns) ?? [];
+  const portfolioPatterns = /\b(?:(?:this )?diversif(?:ies|ying|ication)|reduces? (?:my|our|portfolio) (?:correlation|risk|exposure)|complements? (?:my|our) (?:position|holding|exposure|portfolio)|portfolio[- ]level|overall (?:portfolio|allocation|exposure|position)|position sizing|risk budget|(?:adds?|adding) (?:to (?:my|our) )?(?:exposure|allocation)|(?:overweight|underweight|neutral)[- ]?(?:ing)?|rebalanc(?:e|ing)|concentration risk|sector (?:exposure|allocation|balance))\b/gi;
+  const portfolioMatches = fullText.match(portfolioPatterns) ?? [];
+  portfolioScore += Math.min(12, portfolioMatches.length * 4);
 
-  portfolioScore += Math.min(14, portfolioMatches.length * 4);
-
-  // Reference to how this trade changes portfolio composition
-  const compositionPatterns = /\b(?:brings?\s+(?:my|our|the)\s+(?:allocation|exposure|weight)\s+to|after\s+this\s+trade|resulting\s+(?:allocation|exposure|portfolio)|total\s+(?:allocation|exposure)\s+(?:would|will)\s+be|this\s+(?:increases?|decreases?|maintains?)\s+(?:my|our)\s+(?:exposure|allocation|position))\b/gi;
-  const compositionMatches = reasoning.match(compositionPatterns) ?? [];
-  portfolioScore += Math.min(6, compositionMatches.length * 3);
+  // Correlation/hedging awareness
+  const correlationPatterns = /\b(?:correlat(?:ed|ion)|hedge(?:d|s|ing)?|offset(?:s|ting)?|uncorrelated|negative(?:ly)? correlated|tail[- ]risk|(?:beta|delta)[- ](?:neutral|adjusted)|risk[- ]adjusted (?:return|exposure)|Sharpe[- ]optimal)\b/gi;
+  const correlationMatches = fullText.match(correlationPatterns) ?? [];
+  portfolioScore += Math.min(8, correlationMatches.length * 3);
 
   score += Math.min(20, portfolioScore);
 
-  // 4. Opportunity Cost Analysis (0-20)
-  let opportunityCostScore = 0;
+  // 5. Multi-Timeframe Integration (0-20)
+  // Detect explicit mention of different time horizons:
+  // "Short-term: ..., Medium-term: ...", "near-term catalyst", "long-term thesis"
+  let timeframeScore = 0;
 
-  const oppCostPatterns = /\b(?:opportunity\s+cost|alternative(?:ly|s)?|instead\s+of|compared\s+to\s+(?:buying|selling|holding|investing)|rather\s+than|versus|(?:better|worse)\s+(?:use|deployment)\s+of\s+capital|capital\s+allocation\s+(?:choice|decision)|could\s+(?:instead|alternatively)|relative\s+(?:value|attractiveness|return)|if\s+I\s+(?:instead|alternatively)|deploy\s+(?:capital|funds)\s+(?:in|to|toward)|this\s+over|prefer\s+(?:this|it)\s+to|more\s+attractive\s+than)\b/gi;
-  const oppCostMatches = reasoning.match(oppCostPatterns) ?? [];
+  const shortTermPatterns = /\b(?:short[- ]term|near[- ]term|immediate(?:ly)?|(?:next|this) (?:week|few days)|intraday|(?:today|tomorrow|overnight)|tactical(?:ly)?|(?:1|2|3)[- ](?:day|week))\b/gi;
+  const shortTermMatches = fullText.match(shortTermPatterns) ?? [];
 
-  opportunityCostScore += Math.min(14, oppCostMatches.length * 5);
+  const mediumTermPatterns = /\b(?:medium[- ]term|intermediate|(?:next|coming) (?:few )?(?:weeks?|months?)|(?:1|2|3|4|6)[- ]month|quarter(?:ly)?|swing (?:trade|position))\b/gi;
+  const mediumTermMatches = fullText.match(mediumTermPatterns) ?? [];
 
-  // Explicit comparison with other stocks/opportunities
-  const comparisonPatterns = /\b(?:(?:more|less)\s+attractive\s+than\s+\w+|prefer\s+\w+\s+(?:over|to)|ranks?\s+(?:above|below|higher|lower)|best\s+(?:opportunity|option|value)\s+(?:among|across)|screen(?:ed|ing)\s+(?:for|across))\b/gi;
-  const comparisonMatches = reasoning.match(comparisonPatterns) ?? [];
-  opportunityCostScore += Math.min(6, comparisonMatches.length * 3);
+  const longTermPatterns = /\b(?:long[- ]term|secular|structural(?:ly)?|multi[- ]year|(?:over|in) the (?:long run|next (?:year|few years))|(?:12|18|24)[- ]month|annual(?:ly|ized)?|(?:long|longer)[- ]dated|strategic(?:ally)?)\b/gi;
+  const longTermMatches = fullText.match(longTermPatterns) ?? [];
 
-  score += Math.min(20, opportunityCostScore);
+  const timeframesUsed = [
+    shortTermMatches.length > 0 ? 1 : 0,
+    mediumTermMatches.length > 0 ? 1 : 0,
+    longTermMatches.length > 0 ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
 
-  // 5. Position Sizing Rationale (0-20)
-  let sizingScore = 0;
+  // Multiple timeframes = high score
+  if (timeframesUsed >= 3) timeframeScore += 14;
+  else if (timeframesUsed === 2) timeframeScore += 10;
+  else if (timeframesUsed === 1) timeframeScore += 5;
 
-  const sizingPatterns = /\b(?:position\s+siz(?:e|ing)|(?:allocat|invest)\w*\s+\$?[\d,.]+|(?:\d+%?\s+of\s+(?:portfolio|capital|cash|AUM))|(?:small|moderate|large|full)\s+(?:position|allocation)|scaled?\s+(?:in|into|out)|size\s+(?:based\s+on|proportional|relative)|Kelly\s+(?:criterion|formula)|risk\s+per\s+trade|max(?:imum)?\s+(?:position|allocation|exposure)|limit(?:ing|ed)?\s+(?:to|at)\s+\d+%?|underweight|overweight|equal[- ]weight)\b/gi;
-  const sizingMatches = reasoning.match(sizingPatterns) ?? [];
+  // Explicit integration across timeframes
+  const integrationPatterns = /\b(?:short[- ]term .{5,60} (?:but|while|whereas) .{5,60} long[- ]term|near[- ]term .{5,60} (?:but|while) .{5,60} (?:medium|long)[- ]term|across (?:time )?(?:horizons|frames|periods)|time[- ]horizon (?:analysis|integration|alignment)|(?:tactically|strategically) .{5,30} (?:but|while) (?:strategically|tactically))\b/gi;
+  const integrationMatches = fullText.match(integrationPatterns) ?? [];
+  timeframeScore += Math.min(6, integrationMatches.length * 3);
 
-  sizingScore += Math.min(12, sizingMatches.length * 4);
+  score += Math.min(20, timeframeScore);
 
-  // Risk-based sizing rationale
-  const riskSizingPatterns = /\b(?:risk[- ]adjusted\s+(?:position|size|allocation)|volatility[- ](?:scaled|adjusted|weighted)|sizing\s+(?:reflects?|accounts?\s+for)\s+(?:risk|uncertainty|volatility)|(?:smaller|larger)\s+(?:because|due\s+to|given)\s+(?:higher|lower)\s+(?:risk|volatility|uncertainty))\b/gi;
-  const riskSizingMatches = reasoning.match(riskSizingPatterns) ?? [];
-  sizingScore += Math.min(8, riskSizingMatches.length * 4);
-
-  score += Math.min(20, sizingScore);
-
-  // Bonus: hold actions with strategic rationale (not just "nothing to do")
-  if (action === "hold") {
-    const strategicHoldPatterns = /\b(?:maintaining\s+(?:exposure|position)|waiting\s+for\s+(?:catalyst|confirmation|better\s+entry)|preserving\s+(?:capital|optionality)|patient|strategic\s+patience|thesis\s+(?:intact|unchanged|still\s+valid))\b/gi;
-    const strategicHoldMatches = reasoning.match(strategicHoldPatterns) ?? [];
-    if (strategicHoldMatches.length > 0) score += 3;
-  }
-
-  // Bonus: confidence calibration with sizing
-  if (quantity > 0) {
-    const conf = confidence > 1 ? confidence / 100 : confidence;
-    if (conf >= 0.8 && /\b(?:large|full|significant|substantial)\s+(?:position|allocation)\b/i.test(reasoning)) {
-      score += 2; // High confidence + large size rationale = good
-    }
-    if (conf < 0.5 && /\b(?:small|modest|limited|partial|starter)\s+(?:position|allocation)\b/i.test(reasoning)) {
-      score += 2; // Low confidence + small size rationale = good
-    }
+  // Bonus: sources that span multiple timeframes or strategic content
+  const strategicSources = sources.filter((s) =>
+    /strategy|outlook|forecast|scenario|macro|allocation|portfolio/i.test(s),
+  );
+  if (strategicSources.length > 0) {
+    score += Math.min(5, strategicSources.length * 3);
   }
 
   return Math.round(Math.min(maxScore, Math.max(0, score)));
@@ -588,6 +555,7 @@ export function gradeTrade(input: {
   peerActions: Array<{ agentId: string; action: string; symbol: string }>;
   peerReasonings?: string[];
   previousOutcomes?: Array<{ confidence: number; correct: boolean }>;
+  previousReasonings?: string[];
   quantity?: number;
 }): V37TradeGrade {
   const tradeId = `v37_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -608,7 +576,7 @@ export function gradeTrade(input: {
   const isContradictory = hasBullish && hasBearish && input.action !== "hold";
   const logicalConsistencyScore = isContradictory ? 35 : 85;
 
-  // Inherited scoring
+  // Inherited scoring from v35 (via v36)
   const transparencyScore = scoreTransparency(input.reasoning, input.sources);
   const accountabilityScore = scoreAccountability(
     input.reasoning, input.predictedOutcome, input.previousPredictions,
@@ -631,6 +599,8 @@ export function gradeTrade(input: {
   const temporalReasoningScore = scoreTemporalReasoningQuality(
     input.reasoning, input.predictedOutcome,
   );
+
+  // v36 scoring — match exact parameter signatures from v36
   const reasoningAuditabilityScore = scoreReasoningAuditability(
     input.reasoning, input.sources, input.quantity ?? 0,
   );
@@ -648,13 +618,13 @@ export function gradeTrade(input: {
     input.reasoning,
     input.sources,
     input.peerReasonings ?? [],
+    input.previousReasonings ?? [],
   );
   const strategicForesightScore = scoreStrategicForesight(
     input.reasoning,
     input.action,
-    input.confidence,
+    input.predictedOutcome,
     input.sources,
-    input.quantity ?? 0,
   );
 
   // Integrity hash

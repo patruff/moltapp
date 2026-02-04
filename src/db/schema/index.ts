@@ -28,4 +28,5 @@ export { v33TradeGrades, v33BenchmarkScores, v33Leaderboard, v33ResearchExports 
 export { v34TradeGrades, v34BenchmarkScores, v34Leaderboard, v34ResearchExports } from "./benchmark-v34.ts";
 export { v35TradeGrades, v35BenchmarkScores, v35Leaderboard, v35ResearchExports } from "./benchmark-v35.ts";
 export { v36TradeGrades, v36BenchmarkScores, v36Leaderboard, v36ResearchExports } from "./benchmark-v36.ts";
+export { v37TradeGrades, v37BenchmarkScores, v37Leaderboard, v37ResearchExports } from "./benchmark-v37.ts";
 export { agentTheses } from "./agent-theses.ts";
