@@ -23,3 +23,4 @@ export { tradeAccountabilityAnalysis, reasoningQualityIndex, benchmarkLeaderboar
 export { v29TradeGrades, v29BenchmarkScores, v29Leaderboard, v29ResearchExports } from "./benchmark-v29.ts";
 export { v30TradeGrades, v30BenchmarkScores, v30Leaderboard, v30ResearchExports } from "./benchmark-v30.ts";
 export { v31TradeGrades, v31BenchmarkScores, v31Leaderboard, v31ResearchExports } from "./benchmark-v31.ts";
+export { v32TradeGrades, v32BenchmarkScores, v32Leaderboard, v32ResearchExports } from "./benchmark-v32.ts";

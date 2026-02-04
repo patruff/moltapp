@@ -52,7 +52,7 @@ for (const d of decisions) {
   decisionMap.set(`${d.agentId}|${d.roundId}|${d.symbol}`, d);
 }
 
-// Merge justifications with decision data into benchmark records
+// Merge justifications with decision data into benchmark records (v32: 24-dimension)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
   return {
@@ -71,6 +71,8 @@ const records = justifications.map((j) => {
     discipline_pass: j.disciplinePass ?? "pending",
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
+    benchmark_version: "32.0",
+    dimension_count: 24,
   };
 });
 
@@ -90,15 +92,25 @@ console.log(`[sync-to-hf] Wrote JSONL to ${jsonlPath} (${(Buffer.byteLength(json
 const repo = { type: "dataset" as const, name: "patruff/molt-benchmark" };
 const credentials = { accessToken: HF_TOKEN };
 
-// Upload JSONL data file
+// Upload JSONL data file (both canonical and auto-detect paths)
 console.log("[sync-to-hf] Uploading benchmark data...");
+const jsonlBlob = new Blob([readFileSync(jsonlPath)]);
 await uploadFile({
   repo,
   credentials,
-  file: { path: "data/molt-benchmark.jsonl", content: new Blob([readFileSync(jsonlPath)]) },
+  file: { path: "data/molt-benchmark.jsonl", content: jsonlBlob },
   commitTitle: `Update benchmark data (${records.length} records)`,
 });
 console.log("[sync-to-hf] Uploaded data/molt-benchmark.jsonl");
+
+// Also upload as train.jsonl for HF auto-detection
+await uploadFile({
+  repo,
+  credentials,
+  file: { path: "data/train.jsonl", content: new Blob([readFileSync(jsonlPath)]) },
+  commitTitle: `Update train split (${records.length} records)`,
+});
+console.log("[sync-to-hf] Uploaded data/train.jsonl");
 
 // Build and upload dataset card
 const datasetCard = `---
@@ -114,6 +126,11 @@ tags:
   - stock-trading
 size_categories:
   - 1K<n<10K
+configs:
+  - config_name: default
+    data_files:
+      - split: train
+        path: data/train.jsonl
 ---
 
 # MoltApp: Agentic Stock Trading Benchmark
@@ -142,6 +159,8 @@ quality scores.
 | \`discipline_pass\` | Whether trading rules were followed |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
+| \`benchmark_version\` | Benchmark version (e.g. 32.0) |
+| \`dimension_count\` | Number of scoring dimensions (24) |
 
 ## Citation
 
