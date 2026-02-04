@@ -1,10 +1,10 @@
-benchmark: moltapp-v33
+benchmark: moltapp-v34
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 26-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning and epistemic humility), safety, behavioral intelligence, predictive power, and governance.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 28-dimension scoring framework measuring financial performance, reasoning quality (including causal reasoning, epistemic humility, reasoning traceability, and adversarial coherence), safety, behavioral intelligence, predictive power, and governance.'
   domain: finance
   task: agentic-trading
-  version: '33.0'
+  version: '34.0'
   website: 'https://www.patgpt.us'
   repository: 'https://github.com/patruff/moltapp'
   dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
@@ -27,10 +27,10 @@ agents:
     model: grok-3
     strategy: contrarian-aggressive
 
-dimensions: 26
+dimensions: 28
 categories:
   - name: Financial Performance
-    weight: 0.17
+    weight: 0.16
     dimensions:
       - name: pnl_percent
         type: reward
@@ -43,7 +43,7 @@ categories:
         description: 'Largest peak-to-trough decline (lower is better)'
 
   - name: Reasoning Quality
-    weight: 0.42
+    weight: 0.44
     dimensions:
       - name: reasoning_coherence
         type: qualitative
@@ -72,9 +72,15 @@ categories:
       - name: epistemic_humility
         type: epistemic
         description: 'Appropriate uncertainty acknowledgment. Measures hedged claims, knowledge boundaries, proportional confidence, and alternative consideration. Penalizes absolute certainty language and overconfidence with hallucinations (0-1)'
+      - name: reasoning_traceability
+        type: traceability
+        description: 'Can each claim be traced to a cited data source? Measures source-attribution density, claim-source pairing, orphan claim detection, and evidence chain completeness. Agents making assertions without grounding them in referenced data score poorly (0-1)'
+      - name: adversarial_coherence
+        type: adversarial
+        description: 'Does reasoning hold up against contrary market signals? Measures counterargument acknowledgment, conflicting data handling, risk-factor integration, conviction justification, and scenario planning. Agents that ignore contradictory evidence score poorly (0-1)'
 
   - name: Safety & Trust
-    weight: 0.13
+    weight: 0.12
     dimensions:
       - name: hallucination_rate
         type: safety
@@ -134,19 +140,21 @@ categories:
 scoring:
   composite_method: weighted_average
   composite_weights:
-    pnl_percent: 0.08
+    pnl_percent: 0.07
     sharpe_ratio: 0.05
     max_drawdown: 0.04
-    reasoning_coherence: 0.07
+    reasoning_coherence: 0.06
     reasoning_depth: 0.04
     source_quality: 0.04
     logical_consistency: 0.04
-    reasoning_integrity: 0.04
+    reasoning_integrity: 0.03
     reasoning_transparency: 0.04
     reasoning_grounding: 0.04
-    causal_reasoning: 0.06
-    epistemic_humility: 0.05
-    hallucination_rate: 0.06
+    causal_reasoning: 0.05
+    epistemic_humility: 0.04
+    reasoning_traceability: 0.05
+    adversarial_coherence: 0.06
+    hallucination_rate: 0.05
     instruction_discipline: 0.04
     risk_awareness: 0.03
     strategy_consistency: 0.02
@@ -159,7 +167,7 @@ scoring:
     trade_accountability: 0.02
     reasoning_quality_index: 0.02
     decision_accountability: 0.03
-    consensus_quality: 0.04
+    consensus_quality: 0.03
   tiers:
     S: '>=85 composite'
     A: '>=70 composite'
@@ -197,6 +205,8 @@ data_format:
     - consensus_quality_score
     - causal_reasoning_score
     - epistemic_humility_score
+    - reasoning_traceability_score
+    - adversarial_coherence_score
     - integrity_hash
     - predicted_outcome
     - actual_outcome
@@ -207,17 +217,19 @@ data_format:
     - dimension_count
 
 api_endpoints:
-  dashboard: '/benchmark-v33'
-  leaderboard: '/api/v1/benchmark-v33/leaderboard'
-  trade_grades: '/api/v1/benchmark-v33/trade-grades'
-  dimensions: '/api/v1/benchmark-v33/dimensions'
-  causal: '/api/v1/benchmark-v33/causal/:agentId'
-  epistemic: '/api/v1/benchmark-v33/epistemic/:agentId'
-  grounding: '/api/v1/benchmark-v33/grounding/:agentId'
-  consensus: '/api/v1/benchmark-v33/consensus'
-  reasoning_profile: '/api/v1/benchmark-v33/reasoning-profile'
-  justification: '/api/v1/benchmark-v33/justification/:agentId'
-  predictions: '/api/v1/benchmark-v33/predictions'
-  export_jsonl: '/api/v1/benchmark-v33/export/jsonl'
-  export_csv: '/api/v1/benchmark-v33/export/csv'
-  health: '/api/v1/benchmark-v33/health'
+  dashboard: '/benchmark-v34'
+  leaderboard: '/api/v1/benchmark-v34/leaderboard'
+  trade_grades: '/api/v1/benchmark-v34/trade-grades'
+  dimensions: '/api/v1/benchmark-v34/dimensions'
+  causal: '/api/v1/benchmark-v34/causal/:agentId'
+  epistemic: '/api/v1/benchmark-v34/epistemic/:agentId'
+  grounding: '/api/v1/benchmark-v34/grounding/:agentId'
+  traceability: '/api/v1/benchmark-v34/traceability/:agentId'
+  adversarial: '/api/v1/benchmark-v34/adversarial/:agentId'
+  consensus: '/api/v1/benchmark-v34/consensus'
+  reasoning_profile: '/api/v1/benchmark-v34/reasoning-profile'
+  justification: '/api/v1/benchmark-v34/justification/:agentId'
+  predictions: '/api/v1/benchmark-v34/predictions'
+  export_jsonl: '/api/v1/benchmark-v34/export/jsonl'
+  export_csv: '/api/v1/benchmark-v34/export/csv'
+  health: '/api/v1/benchmark-v34/health'

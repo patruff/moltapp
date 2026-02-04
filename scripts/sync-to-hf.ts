@@ -52,19 +52,30 @@ for (const d of decisions) {
   decisionMap.set(`${d.agentId}|${d.roundId}|${d.symbol}`, d);
 }
 
-// Import v33 scoring functions for enrichment
-const { scoreCausalReasoning, scoreEpistemicHumility } = await import("../src/services/v33-benchmark-engine.ts");
+// Import v34 scoring functions for enrichment
+const { scoreCausalReasoning, scoreEpistemicHumility, scoreReasoningTraceability, scoreAdversarialCoherence } = await import("../src/services/v34-benchmark-engine.ts");
 
-// Merge justifications with decision data into benchmark records (v33: 26-dimension)
+// Merge justifications with decision data into benchmark records (v34: 28-dimension)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
-  // Compute v33 scores for each record
+  // Compute v34 scores for each record
   const causalScore = scoreCausalReasoning(j.reasoning);
   const epistemicScore = scoreEpistemicHumility(
     j.reasoning,
     j.confidence,
     (j.sources as string[]) ?? [],
     (j.hallucinationFlags as string[]) ?? [],
+  );
+  const traceabilityScore = scoreReasoningTraceability(
+    j.reasoning,
+    (j.sources as string[]) ?? [],
+    {},
+  );
+  const adversarialScore = scoreAdversarialCoherence(
+    j.reasoning,
+    j.action ?? "hold",
+    j.confidence,
+    {},
   );
   return {
     agent_id: j.agentId,
@@ -82,10 +93,12 @@ const records = justifications.map((j) => {
     discipline_pass: j.disciplinePass ?? "pending",
     causal_reasoning_score: causalScore,
     epistemic_humility_score: epistemicScore,
+    reasoning_traceability_score: traceabilityScore,
+    adversarial_coherence_score: adversarialScore,
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "33.0",
-    dimension_count: 26,
+    benchmark_version: "34.0",
+    dimension_count: 28,
   };
 });
 
@@ -172,10 +185,12 @@ quality scores.
 | \`discipline_pass\` | Whether trading rules were followed |
 | \`causal_reasoning_score\` | Quality of cause-effect chains (0-100) |
 | \`epistemic_humility_score\` | Appropriate uncertainty acknowledgment (0-100) |
+| \`reasoning_traceability_score\` | Claim-to-source attribution quality (0-100) |
+| \`adversarial_coherence_score\` | Reasoning robustness against contrary signals (0-100) |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 33.0) |
-| \`dimension_count\` | Number of scoring dimensions (26) |
+| \`benchmark_version\` | Benchmark version (e.g. 34.0) |
+| \`dimension_count\` | Number of scoring dimensions (28) |
 
 ## Citation
 
