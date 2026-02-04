@@ -1,7 +1,7 @@
-benchmark: moltapp-v9
+benchmark: moltapp-v10
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with regime-aware 5-pillar scoring (financial, reasoning, safety, calibration, adaptability), cross-trade reasoning integrity verification (flip-flop, copypasta, confidence drift, source fabrication, reasoning regression detection), ML researcher API with JSONL/CSV exports and reproducibility artifacts, reasoning-enforced trading (Zod-validated), benchmark evidence collection, cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with regime-aware 6-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability), confidence calibration engine (ECE + Brier Score + reliability diagrams), reasoning pattern detector (logical fallacy detection, analytical depth classification, vocabulary sophistication, template/repetition detection, hedge word analysis), cross-trade reasoning integrity verification, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '9.0.0'
+  version: '10.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -472,6 +472,72 @@ api_endpoints_v9:
   researcher_reproducibility: '/api/v1/researcher/reproducibility'
   researcher_schema: '/api/v1/researcher/schema'
   researcher_violations: '/api/v1/researcher/violations'
+
+benchmark_v10:
+  scoring_engine:
+    description: '6-pillar scoring with confidence calibration engine and reasoning pattern detector'
+    pillars:
+      - name: financial
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        components: ['ece', 'brier_score', 'monotonic_quartiles', 'overconfidence_rate']
+      - name: patterns
+        components: ['fallacy_count', 'depth_classification', 'vocabulary_sophistication', 'template_probability', 'hedge_ratio', 'quantitative_ratio']
+      - name: adaptability
+        components: ['cross_regime_consistency', 'performance_variance']
+
+  calibration_engine:
+    description: 'ECE + Brier Score + reliability diagrams for confidence calibration measurement'
+    ece_method: 'Weighted average of |bucket_avg_confidence - bucket_actual_win_rate| across 10 equal-width bins'
+    brier_method: '(1/n) * sum((confidence - outcome)^2) where outcome is binary (profitable=1, loss=0)'
+    monotonicity_check: 'Verifies that higher confidence buckets have higher win rates (5% tolerance)'
+    trend_detection: 'First-half vs second-half ECE comparison to detect calibration drift'
+    diagnosis: ['well_calibrated (ECE<0.08)', 'overconfident', 'underconfident', 'erratic']
+    window_size: 500
+
+  reasoning_pattern_detector:
+    description: 'Advanced NLP analysis of reasoning text quality'
+    fallacy_detection:
+      types: ['anchoring_bias', 'recency_bias', 'gambler_fallacy', 'confirmation_bias', 'authority_fallacy', 'sunk_cost', 'herd_mentality']
+      severity_levels: ['low', 'medium', 'high']
+    depth_classification:
+      levels: ['shallow', 'moderate', 'deep', 'exceptional']
+      angles_measured: ['valuation', 'fundamentals', 'technical', 'macro', 'sentiment', 'sector', 'risk', 'catalyst', 'portfolio_management', 'market_microstructure']
+    vocabulary_analysis:
+      type_token_ratio: true
+      finance_term_coverage: true
+      sophistication_score: true
+    template_detection:
+      method: 'Pairwise Jaccard similarity across last 10 reasoning texts'
+      threshold: 0.7
+    hedge_analysis:
+      description: 'Ratio of hedge words (maybe, perhaps, possibly, etc.) to total word count'
+
+  benchmark_dashboard_v10:
+    endpoint: '/benchmark-v10'
+    data_endpoint: '/benchmark-v10/data'
+    features:
+      - '6-pillar leaderboard with grades and rank changes'
+      - 'Confidence calibration metrics (ECE, Brier Score)'
+      - 'Quality trend indicators (improving/degrading/stable)'
+      - 'Brain feed with pattern annotations (fallacies, depth, hedging)'
+      - 'Scoring methodology explanation'
+      - 'HuggingFace dataset badge'
+      - 'Auto-refresh every 30 seconds'
+
+  benchmark_analytics_api:
+    endpoints:
+      calibration_summary: '/api/v1/benchmark-analytics/calibration/summary'
+      calibration_all: '/api/v1/benchmark-analytics/calibration'
+      calibration_agent: '/api/v1/benchmark-analytics/calibration/:agentId'
+      patterns_agent: '/api/v1/benchmark-analytics/patterns/:agentId'
+      patterns_trend: '/api/v1/benchmark-analytics/patterns/:agentId/trend'
+      patterns_template: '/api/v1/benchmark-analytics/patterns/:agentId/template'
+      benchmark_health: '/api/v1/benchmark-analytics/health'
 
 citation: |
   @misc{moltapp2026,

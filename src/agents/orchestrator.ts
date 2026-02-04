@@ -122,6 +122,10 @@ import {
   recordDriftSnapshot,
   buildDriftSnapshot,
 } from "../services/reasoning-drift-detector.ts";
+import {
+  analyzeReasoningPatterns,
+  recordReasoningForPatternAnalysis,
+} from "../services/reasoning-pattern-detector.ts";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -972,6 +976,31 @@ async function executeTradingRound(
           } catch (err) {
             console.warn(
               `[Orchestrator] Deep coherence failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+
+          // --- v10: Reasoning pattern analysis (fallacies, depth, vocabulary) ---
+          try {
+            const patternResult = analyzeReasoningPatterns(agent.agentId, decision.reasoning);
+            recordReasoningForPatternAnalysis(agent.agentId, decision.reasoning, patternResult.qualityScore);
+            console.log(
+              `[Orchestrator] ${agent.name} patterns: quality=${patternResult.qualityScore.toFixed(2)}, ` +
+              `fallacies=${patternResult.fallacies.length}, depth=${patternResult.depth.classification}, ` +
+              `vocab=${patternResult.vocabulary.sophisticationScore.toFixed(2)}`,
+            );
+
+            emitBenchmarkEvent("pattern_analyzed", {
+              qualityScore: patternResult.qualityScore,
+              fallacyCount: patternResult.fallacies.length,
+              fallacies: patternResult.fallacies.map((f) => f.type),
+              depthClassification: patternResult.depth.classification,
+              vocabularySophistication: patternResult.vocabulary.sophisticationScore,
+              hedgeRatio: patternResult.hedgeRatio,
+              templateProbability: patternResult.templateProbability,
+            }, agent.agentId);
+          } catch (err) {
+            console.warn(
+              `[Orchestrator] Pattern analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
             );
           }
         } catch (err) {

@@ -40,7 +40,9 @@ export interface BenchmarkEvent {
     | "hallucination_flagged"
     | "benchmark_update"
     | "round_completed"
-    | "deep_coherence";
+    | "deep_coherence"
+    | "pattern_analyzed"
+    | "calibration_updated";
   agentId?: string;
   data: Record<string, unknown>;
   timestamp: string;
