@@ -21,7 +21,7 @@ import { getOpenAITools } from "./trading-tools.ts";
 const GPT_AGENT_CONFIG = {
   agentId: "gpt-momentum-trader",
   name: "GPT MomentumBot",
-  model: "gpt-5-mini",
+  model: "gpt-4o-mini",
   provider: "openai" as const,
   description:
     "Aggressive growth and momentum trader that rides trends, buys breakouts, and cuts losers fast. Prefers high-beta tech and growth stocks with strong price action.",

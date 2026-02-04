@@ -22,7 +22,7 @@ import { getOpenAITools } from "./trading-tools.ts";
 const GROK_AGENT_CONFIG = {
   agentId: "grok-contrarian",
   name: "Grok ContrarianBot",
-  model: "grok-4-fast",
+  model: "grok-beta",
   provider: "xai" as const,
   description:
     "Contrarian trader that buys when others are fearful and sells when others are greedy. Looks for beaten-down stocks with recovery potential, meme stocks with cult followings, and undervalued plays the market is ignoring.",
