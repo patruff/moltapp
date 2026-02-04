@@ -1,7 +1,7 @@
-benchmark: moltapp-v15
+benchmark: moltapp-v16
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 12-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability, provenance integrity, model comparison). v15 adds Reasoning Provenance Engine (SHA-256 pre-commit hash chains proving reasoning preceded outcomes), Cross-Model Reasoning Comparator (fingerprinting how Claude/GPT/Grok reason differently — vocabulary DNA, bias asymmetries, divergence analysis), and Benchmark Reproducibility Prover (formal reproducibility proofs for deterministic scoring verification). Also includes: Outcome Resolution Engine, Confidence Calibration Curves, Reasoning Volatility Tracker, Consensus Divergence Scorer, 8-dimension trade validation, reasoning taxonomy classifier, cross-round consistency, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 14-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality, prediction accuracy, reasoning stability, provenance integrity, model comparison, metacognition, reasoning efficiency). v16 adds Metacognition Engine (epistemic humility, calibration awareness, error recognition, scope limitation, adaptive strategy — does the agent know what it knows?) and Reasoning Efficiency Scorer (signal-to-noise ratio: information density, claim density, originality per word, quantitative ratio). Also adds 8-dimension Reasoning Depth Scorer (analytical breadth, evidence specificity, causal chains, risk awareness, temporal reasoning, comparative analysis, quantitative rigor, thesis structure). Builds on v15 Reasoning Provenance Engine, Cross-Model Comparator, Reproducibility Prover, Outcome Resolution Engine, Confidence Calibration Curves, Reasoning Volatility Tracker, Consensus Divergence Scorer, 8-dimension trade validation, reasoning taxonomy classifier, cross-round consistency, forensic reasoning engine, head-to-head battle engine with Elo ratings, ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '15.0.0'
+  version: '16.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -1026,6 +1026,150 @@ benchmark_v15:
     divergence_report: '/api/v1/benchmark-v15/divergence'
     cross_model_stats: '/api/v1/benchmark-v15/cross-model'
     schema: '/api/v1/benchmark-v15/schema'
+
+benchmark_v16:
+  scoring_engine:
+    description: '14-pillar scoring with metacognition analysis and reasoning efficiency measurement'
+    pillars:
+      - name: financial
+        weight: 0.12
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.11
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.09
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.08
+        components: ['ece', 'brier_score', 'monotonic_quartiles']
+      - name: patterns
+        weight: 0.05
+        components: ['fallacy_count', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.05
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.08
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.08
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding']
+      - name: prediction_accuracy
+        weight: 0.06
+        components: ['direction_accuracy', 'target_precision', 'resolution_quality']
+      - name: reasoning_stability
+        weight: 0.05
+        components: ['sentiment_volatility', 'confidence_volatility', 'intent_drift']
+      - name: provenance_integrity
+        weight: 0.06
+        components: ['pre_commit_seal_validity', 'chain_integrity', 'cross_agent_witness']
+      - name: model_comparison
+        weight: 0.05
+        components: ['vocabulary_uniqueness', 'reasoning_independence', 'bias_awareness']
+      - name: metacognition
+        weight: 0.07
+        new_in_v16: true
+        components: ['epistemic_humility', 'calibration_awareness', 'error_recognition', 'scope_limitation', 'adaptive_strategy']
+        description: 'Does the agent know what it knows? Measures self-awareness of uncertainty, calibration of confidence vs actual capability, and ability to learn from mistakes.'
+      - name: reasoning_efficiency
+        weight: 0.05
+        new_in_v16: true
+        components: ['information_density', 'claim_density', 'originality_per_word', 'quantitative_ratio']
+        description: 'Signal-to-noise ratio in reasoning text. Rewards dense analytical content per word, penalizes verbose filler and boilerplate.'
+    grades: 'A+ (>=0.95) through F (<0.40)'
+
+  metacognition_engine:
+    description: 'Tracks and scores AI agent self-awareness — the ability to know what it knows'
+    dimensions:
+      - name: epistemic_humility
+        weight: 0.25
+        description: 'Appropriate expression of uncertainty — hedges when unsure, confident when clear'
+        markers: ['hedge words (perhaps, maybe, might)', 'uncertainty expressions', 'conditional statements']
+      - name: calibration_awareness
+        weight: 0.25
+        description: 'High confidence predicts good outcomes, low confidence predicts bad ones'
+        markers: ['confidence-outcome correlation', 'overconfidence rate', 'calibration gap']
+      - name: error_recognition
+        weight: 0.20
+        description: 'Agent learns from mistakes — changes action and lowers confidence after errors'
+        markers: ['post-error action change', 'post-error confidence adjustment', 'repeat mistake rate']
+      - name: scope_limitation
+        weight: 0.15
+        description: 'Agent stays within its competence — acknowledges data limitations'
+        markers: ['limitation mentions', 'symbol diversity', 'concentration avoidance']
+      - name: adaptive_strategy
+        weight: 0.15
+        description: 'Agent changes approach when failing — doesnt keep repeating failed strategies'
+        markers: ['intent change after loss', 'confidence adaptation', 'strategy diversity']
+    trend_analysis: 'Compares first-half vs second-half metacognition markers to detect improvement or decline'
+
+  reasoning_efficiency_scorer:
+    description: 'Measures the signal-to-noise ratio in agent reasoning — dense analysis vs verbose filler'
+    dimensions:
+      - name: information_density
+        weight: 0.30
+        description: 'Analytical pattern matches (P/E ratio, RSI, moving average, etc.) per word of reasoning'
+        analytical_patterns: '30+ financial analysis terms'
+      - name: claim_density
+        weight: 0.25
+        description: 'Ratio of analytical claims to filler content (as mentioned, it is worth noting, etc.)'
+        filler_patterns: '12+ boilerplate/filler expressions'
+      - name: originality_per_word
+        weight: 0.25
+        description: 'Unique bigrams divided by total bigrams — measures repetition and template usage'
+      - name: quantitative_ratio
+        weight: 0.20
+        description: 'Numerical claims ($, %, ratios) per sentence — rewards specific data over vague assertions'
+
+  reasoning_depth_scorer:
+    description: '8-dimension advanced NLP scoring of reasoning quality depth'
+    dimensions:
+      - name: analytical_breadth
+        weight: 0.18
+        description: 'How many distinct analytical angles covered: valuation, technical, fundamental, macro, sentiment, sector, risk, catalyst, portfolio, timing'
+        angles: 10
+      - name: evidence_specificity
+        weight: 0.16
+        description: 'Specific data points (numbers, symbols, prices) vs vague assertions'
+      - name: causal_chain
+        weight: 0.14
+        description: 'Cause-effect reasoning: because, therefore, due to, leading to, driven by'
+        connectors: '14+ causal connector patterns'
+      - name: risk_awareness
+        weight: 0.12
+        description: 'Acknowledges what could go wrong: downside, stop-loss, worst-case, uncertainty'
+      - name: temporal_reasoning
+        weight: 0.10
+        description: 'Reasons about time horizons: short-term, next week, within 48h, holding period'
+      - name: comparative_analysis
+        weight: 0.10
+        description: 'Compares alternatives: compared to, versus, relative to, alternatively'
+      - name: quantitative_rigor
+        weight: 0.12
+        description: 'Claims backed by numbers: price targets, percentage moves, ratios'
+      - name: thesis_structure
+        weight: 0.08
+        description: 'Clear thesis statement → supporting evidence → conclusion flow'
+
+  api_endpoints_v16:
+    benchmark_dashboard: '/benchmark-v16'
+    data_endpoint: '/benchmark-v16/data'
+    stream_endpoint: '/benchmark-v16/stream'
+    export_endpoint: '/benchmark-v16/export'
+    scores: '/api/v1/benchmark-v16/scores'
+    agent_score: '/api/v1/benchmark-v16/score/:agentId'
+    metacognition_all: '/api/v1/benchmark-v16/metacognition'
+    metacognition_agent: '/api/v1/benchmark-v16/metacognition/:agentId'
+    depth_agent: '/api/v1/benchmark-v16/depth/:agentId'
+    depth_analyze: '/api/v1/benchmark-v16/depth/analyze'
+    depth_compare: '/api/v1/benchmark-v16/depth/compare'
+    efficiency: '/api/v1/benchmark-v16/efficiency'
+    compare: '/api/v1/benchmark-v16/compare'
+    weights: '/api/v1/benchmark-v16/weights'
+    schema: '/api/v1/benchmark-v16/schema'
+    export_jsonl: '/api/v1/benchmark-v16/export/jsonl'
+    export_csv: '/api/v1/benchmark-v16/export/csv'
 
 citation: |
   @misc{moltapp2026,

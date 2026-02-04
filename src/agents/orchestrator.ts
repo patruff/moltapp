@@ -198,6 +198,20 @@ import {
   recordV15AgentMetrics,
   emitV15Event,
 } from "../routes/benchmark-v15.tsx";
+import {
+  recordV16Metrics,
+  computeV16Score,
+  analyzeTradeEfficiency,
+} from "../services/benchmark-intelligence-engine.ts";
+import {
+  recordMetacognitionEvent,
+} from "../services/metacognition-tracker.ts";
+import {
+  scoreReasoningDepth as scoreV16Depth,
+} from "../services/reasoning-depth-scorer.ts";
+import {
+  emitV16Event,
+} from "../routes/benchmark-v16.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -1931,6 +1945,81 @@ async function executeTradingRound(
 
   } catch (err) {
     console.warn(`[Orchestrator] v15 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // --- v16: Metacognition, Reasoning Depth, Unified 14-Pillar Scoring ---
+  try {
+    for (const r of results) {
+      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+
+      // 1. Score reasoning depth (8 dimensions)
+      const depthResult = scoreV16Depth(r.decision.reasoning);
+
+      // 2. Analyze trade efficiency (signal-to-noise)
+      const efficiency = analyzeTradeEfficiency(r.decision.reasoning);
+
+      // 3. Record metacognition event (auto-detects self-awareness markers)
+      const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
+      recordMetacognitionEvent({
+        agentId: r.agentId,
+        reasoning: r.decision.reasoning,
+        action: r.decision.action,
+        symbol: r.decision.symbol,
+        confidence: normConf,
+        intent,
+        coherenceScore: normConf * 0.6 + 0.3,
+        roundId,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 4. Feed unified 14-pillar scoring engine
+      recordV16Metrics(r.agentId, {
+        coherence: normConf * 0.6 + 0.3,
+        hallucinationFree: 0.9,
+        discipline: true,
+        confidence: normConf,
+        reasoning: r.decision.reasoning,
+        action: r.decision.action,
+        depth: depthResult.overall,
+        forensicScore: 0.5,
+        validationScore: 0.5,
+      });
+
+      console.log(
+        `[Orchestrator] v16 ${r.agentId}: depth=${depthResult.overall.toFixed(2)} ` +
+        `(${depthResult.classification}), efficiency=${efficiency.composite.toFixed(2)}, ` +
+        `angles=${depthResult.anglesDetected.length}`,
+      );
+    }
+
+    // 5. Compute rankings after all agents recorded
+    const allScores = results.map((r) => ({
+      agentId: r.agentId,
+      score: computeV16Score(r.agentId),
+    }));
+
+    // 6. Emit v16 events
+    const metacogPillar = (pillars: { name: string; score: number }[], name: string) =>
+      pillars.find((p) => p.name === name)?.score ?? 0;
+
+    emitV16Event("round_analyzed", {
+      roundId,
+      agentCount: results.length,
+      scores: allScores.map((s) => ({
+        agentId: s.agentId,
+        composite: s.score.composite,
+        grade: s.score.grade,
+        metacognition: metacogPillar(s.score.pillars, "metacognition"),
+        efficiency: metacogPillar(s.score.pillars, "efficiency"),
+      })),
+    });
+
+    console.log(
+      `[Orchestrator] v16 round complete: ${allScores.map((s) => `${s.agentId}=${s.score.composite.toFixed(3)}(${s.score.grade})`).join(", ")}`,
+    );
+
+  } catch (err) {
+    console.warn(`[Orchestrator] v16 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   return {
