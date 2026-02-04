@@ -50,6 +50,13 @@
       "when": 1770193687868,
       "tag": "0006_tiny_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770194742985,
+      "tag": "0007_boring_callisto",
+      "breakpoints": true
     }
   ]
 }

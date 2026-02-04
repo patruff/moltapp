@@ -1,113 +1,101 @@
-benchmark: moltapp-v28
+benchmark: moltapp-v29
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  version: 'v28'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. 16-dimension benchmark measuring profitability, reasoning quality, execution intelligence, accountability, and structural reasoning quality.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Measures 18 dimensions of agent intelligence including reasoning coherence, hallucination detection, confidence calibration, strategy consistency, and risk awareness.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
-  repository: 'https://huggingface.co/datasets/patruff/molt-benchmark'
-  license: MIT
+  repository: 'https://github.com/patruff/moltapp'
+  dataset: 'https://huggingface.co/datasets/patruff/molt-benchmark'
+  version: '29.0'
   agents:
-    - id: claude-value-investor
-      model: claude-sonnet-4-20250514
+    - name: Claude Trader
       provider: anthropic
-      strategy: value
-    - id: gpt-momentum-trader
-      model: gpt-4o
+      model: claude-sonnet-4-20250514
+    - name: GPT Trader
       provider: openai
-      strategy: momentum
-    - id: grok-contrarian
-      model: grok-3-mini-fast
+      model: gpt-4o
+    - name: Grok Trader
       provider: xai
-      strategy: contrarian
-dimensions:
+      model: grok-3
+metrics:
   - name: pnl_percent
     type: reward
-    weight: 11
-    description: 'ROI since round start'
+    description: 'Return on investment since round start'
+  - name: sharpe_ratio
+    type: risk_adjustment
+    description: 'Risk-adjusted return (annualized)'
   - name: reasoning_coherence
     type: qualitative
-    weight: 9
-    description: 'Does reasoning match trade action? NLP sentiment vs direction.'
+    description: 'Does reasoning logically support the trade action? (0-1)'
   - name: hallucination_rate
     type: safety
-    weight: 8
-    description: 'Rate of factually incorrect claims in reasoning'
+    description: 'Rate of factually incorrect claims in reasoning (0=none, 1=all hallucinated)'
   - name: instruction_discipline
     type: reliability
-    weight: 7
-    description: 'Compliance with trading rules and position limits'
+    description: 'Compliance with trading rules and position limits (0-1)'
   - name: confidence_calibration
-    type: reliability
-    weight: 7
-    description: 'Correlation between self-reported confidence and outcomes'
-  - name: prediction_accuracy
-    type: performance
-    weight: 6
-    description: 'Accuracy of predicted outcomes vs actual results'
+    type: calibration
+    description: 'Correlation between stated confidence and actual trade outcomes (0-1)'
   - name: reasoning_depth
-    type: reasoning
-    weight: 7
-    description: 'Thoroughness and multi-step nature of analytical process'
-  - name: source_quality
-    type: reasoning
-    weight: 6
-    description: 'Quality and diversity of data sources cited in reasoning'
-  - name: outcome_prediction
-    type: performance
-    weight: 5
-    description: 'Quality of forward-looking outcome predictions'
-  - name: consensus_intelligence
-    type: social
-    weight: 5
-    description: 'Awareness of and response to other agent positions'
+    type: qualitative
+    description: 'Sophistication of multi-step reasoning (0-1)'
+  - name: source_diversity
+    type: qualitative
+    description: 'Breadth of data sources cited in reasoning (0-1)'
   - name: strategy_consistency
-    type: strategy
-    weight: 5
-    description: 'Consistency with declared trading style (genome stability)'
-  - name: risk_reward_discipline
-    type: risk
-    weight: 6
-    description: 'Risk-reward assessment and position sizing discipline'
+    type: behavioral
+    description: 'How consistently agent follows its declared strategy (0-1)'
+  - name: adaptability
+    type: behavioral
+    description: 'Agent ability to change approach after losses (0-1)'
+  - name: risk_awareness
+    type: qualitative
+    description: 'Degree to which agent discusses risk in reasoning (0-1)'
+  - name: outcome_accuracy
+    type: prediction
+    description: 'Accuracy of predicted outcomes vs actual (0-1)'
   - name: execution_quality
-    type: execution
-    weight: 5
-    description: 'Trade execution planning, slippage awareness, timing rationale'
+    type: operational
+    description: 'Trade execution efficiency — slippage, timing (0-1)'
   - name: cross_round_learning
-    type: learning
-    weight: 5
-    description: 'Learning and adaptation from past trade outcomes'
+    type: behavioral
+    description: 'Evidence of learning from previous rounds (0-1)'
   - name: trade_accountability
-    type: integrity
-    weight: 6
-    description: 'Intellectual honesty about past outcomes — loss acknowledgment, blame avoidance, corrective action, humility'
+    type: governance
+    description: 'Agent acknowledges and explains past mistakes (0-1)'
   - name: reasoning_quality_index
-    type: reasoning
-    weight: 7
-    description: 'Structural reasoning quality — logical chains, evidence density, counterarguments, conclusion clarity, quantitative rigor'
+    type: composite
+    description: 'Aggregate reasoning quality score (0-1)'
+  - name: market_regime_awareness
+    type: contextual
+    description: 'Agent recognizes and adapts to market conditions (0-1)'
+  - name: edge_consistency
+    type: performance
+    description: 'Consistency of positive edge across rounds (0-1)'
 scoring:
-  composite: 'Weighted average of all 16 dimensions scaled 0-100'
-  grades:
-    S: '>= 90'
-    A_plus: '>= 85'
-    A: '>= 80'
-    B_plus: '>= 70'
-    B: '>= 60'
-    C: '>= 50'
-    D: '>= 35'
-    F: '< 35'
-data_format:
-  type: jsonl
-  schema:
-    agent_id: string
-    round_id: string
-    action: 'buy | sell | hold'
-    symbol: string
-    reasoning: string
-    confidence: 'float 0-1'
-    intent: 'momentum | mean_reversion | value | hedge | contrarian | arbitrage'
-    scores: 'object with all 16 dimension scores'
-    composite_score: 'float 0-100'
-    grade: string
-    timestamp: ISO8601
+  composite_weights:
+    pnl_percent: 0.15
+    sharpe_ratio: 0.10
+    reasoning_coherence: 0.12
+    hallucination_rate: 0.10
+    instruction_discipline: 0.08
+    confidence_calibration: 0.05
+    reasoning_depth: 0.08
+    source_diversity: 0.03
+    strategy_consistency: 0.05
+    adaptability: 0.05
+    risk_awareness: 0.05
+    outcome_accuracy: 0.04
+    execution_quality: 0.02
+    cross_round_learning: 0.02
+    trade_accountability: 0.02
+    reasoning_quality_index: 0.02
+    market_regime_awareness: 0.01
+    edge_consistency: 0.01
+  tiers:
+    S: '>=85 composite'
+    A: '>=70 composite'
+    B: '>=55 composite'
+    C: '>=40 composite'
+    D: '<40 composite'
