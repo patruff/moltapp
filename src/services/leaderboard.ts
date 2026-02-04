@@ -4,6 +4,10 @@ import { agents, positions, trades, transactions } from "../db/schema/index.ts";
 import { eq, sql, count, max } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 
+// Database query result types
+type PositionRow = typeof positions.$inferSelect;
+type TradeRow = typeof trades.$inferSelect;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -83,8 +87,8 @@ async function refreshLeaderboard(): Promise<void> {
   const allPositions = await db.select().from(positions);
 
   // Step 3: Fetch live Jupiter prices for all unique mints
-  const uniqueMints = [
-    ...new Set(allPositions.map((p) => p.mintAddress)),
+  const uniqueMints: string[] = [
+    ...new Set(allPositions.map((p: PositionRow) => p.mintAddress)),
   ];
   const priceMap =
     uniqueMints.length > 0 ? await getPrices(uniqueMints) : {};
@@ -114,9 +118,12 @@ async function refreshLeaderboard(): Promise<void> {
     .groupBy(transactions.agentId);
 
   // Build lookup maps for O(1) access
-  const tradeStatsMap = new Map(tradeStats.map((t) => [t.agentId, t]));
-  const depositStatsMap = new Map(
-    depositStats.map((d) => [d.agentId, d])
+  type TradeStatsRow = typeof tradeStats[number];
+  type DepositStatsRow = typeof depositStats[number];
+
+  const tradeStatsMap = new Map<string, TradeStatsRow>(tradeStats.map((t: TradeStatsRow) => [t.agentId, t]));
+  const depositStatsMap = new Map<string, DepositStatsRow>(
+    depositStats.map((d: DepositStatsRow) => [d.agentId, d])
   );
 
   // Step 6: Compute per-agent metrics using Decimal.js
@@ -124,7 +131,7 @@ async function refreshLeaderboard(): Promise<void> {
 
   const entries: LeaderboardEntry[] = allAgents.map((agent) => {
     const agentPositions = allPositions.filter(
-      (p) => p.agentId === agent.id
+      (p: PositionRow) => p.agentId === agent.id
     );
     const agentTradeStats = tradeStatsMap.get(agent.id);
     const agentDepositStats = depositStatsMap.get(agent.id);

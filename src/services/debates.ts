@@ -970,9 +970,9 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     if (decisions.length === 0) continue;
 
     // Aggregate stance
-    const buyCount = decisions.filter((d) => d.action === "buy").length;
-    const sellCount = decisions.filter((d) => d.action === "sell").length;
-    const holdCount = decisions.filter((d) => d.action === "hold").length;
+    const buyCount = decisions.filter((d: DecisionRow) => d.action === "buy").length;
+    const sellCount = decisions.filter((d: DecisionRow) => d.action === "sell").length;
+    const holdCount = decisions.filter((d: DecisionRow) => d.action === "hold").length;
     const total = decisions.length;
 
     const bullishPct = Math.round((buyCount / total) * 100);
@@ -1123,7 +1123,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     .orderBy(desc(agentDecisions.createdAt))
     .limit(500);
 
-  const agentDecisionsList = allDecisions.filter((d) => d.agentId === agentId);
+  const agentDecisionsList = allDecisions.filter((d: DecisionRow) => d.agentId === agentId);
 
   // Group all decisions by roundId
   const roundMap = new Map<string, DecisionRow[]>();
@@ -1212,9 +1212,9 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
   const mostDebatedSymbol = sortedSymbols[0]?.[0] ?? null;
 
   // Favorite position
-  const buyCount = agentDecisionsList.filter((d) => d.action === "buy").length;
-  const sellCount = agentDecisionsList.filter((d) => d.action === "sell").length;
-  const holdCount = agentDecisionsList.filter((d) => d.action === "hold").length;
+  const buyCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "buy").length;
+  const sellCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "sell").length;
+  const holdCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "hold").length;
   const favoritePosition = buyCount >= sellCount && buyCount >= holdCount
     ? "bullish"
     : sellCount >= holdCount

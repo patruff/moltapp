@@ -24,6 +24,10 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 
+// Database query result types
+type DecisionRow = typeof agentDecisions.$inferSelect;
+type TradeRow = typeof trades.$inferSelect;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -247,7 +251,7 @@ export async function replayRound(roundId: string): Promise<{
   }
 
   // Round summary
-  const actions = roundDecisions.map((d) => d.action);
+  const actions = roundDecisions.map((d: DecisionRow) => d.action);
   const actionCounts: Record<string, number> = {};
   for (const a of actions) {
     actionCounts[a] = (actionCounts[a] || 0) + 1;
@@ -257,10 +261,10 @@ export async function replayRound(roundId: string): Promise<{
   const hasMajority = Object.values(actionCounts).some((c) => c >= 2);
 
   const avgConfidence = roundDecisions.length > 0
-    ? roundDecisions.reduce((s, d) => s + d.confidence, 0) / roundDecisions.length
+    ? roundDecisions.reduce((s: number, d: DecisionRow) => s + d.confidence, 0) / roundDecisions.length
     : 0;
 
-  const stockFocus = [...new Set(roundDecisions.filter((d) => d.action !== "hold").map((d) => d.symbol))];
+  const stockFocus: string[] = [...new Set(roundDecisions.filter((d: DecisionRow) => d.action !== "hold").map((d: DecisionRow) => d.symbol))];
 
   // Agreement rate
   const pairCount = roundDecisions.length * (roundDecisions.length - 1) / 2;
@@ -302,7 +306,7 @@ export async function getDecisionTimeline(
   const config = getAgentConfig(agentId);
   const agentName = config?.name ?? agentId;
 
-  return decisions.map((d) => ({
+  return decisions.map((d: DecisionRow) => ({
     type: "decision" as const,
     timestamp: d.createdAt,
     description: `${agentName} decided to ${d.action} ${d.symbol} (confidence: ${d.confidence}%)`,
@@ -369,7 +373,7 @@ export async function searchDecisions(params: {
     .orderBy(desc(agentDecisions.createdAt))
     .limit(limit);
 
-  return results.map((d) => {
+  return results.map((d: DecisionRow) => {
     const config = getAgentConfig(d.agentId);
     return {
       id: d.id,
@@ -402,7 +406,7 @@ async function buildRoundContext(
 
   const configs = getAgentConfigs();
 
-  const allDecisions = roundDecisions.map((d) => {
+  const allDecisions = roundDecisions.map((d: DecisionRow) => {
     const config = configs.find((c) => c.agentId === d.agentId);
     return {
       agentId: d.agentId,
@@ -418,7 +422,7 @@ async function buildRoundContext(
   const actions = allDecisions.map((d) => d.action);
   const uniqueActions = new Set(actions);
   const consensus: "unanimous" | "majority" | "split" =
-    uniqueActions.size === 1 ? "unanimous" : actions.length >= 3 && actions.filter((a) => a === actions[0]).length >= 2 ? "majority" : "split";
+    uniqueActions.size === 1 ? "unanimous" : actions.length >= 3 && actions.filter((a: string) => a === actions[0]).length >= 2 ? "majority" : "split";
 
   // Agreement summary
   let agreementSummary: string;
@@ -426,8 +430,8 @@ async function buildRoundContext(
     agreementSummary = `All agents agreed to ${actions[0]}`;
   } else if (consensus === "majority") {
     const majorityAction = Object.entries(
-      actions.reduce<Record<string, number>>((acc, a) => { acc[a] = (acc[a] || 0) + 1; return acc; }, {}),
-    ).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "hold";
+      actions.reduce<Record<string, number>>((acc, a: string) => { acc[a] = (acc[a] || 0) + 1; return acc; }, {}),
+    ).sort(([, a]: [string, number], [, b]: [string, number]) => b - a)[0]?.[0] ?? "hold";
     agreementSummary = `Majority chose to ${majorityAction}, but agents diverged on approach`;
   } else {
     agreementSummary = "Complete disagreement — each agent took a different approach";
@@ -460,7 +464,7 @@ async function buildPortfolioAtTime(
   }
 
   // Count distinct positions (simplified)
-  const symbols = new Set(priorTrades.filter((t) => t.side === "buy").map((t) => t.stockSymbol));
+  const symbols = new Set(priorTrades.filter((t: TradeRow) => t.side === "buy").map((t: TradeRow) => t.stockSymbol));
 
   return {
     estimatedCashBalance: Math.max(0, cashBalance),

@@ -19,6 +19,9 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 
+// Database query result types
+type PaymentRow = typeof agentPayments.$inferSelect;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -284,7 +287,7 @@ export async function getAgentEarningsProfile(
       .orderBy(sql`sum(${agentPayments.amount}) desc`)
       .limit(10);
 
-    topTippers = tipperQuery.map((t) => ({
+    topTippers = tipperQuery.map((t: typeof tipperQuery[number]) => ({
       fromId: t.fromId,
       fromName: t.fromName,
       totalAmount: parseFloat(t.totalAmount),
@@ -343,7 +346,7 @@ export async function getAgentEarningsProfile(
       : 0,
     largestTip: earningsData ? parseFloat(earningsData.largestTip) : 0,
     lastTipAt: earningsData?.lastTipAt?.toISOString() ?? null,
-    recentTips: recentTips.map((t) => ({
+    recentTips: recentTips.map((t: PaymentRow) => ({
       id: t.id,
       fromName: t.fromName,
       amount: parseFloat(t.amount),
@@ -463,7 +466,7 @@ export async function getAgentPaymentHistory(
     .where(eq(agentPayments.toAgentId, agentId));
 
   return {
-    payments: payments.map((p) => ({
+    payments: payments.map((p: PaymentRow) => ({
       id: p.id,
       fromName: p.fromName,
       amount: parseFloat(p.amount),
