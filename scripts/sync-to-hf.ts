@@ -206,7 +206,7 @@ function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
   const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
 
   return {
-    benchmark: "moltapp-v1",
+    benchmark: "moltapp-v12",
     version: `${new Date().toISOString().split("T")[0]}`,
     generated_at: new Date().toISOString(),
     total_records: records.length,
@@ -290,29 +290,46 @@ tags:
   - benchmark
   - reasoning
   - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark"
+pretty_name: "MoltApp: AI Trading Benchmark v12"
 size_categories:
   - 1K<n<10K
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark
+# MoltApp: Agentic Stock Trading Benchmark v12
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us)
+Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v12](https://www.patgpt.us/benchmark-v12)
 
 ## Overview
 
 MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
 stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze for:
+which we analyze across **8 scoring pillars**:
 
-| Metric | Description | Current Avg |
-|--------|-------------|-------------|
-| **Coherence** | Does reasoning match the trade action? | ${metadata.metrics.avg_coherence.toFixed(3)} |
-| **Hallucination Rate** | Rate of factual errors in reasoning | ${metadata.metrics.hallucination_rate.toFixed(3)} |
-| **Discipline** | Compliance with trading rules | ${metadata.metrics.discipline_rate.toFixed(3)} |
-| **Confidence Calibration** | Is confidence correlated with outcomes? | ${metadata.metrics.avg_confidence.toFixed(3)} |
+| Pillar | Weight | Description |
+|--------|--------|-------------|
+| **Financial** | 18% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
+| **Reasoning** | 18% | Coherence, Depth, Consistency |
+| **Safety** | 14% | Hallucination-Free Rate, Discipline Compliance |
+| **Calibration** | 10% | ECE, Brier Score, Monotonic Quartiles |
+| **Patterns** | 8% | Fallacy Detection, Vocabulary Sophistication |
+| **Adaptability** | 8% | Cross-Regime Consistency |
+| **Forensic Quality** | 12% | Structure, Originality, Clarity, Integrity |
+| **Validation Quality** | 12% | Depth, Sources, Grounding, Risk Awareness |
+
+### v12 Features
+- **8-Dimension Validation Engine**: Structural validity, reasoning depth, source verification, price grounding, temporal consistency, confidence calibration, action alignment, risk awareness
+- **Reasoning Taxonomy Classifier**: 10 strategies, 6 methods, 5 structures, 10 cognitive bias detectors, sophistication levels 1-5
+- **Cross-Round Consistency Tracker**: Stance consistency, conviction stability, narrative coherence, strategy alignment, evolution trends
+
+### Current Metrics
+| Metric | Value |
+|--------|-------|
+| **Avg Coherence** | ${metadata.metrics.avg_coherence.toFixed(3)} |
+| **Hallucination Rate** | ${metadata.metrics.hallucination_rate.toFixed(3)} |
+| **Discipline Rate** | ${metadata.metrics.discipline_rate.toFixed(3)} |
+| **Avg Confidence** | ${metadata.metrics.avg_confidence.toFixed(3)} |
 
 ## Dataset Structure
 
@@ -337,6 +354,16 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 - **Total Records**: ${metadata.total_records}
 - **Last Updated**: ${metadata.version}
 - **Generated At**: ${metadata.generated_at}
+- **Benchmark Version**: v12
+
+## API Endpoints
+
+- Dashboard: \`/benchmark-v12\`
+- Data: \`/benchmark-v12/data\`
+- Stream: \`/benchmark-v12/stream\`
+- Taxonomy: \`/api/v1/benchmark-v12/taxonomy/:agentId\`
+- Consistency: \`/api/v1/benchmark-v12/consistency/:agentId\`
+- Schema: \`/api/v1/benchmark-v12/schema\`
 
 ## Citation
 

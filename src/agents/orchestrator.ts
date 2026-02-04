@@ -136,6 +136,20 @@ import {
 import {
   emitV11Event,
 } from "../routes/benchmark-v11.tsx";
+import {
+  validateForBenchmark,
+} from "../services/benchmark-validation-engine.ts";
+import {
+  classifyReasoning,
+  recordTaxonomyClassification,
+} from "../services/reasoning-taxonomy.ts";
+import {
+  recordConsistencyEntry,
+} from "../services/cross-round-consistency.ts";
+import {
+  recordV12AgentMetrics,
+  emitV12Event,
+} from "../routes/benchmark-v12.tsx";
 
 // ---------------------------------------------------------------------------
 // All registered agents
@@ -1088,6 +1102,102 @@ async function executeTradingRound(
       } catch (err) {
         console.warn(
           `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // --- v12: Validation Engine, Reasoning Taxonomy, Cross-Round Consistency ---
+      try {
+        const normalizedConf12 = decision.confidence > 1 ? decision.confidence / 100 : decision.confidence;
+
+        // 1. Validate trade against benchmark quality dimensions
+        const validationResult = validateForBenchmark(
+          decision,
+          agent.agentId,
+          marketData,
+          {
+            maxPositionSize: agent.config.maxPositionSize,
+            maxPortfolioAllocation: agent.config.maxPortfolioAllocation,
+            riskTolerance: agent.config.riskTolerance,
+          },
+        );
+
+        console.log(
+          `[Orchestrator] ${agent.name} v12 validation: quality=${validationResult.qualityScore.toFixed(3)} (${validationResult.grade}), ` +
+          `valid=${validationResult.valid}, issues=${validationResult.issues.length}`,
+        );
+
+        emitV12Event("trade_validated", {
+          qualityScore: validationResult.qualityScore,
+          grade: validationResult.grade,
+          valid: validationResult.valid,
+          issueCount: validationResult.issues.length,
+          dimensions: validationResult.dimensions.map((d) => ({
+            name: d.name,
+            score: d.score,
+            passed: d.passed,
+          })),
+        }, agent.agentId);
+
+        // 2. Classify reasoning into taxonomy
+        const taxonomy = classifyReasoning(decision.reasoning, decision.action);
+        recordTaxonomyClassification(agent.agentId, taxonomy);
+
+        console.log(
+          `[Orchestrator] ${agent.name} taxonomy: ${taxonomy.fingerprint}, ` +
+          `strategy=${taxonomy.strategy}, sophistication=${taxonomy.sophisticationLevel}/5, ` +
+          `biases=${taxonomy.cognitivePatterns.length}`,
+        );
+
+        emitV12Event("taxonomy_classified", {
+          fingerprint: taxonomy.fingerprint,
+          strategy: taxonomy.strategy,
+          analyticalMethod: taxonomy.analyticalMethod,
+          reasoningStructure: taxonomy.reasoningStructure,
+          sophisticationLevel: taxonomy.sophisticationLevel,
+          cognitivePatterns: taxonomy.cognitivePatterns.map((p) => p.type),
+          themes: taxonomy.themes,
+          classificationConfidence: taxonomy.classificationConfidence,
+        }, agent.agentId);
+
+        // 3. Record for cross-round consistency tracking
+        const intent12 = decision.intent ?? "value";
+        recordConsistencyEntry({
+          agentId: agent.agentId,
+          roundId,
+          symbol: decision.symbol,
+          action: decision.action,
+          confidence: normalizedConf12,
+          reasoning: decision.reasoning,
+          intent: intent12,
+          coherenceScore: validationResult.dimensions.find((d) => d.name === "action_reasoning_alignment")?.score ?? 0.5,
+          timestamp: new Date().toISOString(),
+        });
+
+        // 4. Update composite v12 metrics for dashboard
+        recordV12AgentMetrics(agent.agentId, {
+          financial: 0.5, // Will be updated by financial tracker
+          reasoning: validationResult.dimensions.find((d) => d.name === "reasoning_depth")?.score ?? 0.5,
+          safety: validationResult.dimensions.find((d) => d.name === "price_grounding")?.score ?? 0.5,
+          calibration: validationResult.dimensions.find((d) => d.name === "confidence_calibration")?.score ?? 0.5,
+          patterns: taxonomy.sophisticationLevel / 5,
+          adaptability: 0.5,
+          forensicQuality: validationResult.dimensions.find((d) => d.name === "source_verification")?.score ?? 0.5,
+          validationQuality: validationResult.qualityScore,
+          composite: validationResult.qualityScore * 0.6 + (taxonomy.sophisticationLevel / 5) * 0.2 + 0.5 * 0.2,
+          grade: validationResult.grade,
+          dominantStrategy: taxonomy.strategy,
+          sophistication: taxonomy.sophisticationLevel,
+          biasCount: taxonomy.cognitivePatterns.length,
+          consistencyScore: 0.5, // Updated by consistency tracker
+          qualityTrend: "stable",
+          anomalyCount: 0,
+          tradeCount: 1,
+          lastUpdated: new Date().toISOString(),
+        });
+
+      } catch (err) {
+        console.warn(
+          `[Orchestrator] v12 analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
 

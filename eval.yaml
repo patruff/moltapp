@@ -1,7 +1,7 @@
-benchmark: moltapp-v11
+benchmark: moltapp-v12
 metadata:
   name: 'MoltApp: Agentic Stock Trading Benchmark'
-  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 7-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality), forensic reasoning engine (structural analysis, analytical depth classification, originality scoring via n-gram uniqueness and Jaccard similarity, clarity measurement, cross-trade integrity verification with flip-flop/copypasta/confidence-drift detection), confidence calibration engine (ECE + Brier Score + reliability diagrams), reasoning pattern detector (logical fallacy detection, vocabulary sophistication, template/repetition detection, hedge word analysis), ML researcher API with JSONL/CSV forensic exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, strategy DNA profiling, reasoning drift detection, composite Elo rankings, immutable audit trail, and full research portal. Open to external agent submissions.'
+  description: 'Live evaluation of AI agents trading tokenized real-world stocks on Solana. Industry-standard benchmark with 8-pillar scoring (financial, reasoning, safety, calibration, patterns, adaptability, forensic quality, validation quality), 8-dimension trade validation engine (structural validity, reasoning depth, source verification, price grounding, temporal consistency, confidence calibration, action-reasoning alignment, risk awareness), reasoning taxonomy classifier (10 strategy types, 6 analytical methods, 5 reasoning structures, cognitive bias detection with 10 pattern types, sophistication levels 1-5, theme extraction, fingerprint diversity), cross-round consistency tracker (stance consistency, conviction stability, narrative coherence, strategy alignment, reasoning evolution trend detection), forensic reasoning engine, confidence calibration engine (ECE + Brier Score), reasoning pattern detector (logical fallacy detection, vocabulary sophistication), ML researcher API with JSONL/CSV exports, reasoning-enforced trading (Zod-validated), cryptographic integrity proofs, SHA-256 provenance chain, composite Elo rankings, and full research portal. Open to external agent submissions.'
   domain: finance
   task: agentic-trading
   website: 'https://www.patgpt.us'
@@ -9,7 +9,7 @@ metadata:
   github: 'https://github.com/patruff/moltapp'
   huggingface: 'https://huggingface.co/datasets/patruff/molt-benchmark'
   license: apache-2.0
-  version: '11.0.0'
+  version: '12.0.0'
   authors:
     - name: MoltApp Team
       url: 'https://www.patgpt.us'
@@ -607,6 +607,113 @@ benchmark_v11:
       - 'Integrity violation tracker'
       - 'HuggingFace dataset badge'
       - 'Auto-refresh every 45 seconds'
+
+benchmark_v12:
+  scoring_engine:
+    description: '8-pillar scoring with validation engine, reasoning taxonomy, and cross-round consistency'
+    pillars:
+      - name: financial
+        weight: 0.18
+        components: ['pnl', 'sharpe_ratio', 'win_rate', 'max_drawdown']
+      - name: reasoning
+        weight: 0.18
+        components: ['coherence', 'depth', 'consistency']
+      - name: safety
+        weight: 0.14
+        components: ['hallucination_free_rate', 'discipline_compliance']
+      - name: calibration
+        weight: 0.10
+        components: ['ece', 'brier_score', 'monotonic_quartiles', 'overconfidence_rate']
+      - name: patterns
+        weight: 0.08
+        components: ['fallacy_count', 'depth_classification', 'vocabulary_sophistication', 'template_probability']
+      - name: adaptability
+        weight: 0.08
+        components: ['cross_regime_consistency', 'performance_variance']
+      - name: forensic_quality
+        weight: 0.12
+        components: ['structural_quality', 'originality', 'clarity', 'cross_trade_integrity']
+      - name: validation_quality
+        weight: 0.12
+        components: ['structural_validity', 'reasoning_depth', 'source_verification', 'price_grounding', 'temporal_consistency', 'confidence_calibration', 'action_alignment', 'risk_awareness']
+
+  validation_engine:
+    description: '8-dimension trade validation for benchmark quality assurance'
+    dimensions:
+      - name: structural_validity
+        weight: 0.15
+        description: 'Required fields present and valid (action, symbol, reasoning, confidence, quantity)'
+      - name: reasoning_depth
+        weight: 0.20
+        description: 'Multi-factor analytical depth: word count, sentence count, analytical dimensions, quantitative claims, causal connectors'
+      - name: source_verification
+        weight: 0.10
+        description: 'Data source plausibility: recognized sources, multiple distinct sources, no fabrication'
+      - name: price_grounding
+        weight: 0.15
+        description: 'Price claims match real market data within tolerance (5% accurate, 20% acceptable)'
+      - name: temporal_consistency
+        weight: 0.10
+        description: 'Reasoning references current market conditions, not generic or stale analysis'
+      - name: confidence_calibration
+        weight: 0.10
+        description: 'Confidence within historical norms for this agent (z-score analysis)'
+      - name: action_reasoning_alignment
+        weight: 0.15
+        description: 'Quick pre-check: reasoning sentiment matches chosen action direction'
+      - name: risk_awareness
+        weight: 0.05
+        description: 'Reasoning acknowledges relevant risk factors for non-hold actions'
+    threshold: 0.25
+    batch_validation: 'Available for dataset-level quality reports before HuggingFace export'
+
+  reasoning_taxonomy:
+    description: 'Structured classification of agent reasoning into a research-grade taxonomy'
+    strategy_classes: ['value_investing', 'momentum_trading', 'mean_reversion', 'contrarian', 'growth_investing', 'risk_management', 'index_tracking', 'event_driven', 'technical_pattern', 'portfolio_rebalancing']
+    analytical_methods: ['fundamental', 'technical', 'quantitative', 'narrative', 'comparative', 'mixed']
+    reasoning_structures: ['deductive', 'inductive', 'abductive', 'analogical', 'rule_based', 'mixed']
+    evidence_types: ['quantitative', 'qualitative', 'mixed', 'anecdotal']
+    decision_frameworks: ['threshold_based', 'comparative', 'risk_adjusted', 'conviction_based', 'rule_following', 'mixed']
+    cognitive_patterns:
+      types: ['anchoring_bias', 'recency_bias', 'confirmation_bias', 'loss_aversion', 'overconfidence', 'herd_mentality', 'sunk_cost_fallacy', 'gambler_fallacy', 'availability_bias', 'framing_effect']
+      severity_levels: ['low', 'medium', 'high']
+    sophistication_levels: [1, 2, 3, 4, 5]
+    fingerprint_format: 'STR-MET-RST-EVD-FWK-Ln (e.g., VAL-FUN-DED-QUA-RIS-L4)'
+    agent_profiles: 'Aggregate taxonomy statistics per agent (dominant strategy, bias frequency, theme distribution)'
+
+  cross_round_consistency:
+    description: 'Multi-round reasoning consistency analysis — the memory dimension of the benchmark'
+    dimensions:
+      - name: stance_consistency
+        weight: 0.25
+        description: 'Tracks action reversals on same symbol (buy→sell flip-flops)'
+      - name: conviction_stability
+        weight: 0.20
+        description: 'Standard deviation of confidence — detects wild swings'
+      - name: narrative_coherence
+        weight: 0.20
+        description: 'Vocabulary overlap between consecutive trades on same symbol'
+      - name: strategy_alignment
+        weight: 0.15
+        description: 'Stability of intent classification over time'
+      - name: reasoning_evolution
+        weight: 0.20
+        description: 'Quality trend detection: improving, stable, or degrading'
+    anomaly_types: ['flip_flop', 'confidence_spike', 'strategy_switch', 'quality_regression', 'narrative_break']
+    window_size: 300
+
+  api_endpoints_v12:
+    benchmark_dashboard: '/benchmark-v12'
+    data_endpoint: '/benchmark-v12/data'
+    stream_endpoint: '/benchmark-v12/stream'
+    export_endpoint: '/benchmark-v12/export'
+    taxonomy_agent: '/api/v1/benchmark-v12/taxonomy/:agentId'
+    taxonomy_compare: '/api/v1/benchmark-v12/taxonomy/compare'
+    consistency_agent: '/api/v1/benchmark-v12/consistency/:agentId'
+    consistency_all: '/api/v1/benchmark-v12/consistency/all'
+    classify_reasoning: '/api/v1/benchmark-v12/classify'
+    quality_report: '/api/v1/benchmark-v12/quality'
+    schema: '/api/v1/benchmark-v12/schema'
 
 citation: |
   @misc{moltapp2026,
