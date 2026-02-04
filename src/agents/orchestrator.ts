@@ -121,7 +121,6 @@ import {
 } from "../services/benchmark-audit-trail.ts";
 import {
   processRoundElo,
-  updateStreak,
 } from "../services/benchmark-composite-ranker.ts";
 import {
   recordTradeForDNA,
@@ -1778,10 +1777,8 @@ async function executeTradingRound(
     }));
     processRoundElo(eloResults);
 
-    // Update streaks
-    for (const r of results) {
-      updateStreak(r.agentId, r.executed && r.decision.action !== "hold" ? null : null);
-    }
+    // Note: Trade profit/loss streak tracking removed (incomplete implementation).
+    // Ranking-based streaks are tracked in leaderboard-evolution.ts instead.
 
     // Audit peer review
     auditPeerReview(roundId, results.length, results[0]?.agentId ?? null, 0);
