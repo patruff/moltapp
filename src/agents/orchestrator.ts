@@ -65,8 +65,6 @@ import {
   cacheRound,
   type PersistedAgentResult,
 } from "../services/dynamo-round-persister.ts";
-// Agent context enrichment is now handled by agents themselves via tool-calling loop
-// import { enrichAgentContext } from "../services/agent-context-enricher.ts";
 import { recordMarketReturn } from "../services/portfolio-risk-analyzer.ts";
 import { runPreRoundGate } from "../services/pre-round-gate.ts";
 import { trackLatency } from "../services/observability.ts";
