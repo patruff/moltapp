@@ -17,3 +17,4 @@ export { reasoningForensicReports, reasoningIntegrityViolations, agentReasoningH
 export { outcomeResolutions, calibrationSnapshots, benchmarkLeaderboardV23 } from "./benchmark-v23.ts";
 export { reasoningDepthAnalysis, sourceQualityAnalysis, benchmarkLeaderboardV24, benchmarkRoundSnapshotsV24 } from "./benchmark-v24.ts";
 export { outcomePredictionTracking, consensusIntelligence, benchmarkLeaderboardV25, benchmarkRoundSnapshotsV25 } from "./benchmark-v25.ts";
+export { strategyGenomeAnalysis, riskRewardDiscipline, benchmarkLeaderboardV26, benchmarkRoundSnapshotsV26 } from "./benchmark-v26.ts";
