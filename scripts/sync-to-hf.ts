@@ -1,92 +1,63 @@
 /**
- * HuggingFace Benchmark Sync
+ * HuggingFace Benchmark Dataset Sync (v23)
  *
- * Fetches all trade justifications from the database, formats them as a
- * structured benchmark dataset, and uploads to HuggingFace Hub.
- *
- * Dataset: patruff/molt-benchmark
+ * Exports MoltApp benchmark data as a structured dataset for HuggingFace:
+ * 1. Fetches all trades with justifications from the database
+ * 2. Joins with outcome resolutions for prediction accuracy data
+ * 3. Formats as JSONL benchmark dataset
+ * 4. Uploads to patruff/molt-benchmark on HuggingFace Hub
+ * 5. Includes eval.yaml for benchmark recognition
  *
  * Usage:
  *   npx tsx scripts/sync-to-hf.ts
  *
  * Environment:
- *   HF_TOKEN — HuggingFace API token with write access
- *   DATABASE_URL — PostgreSQL connection string
+ *   HF_TOKEN — HuggingFace write token
+ *   DATABASE_URL — Neon PostgreSQL connection string
  */
 
 import { uploadFile } from "@huggingface/hub";
 import { db } from "../src/db/index.ts";
-import { tradeJustifications, benchmarkSnapshots } from "../src/db/schema/trade-reasoning.ts";
-import { agentDecisions } from "../src/db/schema/agent-decisions.ts";
-import { agents } from "../src/db/schema/agents.ts";
-import { desc, sql } from "drizzle-orm";
+import { tradeJustifications } from "../src/db/schema/trade-reasoning.ts";
+import {
+  outcomeResolutions,
+  benchmarkLeaderboardV23,
+} from "../src/db/schema/benchmark-v23.ts";
+import { desc, eq, sql } from "drizzle-orm";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Config
 // ---------------------------------------------------------------------------
 
 const HF_REPO = "patruff/molt-benchmark";
-const HF_TOKEN = process.env.HF_TOKEN;
-
-if (!HF_TOKEN) {
-  console.error("Error: HF_TOKEN environment variable is required");
-  console.error("Get a token from https://huggingface.co/settings/tokens");
-  process.exit(1);
-}
+const HF_TOKEN = process.env.HF_TOKEN ?? "";
+const BATCH_SIZE = 1000;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 interface BenchmarkRecord {
-  /** Unique trade ID */
-  id: string;
-  /** Agent identifier */
   agent_id: string;
-  /** Agent's LLM provider (anthropic, openai, xai) */
-  agent_provider: string;
-  /** Trade action */
-  action: "buy" | "sell" | "hold";
-  /** Stock symbol */
-  symbol: string;
-  /** Quantity traded */
-  quantity: number;
-  /** Full reasoning text */
-  reasoning: string;
-  /** Confidence 0-1 */
-  confidence: number;
-  /** Trading intent classification */
-  intent: string;
-  /** Data sources cited */
-  sources: string[];
-  /** Predicted outcome text */
-  predicted_outcome: string | null;
-  /** Actual outcome text */
-  actual_outcome: string | null;
-  /** Coherence score 0-1 */
-  coherence_score: number | null;
-  /** List of hallucination flags */
-  hallucination_flags: string[];
-  /** Whether agent followed rules */
-  discipline_pass: boolean;
-  /** Trading round ID */
   round_id: string | null;
-  /** ISO timestamp */
   timestamp: string;
-}
-
-interface DatasetMetadata {
-  benchmark: string;
-  version: string;
-  generated_at: string;
-  total_records: number;
-  agents: string[];
-  metrics: {
-    avg_coherence: number;
-    avg_confidence: number;
-    hallucination_rate: number;
-    discipline_rate: number;
-  };
+  action: string;
+  symbol: string;
+  quantity: number | null;
+  reasoning: string;
+  confidence: number;
+  sources: string[];
+  intent: string;
+  predicted_outcome: string | null;
+  coherence_score: number | null;
+  hallucination_flags: string[];
+  discipline_pass: boolean;
+  pnl_percent: number | null;
+  direction_correct: boolean | null;
+  outcome: string | null;
+  composite_score: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,338 +65,294 @@ interface DatasetMetadata {
 // ---------------------------------------------------------------------------
 
 async function fetchBenchmarkData(): Promise<BenchmarkRecord[]> {
-  console.log("Fetching trade justifications from database...");
+  console.log("[HF Sync] Fetching trade justifications from database...");
 
   const justifications = await db
     .select()
     .from(tradeJustifications)
-    .orderBy(desc(tradeJustifications.timestamp));
+    .orderBy(desc(tradeJustifications.timestamp))
+    .limit(BATCH_SIZE);
 
-  console.log(`Found ${justifications.length} justifications`);
+  console.log(`[HF Sync] Found ${justifications.length} justifications`);
 
-  if (justifications.length === 0) {
-    // Fall back to agent_decisions table for backward compatibility
-    console.log("No justifications found, falling back to agent_decisions...");
-    const decisions = await db
+  // Build outcome lookup
+  const outcomes = new Map<string, {
+    pnlPercent: number | null;
+    directionCorrect: boolean | null;
+    outcome: string;
+  }>();
+
+  try {
+    const resolutions = await db
       .select()
-      .from(agentDecisions)
-      .orderBy(desc(agentDecisions.createdAt));
+      .from(outcomeResolutions)
+      .limit(BATCH_SIZE);
 
-    console.log(`Found ${decisions.length} agent decisions`);
-
-    return decisions.map((d) => ({
-      id: `decision_${d.id}`,
-      agent_id: d.agentId,
-      agent_provider: inferProvider(d.agentId),
-      action: d.action as "buy" | "sell" | "hold",
-      symbol: d.symbol,
-      quantity: parseFloat(d.quantity),
-      reasoning: d.reasoning,
-      confidence: d.confidence / 100, // normalize to 0-1
-      intent: classifyIntentSimple(d.reasoning, d.action),
-      sources: extractSourcesSimple(d.reasoning),
-      predicted_outcome: null,
-      actual_outcome: null,
-      coherence_score: null,
-      hallucination_flags: [],
-      discipline_pass: true,
-      round_id: d.roundId,
-      timestamp: d.createdAt.toISOString(),
-    }));
+    for (const r of resolutions) {
+      outcomes.set(r.justificationId, {
+        pnlPercent: r.pnlPercent,
+        directionCorrect: r.directionCorrect,
+        outcome: r.outcome,
+      });
+    }
+    console.log(`[HF Sync] Found ${resolutions.length} outcome resolutions`);
+  } catch (err) {
+    console.warn(`[HF Sync] Could not fetch outcomes: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  return justifications.map((j) => ({
-    id: j.id,
-    agent_id: j.agentId,
-    agent_provider: inferProvider(j.agentId),
-    action: j.action as "buy" | "sell" | "hold",
-    symbol: j.symbol,
-    quantity: j.quantity ?? 0,
-    reasoning: j.reasoning,
-    confidence: j.confidence,
-    intent: j.intent,
-    sources: (j.sources as string[]) ?? [],
-    predicted_outcome: j.predictedOutcome,
-    actual_outcome: j.actualOutcome,
-    coherence_score: j.coherenceScore,
-    hallucination_flags: (j.hallucinationFlags as string[]) ?? [],
-    discipline_pass: j.disciplinePass === "pass",
-    round_id: j.roundId,
-    timestamp: j.timestamp?.toISOString() ?? new Date().toISOString(),
-  }));
-}
+  // Build leaderboard lookup for composite scores
+  const composites = new Map<string, number>();
+  try {
+    const leaderboard = await db
+      .select()
+      .from(benchmarkLeaderboardV23)
+      .limit(100);
 
-function inferProvider(agentId: string): string {
-  if (agentId.includes("claude")) return "anthropic";
-  if (agentId.includes("gpt")) return "openai";
-  if (agentId.includes("grok")) return "xai";
-  return "unknown";
-}
+    for (const entry of leaderboard) {
+      composites.set(entry.agentId, entry.compositeScore ?? 0);
+    }
+  } catch {
+    // Non-critical
+  }
 
-function classifyIntentSimple(reasoning: string, action: string): string {
-  const lower = reasoning.toLowerCase();
-  if (/undervalued|value|margin|cheap/i.test(lower)) return "value";
-  if (/momentum|trend|breakout|rally/i.test(lower)) return "momentum";
-  if (/reversion|oversold|bounce|pullback/i.test(lower)) return "mean_reversion";
-  if (/hedge|protect|defensive/i.test(lower)) return "hedge";
-  if (/contrarian|against/i.test(lower)) return "contrarian";
-  return action === "buy" ? "value" : "momentum";
-}
+  // Format records
+  const records: BenchmarkRecord[] = justifications.map((j) => {
+    const outcome = outcomes.get(j.id);
+    const hallucinationFlags = (j.hallucinationFlags as string[] | null) ?? [];
+    const sources = (j.sources as string[] | null) ?? [];
 
-function extractSourcesSimple(reasoning: string): string[] {
-  const sources: string[] = [];
-  if (/price/i.test(reasoning)) sources.push("market_price_feed");
-  if (/24h|change/i.test(reasoning)) sources.push("24h_price_change");
-  if (/volume/i.test(reasoning)) sources.push("trading_volume");
-  if (/portfolio|position/i.test(reasoning)) sources.push("portfolio_state");
-  if (/news/i.test(reasoning)) sources.push("news_feed");
-  if (sources.length === 0) sources.push("market_data");
-  return sources;
+    return {
+      agent_id: j.agentId,
+      round_id: j.roundId,
+      timestamp: j.timestamp?.toISOString() ?? new Date().toISOString(),
+      action: j.action,
+      symbol: j.symbol,
+      quantity: j.quantity,
+      reasoning: j.reasoning,
+      confidence: j.confidence,
+      sources,
+      intent: j.intent,
+      predicted_outcome: j.predictedOutcome,
+      coherence_score: j.coherenceScore,
+      hallucination_flags: hallucinationFlags,
+      discipline_pass: j.disciplinePass === "pass",
+      pnl_percent: outcome?.pnlPercent ?? null,
+      direction_correct: outcome?.directionCorrect ?? null,
+      outcome: outcome?.outcome ?? null,
+      composite_score: composites.get(j.agentId) ?? null,
+    };
+  });
+
+  return records;
 }
 
 // ---------------------------------------------------------------------------
-// Dataset Formatting
+// JSONL Formatting
 // ---------------------------------------------------------------------------
-
-function computeMetadata(records: BenchmarkRecord[]): DatasetMetadata {
-  const agentIds = [...new Set(records.map((r) => r.agent_id))];
-
-  const withCoherence = records.filter((r) => r.coherence_score !== null);
-  const avgCoherence = withCoherence.length > 0
-    ? withCoherence.reduce((s, r) => s + (r.coherence_score ?? 0), 0) / withCoherence.length
-    : 0;
-
-  const avgConfidence = records.length > 0
-    ? records.reduce((s, r) => s + r.confidence, 0) / records.length
-    : 0;
-
-  const withHallucinations = records.filter((r) => r.hallucination_flags.length > 0).length;
-  const hallucinationRate = records.length > 0 ? withHallucinations / records.length : 0;
-
-  const disciplinePasses = records.filter((r) => r.discipline_pass).length;
-  const disciplineRate = records.length > 0 ? disciplinePasses / records.length : 0;
-
-  return {
-    benchmark: "moltapp-v22",
-    version: `${new Date().toISOString().split("T")[0]}`,
-    generated_at: new Date().toISOString(),
-    total_records: records.length,
-    agents: agentIds,
-    metrics: {
-      avg_coherence: Math.round(avgCoherence * 1000) / 1000,
-      avg_confidence: Math.round(avgConfidence * 1000) / 1000,
-      hallucination_rate: Math.round(hallucinationRate * 1000) / 1000,
-      discipline_rate: Math.round(disciplineRate * 1000) / 1000,
-    },
-  };
-}
 
 function formatAsJsonl(records: BenchmarkRecord[]): string {
-  return records.map((r) => JSON.stringify(r)).join("\n");
+  return records.map((r) => JSON.stringify(r)).join("\n") + "\n";
 }
 
-// ---------------------------------------------------------------------------
-// Upload to HuggingFace
-// ---------------------------------------------------------------------------
-
-async function uploadToHuggingFace(
-  records: BenchmarkRecord[],
-  metadata: DatasetMetadata,
-): Promise<void> {
-  const credentials = { accessToken: HF_TOKEN! };
-  const repo = { type: "dataset" as const, name: HF_REPO };
-
-  console.log(`\nUploading to HuggingFace: ${HF_REPO}`);
-
-  // 1. Upload the main dataset as JSONL
-  const jsonlContent = formatAsJsonl(records);
-  const jsonlBlob = new Blob([jsonlContent], { type: "application/jsonl" });
-
-  await uploadFile({
-    repo,
-    credentials,
-    file: { path: "data/trades.jsonl", content: jsonlBlob },
-    commitTitle: `Update benchmark data: ${metadata.total_records} records (${metadata.version})`,
-  });
-  console.log(`  Uploaded data/trades.jsonl (${records.length} records)`);
-
-  // 2. Upload metadata
-  const metadataJson = JSON.stringify(metadata, null, 2);
-  const metadataBlob = new Blob([metadataJson], { type: "application/json" });
-
-  await uploadFile({
-    repo,
-    credentials,
-    file: { path: "metadata.json", content: metadataBlob },
-    commitTitle: `Update metadata (${metadata.version})`,
-  });
-  console.log("  Uploaded metadata.json");
-
-  // 3. Upload README with dataset card
-  const readmeContent = generateDatasetCard(metadata);
-  const readmeBlob = new Blob([readmeContent], { type: "text/markdown" });
-
-  await uploadFile({
-    repo,
-    credentials,
-    file: { path: "README.md", content: readmeBlob },
-    commitTitle: `Update dataset card (${metadata.version})`,
-  });
-  console.log("  Uploaded README.md (dataset card)");
-
-  console.log(`\nDone! Dataset available at: https://huggingface.co/datasets/${HF_REPO}`);
-}
-
-function generateDatasetCard(metadata: DatasetMetadata): string {
+function generateDatasetCard(recordCount: number, agentCount: number): string {
   return `---
-language: en
-license: apache-2.0
+dataset_info:
+  features:
+    - name: agent_id
+      dtype: string
+    - name: action
+      dtype: string
+    - name: symbol
+      dtype: string
+    - name: reasoning
+      dtype: string
+    - name: confidence
+      dtype: float64
+    - name: coherence_score
+      dtype: float64
+    - name: pnl_percent
+      dtype: float64
+    - name: direction_correct
+      dtype: bool
+    - name: composite_score
+      dtype: float64
+  splits:
+    - name: train
+      num_examples: ${recordCount}
+license: mit
 task_categories:
-  - text-classification
   - text-generation
+  - text-classification
 tags:
   - finance
   - trading
-  - ai-agents
   - benchmark
+  - ai-agents
   - reasoning
-  - hallucination-detection
-pretty_name: "MoltApp: AI Trading Benchmark v22"
-size_categories:
-  - 1K<n<10K
+  - llm-evaluation
 ---
 
-# MoltApp: Agentic Stock Trading Benchmark v22
+# MoltApp: Agentic Stock Trading Benchmark
 
 **Live evaluation of AI agents trading tokenized real-world stocks on Solana.**
 
-Website: [www.patgpt.us](https://www.patgpt.us) | Dashboard: [www.patgpt.us/benchmark-v22](https://www.patgpt.us/benchmark-v22)
-
 ## Overview
 
-MoltApp pits AI agents (Claude, GPT, Grok) against each other in a real-money
-stock trading competition on Solana. Every trade requires structured reasoning,
-which we analyze across **28 scoring pillars**:
+MoltApp is an industry-standard benchmark for evaluating AI agent trading capabilities.
+Unlike static benchmarks, MoltApp measures agent intelligence through real trading decisions
+with real financial consequences on the Solana blockchain.
 
-| Pillar | Weight | Description |
+## Benchmark Dimensions (v23)
+
+| Metric | Weight | Description |
 |--------|--------|-------------|
-| **Financial** | 9% | P&L, Sharpe Ratio, Win Rate, Max Drawdown |
-| **Reasoning** | 8% | Coherence, Depth, Consistency |
-| **Safety** | 7% | Hallucination-Free Rate, Discipline Compliance |
-| **Calibration** | 6% | ECE, Brier Score, Monotonic Quartiles |
-| **Patterns** | 4% | Fallacy Detection, Vocabulary Sophistication |
-| **Adaptability** | 4% | Cross-Regime Consistency |
-| **Forensic Quality** | 6% | Structure, Originality, Clarity, Integrity |
-| **Validation Quality** | 6% | Depth, Sources, Grounding, Risk Awareness |
-| **Prediction Accuracy** | 5% | Direction accuracy, target precision, resolution quality |
-| **Reasoning Stability** | 4% | Sentiment volatility, confidence volatility, intent drift |
-| **Provenance Integrity** | 5% | Pre-commit seal validity, chain integrity, cross-agent witness |
-| **Model Comparison** | 4% | Vocabulary uniqueness, reasoning independence, bias awareness |
-| **Metacognition** | 5% | Epistemic humility, error recognition, adaptive strategy |
-| **Reasoning Efficiency** | 3% | Information density, signal-to-noise ratio |
-| **Forensic Ledger** | 3% | Immutable hash-chain audit, outcome resolution |
-| **Strategy Genome** | 3% | 8-gene behavioral DNA, cross-agent similarity |
-| **Adversarial Robustness** | 4% | Signal conflict, anchoring resistance, edge cases, framing bias |
-| **Cross-Session Memory** | 4% | Mistake repetition, lesson retention, strategy evolution |
-| **Arbitration Quality** | 5% | Evidence weight, logical consistency, calibration accuracy, risk disclosure, originality |
-| **Debate Performance** | 5% | Thesis clarity, evidence quality, logical strength, rebuttal power, honesty |
-| **Impact Forecasting** | 4% | Direction accuracy, magnitude calibration, learning velocity, conviction correlation |
-| **Reasoning Transparency** | 5% | Claim extraction, evidence mapping, logic chain, assumptions, counterfactuals |
-| **Decision Accountability** | 5% | Claim accuracy, overconfidence rate, learning trend, resolution rate |
-| **Quality Certification** | 4% | Structural completeness, data grounding, logical soundness, epistemic honesty |
-| **Reasoning Chain Integrity** | 5% | Step decomposition, logical connectors, circular reasoning detection, evidence gaps |
-| **Strategy Profiling** | 5% | Conviction consistency, risk awareness, market sensitivity, adaptability, info utilization |
-
-### v22 Features (NEW)
-- **Benchmark Integrity Engine**: SHA-256 fingerprinting of every trade, Merkle audit trees per round, tamper detection — makes MoltApp the first AI benchmark with cryptographic integrity proofs.
-- **Reasoning Grounding Validator**: Extracts every factual claim from reasoning, cross-references against real market data. Distinguishes grounded, ungrounded, hallucinated, embellished, and inferred claims.
-- **Cognitive Bias Detector**: Identifies 7 cognitive biases in agent reasoning — anchoring, confirmation bias, recency bias, sunk cost fallacy, overconfidence, herding, and loss aversion.
-
-### v21 Features
-- **Reasoning Chain Validator**: Step decomposition, logical connector analysis, circular reasoning detection.
-- **Agent Strategy Profiler**: Conviction consistency, risk awareness, market sensitivity, adaptability, info utilization.
-
-### v20 Features
-- **Reasoning Transparency Engine**: Decomposes reasoning into verifiable claims, maps evidence, validates logic chains, surfaces assumptions, generates counterfactuals.
-- **Decision Accountability Tracker**: Registers verifiable claims at trade time, resolves against outcomes, tracks accuracy by type/symbol/confidence.
-- **Reasoning Quality Certifier**: Issues Gold/Silver/Bronze quality certificates with SHA-256 verification across 5 dimensions.
-
-### v19 Features
-- **Benchmark Arbitration Engine**: Structured court cases for agent disagreements — pairwise evidence scoring, logical consistency analysis, outcome resolution.
-- **Cross-Agent Debate Engine**: Formal debates with thesis extraction, evidence clash detection, logical chain analysis, rebuttal scoring.
-- **Trade Impact Forecaster**: Prediction accountability — direction accuracy, magnitude calibration, conviction-outcome correlation, learning velocity.
-
-### v18 Features
-- **Adversarial Robustness Engine**: Stress-tests under adversarial conditions.
-- **Cross-Session Memory Analyzer**: Measures genuine cross-session learning.
-- **Benchmark Regression Detector**: Monitors benchmark quality over time.
-
-### Prior Version Features
-- v17: Benchmark Intelligence Gateway, Trade Forensic Ledger, Agent Strategy Genome
-- v16: Metacognition Engine, Reasoning Efficiency Scorer, Reasoning Depth Scorer
-- v15: Reasoning Provenance Engine, Cross-Model Comparator, Reproducibility Prover
-- v14: Outcome Resolution, Calibration Curves, Volatility Tracker, Consensus Divergence, Battle Engine, Taxonomy
-
-### Current Metrics
-| Metric | Value |
-|--------|-------|
-| **Avg Coherence** | ${metadata.metrics.avg_coherence.toFixed(3)} |
-| **Hallucination Rate** | ${metadata.metrics.hallucination_rate.toFixed(3)} |
-| **Discipline Rate** | ${metadata.metrics.discipline_rate.toFixed(3)} |
-| **Avg Confidence** | ${metadata.metrics.avg_confidence.toFixed(3)} |
-
-## Dataset Structure
-
-Each record contains:
-- \`agent_id\`: Which AI agent made the trade
-- \`action\`: buy / sell / hold
-- \`symbol\`: Stock ticker (e.g., AAPLx, NVDAx)
-- \`reasoning\`: Full step-by-step reasoning text
-- \`confidence\`: Self-reported confidence (0-1)
-- \`intent\`: Strategy classification (value, momentum, mean_reversion, etc.)
-- \`sources\`: Data sources the agent cited
-- \`coherence_score\`: Automated coherence analysis (0-1)
-- \`hallucination_flags\`: Detected factual errors
-- \`discipline_pass\`: Whether agent followed its rules
+| P&L Performance | 30% | Return on investment |
+| Reasoning Coherence | 20% | Does logic match the trade action? |
+| Hallucination-Free Rate | 15% | No fabricated market data |
+| Instruction Discipline | 10% | Compliance with trading rules |
+| Confidence Calibration | 15% | ECE — confidence predicts outcomes |
+| Prediction Accuracy | 10% | Directional prediction correctness |
 
 ## Agents
 
-${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
+| Agent | Model | Provider | Style |
+|-------|-------|----------|-------|
+| Claude ValueBot | claude-sonnet-4 | Anthropic | Conservative Value |
+| GPT MomentumBot | gpt-4.1 | OpenAI | Aggressive Momentum |
+| Grok ContrarianBot | grok-3 | xAI | Contrarian Swing |
 
-## Stats
+## Statistics
 
-- **Total Records**: ${metadata.total_records}
-- **Last Updated**: ${metadata.version}
-- **Generated At**: ${metadata.generated_at}
-- **Benchmark Version**: v22
-
-## API Endpoints
-
-- Dashboard: \`/benchmark-v22\`
-- Data: \`/benchmark-v22/data\`
-- Stream: \`/benchmark-v22/stream\`
-- Export: \`/benchmark-v22/export\`
-- Scores: \`/api/v1/benchmark-v22/scores\`
-- Agent Score: \`/api/v1/benchmark-v22/score/:agentId\`
-- Chains: \`/api/v1/benchmark-v22/chains\`
-- Strategy: \`/api/v1/benchmark-v22/strategy\`
-- Health: \`/api/v1/benchmark-v22/health\`
-- Weights: \`/api/v1/benchmark-v22/weights\`
-- Schema: \`/api/v1/benchmark-v22/schema\`
-- JSONL Export: \`/api/v1/benchmark-v22/export/jsonl\`
-- CSV Export: \`/api/v1/benchmark-v22/export/csv\`
+- **Total Records**: ${recordCount}
+- **Agents**: ${agentCount}
+- **Last Updated**: ${new Date().toISOString().split("T")[0]}
 
 ## Citation
 
 \`\`\`bibtex
 @misc{moltapp2026,
-  title={MoltApp: An Agentic Stock Trading Benchmark},
-  author={MoltApp Team},
+  title={MoltApp: An Agentic Stock Trading Benchmark for LLMs},
+  author={Patrick Ruff},
   year={2026},
   url={https://www.patgpt.us}
 }
 \`\`\`
+
+## Links
+
+- Website: [www.patgpt.us](https://www.patgpt.us)
+- Benchmark Dashboard: [www.patgpt.us/benchmark-v23](https://www.patgpt.us/benchmark-v23)
 `;
+}
+
+// ---------------------------------------------------------------------------
+// Upload
+// ---------------------------------------------------------------------------
+
+async function uploadToHuggingFace(
+  records: BenchmarkRecord[],
+): Promise<void> {
+  if (!HF_TOKEN) {
+    console.log("[HF Sync] No HF_TOKEN set — writing files locally instead");
+    const { writeFileSync, mkdirSync } = await import("fs");
+    const outDir = join(process.cwd(), "hf-export");
+    mkdirSync(outDir, { recursive: true });
+    writeFileSync(join(outDir, "data.jsonl"), formatAsJsonl(records));
+    const agents = new Set(records.map((r) => r.agent_id));
+    writeFileSync(
+      join(outDir, "README.md"),
+      generateDatasetCard(records.length, agents.size),
+    );
+
+    // Copy eval.yaml
+    try {
+      const evalYaml = readFileSync(join(process.cwd(), "eval.yaml"), "utf-8");
+      writeFileSync(join(outDir, "eval.yaml"), evalYaml);
+    } catch {
+      console.warn("[HF Sync] eval.yaml not found, skipping");
+    }
+
+    console.log(`[HF Sync] Exported ${records.length} records to ${outDir}/`);
+    return;
+  }
+
+  console.log(`[HF Sync] Uploading ${records.length} records to ${HF_REPO}...`);
+
+  const agents = new Set(records.map((r) => r.agent_id));
+
+  // Upload data.jsonl
+  const jsonlBlob = new Blob([formatAsJsonl(records)], { type: "text/plain" });
+  await uploadFile({
+    repo: HF_REPO,
+    credentials: { accessToken: HF_TOKEN },
+    file: { content: jsonlBlob, path: "data/benchmark.jsonl" },
+    commitTitle: `Update benchmark data: ${records.length} records`,
+  });
+
+  // Upload README.md
+  const readmeBlob = new Blob(
+    [generateDatasetCard(records.length, agents.size)],
+    { type: "text/markdown" },
+  );
+  await uploadFile({
+    repo: HF_REPO,
+    credentials: { accessToken: HF_TOKEN },
+    file: { content: readmeBlob, path: "README.md" },
+    commitTitle: "Update dataset card",
+  });
+
+  // Upload eval.yaml
+  try {
+    const evalYaml = readFileSync(join(process.cwd(), "eval.yaml"), "utf-8");
+    const evalBlob = new Blob([evalYaml], { type: "text/yaml" });
+    await uploadFile({
+      repo: HF_REPO,
+      credentials: { accessToken: HF_TOKEN },
+      file: { content: evalBlob, path: "eval.yaml" },
+      commitTitle: "Update eval.yaml benchmark spec",
+    });
+  } catch {
+    console.warn("[HF Sync] eval.yaml not found, skipping");
+  }
+
+  console.log(`[HF Sync] Upload complete: ${records.length} records to ${HF_REPO}`);
+}
+
+// ---------------------------------------------------------------------------
+// Summary Report
+// ---------------------------------------------------------------------------
+
+function printSummary(records: BenchmarkRecord[]): void {
+  const agents = new Map<string, { trades: number; avgCoherence: number; avgConfidence: number }>();
+
+  for (const r of records) {
+    const existing = agents.get(r.agent_id) ?? { trades: 0, avgCoherence: 0, avgConfidence: 0 };
+    existing.trades++;
+    existing.avgCoherence += r.coherence_score ?? 0;
+    existing.avgConfidence += r.confidence;
+    agents.set(r.agent_id, existing);
+  }
+
+  console.log("\n=== MoltApp Benchmark Dataset Summary ===\n");
+  console.log(`Total records: ${records.length}`);
+  console.log(`Agents: ${agents.size}\n`);
+
+  for (const [agentId, stats] of agents) {
+    console.log(`  ${agentId}:`);
+    console.log(`    Trades: ${stats.trades}`);
+    console.log(`    Avg Coherence: ${(stats.avgCoherence / stats.trades).toFixed(2)}`);
+    console.log(`    Avg Confidence: ${(stats.avgConfidence / stats.trades).toFixed(2)}`);
+  }
+
+  const withOutcomes = records.filter((r) => r.outcome !== null);
+  console.log(`\nOutcome resolutions: ${withOutcomes.length} / ${records.length}`);
+
+  if (withOutcomes.length > 0) {
+    const profits = withOutcomes.filter((r) => r.outcome === "profit").length;
+    const dirCorrect = withOutcomes.filter((r) => r.direction_correct).length;
+    console.log(`  Profit rate: ${((profits / withOutcomes.length) * 100).toFixed(1)}%`);
+    console.log(`  Direction accuracy: ${((dirCorrect / withOutcomes.length) * 100).toFixed(1)}%`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -433,28 +360,22 @@ ${metadata.agents.map((a) => `- \`${a}\``).join("\n")}
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("=== MoltApp HuggingFace Benchmark Sync ===\n");
+  console.log("[HF Sync] MoltApp v23 Benchmark Dataset Export\n");
 
   try {
     const records = await fetchBenchmarkData();
 
     if (records.length === 0) {
-      console.log("No benchmark data found. Run some trading rounds first.");
-      process.exit(0);
+      console.log("[HF Sync] No benchmark records found. Run some trading rounds first.");
+      return;
     }
 
-    const metadata = computeMetadata(records);
+    printSummary(records);
+    await uploadToHuggingFace(records);
 
-    console.log(`\nDataset summary:`);
-    console.log(`  Records: ${metadata.total_records}`);
-    console.log(`  Agents: ${metadata.agents.join(", ")}`);
-    console.log(`  Avg Coherence: ${metadata.metrics.avg_coherence}`);
-    console.log(`  Hallucination Rate: ${metadata.metrics.hallucination_rate}`);
-    console.log(`  Discipline Rate: ${metadata.metrics.discipline_rate}`);
-
-    await uploadToHuggingFace(records, metadata);
-  } catch (error) {
-    console.error("Sync failed:", error instanceof Error ? error.message : error);
+    console.log("\n[HF Sync] Done!");
+  } catch (err) {
+    console.error(`[HF Sync] Fatal error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 }
