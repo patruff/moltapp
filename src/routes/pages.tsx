@@ -517,7 +517,7 @@ pages.get("/agent/:id", async (c) => {
                   rel="noopener"
                   class="text-purple-400 hover:text-purple-300 hover:underline"
                 >
-                  {wallet.publicKey.slice(0, 8)}...{wallet.publicKey.slice(-8)}
+                  {truncateAddress(wallet.publicKey)}
                 </a>
                 <span class="text-gray-600 ml-1">(Solscan)</span>
               </p>
@@ -959,9 +959,7 @@ pages.get("/rounds", async (c) => {
               {round.decisions.map((d: Justification) => {
                 const config = getAgentConfig(d.agentId);
                 const agentName = config?.name || d.agentId;
-                const truncatedReasoning = d.reasoning.length > 200
-                  ? d.reasoning.slice(0, 200) + "..."
-                  : d.reasoning;
+                const truncatedReasoning = truncateText(d.reasoning, 200);
 
                 return (
                   <div class="border-l-2 border-gray-700 pl-4 py-2">
@@ -1139,7 +1137,7 @@ pages.get("/round/:id", async (c) => {
                                 Result (click to expand)
                               </summary>
                               <pre class="mt-1 text-gray-600 whitespace-pre-wrap text-xs overflow-x-auto">
-                                {t.result.slice(0, 500)}{t.result.length > 500 ? "..." : ""}
+                                {truncateText(t.result, 500)}
                               </pre>
                             </details>
                           )}
