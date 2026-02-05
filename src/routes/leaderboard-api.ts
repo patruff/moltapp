@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getLeaderboard } from "../services/leaderboard.ts";
+import { apiError } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,10 +41,7 @@ leaderboardApiRoutes.get("/me", async (c) => {
   const entry = data.entries.find((e) => e.agentId === agentId);
 
   if (!entry) {
-    return c.json(
-      { error: "not_ranked", message: "Agent not found in leaderboard" },
-      404
-    );
+    return apiError(c, "NOT_RANKED", "Agent not found in leaderboard");
   }
 
   return c.json({

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { listStocksWithPrices, getStockBySymbol } from "../services/stocks.ts";
 import { getPrices } from "../services/jupiter.ts";
+import { apiError } from "../lib/errors.ts";
 
 type StockEnv = { Variables: { agentId: string } };
 
@@ -24,7 +25,7 @@ stockRoutes.get("/:symbol", async (c) => {
   const stock = getStockBySymbol(symbol);
 
   if (!stock) {
-    return c.json({ error: "stock_not_found" }, 404);
+    return apiError(c, "STOCK_NOT_FOUND");
   }
 
   let usdPrice: number | null = null;

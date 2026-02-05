@@ -46,6 +46,7 @@ export const ErrorCodes = {
   SWARM_PREDICTION_NOT_FOUND: { status: 404, code: "swarm_prediction_not_found" },
   DELIBERATION_NOT_FOUND: { status: 404, code: "deliberation_not_found" },
   REASONING_NOT_FOUND: { status: 404, code: "reasoning_not_found" },
+  NOT_RANKED: { status: 404, code: "not_ranked" },
 
   // 422 Unprocessable Entity
   QUALITY_GATE_REJECTED: { status: 422, code: "quality_gate_rejected" },
