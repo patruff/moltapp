@@ -13,6 +13,8 @@
  * and HuggingFace forensic exports.
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -160,7 +162,7 @@ export function analyzeForensics(
       (1 - (crossTrade.flags.length * 0.15)) * 0.20) * 100,
   ) / 100;
 
-  const clampedScore = Math.max(0, Math.min(1, compositeScore));
+  const clampedScore = clamp(compositeScore, 0, 1);
 
   return {
     agentId,
@@ -230,7 +232,7 @@ function analyzeStructure(reasoning: string): StructuralAnalysis {
     hasThesis,
     hasEvidence,
     hasConclusion,
-    structureScore: Math.max(0, Math.min(1, structureScore)),
+    structureScore: clamp(structureScore, 0, 1),
   };
 }
 

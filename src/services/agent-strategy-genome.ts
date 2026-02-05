@@ -18,6 +18,8 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -124,7 +126,7 @@ function scoreConviction(obs: TradeObservation[]): Gene {
   const correlation = (denomConf > 0 && denomQty > 0) ? numerator / (Math.sqrt(denomConf) * Math.sqrt(denomQty)) : 0;
 
   // Positive correlation = high conviction (puts money where mouth is)
-  const score = Math.max(0, Math.min(1, (correlation + 1) / 2));
+  const score = clamp((correlation + 1) / 2, 0, 1);
 
   const evidence: string[] = [];
   evidence.push(`Confidence-size correlation: ${correlation.toFixed(3)}`);
@@ -287,7 +289,7 @@ function scoreLearningRate(obs: TradeObservation[]): Gene {
   const secondAvgCoherence = secondHalf.reduce((s, o) => s + o.coherenceScore, 0) / secondHalf.length;
 
   const improvement = secondAvgCoherence - firstAvgCoherence;
-  const score = Math.max(0, Math.min(1, 0.5 + improvement * 2));
+  const score = clamp(0.5 + improvement * 2, 0, 1);
 
   const evidence: string[] = [];
   evidence.push(`First half coherence: ${firstAvgCoherence.toFixed(3)}`);
