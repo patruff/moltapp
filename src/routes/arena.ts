@@ -29,6 +29,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { desc, eq, sql, and } from "drizzle-orm";
 import { clamp } from "../lib/math-utils.ts";
+import { apiError } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -53,14 +54,7 @@ arenaRoutes.get("/", async (c) => {
     });
   } catch (error) {
     console.error("[Arena] Failed to get overview:", error);
-    return c.json(
-      {
-        error: "internal_error",
-        code: "internal_error",
-        details: "Failed to compute arena overview",
-      },
-      500,
-    );
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute arena overview");
   }
 });
 
@@ -73,30 +67,23 @@ arenaRoutes.get("/compare/:agent1/:agent2", async (c) => {
   const agent2 = c.req.param("agent2");
 
   if (agent1 === agent2) {
-    return c.json(
-      {
-        error: "validation_failed",
-        code: "validation_failed",
-        details: "Cannot compare an agent with itself",
-      },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "Cannot compare an agent with itself");
   }
 
   const config1 = getAgentConfig(agent1);
   const config2 = getAgentConfig(agent2);
 
   if (!config1) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agent1}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agent1}" not found`);
   }
   if (!config2) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agent2}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agent2}" not found`);
   }
 
   try {
     const comparison = await compareAgents(agent1, agent2);
     if (!comparison) {
-      return c.json({ error: "comparison_failed", code: "comparison_failed", details: "Unable to compare agents" }, 500);
+      return apiError(c, "COMPARISON_FAILED", "Unable to compare agents");
     }
 
     return c.json({
@@ -107,7 +94,7 @@ arenaRoutes.get("/compare/:agent1/:agent2", async (c) => {
     });
   } catch (error) {
     console.error("[Arena] Comparison failed:", error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compare agents" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compare agents");
   }
 });
 
@@ -120,14 +107,7 @@ arenaRoutes.post("/simulate", async (c) => {
   const expectedPassword = process.env.ADMIN_PASSWORD;
 
   if (!expectedPassword || adminPassword !== expectedPassword) {
-    return c.json(
-      {
-        error: "unauthorized",
-        code: "unauthorized",
-        details: "Admin password required. Set X-Admin-Password header.",
-      },
-      401,
-    );
+    return apiError(c, "UNAUTHORIZED", "Admin password required. Set X-Admin-Password header.");
   }
 
   try {
@@ -172,7 +152,7 @@ arenaRoutes.post("/simulate", async (c) => {
     });
   } catch (error) {
     console.error("[Arena] Simulation failed:", error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Simulation failed" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Simulation failed");
   }
 });
 
@@ -264,7 +244,7 @@ arenaRoutes.get("/history", async (c) => {
     });
   } catch (error) {
     console.error("[Arena] Failed to get history:", error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to load history" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to load history");
   }
 });
 
@@ -331,7 +311,7 @@ arenaRoutes.get("/leaderboard", async (c) => {
     });
   } catch (error) {
     console.error("[Arena] Failed to get leaderboard:", error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute leaderboard" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute leaderboard");
   }
 });
 
@@ -413,6 +393,6 @@ arenaRoutes.get("/consensus", async (c) => {
     return c.json({ consensus });
   } catch (error) {
     console.error("[Arena] Failed to get consensus:", error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute consensus" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute consensus");
   }
 });

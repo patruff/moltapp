@@ -29,6 +29,7 @@ export const ErrorCodes = {
   REASONING_REQUIRED: { status: 400, code: "reasoning_required" },
 
   // 401 Unauthorized
+  UNAUTHORIZED: { status: 401, code: "unauthorized" },
   INVALID_IDENTITY_TOKEN: { status: 401, code: "invalid_identity_token" },
   INVALID_API_KEY: { status: 401, code: "invalid_api_key" },
   MISSING_API_KEY: { status: 401, code: "missing_api_key" },
@@ -56,6 +57,7 @@ export const ErrorCodes = {
 
   // 500 Internal Server Error
   INTERNAL_ERROR: { status: 500, code: "internal_error" },
+  COMPARISON_FAILED: { status: 500, code: "comparison_failed" },
   WALLET_CREATION_FAILED: { status: 500, code: "wallet_creation_failed" },
   WITHDRAWAL_FAILED: { status: 500, code: "withdrawal_failed" },
   TRADE_EXECUTION_FAILED: { status: 500, code: "trade_execution_failed" },
