@@ -209,6 +209,12 @@ function calculateThesisWinRate(
   };
 }
 
+// Helper: Calculate absolute USD P&L from portfolio value and percentage return
+function calculatePnlUsd(totalValue: number, pnlPercent: number): number {
+  const initialValue = totalValue / (1 + pnlPercent / 100);
+  return totalValue - initialValue;
+}
+
 // Component: Exit outcome badge (TARGET_HIT/PROFITABLE/STOPPED_OUT/LOSS)
 function ExitOutcomeBadge({
   exitOutcome,
@@ -1212,9 +1218,7 @@ pages.get("/economics", async (c) => {
   const totalPnlUsd = leaderboard.entries.reduce((sum, agent) => {
     const pnlPercent = parseFloat(agent.totalPnlPercent);
     const totalValue = parseFloat(agent.totalPortfolioValue);
-    // Approximate USD P&L: totalValue * pnlPercent / (100 + pnlPercent)
-    const initialValue = totalValue / (1 + pnlPercent / 100);
-    return sum + (totalValue - initialValue);
+    return sum + calculatePnlUsd(totalValue, pnlPercent);
   }, 0);
 
   // Calculate net economics
