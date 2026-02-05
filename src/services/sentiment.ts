@@ -189,6 +189,54 @@ const SENTIMENT_WEIGHTS = {
   newsSentiment: 0.15,
 };
 
+/** Sentiment scoring algorithm thresholds and parameters */
+const SENTIMENT_THRESHOLDS = {
+  // Momentum sentiment thresholds (% change)
+  MOMENTUM_STRONG: 3,           // |change| > 3% = strong momentum
+  MOMENTUM_MODERATE: 1,         // |change| > 1% = moderate momentum
+  PRICE_CHANGE_DIVISOR: 5,      // Maps ±5% price change to ±100 sentiment score
+
+  // Volume sentiment parameters
+  AVERAGE_VOLUME_BENCHMARK: 100_000_000,  // $100M assumed average daily volume
+  VOLUME_RATIO_HIGH: 1.5,       // Volume ratio >1.5x = high conviction
+  VOLUME_RATIO_LOW: 0.5,        // Volume ratio <0.5x = low conviction
+  VOLUME_SCORE_MULTIPLIER: 30,  // Amplification factor for high-volume moves
+  VOLUME_HIGH_SCORE: 20,        // Score for normal volume + positive price
+  VOLUME_LOW_SCORE: 10,         // Score for low volume (dampened signal)
+
+  // Social sentiment parameters
+  SOCIAL_PRICE_INFLUENCE_MULT: 50,    // Price influence on social sentiment
+  SOCIAL_NOISE_MIN: -30,              // Random noise floor for variety
+  SOCIAL_NOISE_MAX: 30,               // Random noise ceiling for variety
+  SOCIAL_KEYWORD_THRESHOLD: 3,        // keywords.length > 3 = popular stock
+  SOCIAL_KEYWORD_BOOST: 10,           // Sentiment boost for popular stocks
+
+  // News sentiment parameters
+  NEWS_PRICE_INFLUENCE_MULT: 60,      // Price influence on news sentiment
+  NEWS_NOISE_MIN: -15,                // Random noise floor for variety
+  NEWS_NOISE_MAX: 15,                 // Random noise ceiling for variety
+
+  // Sentiment shift detection thresholds
+  SHIFT_MAJOR_THRESHOLD: 5,           // |change| > 5 = major shift direction
+  SHIFT_MAJOR_SIGNIFICANCE: 30,       // |change| > 30 = major shift magnitude
+  SHIFT_MODERATE_SIGNIFICANCE: 15,    // |change| > 15 = moderate shift magnitude
+
+  // Impact detection thresholds (trigger identification)
+  AGENT_IMPACT_THRESHOLD: 40,         // |agentSentiment| > 40 = consensus trigger
+  MOMENTUM_IMPACT_THRESHOLD: 50,      // |momentumSentiment| > 50 = price trigger
+  VOLUME_IMPACT_THRESHOLD: 40,        // |volumeSentiment| > 40 = volume trigger
+  NEWS_IMPACT_THRESHOLD: 40,          // |newsSentiment| > 40 = news trigger
+
+  // Sentiment signal classification
+  STRONG_BUY_THRESHOLD: 40,           // overall > 40 = strong_buy
+  BUY_THRESHOLD: 15,                  // overall > 15 = buy
+  SELL_THRESHOLD: -15,                // overall < -15 = sell
+  STRONG_SELL_THRESHOLD: -40,         // overall < -40 = strong_sell
+
+  // Signal strength classification
+  SENTIMENT_STRONG: 20,               // |score| > 20 = strong sentiment
+} as const;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -341,11 +389,11 @@ function computeMomentumSentiment(marketData: MarketData): { score: number; driv
   const change = marketData.change24h ?? 0;
 
   // Map % change to sentiment: +-5% -> +-100
-  let score = (change / 5) * 100;
+  let score = (change / SENTIMENT_THRESHOLDS.PRICE_CHANGE_DIVISOR) * 100;
   score = Math.max(-100, Math.min(100, score));
 
-  const direction = change > 1 ? "positive" : change < -1 ? "negative" : "flat";
-  const strength = Math.abs(change) > 3 ? "strong" : Math.abs(change) > 1 ? "moderate" : "mild";
+  const direction = change > SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "positive" : change < -SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "negative" : "flat";
+  const strength = Math.abs(change) > SENTIMENT_THRESHOLDS.MOMENTUM_STRONG ? "strong" : Math.abs(change) > SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "moderate" : "mild";
 
   return {
     score,
@@ -366,25 +414,25 @@ function computeMomentumSentiment(marketData: MarketData): { score: number; driv
 function computeVolumeSentiment(marketData: MarketData): { score: number; driver: SentimentDriver } {
   const volume = marketData.volume24h ?? 0;
   // Assume average volume is ~$100M for these stocks
-  const averageVolume = 100_000_000;
+  const averageVolume = SENTIMENT_THRESHOLDS.AVERAGE_VOLUME_BENCHMARK;
   const volumeRatio = volume / averageVolume;
 
   let score: number;
   const change = marketData.change24h ?? 0;
 
-  if (volumeRatio > 1.5) {
+  if (volumeRatio > SENTIMENT_THRESHOLDS.VOLUME_RATIO_HIGH) {
     // High volume amplifies the price direction
-    score = change > 0 ? Math.min(100, volumeRatio * 30) : Math.max(-100, -volumeRatio * 30);
-  } else if (volumeRatio < 0.5) {
+    score = change > 0 ? Math.min(100, volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER) : Math.max(-100, -volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER);
+  } else if (volumeRatio < SENTIMENT_THRESHOLDS.VOLUME_RATIO_LOW) {
     // Low volume = low conviction, dampen signal
-    score = change > 0 ? 10 : change < 0 ? -10 : 0;
+    score = change > 0 ? SENTIMENT_THRESHOLDS.VOLUME_LOW_SCORE : change < 0 ? -SENTIMENT_THRESHOLDS.VOLUME_LOW_SCORE : 0;
   } else {
     // Normal volume
-    score = change > 0 ? 20 : change < 0 ? -20 : 0;
+    score = change > 0 ? SENTIMENT_THRESHOLDS.VOLUME_HIGH_SCORE : change < 0 ? -SENTIMENT_THRESHOLDS.VOLUME_HIGH_SCORE : 0;
   }
 
   score = Math.max(-100, Math.min(100, score));
-  const volLabel = volumeRatio > 1.5 ? "above average" : volumeRatio < 0.5 ? "below average" : "normal";
+  const volLabel = volumeRatio > SENTIMENT_THRESHOLDS.VOLUME_RATIO_HIGH ? "above average" : volumeRatio < SENTIMENT_THRESHOLDS.VOLUME_RATIO_LOW ? "below average" : "normal";
   const volFormatted = volume > 0 ? `$${(volume / 1_000_000).toFixed(1)}M` : "N/A";
 
   return {
@@ -407,9 +455,9 @@ function computeSocialSentiment(symbol: string, marketData: MarketData): { score
   const change = marketData.change24h ?? 0;
 
   // Base social sentiment loosely follows price with noise
-  const priceInfluence = (change / 5) * 50;
-  const socialNoise = seededRandom(`social-${symbol}`, -30, 30);
-  const keywordBoost = keywords.length > 3 ? 10 : 0; // popular stocks get a mention boost
+  const priceInfluence = (change / SENTIMENT_THRESHOLDS.PRICE_CHANGE_DIVISOR) * SENTIMENT_THRESHOLDS.SOCIAL_PRICE_INFLUENCE_MULT;
+  const socialNoise = seededRandom(`social-${symbol}`, SENTIMENT_THRESHOLDS.SOCIAL_NOISE_MIN, SENTIMENT_THRESHOLDS.SOCIAL_NOISE_MAX);
+  const keywordBoost = keywords.length > SENTIMENT_THRESHOLDS.SOCIAL_KEYWORD_THRESHOLD ? SENTIMENT_THRESHOLDS.SOCIAL_KEYWORD_BOOST : 0; // popular stocks get a mention boost
 
   let score = priceInfluence + socialNoise + keywordBoost;
   score = Math.max(-100, Math.min(100, score));
@@ -438,8 +486,8 @@ function computeNewsSentiment(symbol: string, marketData: MarketData): { score: 
 
   // News sentiment correlates with price action but with a bias toward the sector narrative
   const sectorBias = getSectorBias(sector);
-  const priceInfluence = (change / 5) * 60;
-  const newsNoise = seededRandom(`news-${symbol}`, -15, 15);
+  const priceInfluence = (change / SENTIMENT_THRESHOLDS.PRICE_CHANGE_DIVISOR) * SENTIMENT_THRESHOLDS.NEWS_PRICE_INFLUENCE_MULT;
+  const newsNoise = seededRandom(`news-${symbol}`, SENTIMENT_THRESHOLDS.NEWS_NOISE_MIN, SENTIMENT_THRESHOLDS.NEWS_NOISE_MAX);
 
   let score = priceInfluence + sectorBias + newsNoise;
   score = Math.max(-100, Math.min(100, score));
@@ -699,22 +747,22 @@ export async function detectSentimentShifts(): Promise<SentimentShift[]> {
     const absChange = Math.abs(change);
 
     const direction: SentimentShift["direction"] =
-      change > 5 ? "improving" : change < -5 ? "deteriorating" : "stable";
+      change > SENTIMENT_THRESHOLDS.SHIFT_MAJOR_THRESHOLD ? "improving" : change < -SENTIMENT_THRESHOLDS.SHIFT_MAJOR_THRESHOLD ? "deteriorating" : "stable";
     const significance: SentimentShift["significance"] =
-      absChange > 30 ? "major" : absChange > 15 ? "moderate" : "minor";
+      absChange > SENTIMENT_THRESHOLDS.SHIFT_MAJOR_SIGNIFICANCE ? "major" : absChange > SENTIMENT_THRESHOLDS.SHIFT_MODERATE_SIGNIFICANCE ? "moderate" : "minor";
 
     // Identify triggers for the shift
     const triggers: string[] = [];
-    if (Math.abs(current.components.agentSentiment) > 40) {
+    if (Math.abs(current.components.agentSentiment) > SENTIMENT_THRESHOLDS.AGENT_IMPACT_THRESHOLD) {
       triggers.push("Strong agent consensus shift");
     }
-    if (Math.abs(current.components.momentumSentiment) > 50) {
+    if (Math.abs(current.components.momentumSentiment) > SENTIMENT_THRESHOLDS.MOMENTUM_IMPACT_THRESHOLD) {
       triggers.push("Significant price movement");
     }
-    if (Math.abs(current.components.volumeSentiment) > 40) {
+    if (Math.abs(current.components.volumeSentiment) > SENTIMENT_THRESHOLDS.VOLUME_IMPACT_THRESHOLD) {
       triggers.push("Volume anomaly detected");
     }
-    if (Math.abs(current.components.newsSentiment) > 40) {
+    if (Math.abs(current.components.newsSentiment) > SENTIMENT_THRESHOLDS.NEWS_IMPACT_THRESHOLD) {
       triggers.push("News flow sentiment change");
     }
     if (triggers.length === 0) {
