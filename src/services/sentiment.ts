@@ -27,6 +27,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1053,7 +1054,7 @@ export async function getSentimentCorrelation(): Promise<SentimentCorrelation> {
       matrix.push({
         agent1: a1,
         agent2: a2,
-        correlation: Math.round(correlation * 100) / 100,
+        correlation: round2(correlation),
         agreementRate: data.total > 0 ? Math.round((data.agreements / data.total) * 100) : 0,
         sampleSize: data.total,
       });
@@ -1229,7 +1230,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
         news.push({
           headline: generateKeywordHeadline(name, keyword, sectorSentiment),
           source: NEWS_SOURCES[hashSeed(stock.symbol + "sector") % NEWS_SOURCES.length],
-          sentiment: Math.round(sectorSentiment * 100) / 100,
+          sentiment: round2(sectorSentiment),
           symbols: [stock.symbol],
           category,
           publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t4") % (8 * 60 * 60 * 1000)).toISOString(),

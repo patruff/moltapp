@@ -21,6 +21,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -692,10 +693,10 @@ export async function generateRebalanceProposal(
 
     adjustments.push({
       symbol,
-      currentWeight: Math.round(current * 10000) / 100,
-      targetWeight: Math.round(target * 10000) / 100,
-      delta: Math.round(delta * 10000) / 100,
-      tradeAmountUsd: Math.round(tradeAmount * 100) / 100,
+      currentWeight: round2(current * 100),
+      targetWeight: round2(target * 100),
+      delta: round2(delta * 100),
+      tradeAmountUsd: round2(tradeAmount),
       action,
     });
   }
@@ -743,18 +744,18 @@ export async function generateRebalanceProposal(
   return {
     agentId,
     strategy: config.strategy,
-    totalValue: Math.round(totalValue * 100) / 100,
-    cashBalance: Math.round(currentPortfolio.cashBalance * 100) / 100,
+    totalValue: round2(totalValue),
+    cashBalance: round2(currentPortfolio.cashBalance),
     adjustments,
     metrics: {
-      currentSharpe: Math.round(currentSharpe * 100) / 100,
-      expectedSharpe: Math.round(expectedSharpe * 100) / 100,
-      currentVolatility: Math.round(currentVol * 10000) / 100,
-      expectedVolatility: Math.round(targetVol * 10000) / 100,
-      concentrationIndex: Math.round(concentrationIndex * 1000) / 1000,
+      currentSharpe: round2(currentSharpe),
+      expectedSharpe: round2(expectedSharpe),
+      currentVolatility: round2(currentVol * 100),
+      expectedVolatility: round2(targetVol * 100),
+      concentrationIndex: round3(concentrationIndex),
       tradesRequired,
-      estimatedCost: Math.round(estimatedCost * 100) / 100,
-      netBenefit: Math.round(netBenefit * 100) / 100,
+      estimatedCost: round2(estimatedCost),
+      netBenefit: round2(netBenefit),
     },
     recommended: shouldRebalance,
     reason,
@@ -910,7 +911,7 @@ export function getRebalancerStatus(): {
     executedCount: executed.length,
     avgSharpeImprovement:
       rebalanceHistory.length > 0
-        ? Math.round((totalSharpeImprovement / rebalanceHistory.length) * 100) / 100
+        ? round2(totalSharpeImprovement / rebalanceHistory.length)
         : 0,
     strategiesUsed: strategyCounts,
     recentHistory: rebalanceHistory.slice(-10),
