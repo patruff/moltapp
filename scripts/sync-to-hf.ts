@@ -138,6 +138,8 @@ const records = justifications.map((j) => {
     reasoning: j.reasoning,
     confidence: j.confidence,
     sources: j.sources ?? [],
+    tool_trace: j.toolTrace ?? [],
+    model_used: j.modelUsed ?? d?.modelUsed ?? null,
     intent: j.intent,
     predicted_outcome: j.predictedOutcome ?? null,
     actual_outcome: j.actualOutcome ?? null,
