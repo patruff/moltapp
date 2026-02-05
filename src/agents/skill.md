@@ -945,6 +945,161 @@ Most rounds (70%) should end in HOLD. Trading costs fees and requires genuine ed
 
   **Don't sell** on minor volatility (<5%), temporary dips if thesis intact, or just because other stocks look good unless rebalancing is justified
 
+## Profit-Taking Framework: When and How Much to Exit Winners
+
+**THE CORE QUESTION:** Your position hit or is approaching your price target. Should you:
+- A) Exit 100% immediately and lock all gains
+- B) Hold for extra upside beyond target
+- C) Take partial profits and let remaining position run
+
+**The answer depends on 3 factors:**
+
+### Factor 1: Target Achievement Level
+
+**Target proximity determines urgency:**
+
+| Achievement | Exit Strategy | Why? |
+|------------|---------------|------|
+| **95-100% of target** | ✅ Exit 70-100% | Target hit = thesis validated. Lock gains unless thesis strengthened |
+| **80-94% of target** | Consider 30-50% trim | Meaningful profit available, but incomplete target suggests patience |
+| **60-79% of target** | Usually HOLD | Not enough progress to justify profit-taking unless thesis weakening |
+| **>100% of target** | ✅ Exit 100% OR reassess thesis | Exceeded expectations—either take profits or update thesis with new catalyst |
+
+### Factor 2: Thesis Evolution (Forward-Looking Only)
+
+**Ignore past entry price. Ask: "What's the forward risk/reward FROM HERE?"**
+
+| Thesis Status | Action | Why? |
+|--------------|--------|------|
+| **Thesis STRENGTHENING** | Hold or partial trim (30-40%) | New catalysts emerged → remaining upside increased → keep exposure |
+| **Thesis INTACT** (unchanged) | Exit 70-100% at target | Thesis played out as expected → no new edge → take profits |
+| **Thesis WEAKENING** | ✅ Exit 100% immediately | Even if target not hit, deteriorating edge means exit now |
+
+**Critical Rule:** If thesis weakening, exit IMMEDIATELY regardless of target achievement. Don't wait for "round numbers" or arbitrary targets when edge is eroding.
+
+### Factor 3: Opportunity Cost (What Else Is Available?)
+
+**Compare current position to best available alternative:**
+
+| Alternative Landscape | Exit Decision | Why? |
+|---------------------|--------------|------|
+| **No strong alternatives** (best new setup <70 conf) | Hold position or small trim | Current winner still best use of capital |
+| **Comparable alternative** (new setup 70-74 conf, similar to current) | Partial trim 30-50% | Rotate some capital to diversify without abandoning winner |
+| **Superior alternative** (new setup 75+ conf, >5 points higher) | Exit 70-100% | Capital better deployed elsewhere (see Partial Exits section) |
+
+### WORKED EXAMPLE - Profit-Taking Decision Tree
+
+**Portfolio State:**
+- AAPLx: Entry $175, Target $195 (+11.4%), Current $187 (+6.9%), Position Value: $5.35 (15.2% allocation)
+- Thesis: "Services revenue growth driving margin expansion. Target based on 18x P/E multiple on elevated margins."
+- Cash: $3.20
+
+**Step 1: Calculate Target Achievement**
+- Progress: ($187 - $175) / ($195 - $175) = $12 / $20 = **60% of target**
+- Interpretation: Made progress but not close to target → **No urgency from achievement level**
+
+**Step 2: Re-Evaluate Thesis (TODAY, not historical)**
+
+**Scenario A: Thesis STRENGTHENING**
+```
+New data: Called search_news("Apple Services") → Apple announced Services bundle price increase +12%,
+analyst estimates raised, Services margin forecast +3pts above previous.
+
+Decision: HOLD 100%
+Rationale: Original thesis based on margin expansion is ACCELERATING. Price target now conservative—
+should update thesis to $205 target (+17% from entry). Forward risk/reward improved from initial thesis.
+No profit-taking justified when edge strengthening.
+```
+
+**Scenario B: Thesis INTACT (unchanged)**
+```
+New data: Called search_news("Apple Services") → Steady growth continues, no new catalysts or changes.
+Q1 earnings showed 16% Services growth (in line with thesis expectations).
+
+Decision: HOLD 100% (or trim 20-30% if need cash)
+Rationale: Thesis playing out as expected but only 60% to target. No reason to exit early—original
+analysis still valid. If superior alternative appears (75+ conf), could trim 30-40% for rotation.
+Otherwise, let original thesis complete.
+```
+
+**Scenario C: Thesis WEAKENING**
+```
+New data: Called search_news("Apple Services") → Services growth decelerated to 9% (below 15% thesis assumption).
+Management commentary suggests pricing pressure in streaming. Competitive threats from bundled offerings.
+
+Decision: ✅ EXIT 100% IMMEDIATELY
+Rationale: Thesis was "Services growth drives margin expansion." Growth slowing = thesis invalidating.
+Current price $187 (+6.9%) locks in profit before further deterioration. Don't wait for $195 target—
+edge is gone. Close thesis: "Services growth thesis weakening. Exiting at +6.9% to preserve capital."
+```
+
+**Step 3: Scan Alternatives (Opportunity Cost Check)**
+
+**If best alternative is 72 confidence (comparable):**
+```
+Decision: HOLD AAPL 100% (Scenario A/B) OR trim 30-40% to diversify into new setup
+Rationale: Current position isn't dramatically inferior. If thesis intact, no strong reason to rotate.
+```
+
+**If best alternative is 78 confidence (superior by 6+ points):**
+```
+Decision: Trim AAPL 50-70% to fund superior opportunity
+Rationale: New setup materially better. Lock some AAPL gains (+6.9%), rotate to higher-conviction trade.
+See "Partial Position Exits" section below for execution details.
+```
+
+### Common Profit-Taking Mistakes (Anti-Patterns)
+
+❌ **MISTAKE 1: "I'm up 8%, I should take profits"**
+- **Why it's wrong:** No thesis evaluation. What if target is +20% and thesis strengthening?
+- **Correct approach:** Check target achievement (40% to target) + thesis status (strengthening) → HOLD
+
+❌ **MISTAKE 2: "Hit target ($195), but stock has momentum, I'll hold for $210"**
+- **Why it's wrong:** Greed without new thesis. Original analysis said $195 fair value—no edge beyond that.
+- **Correct approach:** Target hit + thesis unchanged → EXIT 70-100%. If you believe $210 is achievable, update thesis with NEW catalyst explaining the extra upside. Don't just "hope."
+
+❌ **MISTAKE 3: "Hit 90% of target ($193), I'll wait for exact target ($195)"**
+- **Why it's wrong:** Waiting for arbitrary round number. If thesis intact, $2 (1% difference) is noise.
+- **Correct approach:** 90%+ of target = close enough. Take profits unless thesis strengthened.
+
+❌ **MISTAKE 4: "Down 3% from peak, I'll wait to get back to breakeven"**
+- **Why it's wrong:** Anchoring to recent peak instead of original target. -3% from peak might still be +8% from entry and 95% of target.
+- **Correct approach:** Ignore intra-position volatility. Compare to ORIGINAL TARGET and ENTRY, not recent peak.
+
+❌ **MISTAKE 5: "I'll take profits because I'm nervous about macro"**
+- **Why it's wrong:** Emotional decision, not thesis-driven. Macro worries should be factored into entry thesis.
+- **Correct approach:** If macro deterioration INVALIDATES thesis → EXIT. If macro unchanged from entry → HOLD until target or thesis change.
+
+### Quick Reference: Profit-Taking Decision Matrix
+
+**Use this checklist when position is profitable (+5% or more):**
+
+```
+[ ] Called get_active_theses() and reviewed original target for this position
+[ ] Called get_stock_prices() to get current price THIS round
+[ ] Calculated target achievement: (Current - Entry) / (Target - Entry) = ?
+[ ] Re-evaluated thesis: STRENGTHENING, INTACT, or WEAKENING?
+[ ] Scanned for alternatives: Best new setup confidence = ?
+[ ] Decision based on matrix below (not emotion or arbitrary rules)
+```
+
+**Decision Matrix:**
+
+| Target Achievement | Thesis Status | Best Alternative | Action |
+|-------------------|---------------|------------------|--------|
+| 95-100%+ | STRENGTHENING | Any | Update thesis with new catalyst + raise target, OR trim 30-40% to lock some gains |
+| 95-100%+ | INTACT | <70 conf | ✅ EXIT 70-100% (thesis complete, no better use of capital) |
+| 95-100%+ | INTACT | 70-74 conf | ✅ EXIT 70-100% OR trim 50% if want diversification |
+| 95-100%+ | INTACT | 75+ conf | ✅ EXIT 100% and rotate to superior setup |
+| 95-100%+ | WEAKENING | Any | ✅ EXIT 100% IMMEDIATELY |
+| 60-94% | STRENGTHENING | Any | HOLD 100% (thesis improving, target conservative) |
+| 60-94% | INTACT | <70 conf | HOLD 100% (let thesis complete) |
+| 60-94% | INTACT | 75+ conf | Trim 30-50% for rotation (see Partial Exits) |
+| 60-94% | WEAKENING | Any | ✅ EXIT 100% (don't wait for target if edge gone) |
+| <60% | Any | Any | Usually HOLD (insufficient progress, see Partial Exits for rotation scenarios) |
+
+**Remember:** Profit-taking is about FORWARD-LOOKING edge, not celebrating past gains. Ask "Is THIS position the best use of capital TODAY?" not "Am I winning?"
+
 ## Partial Position Exits: Capital Rotation Strategy
 
 **THE DECISION:** You have a winning position (+5% to +15%), thesis is still valid, but a NEW high-conviction opportunity (≥75 confidence) has appeared. Should you:
