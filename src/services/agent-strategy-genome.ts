@@ -81,6 +81,29 @@ const MAX_OBSERVATIONS = 300;
 // Gene scoring functions
 // ---------------------------------------------------------------------------
 
+/**
+ * Classifies a 0-1 score into phenotype categories using thresholds.
+ * @param score - Numeric score from 0 to 1
+ * @param lowLabel - Label for scores below midThreshold
+ * @param midLabel - Label for scores between midThreshold and highThreshold
+ * @param highLabel - Label for scores above highThreshold
+ * @param midThreshold - Cutoff for low/mid (e.g., 0.4)
+ * @param highThreshold - Cutoff for mid/high (e.g., 0.7)
+ * @returns Phenotype label string
+ */
+function classifyPhenotype(
+  score: number,
+  lowLabel: string,
+  midLabel: string,
+  highLabel: string,
+  midThreshold: number,
+  highThreshold: number,
+): string {
+  if (score > highThreshold) return highLabel;
+  if (score > midThreshold) return midLabel;
+  return lowLabel;
+}
+
 function scoreRiskAppetite(obs: TradeObservation[]): Gene {
   const nonHold = obs.filter((o) => o.action !== "hold");
   const holdRate = 1 - (nonHold.length / Math.max(1, obs.length));
@@ -95,9 +118,7 @@ function scoreRiskAppetite(obs: TradeObservation[]): Gene {
   evidence.push(`Avg trade size: ${avgQuantity.toFixed(0)}`);
   evidence.push(`High-confidence trades: ${highConfTrades}/${nonHold.length}`);
 
-  let phenotype = "cautious";
-  if (score > 0.7) phenotype = "aggressive";
-  else if (score > 0.4) phenotype = "moderate";
+  const phenotype = classifyPhenotype(score, "cautious", "moderate", "aggressive", 0.4, 0.7);
 
   return { name: "risk_appetite", score, phenotype, evidence, sampleSize: obs.length };
 }
@@ -132,9 +153,7 @@ function scoreConviction(obs: TradeObservation[]): Gene {
   evidence.push(`Confidence-size correlation: ${correlation.toFixed(3)}`);
   evidence.push(`Avg confidence: ${(avgConf * 100).toFixed(0)}%`);
 
-  let phenotype = "inconsistent";
-  if (score > 0.65) phenotype = "high_conviction";
-  else if (score > 0.4) phenotype = "moderate_conviction";
+  const phenotype = classifyPhenotype(score, "inconsistent", "moderate_conviction", "high_conviction", 0.4, 0.65);
 
   return { name: "conviction", score, phenotype, evidence, sampleSize: nonHold.length };
 }
@@ -171,9 +190,7 @@ function scoreAdaptability(obs: TradeObservation[]): Gene {
   evidence.push(`Behavior changes after loss: ${behaviorChanges}/${opportunitiesToAdapt}`);
   evidence.push(`Adaptation rate: ${(score * 100).toFixed(0)}%`);
 
-  let phenotype = "rigid";
-  if (score > 0.6) phenotype = "adaptive";
-  else if (score > 0.3) phenotype = "semi_adaptive";
+  const phenotype = classifyPhenotype(score, "rigid", "semi_adaptive", "adaptive", 0.3, 0.6);
 
   return { name: "adaptability", score, phenotype, evidence, sampleSize: withOutcome.length };
 }
@@ -191,9 +208,7 @@ function scoreContrarianism(obs: TradeObservation[]): Gene {
   evidence.push(`Went against consensus: ${contrarian}/${withConsensus.length}`);
   evidence.push(`Contrarian rate: ${(score * 100).toFixed(0)}%`);
 
-  let phenotype = "conformist";
-  if (score > 0.6) phenotype = "contrarian";
-  else if (score > 0.3) phenotype = "independent";
+  const phenotype = classifyPhenotype(score, "conformist", "independent", "contrarian", 0.3, 0.6);
 
   return { name: "contrarianism", score, phenotype, evidence, sampleSize: withConsensus.length };
 }
@@ -211,9 +226,7 @@ function scoreInformationProcessing(obs: TradeObservation[]): Gene {
   evidence.push(`Hallucination rate: ${(hallRate * 100).toFixed(0)}%`);
   evidence.push(`Avg reasoning length: ${avgReasoningLength.toFixed(0)} words`);
 
-  let phenotype = "shallow_processor";
-  if (score > 0.7) phenotype = "deep_processor";
-  else if (score > 0.4) phenotype = "moderate_processor";
+  const phenotype = classifyPhenotype(score, "shallow_processor", "moderate_processor", "deep_processor", 0.4, 0.7);
 
   return { name: "information_processing", score, phenotype, evidence, sampleSize: obs.length };
 }
@@ -242,9 +255,7 @@ function scoreTemporalAwareness(obs: TradeObservation[]): Gene {
   const evidence: string[] = [];
   evidence.push(`Temporal reasoning mentions: ${temporalMentions}/${obs.length} trades`);
 
-  let phenotype = "time_blind";
-  if (score > 0.6) phenotype = "temporally_aware";
-  else if (score > 0.3) phenotype = "occasionally_temporal";
+  const phenotype = classifyPhenotype(score, "time_blind", "occasionally_temporal", "temporally_aware", 0.3, 0.6);
 
   return { name: "temporal_awareness", score, phenotype, evidence, sampleSize: obs.length };
 }
@@ -268,9 +279,7 @@ function scoreEmotionalRegulation(obs: TradeObservation[]): Gene {
   const evidence: string[] = [];
   evidence.push(`Confidence std dev: ${confStdDev.toFixed(3)}`);
 
-  let phenotype = "volatile";
-  if (score > 0.6) phenotype = "regulated";
-  else if (score > 0.3) phenotype = "semi_regulated";
+  const phenotype = classifyPhenotype(score, "volatile", "semi_regulated", "regulated", 0.3, 0.6);
 
   return { name: "emotional_regulation", score, phenotype, evidence, sampleSize: obs.length };
 }
@@ -296,9 +305,7 @@ function scoreLearningRate(obs: TradeObservation[]): Gene {
   evidence.push(`Second half coherence: ${secondAvgCoherence.toFixed(3)}`);
   evidence.push(`Improvement: ${improvement > 0 ? "+" : ""}${(improvement * 100).toFixed(1)}%`);
 
-  let phenotype = "static_learner";
-  if (score > 0.6) phenotype = "fast_learner";
-  else if (score > 0.4) phenotype = "slow_learner";
+  const phenotype = classifyPhenotype(score, "static_learner", "slow_learner", "fast_learner", 0.4, 0.6);
 
   return { name: "learning_rate", score, phenotype, evidence, sampleSize: obs.length };
 }
