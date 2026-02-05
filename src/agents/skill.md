@@ -422,6 +422,173 @@ Think of trading like a circuit breaker:
 
 **REALITY CHECK:** True high-conviction setups (≥70) appear ~2-3 times per week in normal markets.
 If you're finding them EVERY round, you're inflating scores.
+
+---
+
+### Entry Timing Precision: Where and When to Buy
+
+**THE PROBLEM:** You've passed all three tests, confidence is 75+, thesis is solid. But WHERE you enter (price level) and WHEN you enter (market timing) can make 1-2% difference in P&L.
+
+**Common entry timing mistakes that cost agents 0.5-1.5% per trade:**
+1. **FOMO entry during momentum spike** — Buy at daily high instead of waiting for consolidation
+2. **Technical extreme entry** — Buy at RSI 70+ (overbought) or key resistance level
+3. **Ignoring intraday consolidation** — Rush in after 5% move without waiting for pullback
+4. **Slippage on illiquid entries** — Don't check bid-ask spreads on low-volume stocks
+
+**PRECISION FRAMEWORK: 3-Point Entry Quality Scale**
+
+| Entry Quality | Technical Setup | When to Use | Expected Slippage |
+|---------------|-----------------|-------------|-------------------|
+| **OPTIMAL** | • Entry at 20-50 day SMA support<br>• RSI 30-60 (neutral zone)<br>• Volume normal/below-avg<br>• Price consolidated 1-2hrs | High-conviction setups (75+)<br>Wait for pullback to support | 0.1-0.3% |
+| **ACCEPTABLE** | • Within 2-3% of optimal zone<br>• RSI 40-70<br>• Thesis confirmed but no perfect entry<br>• Moderate volume | Good setups (70-74) where waiting risks missing move | 0.3-0.6% |
+| **RISKY** | • ±5% from support/resistance<br>• RSI <30 (oversold) or >70 (overbought)<br>• Entry during momentum spike<br>• High volatility/wide spreads | AVOID unless 80+ confidence AND time-sensitive catalyst | 0.6-1.5% |
+
+**WORKED EXAMPLE - Entry Timing Decision Tree:**
+
+**Scenario:** You've identified MSFTx bullish setup after Azure cloud revenue beat. Confidence = 76 (strong thesis). Current price: $425, up 4% from yesterday's close of $408.
+
+**Step 1: Check Technical Entry Quality**
+```
+→ get_technical_indicators({symbol: "MSFTx"})
+Result: {
+  rsi: 68 (approaching overbought),
+  sma_20: $418,
+  sma_50: $412,
+  volume: 1.8x average (elevated)
+}
+```
+
+**Step 2: Evaluate Entry Options**
+
+**Option A (RISKY): Buy NOW at $425**
+- Price already up 4% on news
+- RSI 68 (near overbought zone)
+- Entry 1.7% above 20-day SMA ($418)
+- Volume elevated = likely profit-taking soon
+- **Risk:** Buying near daily high, RSI extreme, momentum already extended
+- **Expected slippage:** 0.5-0.8% (wide spreads on volatile move)
+
+**Option B (ACCEPTABLE): Buy at $420-422 (small pullback)**
+- Wait for consolidation over 1-2 hours
+- Entry closer to 20-day SMA support
+- Let RSI cool to 60-65 range
+- **Risk:** Moderate — price could continue up without pullback
+- **Expected slippage:** 0.3-0.5%
+
+**Option C (OPTIMAL): Buy at $418 (20-day SMA test)**
+- Wait for full retracement to support
+- RSI would drop to 55-60 (neutral)
+- Volume returns to normal
+- **Risk:** Higher chance of missing entry if momentum is strong
+- **Expected slippage:** 0.2-0.3%
+
+**Step 3: Decision Logic**
+
+```
+Given:
+- Confidence: 76 (high conviction)
+- Catalyst: Azure revenue beat (time-sensitive news)
+- Thesis: Expects $445 target (4.7% upside from $425)
+
+Entry Quality Analysis:
+- Option A (NOW at $425): Pays 0.7% slippage + buying at resistance
+  → Net upside: 4.7% - 0.7% = 4.0% expected
+- Option B (pullback to $421): Pays 0.4% slippage + better entry
+  → Net upside: 5.7% - 0.4% = 5.3% expected (1.3% better)
+- Option C (SMA test at $418): Pays 0.3% slippage + optimal entry
+  → Net upside: 6.5% - 0.3% = 6.2% expected (2.2% better)
+
+DECISION: Choose Option B (ACCEPTABLE)
+→ Set limit order at $421 (1% pullback from current)
+→ If no fill in 2 hours, re-evaluate (don't chase)
+→ Why not Option C? Catalyst is TIME-SENSITIVE (news 3hrs old)
+   — waiting for full retest risks missing move entirely
+```
+
+**Step 4: Execution with Slippage Check**
+```
+→ get_execution_quote({symbol: "MSFTx", side: "buy", amount: 5})
+Result: {
+  effectivePrice: 421.50,
+  midMarketPrice: 421.00,
+  priceImpactPercent: 0.12,
+  slippageBps: 12
+}
+→ 0.12% slippage (EXCELLENT) — proceed with entry
+```
+
+**FINAL DECISION:**
+```
+DECIDE: {
+  action: "buy",
+  symbol: "MSFTx",
+  quantity: 5,
+  confidence: 76,
+  reasoning: "Azure revenue beat 15% (catalyst), entry at $421 after
+             1% consolidation from daily high. Avoided FOMO entry at
+             $425 (saved 1% on entry + 0.5% lower slippage). RSI will
+             cool to 65 by entry time. Target $445 (5.7% upside)."
+}
+```
+
+**KEY OUTCOMES:**
+- ✅ Saved 1.0% by waiting for pullback ($425 → $421)
+- ✅ Saved 0.5% on slippage (0.7% at $425 → 0.2% at $421)
+- ✅ Total entry improvement: **1.5% better risk/reward**
+- ✅ On 5.7% expected gain, this is 26% more edge preserved
+
+---
+
+**ENTRY PRECISION CHECKLIST (Quick Reference)**
+
+Before executing BUY, ask these 4 questions:
+
+1. **"Am I buying at a technical extreme?"**
+   - ❌ RSI >70 (overbought) → WAIT for RSI 50-65
+   - ❌ Price >5% from 20-day SMA → WAIT for pullback to support
+   - ✅ RSI 40-60 + near SMA → GOOD entry zone
+
+2. **"Did price just spike 3%+ in last hour?"**
+   - ❌ YES → FOMO entry, wait for 1-2hr consolidation
+   - ✅ NO → Good timing, momentum not overextended
+
+3. **"What's the slippage cost on this entry?"**
+   - Run `get_execution_quote` for any trade >$3
+   - ❌ >1% slippage → Reduce size or wait
+   - ✅ <0.5% slippage → Acceptable execution cost
+
+4. **"Can I get 1-2% better entry by waiting 1-2 hours?"**
+   - If catalyst is NOT time-sensitive → WAIT for optimal entry
+   - If catalyst is time-sensitive (news <6hrs old) → ACCEPTABLE entry is fine
+   - **Tradeoff:** Perfect entry (save 1.5%) vs missing move (lose 5%+)
+
+**DEFAULT RULE:** When in doubt, err toward PATIENCE. Better to miss 2% of a move than pay 1.5% in poor entry cost + slippage. The difference between 68% win rate and 72% win rate is often just entry discipline.
+
+---
+
+**ANTI-PATTERNS: Entry Timing Mistakes to Avoid**
+
+1. **"Stock is up 6%, I need to get in NOW before it goes higher"**
+   - ❌ This is FOMO, not entry discipline
+   - ✅ Instead: "Stock up 6%, I'll wait for 2-3% retracement to 20-day SMA where risk/reward is better"
+
+2. **"RSI is 75 but thesis is strong so I'll buy anyway"**
+   - ❌ Ignoring technicals costs 1-2% on entry
+   - ✅ Instead: "RSI 75 means overbought. I'll wait 1-2 hours for RSI to cool to 60-65 before entry"
+
+3. **"I have high conviction, slippage doesn't matter"**
+   - ❌ 1% slippage on 8% expected gain = 12.5% of edge lost
+   - ✅ Instead: "Get quote first. If slippage >1%, reduce trade size or wait for better liquidity"
+
+4. **"Price is at resistance but I don't want to miss the move"**
+   - ❌ Buying at resistance = high chance of near-term pullback
+   - ✅ Instead: "Wait for breakout ABOVE resistance with volume confirmation, or wait for retest of support"
+
+5. **"News just came out 5 minutes ago, I need to act FAST"**
+   - ❌ Market often overreacts in first 30 minutes, then consolidates
+   - ✅ Instead: "News is 5 min old. I'll wait 30-60 min for initial volatility to settle, then enter on consolidation"
+
+**REMEMBER:** The goal is not to catch the exact bottom or miss any move. The goal is to enter at a price level where risk/reward is FAVORABLE and slippage is MINIMAL. Patience on entries improves win rate by 2-4 percentage points over time.
 A week of HOLDs with one great 75-confidence trade >>> five mediocre 68s you pretended were 72s.
 
 **🔄 DECISION FLOWCHART (Follow This Every Round):**
