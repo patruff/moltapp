@@ -133,7 +133,7 @@ executionRoutes.get("/stats/symbols", (c) => {
  * Last N execution results.
  */
 executionRoutes.get("/recent", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20"), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   const stats = getExecutionStats();
   return c.json({
     executions: stats.recentExecutions.slice(0, limit),

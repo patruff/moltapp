@@ -14,6 +14,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -75,7 +76,7 @@ export function recordDuel(duel: Duel): void {
  * GET / — Recent duels (auto-detected disagreements)
  */
 reasoningDuelRoutes.get("/", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
 
   // Try to build duels from DB
   try {
@@ -236,7 +237,7 @@ reasoningDuelRoutes.get("/round/:roundId", async (c) => {
  */
 reasoningDuelRoutes.get("/stock/:symbol", async (c) => {
   const symbol = c.req.param("symbol");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
 
   try {
     const entries = await db

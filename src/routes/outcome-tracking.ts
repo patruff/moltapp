@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import {
   trackOutcomes,
   getOutcomeTrackerStats,
@@ -81,7 +82,7 @@ outcomeTrackingRoutes.get("/stats", (c) => {
 // ---------------------------------------------------------------------------
 
 outcomeTrackingRoutes.get("/recent", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   const agentId = c.req.query("agent");
   const outcomes = getRecentOutcomes(limit, agentId);
 

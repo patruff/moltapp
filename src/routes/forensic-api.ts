@@ -14,6 +14,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import {
   getAgentForensicHealth,
@@ -61,7 +62,7 @@ forensicApiRoutes.get("/health/:agentId", (c) => {
 
 forensicApiRoutes.get("/reports/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
 
   const reports = getAgentForensicReports(agentId, limit);
 

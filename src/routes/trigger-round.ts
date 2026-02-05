@@ -29,6 +29,7 @@ import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
 import { clamp } from "../lib/math-utils.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 import type {
   MarketData,
   PortfolioContext,
@@ -430,7 +431,7 @@ app.get("/status", (c) => {
  * GET /history — Recent triggered round results
  */
 app.get("/history", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "10", 10), 50);
+  const limit = parseQueryInt(c.req.query("limit"), 10, 1, 50);
   const rounds = triggeredRounds.slice(0, limit);
 
   return c.json({

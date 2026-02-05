@@ -6,6 +6,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import {
   fetchAggregatedPrices,
   getMarketSnapshot,
@@ -104,7 +105,7 @@ marketDataRoutes.get("/indicators/:symbol", (c) => {
 marketDataRoutes.get("/candles/:symbol", (c) => {
   const symbol = c.req.param("symbol");
   const period = parseInt(c.req.query("period") ?? "30");
-  const count = Math.min(parseInt(c.req.query("count") ?? "48"), 200);
+  const count = parseQueryInt(c.req.query("count"), 48, 1, 200);
 
   const candles = buildCandles(symbol, period, count);
 

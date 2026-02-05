@@ -15,6 +15,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import {
   getCachedRounds,
   getCachedRoundsByAgent,
@@ -32,7 +33,7 @@ const roundHistory = new Hono();
 // ---------------------------------------------------------------------------
 
 roundHistory.get("/", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20"), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   const rounds = getCachedRounds(limit);
 
   return c.json({
@@ -161,7 +162,7 @@ roundHistory.get("/consensus", (c) => {
 // ---------------------------------------------------------------------------
 
 roundHistory.get("/timeline", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "48"), 200);
+  const limit = parseQueryInt(c.req.query("limit"), 48, 1, 200);
   const rounds = getCachedRounds(limit);
 
   const events = rounds.map((round) => ({
@@ -196,7 +197,7 @@ roundHistory.get("/timeline", (c) => {
 
 roundHistory.get("/agent/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20"), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   const rounds = getCachedRoundsByAgent(agentId, limit);
 
   const agentDecisions = rounds.map((round) => {

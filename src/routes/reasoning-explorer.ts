@@ -21,6 +21,7 @@ import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -71,7 +72,7 @@ reasoningExplorerRoutes.get("/search", async (c) => {
   const query = c.req.query("q") ?? "";
   const agentFilter = c.req.query("agent");
   const actionFilter = c.req.query("action");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
 
   if (!query || query.length < 2) {
     return apiError(c, "VALIDATION_FAILED", "Query must be at least 2 characters");
@@ -177,7 +178,7 @@ reasoningExplorerRoutes.get("/search", async (c) => {
 
 reasoningExplorerRoutes.get("/similar/:id", (c) => {
   const targetId = c.req.param("id");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "5", 10), 20);
+  const limit = parseQueryInt(c.req.query("limit"), 5, 1, 20);
 
   const target = reasoningIndex.find((e) => e.id === targetId);
   if (!target) {
@@ -375,7 +376,7 @@ reasoningExplorerRoutes.get("/vocabulary", (c) => {
 // ---------------------------------------------------------------------------
 
 reasoningExplorerRoutes.get("/controversial", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "10", 10), 50);
+  const limit = parseQueryInt(c.req.query("limit"), 10, 1, 50);
 
   try {
     // Find trades where agents disagreed on the same symbol in the same round
@@ -446,7 +447,7 @@ reasoningExplorerRoutes.get("/controversial", async (c) => {
 // ---------------------------------------------------------------------------
 
 reasoningExplorerRoutes.get("/exemplars", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "5", 10), 20);
+  const limit = parseQueryInt(c.req.query("limit"), 5, 1, 20);
 
   try {
     // Best reasoning (highest coherence)

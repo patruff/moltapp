@@ -12,6 +12,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import {
   replayDecision,
   replayRound,
@@ -96,7 +97,7 @@ decisionReplayRoutes.get("/round/:roundId", async (c) => {
 
 decisionReplayRoutes.get("/timeline/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "30", 10), 100);
+  const limit = parseQueryInt(c.req.query("limit"), 30, 1, 100);
 
   const config = getAgentConfig(agentId);
   if (!config) {
@@ -134,7 +135,7 @@ decisionReplayRoutes.get("/search", async (c) => {
   const action = c.req.query("action");
   const minConfidence = c.req.query("minConfidence") ? parseInt(c.req.query("minConfidence")!, 10) : undefined;
   const maxConfidence = c.req.query("maxConfidence") ? parseInt(c.req.query("maxConfidence")!, 10) : undefined;
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
 
   try {
     const results = await searchDecisions({
