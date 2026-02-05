@@ -89,7 +89,7 @@ const AGENT_WALLET_ENV: Record<string, { publicEnv: string; privateEnv: string }
 
 interface ResolvedWallet {
   publicKey: string;
-  keypair: Keypair;
+  keypair: Keypair | null;
 }
 
 /**
@@ -125,7 +125,7 @@ async function resolveAgentWallet(agentId: string): Promise<ResolvedWallet> {
   }
 
   // DB wallet path — no keypair available, Turnkey signing will be used
-  return { publicKey: walletRecords[0].publicKey, keypair: null as any };
+  return { publicKey: walletRecords[0].publicKey, keypair: null };
 }
 
 /**

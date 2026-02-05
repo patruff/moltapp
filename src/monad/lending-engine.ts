@@ -83,6 +83,15 @@ const AGENT_META: Record<
 // LLM Query Helpers (lightweight — no SDK dependency for OpenAI/xAI)
 // ---------------------------------------------------------------------------
 
+/** OpenAI/xAI chat completion response structure */
+interface ChatCompletionResponse {
+  choices: Array<{
+    message: {
+      content: string;
+    };
+  }>;
+}
+
 async function queryLendingLLM(
   agentId: string,
   prompt: string,
@@ -131,7 +140,7 @@ async function queryLendingLLM(
         }),
       });
       if (!res.ok) throw new Error(`OpenAI: ${res.status} ${await res.text()}`);
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as ChatCompletionResponse;
       return data.choices[0].message.content.trim();
     }
 
@@ -159,7 +168,7 @@ async function queryLendingLLM(
         }),
       });
       if (!res.ok) throw new Error(`Grok: ${res.status} ${await res.text()}`);
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as ChatCompletionResponse;
       return data.choices[0].message.content.trim();
     }
   }

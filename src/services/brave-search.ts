@@ -24,6 +24,17 @@ for (const stock of XSTOCKS_CATALOG) {
 // Brave Search API
 // ---------------------------------------------------------------------------
 
+/** Brave Search API response structure */
+interface BraveSearchResponse {
+  web?: {
+    results?: Array<{
+      title?: string;
+      description?: string;
+      url?: string;
+    }>;
+  };
+}
+
 async function braveSearch(query: string, apiKey: string): Promise<Array<{ title: string; description: string; url: string }>> {
   const url = new URL("https://api.search.brave.com/res/v1/web/search");
   url.searchParams.set("q", query);
@@ -41,9 +52,9 @@ async function braveSearch(query: string, apiKey: string): Promise<Array<{ title
     return [];
   }
 
-  const data = (await res.json()) as any;
+  const data = (await res.json()) as BraveSearchResponse;
   const results = data.web?.results ?? [];
-  return results.slice(0, 5).map((r: any) => ({
+  return results.slice(0, 5).map((r) => ({
     title: r.title ?? "",
     description: (r.description ?? "").slice(0, 300),
     url: r.url ?? "",
