@@ -30,7 +30,6 @@ import type {
 } from "../db/schema/strategies.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
-import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 
 // ---------------------------------------------------------------------------
 // Types
