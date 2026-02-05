@@ -1496,6 +1496,10 @@ pages.get("/decision-quality", async (c) => {
           // Get agent name from leaderboard or use ID
           const agentName = agentList.find((a: Agent) => a.id === report.agentId)?.name || report.agentId;
 
+          // Get agent config for model info
+          const agentConfig = getAgentConfig(report.agentId);
+          const modelName = agentConfig?.model || "Unknown";
+
           // Calculate dimension scores
           const calibrationScore = 1 - report.calibration.ece;
           const integrityScore = report.integrity.integrityScore;
@@ -1506,13 +1510,18 @@ pages.get("/decision-quality", async (c) => {
           return (
             <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
               {/* Agent Header */}
-              <div class="flex items-center justify-between mb-4">
-                <a
-                  href={`/agent/${report.agentId}`}
-                  class="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
-                >
-                  {agentName}
-                </a>
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <a
+                    href={`/agent/${report.agentId}`}
+                    class="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    {agentName}
+                  </a>
+                  <div class="text-xs text-gray-500 mt-0.5 font-mono">
+                    {modelName}
+                  </div>
+                </div>
                 <span class={`text-lg font-bold px-3 py-1 rounded ${gradeColor(report.grade)}`}>
                   {report.grade}
                 </span>
