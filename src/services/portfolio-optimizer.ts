@@ -20,6 +20,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -272,10 +273,10 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     return {
       symbol: sym,
       name: stock?.name ?? sym,
-      weight: Math.round(weight * 10000) / 10000,
-      expectedReturn: Math.round(expectedReturn * 10000) / 10000,
-      volatility: Math.round(volatility * 10000) / 10000,
-      sharpeContribution: Math.round(sharpeContrib * 10000) / 10000,
+      weight: round4(weight),
+      expectedReturn: round4(expectedReturn),
+      volatility: round4(volatility),
+      sharpeContribution: round4(sharpeContrib),
     };
   }).filter((a) => a.weight > 0);
 
@@ -305,10 +306,10 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     return {
       symbol: stock.symbol,
       name: stockInfo?.name ?? stock.symbol,
-      weight: Math.round(cappedWeight * 10000) / 10000,
-      expectedReturn: Math.round(stock.ret * 10000) / 10000,
-      volatility: Math.round(stock.vol * 10000) / 10000,
-      sharpeContribution: Math.round(sharpeContrib * 10000) / 10000,
+      weight: round4(cappedWeight),
+      expectedReturn: round4(stock.ret),
+      volatility: round4(stock.vol),
+      sharpeContribution: round4(sharpeContrib),
     };
   });
 
@@ -318,7 +319,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   if (totalWeight > 0) {
     const scale = maxAllocation / totalWeight;
     for (const alloc of recommendedAllocation) {
-      alloc.weight = Math.round(alloc.weight * scale * 10000) / 10000;
+      alloc.weight = round4(alloc.weight * scale);
     }
   }
 
@@ -342,10 +343,10 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
 
     return {
       symbol: rec.symbol,
-      currentWeight: Math.round(currentWeight * 10000) / 10000,
+      currentWeight: round4(currentWeight),
       recommendedWeight: rec.weight,
       action,
-      delta: Math.round(delta * 10000) / 10000,
+      delta: round4(delta),
     };
   });
 
@@ -383,12 +384,12 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     recommendedAllocation,
     changes: changes.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)),
     portfolioMetrics: {
-      expectedReturn: Math.round(portReturn * 10000) / 10000,
-      expectedVolatility: Math.round(portVol * 10000) / 10000,
-      sharpeRatio: Math.round(portSharpe * 100) / 100,
-      diversificationRatio: Math.round(diversificationRatio * 100) / 100,
-      herfindahlIndex: Math.round(hhi * 10000) / 10000,
-      maxDrawdownEstimate: Math.round(portVol * 2.5 * 10000) / 10000,
+      expectedReturn: round4(portReturn),
+      expectedVolatility: round4(portVol),
+      sharpeRatio: round2(portSharpe),
+      diversificationRatio: round2(diversificationRatio),
+      herfindahlIndex: round4(hhi),
+      maxDrawdownEstimate: round4(portVol * 2.5),
     },
     methodology: "Simplified Markowitz mean-variance optimization with Sharpe-ratio weighting. Constraints: max position size, diversification minimum, and total allocation cap.",
   };
@@ -431,7 +432,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
     const totalScore = allocations.reduce((s, a) => s + Math.max(0, a.score), 0) || 1;
     const weights = allocations.map((a) => ({
       symbol: a.symbol,
-      weight: Math.round((Math.max(0, a.score) / totalScore) * 10000) / 10000,
+      weight: round4(Math.max(0, a.score) / totalScore),
     }));
 
     // Keep only top 10 and renormalize
@@ -441,7 +442,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
       .slice(0, 10);
     const topTotal = topWeights.reduce((s, w) => s + w.weight, 0) || 1;
     for (const w of topWeights) {
-      w.weight = Math.round((w.weight / topTotal) * 10000) / 10000;
+      w.weight = round4(w.weight / topTotal);
     }
 
     const allocation = topWeights.map((w) => ({
@@ -458,9 +459,9 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
     const sharpeRatio = volatility > 0 ? (expectedReturn - riskFreeRate) / volatility : 0;
 
     points.push({
-      expectedReturn: Math.round(expectedReturn * 10000) / 10000,
-      volatility: Math.round(volatility * 10000) / 10000,
-      sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+      expectedReturn: round4(expectedReturn),
+      volatility: round4(volatility),
+      sharpeRatio: round2(sharpeRatio),
       allocation,
     });
   }
