@@ -22,7 +22,7 @@ type TradeJustification = typeof tradeJustifications.$inferSelect;
 type TradeJustificationToolCall = {
   turn: number;
   tool: string;
-  arguments: Record<string, any>;
+  arguments: Record<string, string | number | boolean | string[]>;
   result: string;
   timestamp: string;
 };
@@ -48,6 +48,10 @@ declare module "hono" {
 }
 
 const pages = new Hono();
+
+// Exit outcome thresholds (used in thesis outcome calculation)
+const TARGET_HIT_THRESHOLD = 0.95;  // 95% of target = "hit"
+const STOPPED_OUT_THRESHOLD = -5;   // -5% loss = "stopped out"
 
 // ---------------------------------------------------------------------------
 // Layout middleware
@@ -627,9 +631,9 @@ pages.get("/agent/:id", async (c) => {
                       ? ((targetPrice - entryPrice) / entryPrice) * 100
                       : ((entryPrice - targetPrice) / entryPrice) * 100;
 
-                    if (calculatedPnl >= targetPnlPercent * 0.95) {
+                    if (calculatedPnl >= targetPnlPercent * TARGET_HIT_THRESHOLD) {
                       exitOutcome = "TARGET_HIT";
-                    } else if (calculatedPnl <= -5) {
+                    } else if (calculatedPnl <= STOPPED_OUT_THRESHOLD) {
                       exitOutcome = "STOPPED_OUT";
                     } else if (calculatedPnl > 0) {
                       exitOutcome = "PROFITABLE";
@@ -1086,7 +1090,7 @@ pages.get("/round/:id", async (c) => {
                   </summary>
                   <div class="mt-2 p-3 bg-gray-950 rounded-lg border border-gray-800 max-h-96 overflow-y-auto">
                     <div class="space-y-2 text-xs font-mono">
-                      {toolTrace.map((t: any, i: number) => (
+                      {toolTrace.map((t: TradeJustificationToolCall, i: number) => (
                         <div class="border-l-2 border-gray-700 pl-3 py-1">
                           <div class="flex items-center gap-2 text-gray-500">
                             <span class="text-gray-600">#{i + 1}</span>
