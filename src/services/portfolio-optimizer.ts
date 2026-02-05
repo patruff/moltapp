@@ -484,7 +484,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
     },
     capitalMarketLine: {
       riskFreeRate,
-      slope: Math.round(cmlSlope * 100) / 100,
+      slope: round2(cmlSlope),
     },
   };
 }
@@ -506,7 +506,7 @@ export async function getCorrelationMatrix(): Promise<CorrelationMatrix> {
   for (let i = 0; i < symbols.length; i++) {
     const row: number[] = [];
     for (let j = 0; j < symbols.length; j++) {
-      row.push(Math.round(generateCorrelation(symbols[i], symbols[j]) * 100) / 100);
+      row.push(round2(generateCorrelation(symbols[i], symbols[j])));
     }
     matrix.push(row);
   }
@@ -556,7 +556,7 @@ export async function getCorrelationMatrix(): Promise<CorrelationMatrix> {
     matrix,
     strongPositive: strongPositive.slice(0, 10),
     strongNegative: strongNegative.slice(0, 10),
-    avgCorrelation: pairCount > 0 ? Math.round((totalCorr / pairCount) * 100) / 100 : 0,
+    avgCorrelation: pairCount > 0 ? round2(totalCorr / pairCount) : 0,
     diversificationOpportunities,
   };
 }
@@ -629,15 +629,15 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
 
     return {
       symbol,
-      winRate: Math.round(winRate * 10000) / 10000,
-      avgWin: Math.round(avgWin * 100) / 100,
-      avgLoss: Math.round(avgLoss * 100) / 100,
-      kellyFraction: Math.round(kellyFraction * 10000) / 10000,
-      halfKelly: Math.round(kellyFraction * 0.5 * 10000) / 10000,
-      quarterKelly: Math.round(kellyFraction * 0.25 * 10000) / 10000,
+      winRate: round4(winRate),
+      avgWin: round2(avgWin),
+      avgLoss: round2(avgLoss),
+      kellyFraction: round4(kellyFraction),
+      halfKelly: round4(kellyFraction * 0.5),
+      quarterKelly: round4(kellyFraction * 0.25),
       recommendation,
-      currentExposure: Math.round(currentExposure * 10000) / 10000,
-      optimalExposure: Math.round(optimalExposure * 10000) / 10000,
+      currentExposure: round4(currentExposure),
+      optimalExposure: round4(optimalExposure),
     };
   });
 
@@ -661,8 +661,8 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
     agentId,
     agentName: config.name,
     positions,
-    overallLeverage: Math.round(overallLeverage * 100) / 100,
-    portfolioKelly: Math.round(totalKelly * 10000) / 10000,
+    overallLeverage: round2(overallLeverage),
+    portfolioKelly: round4(totalKelly),
     interpretation,
   };
 }
@@ -696,10 +696,10 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
     return {
       symbol: stock.symbol,
       name: stock.name,
-      weight: Math.round(weight * 10000) / 10000,
-      riskContribution: Math.round(riskContribution * 10000) / 10000,
-      targetRiskContribution: Math.round((1 / symbols.length) * 10000) / 10000,
-      volatility: Math.round(stock.volatility * 10000) / 10000,
+      weight: round4(weight),
+      riskContribution: round4(riskContribution),
+      targetRiskContribution: round4(1 / symbols.length),
+      volatility: round4(stock.volatility),
     };
   });
 
@@ -717,9 +717,9 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
 
   return {
     allocations,
-    totalRisk: Math.round(totalRisk * 10000) / 10000,
-    maxRiskContribution: Math.round(maxRiskContrib * 10000) / 10000,
-    minRiskContribution: Math.round(minRiskContrib * 10000) / 10000,
+    totalRisk: round4(totalRisk),
+    maxRiskContribution: round4(maxRiskContrib),
+    minRiskContribution: round4(minRiskContrib),
     riskParityScore,
     methodology: "Inverse-volatility weighted risk parity. Each stock weighted inversely proportional to its historical volatility to equalize marginal risk contribution.",
   };
@@ -771,8 +771,8 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
       return {
         symbol: d.symbol,
         action: (d.delta > 0 ? "buy" : "sell") as "buy" | "sell",
-        quantity: Math.round(quantity * 10000) / 10000,
-        estimatedCost: Math.round(estimatedCost * 100) / 100,
+        quantity: round4(quantity),
+        estimatedCost: round2(estimatedCost),
         reason: d.action === "new"
           ? `New position: add ${d.symbol} at ${d.recommendedWeight * 100}% weight`
           : d.action === "exit"
@@ -793,14 +793,14 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
     agentId,
     agentName: config.name,
     urgency,
-    driftScore: Math.round(driftScore * 10000) / 10000,
+    driftScore: round4(driftScore),
     trades: trades.sort((a, b) => b.estimatedCost - a.estimatedCost),
-    estimatedTurnover: Math.round(estimatedTurnover * 100) / 100,
-    estimatedTransactionCosts: Math.round(estimatedTransactionCosts * 100) / 100,
+    estimatedTurnover: round2(estimatedTurnover),
+    estimatedTransactionCosts: round2(estimatedTransactionCosts),
     beforeMetrics: {
-      sharpe: Math.round((beforeVol > 0 ? 0.10 / beforeVol : 0) * 100) / 100,
-      volatility: Math.round(beforeVol * 10000) / 10000,
-      maxDrawdown: Math.round(beforeVol * 2.5 * 10000) / 10000,
+      sharpe: round2(beforeVol > 0 ? 0.10 / beforeVol : 0),
+      volatility: round4(beforeVol),
+      maxDrawdown: round4(beforeVol * 2.5),
     },
     afterMetrics: {
       sharpe: optimal.portfolioMetrics.sharpeRatio,
