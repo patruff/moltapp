@@ -352,8 +352,8 @@ pages.get("/agent/:id", async (c) => {
     );
   }
 
-  // Fetch agent config, portfolio, trade history, wallet, on-chain trades, and thesis history in parallel
-  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades, thesisHistory] = await Promise.all([
+  // Fetch agent config, portfolio, trade history, wallet, on-chain trades, thesis history, and LLM costs in parallel
+  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades, thesisHistory, agentCosts] = await Promise.all([
     Promise.resolve(getAgentConfig(agentId)),
     getAgentPortfolio(agentId).catch(() => ({
       cashBalance: 0,
@@ -387,6 +387,7 @@ pages.get("/agent/:id", async (c) => {
       .limit(20)
       .catch(() => []),
     getThesisHistory(agentId, 10).catch(() => []),
+    getAgentCosts(agentId).catch(() => ({ totalCost: 0, totalTokens: 0 })),
   ]);
 
   return c.render(
@@ -465,6 +466,26 @@ pages.get("/agent/:id", async (c) => {
           </div>
         </div>
       </div>
+
+      {/* LLM Economics - only show if agent has usage data */}
+      {agentCosts.totalTokens > 0 && (
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-6">
+          <h3 class="text-white font-semibold mb-3">LLM Economics</h3>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-gray-400 text-sm">Total LLM Cost</div>
+              <div class="text-red-400 font-bold">${agentCosts.totalCost.toFixed(4)}</div>
+            </div>
+            <div>
+              <div class="text-gray-400 text-sm">Total Tokens</div>
+              <div class="text-gray-300">{agentCosts.totalTokens.toLocaleString()}</div>
+            </div>
+          </div>
+          <a href="/economics" class="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
+            View full economics &rarr;
+          </a>
+        </div>
+      )}
 
       {/* Positions */}
       <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
