@@ -23,6 +23,7 @@ import {
   type AnalyticsPeriod,
 } from "../services/analytics.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { apiError } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -118,10 +119,7 @@ insightsRoutes.get("/compare-all", async (c) => {
     });
   } catch (error) {
     console.error("[Insights] Compare-all failed:", error);
-    return c.json(
-      { error: "internal_error", code: "internal_error", details: "Failed to compare agents" },
-      500,
-    );
+    return apiError(c, "INTERNAL_ERROR", "Failed to compare agents");
   }
 });
 
@@ -135,20 +133,13 @@ insightsRoutes.get("/:agentId", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json(
-      {
-        error: "agent_not_found",
-        code: "agent_not_found",
-        details: `No agent with ID "${agentId}". Valid IDs: claude-value-investor, gpt-momentum-trader, grok-contrarian`,
-      },
-      404,
-    );
+    return apiError(c, "AGENT_NOT_FOUND", `No agent with ID "${agentId}". Valid IDs: claude-value-investor, gpt-momentum-trader, grok-contrarian`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -159,7 +150,7 @@ insightsRoutes.get("/:agentId", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute insights" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute insights");
   }
 });
 
@@ -173,13 +164,13 @@ insightsRoutes.get("/:agentId/risk", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -191,7 +182,7 @@ insightsRoutes.get("/:agentId/risk", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Risk failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute risk metrics" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute risk metrics");
   }
 });
 
@@ -205,13 +196,13 @@ insightsRoutes.get("/:agentId/patterns", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -223,7 +214,7 @@ insightsRoutes.get("/:agentId/patterns", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Patterns failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute patterns" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute patterns");
   }
 });
 
@@ -237,13 +228,13 @@ insightsRoutes.get("/:agentId/sectors", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -255,7 +246,7 @@ insightsRoutes.get("/:agentId/sectors", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Sectors failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute sector allocation" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute sector allocation");
   }
 });
 
@@ -269,13 +260,13 @@ insightsRoutes.get("/:agentId/streaks", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -287,7 +278,7 @@ insightsRoutes.get("/:agentId/streaks", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Streaks failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute streaks" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute streaks");
   }
 });
 
@@ -301,13 +292,13 @@ insightsRoutes.get("/:agentId/sentiment", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     return c.json({
@@ -318,7 +309,7 @@ insightsRoutes.get("/:agentId/sentiment", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Sentiment failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute sentiment" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute sentiment");
   }
 });
 
@@ -332,13 +323,13 @@ insightsRoutes.get("/:agentId/activity", async (c) => {
 
   const config = getAgentConfig(agentId);
   if (!config) {
-    return c.json({ error: "agent_not_found", code: "agent_not_found", details: `Agent "${agentId}" not found` }, 404);
+    return apiError(c, "AGENT_NOT_FOUND", `Agent "${agentId}" not found`);
   }
 
   try {
     const analytics = await getAgentAnalytics(agentId, period);
     if (!analytics) {
-      return c.json({ error: "analytics_failed", code: "analytics_failed", details: "Failed to compute analytics" }, 500);
+      return apiError(c, "INTERNAL_ERROR", "Failed to compute analytics");
     }
 
     // Find peak hours
@@ -359,7 +350,7 @@ insightsRoutes.get("/:agentId/activity", async (c) => {
     });
   } catch (error) {
     console.error(`[Insights] Activity failed for ${agentId}:`, error);
-    return c.json({ error: "internal_error", code: "internal_error", details: "Failed to compute activity" }, 500);
+    return apiError(c, "INTERNAL_ERROR", "Failed to compute activity");
   }
 });
 
