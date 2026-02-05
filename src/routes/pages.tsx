@@ -1231,8 +1231,7 @@ pages.get("/economics", async (c) => {
     const agentConfig = getAgentConfig(agent.agentId);
     const pnlPercent = parseFloat(agent.totalPnlPercent);
     const totalValue = parseFloat(agent.totalPortfolioValue);
-    const initialValue = totalValue / (1 + pnlPercent / 100);
-    const pnlUsd = totalValue - initialValue;
+    const pnlUsd = calculatePnlUsd(totalValue, pnlPercent);
 
     return {
       agentId: agent.agentId,
