@@ -44,6 +44,7 @@ export const ErrorCodes = {
   STOP_RULE_NOT_FOUND: { status: 404, code: "stop_rule_not_found" },
   SWARM_PREDICTION_NOT_FOUND: { status: 404, code: "swarm_prediction_not_found" },
   DELIBERATION_NOT_FOUND: { status: 404, code: "deliberation_not_found" },
+  REASONING_NOT_FOUND: { status: 404, code: "reasoning_not_found" },
 
   // 429 Too Many Requests
   RATE_LIMITED: { status: 429, code: "rate_limited" },

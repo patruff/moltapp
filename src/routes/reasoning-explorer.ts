@@ -20,6 +20,7 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
+import { apiError } from "../lib/errors.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -73,7 +74,7 @@ reasoningExplorerRoutes.get("/search", async (c) => {
   const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
 
   if (!query || query.length < 2) {
-    return c.json({ ok: false, error: "Query must be at least 2 characters" }, 400);
+    return apiError(c, "VALIDATION_FAILED", "Query must be at least 2 characters");
   }
 
   const queryTerms = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
@@ -180,7 +181,7 @@ reasoningExplorerRoutes.get("/similar/:id", (c) => {
 
   const target = reasoningIndex.find((e) => e.id === targetId);
   if (!target) {
-    return c.json({ ok: false, error: "Reasoning not found in index" }, 404);
+    return apiError(c, "REASONING_NOT_FOUND", "Reasoning not found in index");
   }
 
   // Compute Jaccard similarity with all other entries
