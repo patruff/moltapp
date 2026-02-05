@@ -22,6 +22,7 @@ import { tradeReactions } from "../db/schema/trade-reactions.ts";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { getAgentConfig } from "../agents/orchestrator.ts";
 import { apiError } from "../lib/errors.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -217,7 +218,7 @@ commentRoutes.get("/:decisionId/comments", async (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 

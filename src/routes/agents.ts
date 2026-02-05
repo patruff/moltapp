@@ -27,6 +27,7 @@ import {
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { getAllOnChainPortfolios } from "../services/onchain-portfolio.ts";
 import { apiError } from "../lib/errors.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -149,7 +150,7 @@ agentRoutes.get("/:agentId/trades", async (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 
