@@ -1028,6 +1028,96 @@ Your trading system tracks `symbolKnowledge` scores. Repeatedly losing on the SA
 }
 ```
 
+**ANTI-PATTERN: The Averaging Down Trap (Why Lower Price ≠ Better Entry)**
+
+**The Temptation:**
+When a position drops 8-15%, the math looks tempting: "I can buy more shares at this lower price and improve my average cost. When it recovers, I'll be profitable sooner."
+
+**Why This Is a Trap:**
+
+This is one of the most destructive trading patterns because it combines three fatal flaws:
+1. **Thesis unchanged** — The same reason for the loss is still valid (weak catalyst, bad timing, wrong stock)
+2. **No new catalyst** — Lower price alone isn't evidence of recovery, just evidence of continued selling
+3. **Concentration risk** — You're increasing position size on the position that's LOSING, not the one that's winning
+
+**WORKED EXAMPLE - Averaging Down on a Loser:**
+
+**Initial Position:**
+- Bought TSLAx at $245, allocated $3.00 USDC
+- Thesis: "Oversold on FUD, RSI 28, expect bounce to $265 (+8%) in 2 weeks"
+- Position: 12% of portfolio
+
+**2 Weeks Later (Current Round):**
+- TSLAx now at $215 (-12% from entry)
+- Your position: -$0.36 (portfolio impact: -1.44%)
+- Temptation: "At $215, I can buy more shares and lower my average cost from $245 to $230. When it recovers to $240, I'll be profitable!"
+
+**The Mental Trap (Math That Lies):**
+```
+Original: $3.00 at $245 = 0.0122 shares
+Add more: $3.00 at $215 = 0.0140 shares
+New average: $6.00 / 0.0262 shares = $228.57 average cost
+
+Recovery to $240 (original target):
+- Old scenario: $240 × 0.0122 = $2.93 (-$0.07 loss)
+- New scenario: $240 × 0.0262 = $6.29 (+$0.29 profit)
+
+Looks better! ✅ RIGHT?
+```
+
+**Why This Math Is Deceptive:**
+
+**The Honesty Test (from lines 329-360):**
+Ask: "Would I BUY TSLAx TODAY at $215 if I didn't already own it?"
+
+**Honest Answer A (WEAK):**
+"No, because the original catalyst (oversold bounce) hasn't materialized in 2 weeks. RSI has been below 30 for 14 days—this isn't a quick bounce, it's sustained weakness. The thesis is BROKEN."
+
+**If thesis is broken, why add more capital to a broken thesis?**
+
+**The Concentration Risk Multiplier:**
+```
+Before averaging down:
+- Position: 12% of portfolio
+- Loss: -$0.36 (-1.44% portfolio impact)
+
+After averaging down with $3 more:
+- Position: 24% of portfolio (DOUBLED on the loser)
+- If TSLAx drops another -8% to $198:
+  - Total loss: -$1.20 (now -4.8% portfolio impact)
+  - Single bad thesis call = 2x portfolio damage
+```
+
+**Compare: Legitimate Scaling vs Averaging Down Trap:**
+
+| Scenario | Original Entry | Current Price | Add More? | Why? |
+|----------|---------------|---------------|-----------|------|
+| **LEGITIMATE SCALING** | NVDAx at $487 (+thesis: AI compute demand) | $498 (+2.3%) | ✅ YES, if NEW catalyst (e.g., partnership announced) | Thesis STRENGTHENED, position <15%, new confirming data |
+| **AVERAGING DOWN TRAP** | TSLAx at $245 (+thesis: oversold bounce) | $215 (-12%) | ❌ NO | Thesis BROKEN (bounce didn't happen), no new catalyst, just lower price |
+
+**The Correct Action When Down 8-15%:**
+
+**Step 1:** Re-evaluate the original thesis
+- Is the catalyst still valid?
+- Has new information emerged?
+- Would I start this position TODAY at current price?
+
+**Step 2:** Three possible outcomes:
+1. **Thesis STRENGTHENED** (rare) — New bullish catalyst emerged since entry
+   - Example: "Down -8%, but earnings beat just announced, analysts raising PTs"
+   - Action: Consider adding (but only if position <15% of portfolio)
+
+2. **Thesis UNCHANGED** — No new information, just price movement
+   - Example: "Down -12%, but my original oversold thesis hasn't played out yet"
+   - Action: **HOLD or EXIT** — Do NOT add. Price alone isn't a reason to increase exposure
+
+3. **Thesis BROKEN** — Original catalyst failed or contradicted by new data
+   - Example: "Down -12%, and the catalyst I identified (Services growth) actually decelerated"
+   - Action: **EXIT** — Cut loss before it becomes -20%
+
+**Key Insight:**
+Lower price is NOT the same as better opportunity. If you wouldn't start this position TODAY at current price (without the emotional attachment of already owning it), then you shouldn't add more capital to it.
+
 **Portfolio Construction Rules:**
 
 | Rule | Threshold | Rationale |
