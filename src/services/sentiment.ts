@@ -228,13 +228,13 @@ const SENTIMENT_THRESHOLDS = {
   NEWS_IMPACT_THRESHOLD: 40,          // |newsSentiment| > 40 = news trigger
 
   // Sentiment signal classification
-  STRONG_BUY_THRESHOLD: 40,           // overall > 40 = strong_buy
-  BUY_THRESHOLD: 15,                  // overall > 15 = buy
-  SELL_THRESHOLD: -15,                // overall < -15 = sell
-  STRONG_SELL_THRESHOLD: -40,         // overall < -40 = strong_sell
+  STRONG_BUY_THRESHOLD: 60,           // overall >= 60 = strong_buy
+  BUY_THRESHOLD: 20,                  // overall >= 20 = buy
+  SELL_THRESHOLD: -20,                // overall <= -20 = sell
+  STRONG_SELL_THRESHOLD: -60,         // overall <= -60 = strong_sell
 
-  // Signal strength classification
-  SENTIMENT_STRONG: 20,               // |score| > 20 = strong sentiment
+  // Signal strength classification (description text)
+  SENTIMENT_STRONG: 20,               // |score| > 20 = strong/positive/negative
 } as const;
 
 /** The 3 AI agent IDs */
@@ -470,7 +470,7 @@ function computeSocialSentiment(symbol: string, marketData: MarketData): { score
     driver: {
       source: "social_signals",
       impact: Math.round(score),
-      description: `~${mentionCount.toLocaleString()} social mentions. Trending topic: "${buzzWord}". Sentiment ${score > 20 ? "positive" : score < -20 ? "negative" : "mixed"}.`,
+      description: `~${mentionCount.toLocaleString()} social mentions. Trending topic: "${buzzWord}". Sentiment ${score > SENTIMENT_THRESHOLDS.SENTIMENT_STRONG ? "positive" : score < -SENTIMENT_THRESHOLDS.SENTIMENT_STRONG ? "negative" : "mixed"}.`,
       weight: SENTIMENT_WEIGHTS.socialSentiment,
     },
   };
@@ -499,7 +499,7 @@ function computeNewsSentiment(symbol: string, marketData: MarketData): { score: 
     driver: {
       source: "news_sentiment",
       impact: Math.round(score),
-      description: `Latest: "${headline}". News flow ${score > 20 ? "positive" : score < -20 ? "negative" : "neutral"} for ${sector} sector.`,
+      description: `Latest: "${headline}". News flow ${score > SENTIMENT_THRESHOLDS.SENTIMENT_STRONG ? "positive" : score < -SENTIMENT_THRESHOLDS.SENTIMENT_STRONG ? "negative" : "neutral"} for ${sector} sector.`,
       weight: SENTIMENT_WEIGHTS.newsSentiment,
     },
   };
@@ -575,10 +575,10 @@ function generateSingleHeadline(symbol: string, marketData: MarketData, sentimen
  * Classify a raw sentiment score (-100 to +100) into a signal label.
  */
 function classifySignal(score: number): "strong_buy" | "buy" | "neutral" | "sell" | "strong_sell" {
-  if (score >= 60) return "strong_buy";
-  if (score >= 20) return "buy";
-  if (score <= -60) return "strong_sell";
-  if (score <= -20) return "sell";
+  if (score >= SENTIMENT_THRESHOLDS.STRONG_BUY_THRESHOLD) return "strong_buy";
+  if (score >= SENTIMENT_THRESHOLDS.BUY_THRESHOLD) return "buy";
+  if (score <= SENTIMENT_THRESHOLDS.STRONG_SELL_THRESHOLD) return "strong_sell";
+  if (score <= SENTIMENT_THRESHOLDS.SELL_THRESHOLD) return "sell";
   return "neutral";
 }
 
