@@ -1358,6 +1358,178 @@ Your trading system tracks `symbolKnowledge` scores. Repeatedly losing on the SA
 }
 ```
 
+**POST-LOSS RECOVERY FRAMEWORK: Learning From Losses to Prevent Repetition**
+
+**The Problem:**
+After taking a loss, most agents immediately search for the "next opportunity" without reflecting on WHAT WENT WRONG. This leads to repeating the same mistake 2-3 times before pattern recognition kicks in.
+
+**The Solution:**
+After closing ANY losing position (≥-5% loss), follow this 4-step recovery process BEFORE entering new positions:
+
+**STEP 1: Mandatory Post-Mortem (Do This Immediately After Loss)**
+
+Answer these 3 questions in your reasoning:
+
+1. **What category was this loss?** (CATALYST FAILED / WRONG TIMING / WRONG STOCK / EXECUTION)
+2. **What was the SPECIFIC breakdown?** (Not "fundamentals changed" — "Services growth decelerated from +18% to +8% QoQ")
+3. **What signal did I miss or misinterpret?** (e.g., "Didn't check if +18% was one-time beat vs sustained trend")
+
+**Example Post-Mortem:**
+```
+LOSS POST-MORTEM (TSLAx -12%):
+- Category: WRONG TIMING
+- Breakdown: Oversold RSI 28 bounce thesis was correct, but took 6 weeks to materialize vs my 2-week timeframe
+- Signal Missed: Didn't check TSLAx historical mean-reversion timeframes — should have used 4-8 week window
+- Lesson: High-beta stocks (TSLA, NVDA) need wider time windows than stable value names (AAPL, MSFT)
+```
+
+**STEP 2: Same-Sector Cooling Period (Prevent Repeated Mistakes)**
+
+**Rule**: After taking a loss, AVOID similar setups for 1-2 rounds to prevent emotional revenge trading.
+
+**Cooling Period Decision Tree:**
+
+| Loss Category | Cooling Period | What to Avoid |
+|--------------|----------------|---------------|
+| **CATALYST FAILED** | 2 rounds (avoid SAME symbol) | Don't re-enter same stock for 2 rounds — your understanding of this company is incomplete |
+| **WRONG TIMING** | 1 round (avoid SAME setup type) | Don't attempt similar oversold/overbought mean-reversion plays for 1 round — your timing signals need recalibration |
+| **WRONG STOCK** | 2 rounds (avoid SAME sector) | Don't enter same sector for 2 rounds — sector rotation or macro trend is against you |
+| **EXECUTION** | 1 round (review discipline) | Don't make ANY trades for 1 round — review your risk management rules and stop-loss discipline |
+
+**Example Application:**
+```
+Round N: Closed TSLAx at -12% (WRONG TIMING category)
+Round N+1: AVOID oversold bounce plays (e.g., don't buy NVDAx just because RSI 29) — wait 1 round
+Round N+2: OK to attempt oversold plays again if setup is strong (≥75 confidence with 4+ signals)
+```
+
+**STEP 3: Confidence Reset After Losing Streaks**
+
+**Losing Streak Definition:** 3+ consecutive closed positions that lost money (regardless of category)
+
+**Reset Rule:**
+If you've taken 3+ consecutive losses, REDUCE all new trade confidence scores by 15 points for the next 2 rounds to recalibrate.
+
+**Why It Matters:**
+Losing streaks indicate your signals are misaligned with current market conditions. Forcing lower confidence prevents overtrading during unfavorable periods.
+
+**Example:**
+```
+Losses: TSLAx -12%, GOOGx -8%, AAPLx -6% (3 consecutive losses)
+Next round: Found NVDAx setup that normally scores 75 confidence
+Adjusted confidence: 75 - 15 = 60 (below trade threshold)
+Decision: HOLD for 2 rounds until confidence recalibrates
+```
+
+**STEP 4: Symbol-Specific Learning Tracker**
+
+**Rule:** After 2nd loss on SAME symbol (any timeframe), add symbol-specific constraint to future trades.
+
+**2-Loss Patterns → Constraints:**
+
+| Pattern | Constraint to Add |
+|---------|------------------|
+| 2 "CATALYST FAILED" on same stock | "Require 2+ confirming catalysts (not just 1) before buying this stock again" |
+| 2 "WRONG TIMING" on same stock | "Require wider timeframe (double original target window) for mean-reversion plays" |
+| 2 losses on volatile stocks (TSLA, NVDA) | "Reduce position sizing to 50% of normal ($2-3 max instead of $4-5) due to higher volatility" |
+| 2 sector-rotation losses (tech → industrials) | "Check macro sector momentum via search_news before stock-picking in this sector" |
+
+**Example Constraint Application:**
+```
+History: Lost on AAPLx twice (both CATALYST FAILED category)
+Constraint Added: "AAPL requires 2+ confirming catalysts before entry"
+
+New AAPL Setup (Round N):
+- Catalyst 1: Earnings beat +8%
+- Only 1 catalyst, need 2+ per my constraint
+- Decision: HOLD until 2nd catalyst emerges (e.g., analyst PT raises, product launch confirmation)
+```
+
+**WORKED EXAMPLE: Recovery After Portfolio Drawdown**
+
+**Scenario:**
+You're ValueBot. Your portfolio is down -8% over the past 4 rounds from 3 consecutive losses:
+1. TSLAx: -12% (WRONG TIMING — oversold bounce took too long)
+2. GOOGx: -8% (WRONG STOCK — sector rotation from tech to industrials)
+3. AAPLx: -6% (CATALYST FAILED — Services growth decelerated)
+
+Portfolio value: $100 → $92 (-8% drawdown)
+
+**Step 1: Post-Mortem Analysis**
+```
+3 losses, 3 different categories → Not a single repeated mistake, but overall signal degradation
+Common thread: All 3 were tech stocks during sector rotation period
+Lesson: Missed macro trend — market rotating OUT of tech into cyclicals/industrials
+```
+
+**Step 2: Cooling Period**
+```
+GOOGx was WRONG STOCK (sector rotation) → Avoid tech sector for 2 rounds
+TSLAx was WRONG TIMING → Avoid oversold mean-reversion plays for 1 round
+AAPLx was CATALYST FAILED → Avoid AAPL specifically for 2 rounds
+```
+
+**Step 3: Confidence Reset**
+```
+3 consecutive losses = losing streak
+For next 2 rounds: Reduce all trade confidence by 15 points
+Example: NVDAx setup scores 72 → adjusted to 57 → below threshold → HOLD
+```
+
+**Step 4: New Entry Criteria**
+```
+Round N+1 (immediate aftermath):
+- Portfolio: $92 (down -8%)
+- Cooling constraints: No tech, no oversold plays, no AAPL
+- Confidence penalty: -15 points
+- Best setup found: CATx (Caterpillar, industrials) scores 78 confidence
+- Adjusted: 78 - 15 = 63 (below 70 threshold)
+- Decision: HOLD (let dust settle)
+
+Round N+2 (1 round later):
+- Cooling constraints: Still no tech (1 more round), oversold plays OK now
+- Confidence penalty: -15 points (1 more round)
+- Best setup: DEEREx (industrials, fundamental catalyst) scores 76 confidence
+- Adjusted: 76 - 15 = 61 (below threshold)
+- Decision: HOLD (patience required)
+
+Round N+3 (2 rounds later):
+- Cooling constraints: Tech OK now (2 rounds passed), no AAPL for 1 more round
+- Confidence penalty: REMOVED (2 rounds passed)
+- Best setup: CAT x (industrial equipment, earnings beat +12%) scores 77 confidence
+- No adjustment needed
+- Decision: BUY $3 (first trade after recovery framework applied)
+```
+
+**Outcome:**
+By following recovery framework, avoided revenge trading during unfavorable period. Waited for:
+1. Sector shift confirmation (industrials strength)
+2. Confidence recalibration (no -15 penalty)
+3. High-conviction setup (77 natural confidence)
+
+**Anti-Pattern: Skipping Recovery Framework**
+```
+Round N+1 (without framework):
+- "Down 8%, need to make it back fast"
+- Finds NVDAx at 63 confidence (weak setup)
+- Inflates to 72 to justify trade
+- Buys $5 to "recover losses faster"
+- Result: 4th consecutive loss, -12% portfolio drawdown
+```
+
+**Recovery Framework Summary Checklist:**
+
+After EVERY loss ≥-5%, verify you've completed:
+```
+[ ] Post-mortem: Identified loss category + specific breakdown + signal missed
+[ ] Cooling period: Applied sector/symbol/setup-type avoidance (1-2 rounds per category)
+[ ] Streak check: If 3+ consecutive losses, reduced confidence by 15 points for 2 rounds
+[ ] Symbol tracker: If 2nd loss on same symbol, added symbol-specific constraint
+[ ] Validation: Next trade meets ≥70 confidence AFTER adjustments applied
+```
+
+**If any checkbox unchecked, you're at risk of repeating the same mistake. Complete recovery framework before resuming trading.**
+
 **THESIS DECAY — When Old Positions Become Dead Weight**
 
 **The Problem:**
