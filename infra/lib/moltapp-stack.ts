@@ -150,12 +150,13 @@ export class MoltappStack extends cdk.Stack {
     tradingRoundsTable.grantReadWriteData(tradingFn);
     lendingStateTable.grantReadWriteData(tradingFn);
 
-    // --- EventBridge Rule: Trigger trading every 30 minutes ---
+    // --- EventBridge Rule: Trigger trading daily at 5 AM EST (10 AM UTC) ---
+    // xStocks are 24/7, so we trade during off-market hours for traditional stocks
     const tradingSchedule = new events.Rule(this, "TradingSchedule", {
       ruleName: "moltapp-trading-round",
       description:
-        "Trigger AI trading round every 30 minutes — 3 agents compete",
-      schedule: events.Schedule.cron({ minute: "0,30" }),
+        "Trigger AI trading round daily at 5 AM EST — 3 agents compete on 24/7 xStocks",
+      schedule: events.Schedule.cron({ minute: "0", hour: "10" }),
       enabled: true,
     });
 
