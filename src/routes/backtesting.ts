@@ -23,6 +23,7 @@ import {
 } from "../services/backtesting.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { clamp } from "../lib/math-utils.ts";
 
 export const backtestRoutes = new Hono();
 
@@ -76,7 +77,7 @@ backtestRoutes.get("/:agentId", async (c) => {
   try {
     const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
     const capitalStr = c.req.query("capital");
-    const capital = capitalStr ? Math.min(1000000, Math.max(1000, parseFloat(capitalStr) || 10000)) : 10000;
+    const capital = capitalStr ? clamp(parseFloat(capitalStr) || 10000, 1000, 1000000) : 10000;
 
     const endDate = new Date().toISOString().slice(0, 10);
     const startDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);

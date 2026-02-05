@@ -361,7 +361,7 @@ export async function scoreRound(
 
     const bonusTotal = bonuses.reduce((sum, b) => sum + b.value, 0);
     const penaltyTotal = penalties.reduce((sum, p) => sum + p.value, 0);
-    const finalScore = Math.max(0, Math.min(100, rawTotal + bonusTotal + penaltyTotal));
+    const finalScore = clamp(rawTotal + bonusTotal + penaltyTotal, 0, 100);
 
     // Normalize to BASE_SCORE scale
     const scaledScore = Math.round((finalScore / 100) * BASE_SCORE);

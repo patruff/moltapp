@@ -28,6 +28,7 @@ import {
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
+import { clamp } from "../lib/math-utils.ts";
 import type {
   MarketData,
   PortfolioContext,
@@ -197,7 +198,7 @@ function simulateAgentDecision(
       break;
   }
 
-  confidence = Math.max(0, Math.min(100, confidence));
+  confidence = clamp(confidence, 0, 100);
 
   return {
     action,

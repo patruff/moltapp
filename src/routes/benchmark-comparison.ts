@@ -17,6 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
@@ -138,7 +139,7 @@ function tDistPValue(absT: number, df: number): number {
   const b = 0.5;
   // Regularized incomplete beta via continued fraction (Lentz's method)
   const ibeta = regIncBeta(x, a, b);
-  return Math.min(1, Math.max(0, Math.round(ibeta * 10000) / 10000));
+  return clamp(Math.round(ibeta * 10000) / 10000, 0, 1);
 }
 
 /**
