@@ -22,7 +22,11 @@ import { db } from "../db/index.ts";
 import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, asc, and, gte } from "drizzle-orm";
+import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
+
+// Infer types from database schema
+type Trade = InferSelectModel<typeof trades>;
+type Position = InferSelectModel<typeof positions>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -162,7 +166,7 @@ export async function calculatePortfolioMetrics(
     .where(eq(positions.agentId, agentId));
 
   // Build trade records
-  const tradeRecords: TradeRecord[] = allTrades.map((t: any) => ({
+  const tradeRecords: TradeRecord[] = allTrades.map((t: Trade) => ({
     id: t.id,
     agentId: t.agentId,
     side: t.side,
@@ -178,7 +182,7 @@ export async function calculatePortfolioMetrics(
   const { realizedPnl, tradeOutcomes } = calculateRealizedPnl(tradeRecords);
 
   // Calculate unrealized P&L from open positions
-  const unrealizedPnl = currentPositions.reduce((sum: any, pos: any) => {
+  const unrealizedPnl = currentPositions.reduce((sum: number, pos: Position) => {
     const costBasis = parseFloat(pos.averageCostBasis);
     const qty = parseFloat(pos.quantity);
     // We don't have current prices here, so unrealized is estimated at 0
@@ -697,7 +701,7 @@ export async function calculateRollingPerformance(
       .where(and(eq(trades.agentId, agentId), gte(trades.createdAt, since)))
       .orderBy(asc(trades.createdAt));
 
-    const records: TradeRecord[] = periodTrades.map((t: any) => ({
+    const records: TradeRecord[] = periodTrades.map((t: Trade) => ({
       id: t.id,
       agentId: t.agentId,
       side: t.side,
