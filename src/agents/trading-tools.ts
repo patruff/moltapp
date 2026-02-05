@@ -745,6 +745,16 @@ async function executeGetExecutionQuote(
       swapType?: string;
     };
 
+    // Validate quote response amounts
+    const inAmountParsed = parseInt(order.inAmount, 10);
+    const outAmountParsed = parseInt(order.outAmount, 10);
+    if (isNaN(inAmountParsed) || isNaN(outAmountParsed)) {
+      return JSON.stringify({
+        error: "Invalid quote data from Jupiter API",
+        details: "Could not parse amounts from response"
+      });
+    }
+
     // Calculate effective price
     let effectivePrice: number;
     let inputAmount: number;
@@ -752,13 +762,13 @@ async function executeGetExecutionQuote(
 
     if (args.side === "buy") {
       // Input is USDC (6 decimals), output is stock (8 decimals)
-      inputAmount = parseInt(order.inAmount) / 1_000_000;
-      outputAmount = parseInt(order.outAmount) / 100_000_000;
+      inputAmount = inAmountParsed / 1_000_000;
+      outputAmount = outAmountParsed / 100_000_000;
       effectivePrice = inputAmount / outputAmount;
     } else {
       // Input is stock (8 decimals), output is USDC (6 decimals)
-      inputAmount = parseInt(order.inAmount) / 100_000_000;
-      outputAmount = parseInt(order.outAmount) / 1_000_000;
+      inputAmount = inAmountParsed / 100_000_000;
+      outputAmount = outAmountParsed / 1_000_000;
       effectivePrice = outputAmount / inputAmount;
     }
 
