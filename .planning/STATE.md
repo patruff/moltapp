@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 09-ongoing-improvement
-Plan: 01 of 2 (LLM Token Usage Tracking) - COMPLETE
-Status: Ready for plan 02
+Plan: 02 of 2 (Economics Dashboard) - COMPLETE
+Status: Phase 09 COMPLETE
 
-Progress: [========--] 50% (plan 01 complete)
+Progress: [==========] 100% (both plans complete)
 
 Platform is fully operational. All core systems built and running:
 - 3 autonomous tool-calling agents (Claude, GPT, Grok) with shared skill.md
@@ -27,9 +27,10 @@ Platform is fully operational. All core systems built and running:
 - Benchmark submission API for external agents
 - HuggingFace dataset sync
 - Overnight heartbeat running trading rounds every 2 hours
-- **NEW: LLM token usage tracking with cost estimation (llm_usage table)**
+- **LLM token usage tracking with cost estimation (llm_usage table)**
+- **NEW: /economics dashboard showing cost vs trading returns**
 
-Last activity: 2026-02-05 — Completed 09-01-PLAN.md (LLM token usage tracking)
+Last activity: 2026-02-05 — Completed 09-02-PLAN.md (Economics Dashboard)
 
 ## Architecture Summary
 
@@ -40,7 +41,8 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
   → Return TradingDecision JSON
   → Circuit breaker checks → Jupiter DEX swap → Solana tx signature stored
   → Benchmark scoring (40+ dimensions) → Leaderboard + HuggingFace
-  → **LLM usage recorded to llm_usage table with cost estimation**
+  → LLM usage recorded to llm_usage table with cost estimation
+  → **/economics dashboard shows ROI and per-agent cost breakdown**
 ```
 
 ## What's Built
@@ -57,11 +59,12 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 - [x] Circuit breaker: $5 max trade, 2hr cooldown, 6/day, 25% position limit
 - [x] Jupiter DEX integration (Ultra API, order + execute)
 - [x] On-chain trade execution with Solana tx signatures
-- [x] **LLM token usage tracking (llm_usage table, llm-cost-tracker service)**
+- [x] LLM token usage tracking (llm_usage table, llm-cost-tracker service)
 
 ### Dashboard & API
 - [x] Leaderboard page (/) — agents ranked by P&L %
-- [x] Agent profile page (/agent/:id) — positions, trade history, Solana tx links, wallet address
+- [x] Agent profile page (/agent/:id) — positions, trade history, Solana tx links, wallet address, LLM economics
+- [x] **Economics dashboard (/economics) — LLM cost vs trading P&L, per-agent ROI**
 - [x] Agent API — /api/v1/agents, /api/v1/agents/:id, /api/v1/agents/:id/portfolio, /api/v1/agents/:id/trades
 - [x] Benchmark submission API — external agents can submit trades for scoring
 - [x] Brain feed — live agent reasoning stream
@@ -83,17 +86,17 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 | 2026-02-05 | Usage field optional on AgentTurn | Backward compatibility with existing code |
 | 2026-02-05 | Model pricing in service not DB | Simpler to update pricing without migrations |
 | 2026-02-05 | recordUsage with .catch() pattern | Don't fail trading if DB write fails |
+| 2026-02-05 | Used getAgentConfig for model lookup | LeaderboardEntry lacks model field |
+| 2026-02-05 | Economics card conditional on totalTokens > 0 | Avoid empty state when no usage data |
 
 ## What Needs Improvement
 
 - Agent trading quality (are agents making good decisions?)
 - Skill.md prompt refinement (better instructions = better trades)
-- Agent profile pages (could show reasoning quality, thesis history)
 - Circuit breaker tuning (are limits too tight or too loose?)
 - Bug fixes in pre-existing TypeScript errors (300+ in older files)
 - Test coverage (currently no automated tests running)
 - Live deployment verification (production AWS deploy pending)
-- **Cost analysis visualization (09-02-PLAN.md ready)**
 
 ## Performance Metrics
 
@@ -115,17 +118,16 @@ The heartbeat.sh script runs every 2 hours and:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 09-01-PLAN.md (LLM token usage tracking)
-Resume file: .planning/phases/09-ongoing-improvement/09-02-PLAN.md
+Stopped at: Completed 09-02-PLAN.md (Economics Dashboard) — Phase 09 COMPLETE
+Resume file: None
 
 Changes this session:
-- Added usage field to AgentTurn interface
-- Implemented usage extraction from Anthropic API
-- Implemented usage extraction from OpenAI-compatible APIs
-- Integrated usage recording into runAgentLoop
-- Pushed llm_usage schema to database
+- Created /economics dashboard route with summary cards and per-agent breakdown
+- Added economics link to homepage header
+- Added LLM economics card to agent profile pages
+- TypeScript compilation: 0 errors
 
 Next steps:
-- Execute 09-02-PLAN.md (cost analysis and visualization)
-- Monitor token usage data being collected
-- Run trading rounds to accumulate usage data
+- Monitor economics dashboard with real usage data
+- Run trading rounds to accumulate LLM usage data
+- Consider new improvement opportunities for next phase
