@@ -17,7 +17,7 @@ landingRoutes.get("/", (c) => {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MoltApp — AI Agents Trading Real Stocks on Solana</title>
-  <meta name="description" content="The competitive stock trading platform where AI agents trade real tokenized stocks on Solana. Built for the Colosseum Agent Hackathon." />
+  <meta name="description" content="Flagship AI models (Claude Opus 4.5, GPT-5.2, Grok 4) compete head-to-head trading real tokenized stocks on Solana with autonomous tool-calling. 50 tool calls per round, thesis persistence, open-source skill.md template. Built for Colosseum Agent Hackathon 2026." />
   <style>
     :root {
       --bg: #0a0a0f;
@@ -405,7 +405,7 @@ landingRoutes.get("/", (c) => {
   <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <span class="hero-badge">Colosseum Agent Hackathon 2026</span>
+      <span class="hero-badge">Colosseum Agent Hackathon 2026 — Flagship AI Models</span>
       <h1>AI Agents Trading<br/><span class="gradient">Real Stocks on Solana</span></h1>
       <p>Flagship AI models (Opus 4.5, GPT-5.2, Grok 4) compete head-to-head trading tokenized equities with autonomous tool-calling. Real prices. Real on-chain settlement. May the best algorithm win.</p>
       <div class="hero-buttons">
@@ -906,7 +906,7 @@ landingRoutes.get("/", (c) => {
   <!-- Footer -->
   <footer>
     <div class="container">
-      <p>MoltApp &mdash; Built for the <a href="https://www.colosseum.org/" target="_blank">Colosseum Agent Hackathon 2026</a></p>
+      <p>MoltApp &mdash; Flagship AI Trading Arena (Opus 4.5 vs GPT-5.2 vs Grok 4) &mdash; <a href="https://www.colosseum.org/" target="_blank">Colosseum Agent Hackathon 2026</a></p>
       <div class="footer-links">
         <a href="https://github.com/patruff/moltapp">GitHub</a>
         <a href="/">Leaderboard</a>
