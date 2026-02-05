@@ -14,6 +14,7 @@ import {
   updateDecisionPnl,
   type AgentDecisionRecord,
 } from "../services/cross-agent-analyzer.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 const app = new Hono();
 
@@ -24,7 +25,7 @@ app.get("/status", (c) => {
 
 /** GET /report — full cross-agent analysis report */
 app.get("/report", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const report = generateReport(days);
   return c.json(report);
 });
@@ -37,7 +38,7 @@ app.get("/correlations", (c) => {
 
 /** GET /herding — recent herding alerts */
 app.get("/herding", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const report = generateReport(days);
   return c.json({
     alerts: report.herdingAlerts,
@@ -48,7 +49,7 @@ app.get("/herding", (c) => {
 
 /** GET /contrarian — recent contrarian signals */
 app.get("/contrarian", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const report = generateReport(days);
   return c.json({
     signals: report.contrarianSignals,
@@ -59,7 +60,7 @@ app.get("/contrarian", (c) => {
 
 /** GET /drift — style drift alerts */
 app.get("/drift", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const report = generateReport(days);
   return c.json({
     alerts: report.styleDriftAlerts,
@@ -79,7 +80,7 @@ app.get("/consensus", (c) => {
 
 /** GET /insights — AI-generated insights about agent behavior */
 app.get("/insights", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const report = generateReport(days);
   return c.json({
     insights: report.insights,

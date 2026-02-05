@@ -26,6 +26,7 @@ import {
   extractSourcesFromReasoning,
   classifyIntent,
 } from "../schemas/trade-reasoning.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const brainFeedRoutes = new Hono();
 
@@ -121,8 +122,8 @@ export function buildBrainFeedEntry(
  *   maxConfidence — maximum confidence (0-1)
  */
 brainFeedRoutes.get("/", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
-  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
   const agentFilter = c.req.query("agent");
   const intentFilter = c.req.query("intent");
   const minConfidence = parseFloat(c.req.query("minConfidence") ?? "0");
@@ -200,7 +201,7 @@ brainFeedRoutes.get("/", async (c) => {
  * These are the trades that reveal agent weaknesses.
  */
 brainFeedRoutes.get("/highlights", async (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "10", 10), 50);
+  const limit = parseQueryInt(c.req.query("limit"), 10, 1, 50);
 
   try {
     // Query low-coherence trades from DB
@@ -349,8 +350,8 @@ brainFeedRoutes.get("/stats", async (c) => {
  */
 brainFeedRoutes.get("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "20", 10), 100);
-  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
   try {
     const justifications = await db
