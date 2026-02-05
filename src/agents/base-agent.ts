@@ -172,8 +172,8 @@ export function loadSkillPrompt(overrides?: Record<string, string>): string {
 // Abstract Base Class
 // ---------------------------------------------------------------------------
 
-/** Max tool-calling turns before forcing a decision */
-const MAX_TURNS = 8;
+/** Max tool-calling turns before forcing a decision (increased for flagship reasoning models) */
+const MAX_TURNS = 12;
 
 /**
  * Abstract base class for all AI trading agents.

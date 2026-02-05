@@ -578,42 +578,15 @@ function executeGetTechnicalIndicators(args: GetTechnicalIndicatorsArgs): string
   }
 }
 
-// ---------------------------------------------------------------------------
-// Jupiter Quote API Types
-// ---------------------------------------------------------------------------
-
-interface JupiterQuoteResponse {
-  inputMint: string;
-  outputMint: string;
-  inAmount: string;
-  outAmount: string;
-  otherAmountThreshold: string;
-  swapMode: string;
-  slippageBps: number;
-  priceImpactPct: string;
-  routePlan: Array<{
-    swapInfo: {
-      ammKey: string;
-      label: string;
-      inputMint: string;
-      outputMint: string;
-      inAmount: string;
-      outAmount: string;
-      feeAmount: string;
-      feeMint: string;
-    };
-    percent: number;
-  }>;
-  contextSlot?: number;
-  timeTaken?: number;
-}
-
 /**
  * Get accurate execution quote from Jupiter DEX.
  *
- * Uses Jupiter's /quote endpoint to get exact output amount, price impact,
- * and slippage for a specific trade size. This is more accurate than the
- * /price endpoint which only gives mid-market estimates.
+ * Uses Jupiter's Ultra Order API to get exact output amount and slippage
+ * for a specific trade size. This is the same API used for actual trades,
+ * ensuring quote accuracy matches execution.
+ *
+ * Note: For agents, we use a dummy taker address since we're just getting
+ * a quote, not executing the trade.
  */
 async function executeGetExecutionQuote(
   args: GetExecutionQuoteArgs,
@@ -638,10 +611,12 @@ async function executeGetExecutionQuote(
   }
 
   const jupiterApiKey = process.env.JUPITER_API_KEY;
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-  if (jupiterApiKey) headers["x-api-key"] = jupiterApiKey;
+  if (!jupiterApiKey) {
+    return JSON.stringify({
+      error: "Execution quotes unavailable (no JUPITER_API_KEY)",
+      note: "Use get_stock_prices for mid-market price estimates instead.",
+    });
+  }
 
   try {
     let inputMint: string;
@@ -662,67 +637,100 @@ async function executeGetExecutionQuote(
       amountRaw = Math.floor(args.amount * 100_000_000).toString();
     }
 
-    // Use 100 bps (1%) slippage tolerance for quote
-    const slippageBps = 100;
+    // Use Jupiter Ultra Order API (same as actual trades)
+    // We use a dummy taker since we just need the quote, not the transaction
+    const dummyTaker = "11111111111111111111111111111111"; // System program (valid but unused)
 
-    const url = new URL("https://api.jup.ag/quote/v1");
+    const url = new URL("https://api.jup.ag/ultra/v1/order");
     url.searchParams.set("inputMint", inputMint);
     url.searchParams.set("outputMint", outputMint);
     url.searchParams.set("amount", amountRaw);
-    url.searchParams.set("slippageBps", slippageBps.toString());
+    url.searchParams.set("taker", dummyTaker);
 
     const res = await fetch(url.toString(), {
-      headers,
-      signal: AbortSignal.timeout(10000),
+      headers: {
+        Accept: "application/json",
+        "x-api-key": jupiterApiKey,
+      },
+      signal: AbortSignal.timeout(15000),
     });
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      // Parse common Jupiter error formats
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.error || errJson.message) {
+          return JSON.stringify({
+            symbol: args.symbol,
+            side: args.side,
+            error: errJson.error || errJson.message,
+            note: "Route not available - token may have low liquidity. Try a smaller amount.",
+          });
+        }
+      } catch {}
       return JSON.stringify({
         error: `Jupiter quote failed: ${res.status}`,
         details: errText.slice(0, 200),
       });
     }
 
-    const quote = (await res.json()) as JupiterQuoteResponse;
+    const order = (await res.json()) as {
+      inAmount: string;
+      outAmount: string;
+      slippageBps: number;
+      swapType?: string;
+    };
 
     // Calculate effective price
     let effectivePrice: number;
+    let inputAmount: number;
     let outputAmount: number;
 
     if (args.side === "buy") {
-      // Output is stock tokens (8 decimals)
-      outputAmount = parseInt(quote.outAmount) / 100_000_000;
-      effectivePrice = args.amount / outputAmount;
+      // Input is USDC (6 decimals), output is stock (8 decimals)
+      inputAmount = parseInt(order.inAmount) / 1_000_000;
+      outputAmount = parseInt(order.outAmount) / 100_000_000;
+      effectivePrice = inputAmount / outputAmount;
     } else {
-      // Output is USDC (6 decimals)
-      outputAmount = parseInt(quote.outAmount) / 1_000_000;
-      effectivePrice = outputAmount / args.amount;
+      // Input is stock (8 decimals), output is USDC (6 decimals)
+      inputAmount = parseInt(order.inAmount) / 100_000_000;
+      outputAmount = parseInt(order.outAmount) / 1_000_000;
+      effectivePrice = outputAmount / inputAmount;
     }
 
-    // Get route info
-    const routes = quote.routePlan.map((r) => ({
-      dex: r.swapInfo.label,
-      percent: r.percent,
-    }));
+    // Get mid-market price from context for comparison
+    const midMarketData = ctx.marketData.find(
+      (m) => m.symbol.toLowerCase() === args.symbol.toLowerCase(),
+    );
+    const midMarketPrice = midMarketData?.price ?? effectivePrice;
+
+    // Calculate implied price impact
+    const priceImpactPercent = Math.abs(
+      ((effectivePrice - midMarketPrice) / midMarketPrice) * 100,
+    );
 
     return JSON.stringify({
       symbol: args.symbol,
       side: args.side,
-      inputAmount: args.amount,
+      requestedAmount: args.amount,
+      inputAmount: inputAmount.toFixed(args.side === "buy" ? 2 : 6),
       outputAmount: outputAmount.toFixed(args.side === "buy" ? 6 : 2),
       effectivePrice: effectivePrice.toFixed(4),
-      priceImpactPercent: parseFloat(quote.priceImpactPct).toFixed(4),
-      slippageToleranceBps: quote.slippageBps,
-      minOutputAmount: (parseInt(quote.otherAmountThreshold) / (args.side === "buy" ? 100_000_000 : 1_000_000)).toFixed(args.side === "buy" ? 6 : 2),
-      routes,
-      note: parseFloat(quote.priceImpactPct) > 1
+      midMarketPrice: midMarketPrice.toFixed(4),
+      priceImpactPercent: priceImpactPercent.toFixed(4),
+      slippageBps: order.slippageBps,
+      swapType: order.swapType ?? "unknown",
+      note: priceImpactPercent > 1
         ? "WARNING: High price impact (>1%). Consider smaller trade size."
-        : "Quote is indicative. Actual execution may vary.",
+        : "Quote matches execution conditions. Valid for ~30 seconds.",
     });
   } catch (err) {
     return JSON.stringify({
+      symbol: args.symbol,
+      side: args.side,
       error: err instanceof Error ? err.message : "Quote request failed",
+      note: "Use get_stock_prices for mid-market estimates instead.",
     });
   }
 }
