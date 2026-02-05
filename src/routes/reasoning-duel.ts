@@ -17,6 +17,7 @@ import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
+import { apiError, handleError } from "../lib/errors.ts";
 
 export const reasoningDuelRoutes = new Hono();
 
@@ -226,10 +227,7 @@ reasoningDuelRoutes.get("/round/:roundId", async (c) => {
 
     return c.json({ ok: true, roundId, duels, totalEntries: entries.length });
   } catch (err) {
-    return c.json({
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    }, 500);
+    return handleError(c, err);
   }
 });
 
@@ -301,10 +299,7 @@ reasoningDuelRoutes.get("/stock/:symbol", async (c) => {
       total: duels.length,
     });
   } catch (err) {
-    return c.json({
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    }, 500);
+    return handleError(c, err);
   }
 });
 
@@ -317,7 +312,7 @@ reasoningDuelRoutes.get("/matchup", async (c) => {
   const agentB = c.req.query("b");
 
   if (!agentA || !agentB) {
-    return c.json({ ok: false, error: "Both 'a' and 'b' query params required" }, 400);
+    return apiError(c, "VALIDATION_FAILED", "Both 'a' and 'b' query params required");
   }
 
   try {
@@ -421,10 +416,7 @@ reasoningDuelRoutes.get("/matchup", async (c) => {
       },
     });
   } catch (err) {
-    return c.json({
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    }, 500);
+    return handleError(c, err);
   }
 });
 
@@ -468,9 +460,6 @@ reasoningDuelRoutes.get("/stats", async (c) => {
       totalAgents: rankings.length,
     });
   } catch (err) {
-    return c.json({
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    }, 500);
+    return handleError(c, err);
   }
 });
