@@ -11,10 +11,10 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 10-agent-decision-quality
-Plan: 01 of 3 (Tool Use Quality Analyzer) - COMPLETE
+Plan: 02 of 3 (Decision Quality Dashboard) - COMPLETE
 Status: In progress
 
-Progress: [===-------] 33% (1 of 3 plans complete)
+Progress: [======----] 67% (2 of 3 plans complete)
 
 Platform is fully operational. All core systems built and running:
 - 3 autonomous tool-calling agents (Claude, GPT, Grok) with shared skill.md
@@ -31,8 +31,9 @@ Platform is fully operational. All core systems built and running:
 - /economics dashboard showing cost vs trading returns
 - **NEW: Tool use quality analyzer (validates agent tool-calling patterns)**
 - **NEW: Decision quality snapshots schema (stores composite quality metrics)**
+- **NEW: Decision quality dashboard service (aggregates all 5 quality services)**
 
-Last activity: 2026-02-05 — Completed 10-01-PLAN.md (Tool Use Quality Analyzer)
+Last activity: 2026-02-05 — Completed 10-02-PLAN.md (Decision Quality Dashboard)
 
 ## Architecture Summary
 
@@ -46,6 +47,7 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
   → LLM usage recorded to llm_usage table with cost estimation
   → /economics dashboard shows ROI and per-agent cost breakdown
   → **Tool use quality analyzer validates tool-calling patterns**
+  → **Decision quality dashboard aggregates 5 quality services**
 ```
 
 ## What's Built
@@ -76,6 +78,7 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 ### Quality Analysis (Phase 10)
 - [x] Tool use quality analyzer (src/services/tool-use-quality-analyzer.ts)
 - [x] Decision quality snapshots schema (src/db/schema/decision-quality.ts)
+- [x] Decision quality dashboard (src/services/decision-quality-dashboard.ts)
 
 ### Infrastructure
 - [x] Hono 4.x API server
@@ -98,6 +101,9 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 | 2026-02-05 | recordUsage with .catch() pattern | Don't fail trading if DB write fails |
 | 2026-02-05 | Used getAgentConfig for model lookup | LeaderboardEntry lacks model field |
 | 2026-02-05 | Economics card conditional on totalTokens > 0 | Avoid empty state when no usage data |
+| 2026-02-05 | Dimension weights: calibration 20%, integrity 20%, accountability 20%, memory 15%, tool-use 25% | Tool use weighted highest as correct patterns are critical |
+| 2026-02-05 | Calibration score = 1 - ECE | Makes calibration directionally consistent with other scores |
+| 2026-02-05 | Default score 0.5 for missing data | New agents get neutral score, not failure |
 
 ## What Needs Improvement
 
@@ -128,16 +134,17 @@ The heartbeat.sh script runs every 2 hours and:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 10-01-PLAN.md (Tool Use Quality Analyzer)
+Stopped at: Completed 10-02-PLAN.md (Decision Quality Dashboard)
 Resume file: None
 
 Changes this session:
-- Created tool-use-quality-analyzer service (validates agent tool-calling patterns)
-- Created decision-quality.ts schema (stores composite quality snapshots)
-- Added decisionQualitySnapshots export to schema index
+- Created decision-quality-dashboard service (aggregates all 5 quality services)
+- Implements generateDecisionQualityReport, storeQualitySnapshot, getLatestQualitySnapshot
+- Added generateAllQualityReports for batch processing
+- Weighted composite scoring with research-backed weights
 - TypeScript compilation: 0 errors
 
 Next steps:
-- Execute 10-02-PLAN.md (Decision Quality Aggregator)
-- Aggregate tool use scores with calibration, integrity, accountability, memory scores
-- Create composite quality scoring
+- Execute 10-03-PLAN.md (Quality API Route)
+- Expose quality dashboard via API endpoint
+- Add quality metrics to agent profile page
