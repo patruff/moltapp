@@ -20,6 +20,7 @@ import {
   getPositionHeatmap,
   getSmartMoneyFlow,
 } from "../services/whale-tracker.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const whaleRoutes = new Hono();
 
@@ -29,8 +30,7 @@ export const whaleRoutes = new Hono();
 
 whaleRoutes.get("/", async (c) => {
   try {
-    const hoursStr = c.req.query("hours");
-    const hours = hoursStr ? Math.min(720, Math.max(1, parseInt(hoursStr, 10) || 24)) : 24;
+    const hours = parseQueryInt(c.req.query("hours"), 24, 1, 720);
 
     const [alerts, conviction, heatmap] = await Promise.all([
       getWhaleAlerts(hours),
@@ -74,10 +74,9 @@ whaleRoutes.get("/", async (c) => {
 
 whaleRoutes.get("/alerts", async (c) => {
   try {
-    const hoursStr = c.req.query("hours");
     const typeFilter = c.req.query("type");
     const severityFilter = c.req.query("severity");
-    const hours = hoursStr ? Math.min(720, Math.max(1, parseInt(hoursStr, 10) || 24)) : 24;
+    const hours = parseQueryInt(c.req.query("hours"), 24, 1, 720);
 
     const activity = await getWhaleAlerts(hours);
     let alerts = activity.alerts;
@@ -123,8 +122,7 @@ whaleRoutes.get("/alerts", async (c) => {
 
 whaleRoutes.get("/conviction", async (c) => {
   try {
-    const minConfStr = c.req.query("min_confidence");
-    const minConfidence = minConfStr ? Math.min(100, Math.max(50, parseInt(minConfStr, 10) || 75)) : 75;
+    const minConfidence = parseQueryInt(c.req.query("min_confidence"), 75, 50, 100);
 
     const tracker = await getConvictionTracker(minConfidence);
 
@@ -176,8 +174,7 @@ whaleRoutes.get("/heatmap", async (c) => {
 
 whaleRoutes.get("/flow", async (c) => {
   try {
-    const hoursStr = c.req.query("hours");
-    const hours = hoursStr ? Math.min(720, Math.max(1, parseInt(hoursStr, 10) || 168)) : 168;
+    const hours = parseQueryInt(c.req.query("hours"), 168, 1, 720);
 
     const flow = await getSmartMoneyFlow(hours);
 
@@ -204,8 +201,7 @@ whaleRoutes.get("/flow", async (c) => {
 
 whaleRoutes.get("/flow/sectors", async (c) => {
   try {
-    const hoursStr = c.req.query("hours");
-    const hours = hoursStr ? Math.min(720, Math.max(1, parseInt(hoursStr, 10) || 168)) : 168;
+    const hours = parseQueryInt(c.req.query("hours"), 168, 1, 720);
 
     const flow = await getSmartMoneyFlow(hours);
 
