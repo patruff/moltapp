@@ -17,6 +17,7 @@ import {
 import { computeIndicators } from "../services/market-aggregator.ts";
 import type { agentTheses } from "../db/schema/agent-theses.ts";
 import type { InferSelectModel } from "drizzle-orm";
+import { XSTOCKS_CATALOG, USDC_MINT_MAINNET } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
@@ -60,10 +61,18 @@ export interface CloseThesisArgs {
 
 export interface SearchNewsArgs {
   query: string;
+  freshness?: "ph" | "pd" | "pw" | "pm";
+  sources?: "news" | "social" | "all";
 }
 
 export interface GetTechnicalIndicatorsArgs {
   symbol: string;
+}
+
+export interface GetExecutionQuoteArgs {
+  symbol: string;
+  side: "buy" | "sell";
+  amount: number;
 }
 
 export type ToolArgs =
@@ -73,7 +82,8 @@ export type ToolArgs =
   | UpdateThesisArgs
   | CloseThesisArgs
   | SearchNewsArgs
-  | GetTechnicalIndicatorsArgs;
+  | GetTechnicalIndicatorsArgs
+  | GetExecutionQuoteArgs;
 
 // ---------------------------------------------------------------------------
 // Tool Schema Definitions
@@ -178,14 +188,26 @@ const TOOL_DEFINITIONS: ToolDef[] = [
   {
     name: "search_news",
     description:
-      "Search for recent news about a stock, sector, or market topic using Brave Search.",
+      "Search for recent news about a stock, sector, or market topic using Brave Search. Returns 10 results with timestamps. Use freshness='ph' for past hour (breaking news) or 'pd' for past day (default). Use sources to target specific sites.",
     parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
           description:
-            'Search query (e.g. "NVDA earnings 2026", "tech sector outlook")',
+            'Search query (e.g. "NVDA earnings 2026", "Apple stock news")',
+        },
+        freshness: {
+          type: "string",
+          description:
+            'Time filter: "ph" (past hour), "pd" (past day, default), "pw" (past week), "pm" (past month)',
+          enum: ["ph", "pd", "pw", "pm"],
+        },
+        sources: {
+          type: "string",
+          description:
+            'Target specific sources: "news" (press releases), "social" (Reddit/X), "all" (default)',
+          enum: ["news", "social", "all"],
         },
       },
       required: ["query"],
@@ -201,6 +223,20 @@ const TOOL_DEFINITIONS: ToolDef[] = [
         symbol: { type: "string", description: "Stock symbol (e.g. NVDAx)" },
       },
       required: ["symbol"],
+    },
+  },
+  {
+    name: "get_execution_quote",
+    description:
+      "Get an accurate execution quote from Jupiter DEX showing exact output amount, price impact, and slippage for a specific trade size. Use this before trading to verify execution price.",
+    parameters: {
+      type: "object",
+      properties: {
+        symbol: { type: "string", description: "Stock symbol to trade (e.g. AAPLx)" },
+        side: { type: "string", description: "Trade direction", enum: ["buy", "sell"] },
+        amount: { type: "number", description: "Amount in USDC (for buys) or shares (for sells)" },
+      },
+      required: ["symbol", "side", "amount"],
     },
   },
 ];
@@ -267,6 +303,9 @@ export async function executeTool(
 
     case "get_technical_indicators":
       return executeGetTechnicalIndicators(args as GetTechnicalIndicatorsArgs);
+
+    case "get_execution_quote":
+      return executeGetExecutionQuote(args as GetExecutionQuoteArgs, ctx);
 
     default:
       return JSON.stringify({ error: `Unknown tool: ${toolName}` });
@@ -401,19 +440,38 @@ interface BraveSearchResult {
   title?: string;
   description?: string;
   url?: string;
+  age?: string;
+  page_age?: string;
 }
 
 interface BraveSearchResponse {
   web?: {
     results?: BraveSearchResult[];
   };
+  query?: {
+    original?: string;
+  };
 }
 
+/**
+ * Enhanced news search with freshness filters, source targeting, and timestamp context.
+ *
+ * Freshness options:
+ * - "ph" = past hour (breaking news)
+ * - "pd" = past day (default, recommended for trading)
+ * - "pw" = past week
+ * - "pm" = past month
+ *
+ * Source options:
+ * - "news" = official press releases (globenewswire, prnewswire, businesswire)
+ * - "social" = social sentiment (reddit, x.com)
+ * - "all" = no filter (default)
+ */
 async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
   if (!args.query || typeof args.query !== "string") {
     return JSON.stringify({ results: [], error: "query is required" });
   }
-  const query = args.query;
+
   const apiKey = process.env.BRAVE_API_KEY;
   if (!apiKey) {
     return JSON.stringify({
@@ -422,17 +480,34 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
     });
   }
 
+  // Build query with optional site targeting
+  let query = args.query;
+  const sources = args.sources ?? "all";
+
+  if (sources === "news") {
+    // Target official news/press release sites
+    query = `(site:globenewswire.com OR site:prnewswire.com OR site:businesswire.com OR site:reuters.com OR site:bloomberg.com) ${query}`;
+  } else if (sources === "social") {
+    // Target social/sentiment sites
+    query = `(site:reddit.com OR site:x.com OR site:twitter.com) ${query}`;
+  }
+
+  // Freshness: default to past day for trading relevance
+  const freshness = args.freshness ?? "pd";
+
   try {
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.set("q", query);
-    url.searchParams.set("count", "5");
+    url.searchParams.set("count", "15"); // Get more results for better coverage
+    url.searchParams.set("freshness", freshness);
+    url.searchParams.set("text_decorations", "false");
 
     const res = await fetch(url.toString(), {
       headers: {
         "X-Subscription-Token": apiKey,
         Accept: "application/json",
       },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (!res.ok) {
@@ -443,12 +518,35 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
     }
 
     const data = (await res.json()) as BraveSearchResponse;
-    const results = (data.web?.results ?? []).slice(0, 5).map((r) => ({
+    const rawResults = data.web?.results ?? [];
+
+    // Format results with age context
+    const results = rawResults.slice(0, 10).map((r) => ({
       title: r.title ?? "",
-      description: (r.description ?? "").slice(0, 300),
+      description: (r.description ?? "").slice(0, 400),
       url: r.url ?? "",
+      age: r.age ?? r.page_age ?? "unknown",
     }));
-    return JSON.stringify({ results });
+
+    // Add timestamp context to help prevent LLM hallucination
+    const currentTime = new Date().toISOString();
+    const freshnessLabel = {
+      ph: "past hour",
+      pd: "past 24 hours",
+      pw: "past week",
+      pm: "past month",
+    }[freshness];
+
+    return JSON.stringify({
+      results,
+      context: {
+        query: args.query,
+        sources,
+        freshness: freshnessLabel,
+        currentTimestamp: currentTime,
+        note: `Results are from ${freshnessLabel}. Discard any information that contradicts current date: ${currentTime.slice(0, 10)}.`,
+      },
+    });
   } catch (err) {
     return JSON.stringify({
       results: [],
@@ -476,6 +574,155 @@ function executeGetTechnicalIndicators(args: GetTechnicalIndicatorsArgs): string
       trend: "sideways",
       signalStrength: 50,
       note: "Insufficient data for indicators",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Jupiter Quote API Types
+// ---------------------------------------------------------------------------
+
+interface JupiterQuoteResponse {
+  inputMint: string;
+  outputMint: string;
+  inAmount: string;
+  outAmount: string;
+  otherAmountThreshold: string;
+  swapMode: string;
+  slippageBps: number;
+  priceImpactPct: string;
+  routePlan: Array<{
+    swapInfo: {
+      ammKey: string;
+      label: string;
+      inputMint: string;
+      outputMint: string;
+      inAmount: string;
+      outAmount: string;
+      feeAmount: string;
+      feeMint: string;
+    };
+    percent: number;
+  }>;
+  contextSlot?: number;
+  timeTaken?: number;
+}
+
+/**
+ * Get accurate execution quote from Jupiter DEX.
+ *
+ * Uses Jupiter's /quote endpoint to get exact output amount, price impact,
+ * and slippage for a specific trade size. This is more accurate than the
+ * /price endpoint which only gives mid-market estimates.
+ */
+async function executeGetExecutionQuote(
+  args: GetExecutionQuoteArgs,
+  ctx: ToolContext,
+): Promise<string> {
+  if (!args.symbol || typeof args.symbol !== "string") {
+    return JSON.stringify({ error: "symbol is required" });
+  }
+  if (!args.side || !["buy", "sell"].includes(args.side)) {
+    return JSON.stringify({ error: "side must be 'buy' or 'sell'" });
+  }
+  if (!args.amount || typeof args.amount !== "number" || args.amount <= 0) {
+    return JSON.stringify({ error: "amount must be a positive number" });
+  }
+
+  // Find the stock in catalog
+  const stock = XSTOCKS_CATALOG.find(
+    (s) => s.symbol.toLowerCase() === args.symbol.toLowerCase(),
+  );
+  if (!stock) {
+    return JSON.stringify({ error: `Unknown symbol: ${args.symbol}` });
+  }
+
+  const jupiterApiKey = process.env.JUPITER_API_KEY;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (jupiterApiKey) headers["x-api-key"] = jupiterApiKey;
+
+  try {
+    let inputMint: string;
+    let outputMint: string;
+    let amountRaw: string;
+
+    if (args.side === "buy") {
+      // Buying stock: USDC -> Stock
+      inputMint = USDC_MINT_MAINNET;
+      outputMint = stock.mintAddress;
+      // USDC has 6 decimals
+      amountRaw = Math.floor(args.amount * 1_000_000).toString();
+    } else {
+      // Selling stock: Stock -> USDC
+      inputMint = stock.mintAddress;
+      outputMint = USDC_MINT_MAINNET;
+      // Stock has 8 decimals (per catalog)
+      amountRaw = Math.floor(args.amount * 100_000_000).toString();
+    }
+
+    // Use 100 bps (1%) slippage tolerance for quote
+    const slippageBps = 100;
+
+    const url = new URL("https://api.jup.ag/quote/v1");
+    url.searchParams.set("inputMint", inputMint);
+    url.searchParams.set("outputMint", outputMint);
+    url.searchParams.set("amount", amountRaw);
+    url.searchParams.set("slippageBps", slippageBps.toString());
+
+    const res = await fetch(url.toString(), {
+      headers,
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return JSON.stringify({
+        error: `Jupiter quote failed: ${res.status}`,
+        details: errText.slice(0, 200),
+      });
+    }
+
+    const quote = (await res.json()) as JupiterQuoteResponse;
+
+    // Calculate effective price
+    let effectivePrice: number;
+    let outputAmount: number;
+
+    if (args.side === "buy") {
+      // Output is stock tokens (8 decimals)
+      outputAmount = parseInt(quote.outAmount) / 100_000_000;
+      effectivePrice = args.amount / outputAmount;
+    } else {
+      // Output is USDC (6 decimals)
+      outputAmount = parseInt(quote.outAmount) / 1_000_000;
+      effectivePrice = outputAmount / args.amount;
+    }
+
+    // Get route info
+    const routes = quote.routePlan.map((r) => ({
+      dex: r.swapInfo.label,
+      percent: r.percent,
+    }));
+
+    return JSON.stringify({
+      symbol: args.symbol,
+      side: args.side,
+      inputAmount: args.amount,
+      outputAmount: outputAmount.toFixed(args.side === "buy" ? 6 : 2),
+      effectivePrice: effectivePrice.toFixed(4),
+      priceImpactPercent: parseFloat(quote.priceImpactPct).toFixed(4),
+      slippageToleranceBps: quote.slippageBps,
+      minOutputAmount: (parseInt(quote.otherAmountThreshold) / (args.side === "buy" ? 100_000_000 : 1_000_000)).toFixed(args.side === "buy" ? 6 : 2),
+      routes,
+      note: parseFloat(quote.priceImpactPct) > 1
+        ? "WARNING: High price impact (>1%). Consider smaller trade size."
+        : "Quote is indicative. Actual execution may vary.",
+    });
+  } catch (err) {
+    return JSON.stringify({
+      error: err instanceof Error ? err.message : "Quote request failed",
     });
   }
 }

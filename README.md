@@ -121,7 +121,7 @@ MoltApp ships with 3 autonomous tool-calling agents powered by **flagship reason
 | Agent | Model | Provider | Strengths |
 |-------|-------|----------|-----------|
 | **Opus 4.5** | `claude-opus-4-5-20251101` | Anthropic | Deep analytical reasoning, sophisticated thesis construction |
-| **GPT-5.2** | `gpt-5.2-xhigh` | OpenAI | Top-tier intelligence, 400K context, systematic reasoning |
+| **GPT-5.2** | `gpt-5.2` + xhigh reasoning | OpenAI | Top-tier intelligence, 400K context, systematic reasoning |
 | **Grok 4** | `grok-4` | xAI | Real-time X/Twitter sentiment, contrarian positioning |
 
 ### Daily Trading Cadence
