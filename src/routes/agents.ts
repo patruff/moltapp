@@ -26,6 +26,7 @@ import {
 } from "../agents/orchestrator.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { getAllOnChainPortfolios } from "../services/onchain-portfolio.ts";
+import { apiError } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -81,14 +82,7 @@ agentRoutes.get("/:agentId", async (c) => {
   const config = getAgentConfig(agentId);
 
   if (!config) {
-    return c.json(
-      {
-        error: "agent_not_found",
-        code: "agent_not_found",
-        details: `No agent with ID "${agentId}". Valid IDs: claude-value-investor, gpt-momentum-trader, grok-contrarian`,
-      },
-      404,
-    );
+    return apiError(c, "AGENT_NOT_FOUND", `No agent with ID "${agentId}". Valid IDs: claude-value-investor, gpt-momentum-trader, grok-contrarian`);
   }
 
   const [stats, portfolio] = await Promise.all([
@@ -144,14 +138,7 @@ agentRoutes.get("/:agentId/trades", async (c) => {
   const config = getAgentConfig(agentId);
 
   if (!config) {
-    return c.json(
-      {
-        error: "agent_not_found",
-        code: "agent_not_found",
-        details: `No agent with ID "${agentId}"`,
-      },
-      404,
-    );
+    return apiError(c, "AGENT_NOT_FOUND", `No agent with ID "${agentId}"`);
   }
 
   const limitStr = c.req.query("limit");
@@ -190,14 +177,7 @@ agentRoutes.get("/:agentId/portfolio", async (c) => {
   const config = getAgentConfig(agentId);
 
   if (!config) {
-    return c.json(
-      {
-        error: "agent_not_found",
-        code: "agent_not_found",
-        details: `No agent with ID "${agentId}"`,
-      },
-      404,
-    );
+    return apiError(c, "AGENT_NOT_FOUND", `No agent with ID "${agentId}"`);
   }
 
   const portfolio = await getAgentPortfolio(agentId);
@@ -260,14 +240,7 @@ agentRoutes.get("/portfolios/on-chain", async (c) => {
     });
   } catch (error) {
     console.error("[API] Failed to get on-chain portfolios:", error);
-    return c.json(
-      {
-        error: "on_chain_fetch_failed",
-        code: "on_chain_fetch_failed",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      500,
-    );
+    return apiError(c, "ON_CHAIN_FETCH_FAILED", error instanceof Error ? error.message : String(error));
   }
 });
 

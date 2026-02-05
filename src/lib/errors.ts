@@ -59,6 +59,7 @@ export const ErrorCodes = {
   WALLET_CREATION_FAILED: { status: 500, code: "wallet_creation_failed" },
   WITHDRAWAL_FAILED: { status: 500, code: "withdrawal_failed" },
   TRADE_EXECUTION_FAILED: { status: 500, code: "trade_execution_failed" },
+  ON_CHAIN_FETCH_FAILED: { status: 500, code: "on_chain_fetch_failed" },
 
   // 502 Bad Gateway
   MOLTBOOK_VERIFICATION_FAILED: { status: 502, code: "moltbook_verification_failed" },
