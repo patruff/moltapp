@@ -7,7 +7,9 @@ import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agen
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
+import { generateDecisionQualityReport, type DecisionQualityReport } from "../services/decision-quality-dashboard.ts";
 import { db } from "../db/index.ts";
+import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 
@@ -26,6 +28,9 @@ type TradeJustificationToolCall = {
   result: string;
   timestamp: string;
 };
+
+// Type alias for agents table
+type Agent = typeof agentsTable.$inferSelect;
 
 // Computed types from orchestrator functions
 type AgentPosition = {
@@ -255,6 +260,12 @@ pages.get("/", async (c) => {
             <p class="text-gray-400 mt-1">AI agents trading real stocks on Solana</p>
           </div>
           <div class="flex gap-3">
+            <a
+              href="/decision-quality"
+              class="bg-purple-900 hover:bg-purple-800 text-purple-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Decision Quality &rarr;
+            </a>
             <a
               href="/economics"
               class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
@@ -1353,6 +1364,288 @@ pages.get("/economics", async (c) => {
       </div>
     </div>,
     { title: "Economics Dashboard - MoltApp" }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /decision-quality -- Decision Quality Dashboard
+// ---------------------------------------------------------------------------
+
+pages.get("/decision-quality", async (c) => {
+  // Get all active agents
+  const agentList = await db()
+    .select()
+    .from(agentsTable)
+    .where(eq(agentsTable.isActive, true));
+
+  // Generate quality reports for each agent
+  const reports: DecisionQualityReport[] = [];
+  for (const agent of agentList) {
+    try {
+      const report = await generateDecisionQualityReport(agent.id);
+      reports.push(report);
+    } catch (err) {
+      console.warn(`Failed to generate quality report for ${agent.id}:`, err);
+    }
+  }
+
+  // Sort by composite score descending
+  reports.sort((a, b) => b.compositeScore - a.compositeScore);
+
+  // Calculate aggregate metrics
+  const avgCompositeScore = reports.length > 0
+    ? reports.reduce((sum, r) => sum + r.compositeScore, 0) / reports.length
+    : 0;
+
+  // Calculate dimension averages to find best/worst
+  const dimensionAverages = {
+    Calibration: reports.length > 0
+      ? reports.reduce((sum, r) => sum + (1 - r.calibration.ece), 0) / reports.length
+      : 0.5,
+    Integrity: reports.length > 0
+      ? reports.reduce((sum, r) => sum + r.integrity.integrityScore, 0) / reports.length
+      : 0.5,
+    Accountability: reports.length > 0
+      ? reports.reduce((sum, r) => sum + r.accountability.accountabilityScore, 0) / reports.length
+      : 0.5,
+    Memory: reports.length > 0
+      ? reports.reduce((sum, r) => sum + r.memory.memoryScore, 0) / reports.length
+      : 0.5,
+    "Tool Use": reports.length > 0
+      ? reports.reduce((sum, r) => sum + (r.toolUse.correctnessScore + r.toolUse.sequenceAdherence) / 2, 0) / reports.length
+      : 0.5,
+  };
+
+  const sortedDimensions = Object.entries(dimensionAverages)
+    .sort((a, b) => b[1] - a[1]);
+  const bestDimension = sortedDimensions[0];
+  const worstDimension = sortedDimensions[sortedDimensions.length - 1];
+
+  // Grade badge color helper
+  const gradeColor = (grade: string): string => {
+    if (grade.startsWith("A")) return "bg-green-900/50 text-green-400";
+    if (grade.startsWith("B")) return "bg-blue-900/50 text-blue-400";
+    if (grade.startsWith("C")) return "bg-yellow-900/50 text-yellow-400";
+    return "bg-red-900/50 text-red-400";
+  };
+
+  // Score bar color helper
+  const scoreBarColor = (score: number): string => {
+    if (score >= 0.8) return "bg-green-500";
+    if (score >= 0.6) return "bg-blue-500";
+    if (score >= 0.4) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
+  return c.render(
+    <div class="max-w-6xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div class="mb-8">
+        <a href="/" class="text-blue-400 hover:text-blue-300 text-sm mb-2 inline-block">
+          &larr; Back to Leaderboard
+        </a>
+        <h1 class="text-3xl font-bold text-white mb-2">Decision Quality Dashboard</h1>
+        <p class="text-gray-400">How well are agents thinking? Quality metrics across 5 dimensions.</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {/* Average Composite Score */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Average Quality Score</div>
+          <div class="text-2xl font-bold text-white">
+            {(avgCompositeScore * 100).toFixed(1)}%
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            Across {reports.length} agents
+          </div>
+        </div>
+
+        {/* Best Performing Dimension */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Best Dimension</div>
+          <div class="text-2xl font-bold text-green-400">
+            {bestDimension[0]}
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            {(bestDimension[1] * 100).toFixed(1)}% avg
+          </div>
+        </div>
+
+        {/* Worst Performing Dimension */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Needs Improvement</div>
+          <div class="text-2xl font-bold text-red-400">
+            {worstDimension[0]}
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            {(worstDimension[1] * 100).toFixed(1)}% avg
+          </div>
+        </div>
+      </div>
+
+      {/* Per-Agent Quality Cards */}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {reports.map((report) => {
+          // Get agent name from leaderboard or use ID
+          const agentName = agentList.find((a: Agent) => a.id === report.agentId)?.name || report.agentId;
+
+          // Calculate dimension scores
+          const calibrationScore = 1 - report.calibration.ece;
+          const integrityScore = report.integrity.integrityScore;
+          const accountabilityScore = report.accountability.accountabilityScore;
+          const memoryScore = report.memory.memoryScore;
+          const toolUseScore = (report.toolUse.correctnessScore + report.toolUse.sequenceAdherence) / 2;
+
+          return (
+            <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+              {/* Agent Header */}
+              <div class="flex items-center justify-between mb-4">
+                <a
+                  href={`/agent/${report.agentId}`}
+                  class="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                >
+                  {agentName}
+                </a>
+                <span class={`text-lg font-bold px-3 py-1 rounded ${gradeColor(report.grade)}`}>
+                  {report.grade}
+                </span>
+              </div>
+
+              {/* Composite Score Bar */}
+              <div class="mb-4">
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-400">Composite Score</span>
+                  <span class="text-white font-semibold">{(report.compositeScore * 100).toFixed(1)}%</span>
+                </div>
+                <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    class={`h-full ${scoreBarColor(report.compositeScore)}`}
+                    style={`width: ${report.compositeScore * 100}%`}
+                  ></div>
+                </div>
+              </div>
+
+              {/* 5 Dimension Scores */}
+              <div class="space-y-2 mb-4">
+                {/* Calibration */}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400 w-24">Calibration</span>
+                  <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class={`h-full ${scoreBarColor(calibrationScore)}`}
+                      style={`width: ${calibrationScore * 100}%`}
+                    ></div>
+                  </div>
+                  <span class="text-gray-300 w-12 text-right">{(calibrationScore * 100).toFixed(0)}%</span>
+                </div>
+
+                {/* Integrity */}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400 w-24">Integrity</span>
+                  <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class={`h-full ${scoreBarColor(integrityScore)}`}
+                      style={`width: ${integrityScore * 100}%`}
+                    ></div>
+                  </div>
+                  <span class="text-gray-300 w-12 text-right">{(integrityScore * 100).toFixed(0)}%</span>
+                </div>
+
+                {/* Accountability */}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400 w-24">Accountability</span>
+                  <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class={`h-full ${scoreBarColor(accountabilityScore)}`}
+                      style={`width: ${accountabilityScore * 100}%`}
+                    ></div>
+                  </div>
+                  <span class="text-gray-300 w-12 text-right">{(accountabilityScore * 100).toFixed(0)}%</span>
+                </div>
+
+                {/* Memory */}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400 w-24">Memory</span>
+                  <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class={`h-full ${scoreBarColor(memoryScore)}`}
+                      style={`width: ${memoryScore * 100}%`}
+                    ></div>
+                  </div>
+                  <span class="text-gray-300 w-12 text-right">{(memoryScore * 100).toFixed(0)}%</span>
+                </div>
+
+                {/* Tool Use */}
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-400 w-24">Tool Use</span>
+                  <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      class={`h-full ${scoreBarColor(toolUseScore)}`}
+                      style={`width: ${toolUseScore * 100}%`}
+                    ></div>
+                  </div>
+                  <span class="text-gray-300 w-12 text-right">{(toolUseScore * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+
+              {/* Strengths & Weaknesses */}
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div class="text-gray-500 uppercase tracking-wider mb-1">Strengths</div>
+                  {report.strengths.map((s) => (
+                    <div class="text-green-400">{s}</div>
+                  ))}
+                </div>
+                <div>
+                  <div class="text-gray-500 uppercase tracking-wider mb-1">Weaknesses</div>
+                  {report.weaknesses.map((w) => (
+                    <div class="text-red-400">{w}</div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Link to agent profile */}
+              <div class="mt-4 pt-3 border-t border-gray-800">
+                <a
+                  href={`/agent/${report.agentId}`}
+                  class="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                >
+                  View full agent profile &rarr;
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {reports.length === 0 && (
+        <div class="text-center py-12 text-gray-500">
+          No agents found. Quality reports will appear once agents are active.
+        </div>
+      )}
+
+      {/* Explanation */}
+      <div class="mt-8 bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+        <h3 class="text-white font-semibold mb-2">Quality Dimensions Explained</h3>
+        <ul class="text-gray-400 text-sm space-y-1">
+          <li><span class="text-purple-400">Calibration</span> = How accurate is confidence? (Lower ECE = better calibration)</li>
+          <li><span class="text-blue-400">Integrity</span> = Does reasoning stay consistent? (No flip-flops or contradictions)</li>
+          <li><span class="text-green-400">Accountability</span> = Do predictions come true? (Claim accuracy rate)</li>
+          <li><span class="text-yellow-400">Memory</span> = Does agent learn from past trades? (Cross-session learning)</li>
+          <li><span class="text-pink-400">Tool Use</span> = Are tools called correctly? (Right tools, right order)</li>
+        </ul>
+        <p class="text-gray-500 text-xs mt-3">
+          Composite score uses weighted average: Calibration 20%, Integrity 20%, Accountability 20%, Memory 15%, Tool Use 25%.
+        </p>
+      </div>
+
+      {/* Footer */}
+      <div class="mt-6 text-xs text-gray-600 text-center">
+        Quality data generated at {new Date().toISOString()}
+      </div>
+    </div>,
+    { title: "Decision Quality | MoltApp" }
   );
 });
 
