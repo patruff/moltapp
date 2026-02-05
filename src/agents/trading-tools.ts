@@ -388,20 +388,54 @@ async function executeUpdateThesis(
   if (!args.symbol || typeof args.symbol !== "string") {
     return JSON.stringify({ success: false, error: "symbol is required" });
   }
-  if (!args.thesis || typeof args.thesis !== "string") {
-    return JSON.stringify({ success: false, error: "thesis is required" });
+  if (!args.thesis || typeof args.thesis !== "string" || args.thesis.trim().length === 0) {
+    return JSON.stringify({ success: false, error: "thesis is required and cannot be empty" });
+  }
+  if (args.thesis.length > 2000) {
+    return JSON.stringify({ success: false, error: "thesis must be 2000 characters or less" });
   }
   if (!args.conviction || typeof args.conviction !== "string") {
     return JSON.stringify({ success: false, error: "conviction is required" });
   }
+
+  // Validate conviction is a valid number 1-10
+  const convictionNum = parseInt(args.conviction, 10);
+  if (isNaN(convictionNum) || convictionNum < 1 || convictionNum > 10) {
+    return JSON.stringify({
+      success: false,
+      error: "conviction must be a number between 1-10"
+    });
+  }
+
   if (!args.direction || !["bullish", "bearish", "neutral"].includes(args.direction)) {
     return JSON.stringify({ success: false, error: "direction must be bullish, bearish, or neutral" });
   }
+
+  // Validate optional price fields if provided
+  if (args.entry_price !== undefined && args.entry_price !== null && args.entry_price !== "") {
+    const entryPrice = parseFloat(args.entry_price);
+    if (isNaN(entryPrice) || entryPrice <= 0) {
+      return JSON.stringify({
+        success: false,
+        error: "entry_price must be a positive number"
+      });
+    }
+  }
+  if (args.target_price !== undefined && args.target_price !== null && args.target_price !== "") {
+    const targetPrice = parseFloat(args.target_price);
+    if (isNaN(targetPrice) || targetPrice <= 0) {
+      return JSON.stringify({
+        success: false,
+        error: "target_price must be a positive number"
+      });
+    }
+  }
+
   try {
     const result = await upsertThesis(ctx.agentId, {
       symbol: args.symbol,
       thesis: args.thesis,
-      conviction: Math.max(1, Math.min(10, parseInt(args.conviction) || 5)),
+      conviction: convictionNum,
       direction: args.direction ?? "neutral",
       entryPrice: args.entry_price,
       targetPrice: args.target_price,
@@ -422,8 +456,11 @@ async function executeCloseThesis(
   if (!args.symbol || typeof args.symbol !== "string") {
     return JSON.stringify({ success: false, error: "symbol is required" });
   }
-  if (!args.reason || typeof args.reason !== "string") {
-    return JSON.stringify({ success: false, error: "reason is required" });
+  if (!args.reason || typeof args.reason !== "string" || args.reason.trim().length === 0) {
+    return JSON.stringify({ success: false, error: "reason is required and cannot be empty" });
+  }
+  if (args.reason.length > 1000) {
+    return JSON.stringify({ success: false, error: "reason must be 1000 characters or less" });
   }
   try {
     const result = await closeThesis(ctx.agentId, args.symbol, args.reason);
@@ -468,8 +505,25 @@ interface BraveSearchResponse {
  * - "all" = no filter (default)
  */
 async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
-  if (!args.query || typeof args.query !== "string") {
-    return JSON.stringify({ results: [], error: "query is required" });
+  if (!args.query || typeof args.query !== "string" || args.query.trim().length === 0) {
+    return JSON.stringify({ results: [], error: "query is required and cannot be empty" });
+  }
+  if (args.query.length > 500) {
+    return JSON.stringify({ results: [], error: "query must be 500 characters or less" });
+  }
+
+  // Validate enum fields if provided
+  if (args.freshness && !["ph", "pd", "pw", "pm"].includes(args.freshness)) {
+    return JSON.stringify({
+      results: [],
+      error: "freshness must be one of: ph, pd, pw, pm"
+    });
+  }
+  if (args.sources && !["news", "social", "all"].includes(args.sources)) {
+    return JSON.stringify({
+      results: [],
+      error: "sources must be one of: news, social, all"
+    });
   }
 
   const apiKey = process.env.BRAVE_API_KEY;
@@ -600,6 +654,15 @@ async function executeGetExecutionQuote(
   }
   if (!args.amount || typeof args.amount !== "number" || args.amount <= 0) {
     return JSON.stringify({ error: "amount must be a positive number" });
+  }
+  if (!Number.isFinite(args.amount)) {
+    return JSON.stringify({ error: "amount must be a finite number" });
+  }
+  if (args.amount > 1_000_000_000) {
+    return JSON.stringify({ error: "amount exceeds maximum (1B)" });
+  }
+  if (args.amount < 0.01) {
+    return JSON.stringify({ error: "amount must be at least 0.01" });
   }
 
   // Find the stock in catalog
