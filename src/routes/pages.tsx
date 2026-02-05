@@ -7,8 +7,24 @@ import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agen
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { db } from "../db/index.ts";
-import { trades, agentDecisions } from "../db/schema/index.ts";
+import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
+
+// Type aliases for database query results and computed types
+type Trade = typeof trades.$inferSelect;
+type AgentDecision = typeof agentDecisions.$inferSelect;
+type Thesis = typeof agentTheses.$inferSelect;
+type DbPosition = typeof positions.$inferSelect;
+
+// Computed types from orchestrator functions
+type AgentPosition = {
+  symbol: string;
+  quantity: number;
+  averageCostBasis: number;
+  currentPrice: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+};
 
 // Type-safe c.render() with title prop
 declare module "hono" {
@@ -435,7 +451,7 @@ pages.get("/agent/:id", async (c) => {
                 </tr>
               </thead>
               <tbody>
-                {portfolio.positions.map((p: any) => {
+                {portfolio.positions.map((p: AgentPosition) => {
                   const value = p.currentPrice * p.quantity;
                   return (
                     <tr class="border-b border-gray-900/50">
@@ -465,13 +481,13 @@ pages.get("/agent/:id", async (c) => {
           <h2 class="text-lg font-bold text-white mb-1">Investment Theses</h2>
           <p class="text-xs text-gray-500 mb-4">Agent's documented investment reasoning for each stock position.</p>
           <div class="space-y-4">
-            {thesisHistory.map((t: any) => {
+            {thesisHistory.map((t: Thesis) => {
               const isActive = t.status === "active";
               const isBullish = t.direction === "bullish";
               const isBearish = t.direction === "bearish";
 
               // Find matching position to show current P&L
-              const matchingPosition = portfolio.positions.find((p: any) => p.symbol === t.symbol);
+              const matchingPosition = portfolio.positions.find((p: AgentPosition) => p.symbol === t.symbol);
               const currentPnlPercent = matchingPosition?.unrealizedPnlPercent;
 
               return (
@@ -554,7 +570,7 @@ pages.get("/agent/:id", async (c) => {
                 </tr>
               </thead>
               <tbody>
-                {onChainTrades.map((t: any) => {
+                {onChainTrades.map((t: Trade) => {
                   const isPaper = t.txSignature?.startsWith("paper_");
                   return (
                     <tr class="border-b border-gray-900/50 hover:bg-gray-900/30">
@@ -599,7 +615,7 @@ pages.get("/agent/:id", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
           <h2 class="text-lg font-bold text-white mb-4">Recent Decisions</h2>
           <div class="space-y-4">
-            {tradeHistory.decisions.slice(0, 5).map((d: any) => (
+            {tradeHistory.decisions.slice(0, 5).map((d: AgentDecision) => (
               <div class="border-l-2 border-gray-700 pl-4">
                 <div class="flex items-center gap-2 mb-1">
                   <span class={`text-xs font-bold px-2 py-0.5 rounded ${

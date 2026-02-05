@@ -183,8 +183,11 @@ export function loadSkillPrompt(overrides?: Record<string, string>): string {
 // Abstract Base Class
 // ---------------------------------------------------------------------------
 
-/** Max tool-calling turns before forcing a decision (increased for flagship reasoning models) */
-const MAX_TURNS = 12;
+/** Max tool-calling turns before forcing a decision */
+const MAX_TURNS = 15;
+
+/** Max total tool calls before forcing a decision */
+const MAX_TOOL_CALLS = 50;
 
 /**
  * Abstract base class for all AI trading agents.
@@ -311,17 +314,31 @@ export abstract class BaseTradingAgent {
 
     // Capture complete tool trace for audit/benchmark
     const toolTrace: ToolTraceEntry[] = [];
+    let totalToolCalls = 0;
 
     // Tool-calling loop
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const agentTurn = await this.callWithTools(system, messages, tools);
 
       if (agentTurn.stopReason === "tool_use" && agentTurn.toolCalls.length > 0) {
+        // Check if we're at the tool call limit
+        if (totalToolCalls + agentTurn.toolCalls.length >= MAX_TOOL_CALLS) {
+          console.log(
+            `[${this.config.name}] Tool call limit reached (${totalToolCalls}/${MAX_TOOL_CALLS}). Forcing decision.`,
+          );
+          const fallback = this.fallbackHold(
+            `Tool call limit reached (${MAX_TOOL_CALLS}). Based on data gathered, holding position.`,
+          );
+          fallback.toolTrace = toolTrace;
+          return fallback;
+        }
+
         // Execute all tool calls
         const results: ToolResult[] = [];
         for (const tc of agentTurn.toolCalls) {
+          totalToolCalls++;
           console.log(
-            `[${this.config.name}] Tool call: ${tc.name}(${JSON.stringify(tc.arguments).slice(0, 100)})`,
+            `[${this.config.name}] Tool call #${totalToolCalls}/${MAX_TOOL_CALLS}: ${tc.name}(${JSON.stringify(tc.arguments).slice(0, 80)})`,
           );
           const result = await executeTool(tc.name, tc.arguments, ctx);
           results.push({ toolCallId: tc.id, result });
