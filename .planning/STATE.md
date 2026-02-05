@@ -10,13 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: 09-ongoing-improvement
-Plan: 02 of 2 (Economics Dashboard) - COMPLETE
-Status: Phase 09 COMPLETE
+Phase: 10-agent-decision-quality
+Plan: 01 of 3 (Tool Use Quality Analyzer) - COMPLETE
+Status: In progress
 
-**Next Phase:** Phase 10: Agent Decision Quality
-
-Progress: [==========] 100% (both plans complete)
+Progress: [===-------] 33% (1 of 3 plans complete)
 
 Platform is fully operational. All core systems built and running:
 - 3 autonomous tool-calling agents (Claude, GPT, Grok) with shared skill.md
@@ -29,10 +27,12 @@ Platform is fully operational. All core systems built and running:
 - Benchmark submission API for external agents
 - HuggingFace dataset sync
 - Overnight heartbeat running trading rounds every 2 hours
-- **LLM token usage tracking with cost estimation (llm_usage table)**
-- **NEW: /economics dashboard showing cost vs trading returns**
+- LLM token usage tracking with cost estimation (llm_usage table)
+- /economics dashboard showing cost vs trading returns
+- **NEW: Tool use quality analyzer (validates agent tool-calling patterns)**
+- **NEW: Decision quality snapshots schema (stores composite quality metrics)**
 
-Last activity: 2026-02-05 — Completed 09-02-PLAN.md (Economics Dashboard)
+Last activity: 2026-02-05 — Completed 10-01-PLAN.md (Tool Use Quality Analyzer)
 
 ## Architecture Summary
 
@@ -44,7 +44,8 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
   → Circuit breaker checks → Jupiter DEX swap → Solana tx signature stored
   → Benchmark scoring (40+ dimensions) → Leaderboard + HuggingFace
   → LLM usage recorded to llm_usage table with cost estimation
-  → **/economics dashboard shows ROI and per-agent cost breakdown**
+  → /economics dashboard shows ROI and per-agent cost breakdown
+  → **Tool use quality analyzer validates tool-calling patterns**
 ```
 
 ## What's Built
@@ -66,11 +67,15 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 ### Dashboard & API
 - [x] Leaderboard page (/) — agents ranked by P&L %
 - [x] Agent profile page (/agent/:id) — positions, trade history, Solana tx links, wallet address, LLM economics
-- [x] **Economics dashboard (/economics) — LLM cost vs trading P&L, per-agent ROI**
+- [x] Economics dashboard (/economics) — LLM cost vs trading P&L, per-agent ROI
 - [x] Agent API — /api/v1/agents, /api/v1/agents/:id, /api/v1/agents/:id/portfolio, /api/v1/agents/:id/trades
 - [x] Benchmark submission API — external agents can submit trades for scoring
 - [x] Brain feed — live agent reasoning stream
 - [x] 40+ benchmark scoring dimensions
+
+### Quality Analysis (Phase 10)
+- [x] Tool use quality analyzer (src/services/tool-use-quality-analyzer.ts)
+- [x] Decision quality snapshots schema (src/db/schema/decision-quality.ts)
 
 ### Infrastructure
 - [x] Hono 4.x API server
@@ -85,6 +90,9 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
+| 2026-02-05 | Tool sequence: portfolio first, theses early, prices before trading | Matches skill.md guidance for agent tool-calling patterns |
+| 2026-02-05 | 3-level violation severity (low/medium/high) | Allows weighted scoring - missing prices is worse than late thesis call |
+| 2026-02-05 | Grade thresholds: A+ >= 0.95, A >= 0.9, etc. | Matches existing calibration analyzer grading for consistency |
 | 2026-02-05 | Usage field optional on AgentTurn | Backward compatibility with existing code |
 | 2026-02-05 | Model pricing in service not DB | Simpler to update pricing without migrations |
 | 2026-02-05 | recordUsage with .catch() pattern | Don't fail trading if DB write fails |
@@ -120,16 +128,16 @@ The heartbeat.sh script runs every 2 hours and:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 09-02-PLAN.md (Economics Dashboard) — Phase 09 COMPLETE
+Stopped at: Completed 10-01-PLAN.md (Tool Use Quality Analyzer)
 Resume file: None
 
 Changes this session:
-- Created /economics dashboard route with summary cards and per-agent breakdown
-- Added economics link to homepage header
-- Added LLM economics card to agent profile pages
+- Created tool-use-quality-analyzer service (validates agent tool-calling patterns)
+- Created decision-quality.ts schema (stores composite quality snapshots)
+- Added decisionQualitySnapshots export to schema index
 - TypeScript compilation: 0 errors
 
 Next steps:
-- Monitor economics dashboard with real usage data
-- Run trading rounds to accumulate LLM usage data
-- Consider new improvement opportunities for next phase
+- Execute 10-02-PLAN.md (Decision Quality Aggregator)
+- Aggregate tool use scores with calibration, integrity, accountability, memory scores
+- Create composite quality scoring
