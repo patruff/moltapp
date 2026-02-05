@@ -178,6 +178,33 @@ function ActionBadge({ action, size = "sm" }: { action: string; size?: "xs" | "s
   );
 }
 
+// Component: Exit outcome badge (TARGET_HIT/PROFITABLE/STOPPED_OUT/LOSS)
+function ExitOutcomeBadge({
+  exitOutcome,
+  pnlPercent
+}: {
+  exitOutcome: string;
+  pnlPercent: number
+}) {
+  const colorClasses =
+    exitOutcome === "TARGET_HIT" ? "bg-green-900/50 text-green-400" :
+    exitOutcome === "PROFITABLE" ? "bg-green-900/30 text-profit" :
+    exitOutcome === "STOPPED_OUT" ? "bg-red-900/50 text-red-400" :
+    "bg-red-900/30 text-loss";
+
+  const label =
+    exitOutcome === "TARGET_HIT" ? "✓ Target Hit" :
+    exitOutcome === "PROFITABLE" ? "✓ Profit" :
+    exitOutcome === "STOPPED_OUT" ? "✗ Stopped" :
+    "✗ Loss";
+
+  return (
+    <span class={`text-xs font-semibold px-2 py-0.5 rounded ${colorClasses}`}>
+      {label} {pnlSign(pnlPercent)}{pnlPercent.toFixed(1)}%
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -695,22 +722,9 @@ pages.get("/agent/:id", async (c) => {
                         {pnlSign(currentPnlPercent)}{Number(currentPnlPercent).toFixed(1)}% current
                       </span>
                     )}
-                    {!isActive && exitOutcome && exitPnlPercent != null && (() => {
-                      const pnl = exitPnlPercent; // Type assertion - guaranteed non-null here
-                      return (
-                        <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
-                          exitOutcome === "TARGET_HIT" ? "bg-green-900/50 text-green-400" :
-                          exitOutcome === "PROFITABLE" ? "bg-green-900/30 text-profit" :
-                          exitOutcome === "STOPPED_OUT" ? "bg-red-900/50 text-red-400" :
-                          "bg-red-900/30 text-loss"
-                        }`}>
-                          {exitOutcome === "TARGET_HIT" ? "✓ Target Hit" :
-                           exitOutcome === "PROFITABLE" ? "✓ Profit" :
-                           exitOutcome === "STOPPED_OUT" ? "✗ Stopped" :
-                           "✗ Loss"} {pnlSign(pnl)}{pnl.toFixed(1)}%
-                        </span>
-                      );
-                    })()}
+                    {!isActive && exitOutcome && exitPnlPercent != null && (
+                      <ExitOutcomeBadge exitOutcome={exitOutcome} pnlPercent={exitPnlPercent} />
+                    )}
                     <span class="text-gray-600 text-xs ml-auto">
                       {t.updatedAt ? formatTimeAgo(new Date(t.updatedAt)) : "—"}
                     </span>
