@@ -148,6 +148,20 @@ function ActionBadge({ action, size = "sm" }: { action: string; size?: "xs" | "s
   );
 }
 
+// Helper: Find exit trade for a thesis
+function findExitTrade(
+  thesis: Thesis,
+  trades: Trade[]
+): Trade | undefined {
+  const isBullish = thesis.direction === "bullish";
+
+  return trades.find((trade: Trade) =>
+    trade.stockSymbol === thesis.symbol &&
+    trade.side === (isBullish ? "sell" : "buy") &&
+    new Date(trade.createdAt) >= new Date(thesis.createdAt)
+  );
+}
+
 // Component: Exit outcome badge (TARGET_HIT/PROFITABLE/STOPPED_OUT/LOSS)
 function ExitOutcomeBadge({
   exitOutcome,
@@ -595,15 +609,8 @@ pages.get("/agent/:id", async (c) => {
         let lossesCount = 0;
 
         closedTheses.forEach((t: Thesis) => {
-          const isBullish = t.direction === "bullish";
-          const isBearish = t.direction === "bearish";
-
           // Find exit trade to determine outcome
-          const exitTrade = onChainTrades.find((trade: Trade) =>
-            trade.stockSymbol === t.symbol &&
-            trade.side === (isBullish ? "sell" : "buy") &&
-            new Date(trade.createdAt) >= new Date(t.createdAt)
-          );
+          const exitTrade = findExitTrade(t, onChainTrades);
 
           if (exitTrade && exitTrade.pricePerToken && t.entryPrice) {
             const exitPrice = Number(exitTrade.pricePerToken);
@@ -657,13 +664,8 @@ pages.get("/agent/:id", async (c) => {
               let exitPnlPercent: number | null = null;
 
               if (!isActive && t.entryPrice) {
-                // Find the first sell trade after thesis was created (for bullish)
-                // or first buy trade (for bearish short covers)
-                const exitTrade = onChainTrades.find((trade: Trade) =>
-                  trade.stockSymbol === t.symbol &&
-                  trade.side === (isBullish ? "sell" : "buy") &&
-                  new Date(trade.createdAt) >= new Date(t.createdAt)
-                );
+                // Find the exit trade (sell for bullish, buy for bearish)
+                const exitTrade = findExitTrade(t, onChainTrades);
 
                 if (exitTrade && exitTrade.pricePerToken) {
                   exitPrice = Number(exitTrade.pricePerToken);
