@@ -81,7 +81,7 @@ const {
 
 // Generate decision quality reports for all agents
 console.log("[sync-to-hf] Generating decision quality reports for agents...");
-const activeAgents = await db.select().from(agents).where(eq(agents.status, "active"));
+const activeAgents = await db.select().from(agents).where(eq(agents.isActive, true));
 const qualityReportMap = new Map<string, Awaited<ReturnType<typeof generateDecisionQualityReport>>>();
 for (const agent of activeAgents) {
   try {
@@ -99,7 +99,7 @@ const records = justifications.map((j) => {
   // Get quality report for this agent (if available)
   const q = qualityReportMap.get(j.agentId);
   // Compute v34-v37 scores for each record
-  const causalScore = scoreCausalReasoning(j.reasoning);
+  const causalScore = scoreCausalReasoning(j.reasoning, (j.sources as string[]) ?? []);
   const epistemicScore = scoreEpistemicHumility(
     j.reasoning,
     j.confidence,

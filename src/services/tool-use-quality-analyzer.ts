@@ -213,7 +213,7 @@ export async function analyzeToolUseQuality(
   const cutoff = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
 
   // Query recent trade justifications with tool traces
-  const justifications = await db()
+  const justifications = await db
     .select({
       id: tradeJustifications.id,
       action: tradeJustifications.action,

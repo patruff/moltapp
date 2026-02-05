@@ -36,7 +36,7 @@ export async function syncToHuggingFace(): Promise<number> {
   }
 
   // Generate decision quality reports for all agents
-  const activeAgents = await db.select().from(agents).where(eq(agents.status, "active"));
+  const activeAgents = await db.select().from(agents).where(eq(agents.isActive, true));
   const qualityReportMap = new Map<string, Awaited<ReturnType<typeof generateDecisionQualityReport>>>();
   for (const agent of activeAgents) {
     try {
