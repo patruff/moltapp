@@ -1263,6 +1263,35 @@ If portfolio has >5 positions:
   → NEVER add to existing positions above 20% allocation without selling something else first
 
 **Adding to Winners (Scaling Positions) — High Risk of Overconcentration:**
+
+**MANDATORY PRE-ADD CALCULATION CHECKLIST:**
+
+Before considering ANY add to an existing position, you MUST complete this checklist:
+
+```
+☐ Step 1: Call get_portfolio() to get current positions
+☐ Step 2: Calculate current position size
+   Current Position Value: $_____ USDC
+   Total Portfolio Value: $_____ USDC
+   Current Allocation: _____% (= Position Value / Portfolio Value * 100)
+
+☐ Step 3: Calculate post-add allocation
+   Proposed Add Amount: $_____ USDC
+   Post-Add Position Value: $_____ USDC (= Current + Add Amount)
+   Post-Add Allocation: _____% (= Post-Add Value / Portfolio Value * 100)
+
+☐ Step 4: Check concentration thresholds
+   ✓ Post-add allocation <15%? (REQUIRED for any add)
+   ✓ Current allocation <20%? (WARNING threshold — if exceeded, consider trim instead)
+   ✓ How many times have I added to THIS position in last 4 rounds? (0-1 OK, 2+ STOP)
+
+☐ Step 5: Verify new catalyst
+   ✓ Is this a NEW catalyst or just confirmation of original thesis?
+   ✓ Would I start this position TODAY at current price with THIS data?
+```
+
+**If ANY checkbox fails → DO NOT ADD. Consider HOLD or TRIM instead.**
+
   → Only add to winners if: (1) New catalyst emerged since original buy (not just price up), (2) Original thesis validated with new confirming data, (3) Position still <15% of portfolio pre-add, (4) Confidence ≥75 for the ADD decision
   → WARNING: "It's working so I'll add more" = recency bias. Ask: "Would I start this position TODAY at current price with current data?" If no, don't add.
 ```
