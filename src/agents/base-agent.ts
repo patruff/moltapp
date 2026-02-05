@@ -6,10 +6,8 @@
  * their own information via tools and persist investment theses across rounds.
  */
 
-import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
 import { executeTool, type ToolContext } from "./trading-tools.ts";
+import { SKILL_TEMPLATE } from "./skill-template.ts";
 
 // ---------------------------------------------------------------------------
 // Core Types
@@ -155,10 +153,8 @@ let skillTemplate: string | null = null;
 
 function getSkillTemplate(): string {
   if (!skillTemplate) {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const skillPath = resolve(__dirname, "skill.md");
-    skillTemplate = readFileSync(skillPath, "utf-8");
+    // Use embedded template (works in Lambda where file system access is limited)
+    skillTemplate = SKILL_TEMPLATE;
   }
   return skillTemplate;
 }
