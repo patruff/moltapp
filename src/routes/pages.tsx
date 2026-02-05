@@ -160,6 +160,24 @@ function calculateThesisPnl(
   return 0;
 }
 
+// Component: Action badge (BUY/SELL/HOLD color-coded badge)
+function ActionBadge({ action, size = "sm" }: { action: string; size?: "xs" | "sm" }) {
+  const sizeClasses = size === "xs"
+    ? "text-xs px-2 py-0.5"
+    : "text-sm px-3 py-1";
+
+  const colorClasses =
+    action === "buy" ? "bg-green-900/50 text-profit" :
+    action === "sell" ? "bg-red-900/50 text-loss" :
+    "bg-gray-800 text-gray-400";
+
+  return (
+    <span class={`font-bold rounded ${sizeClasses} ${colorClasses}`}>
+      {action?.toUpperCase()}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -795,13 +813,7 @@ pages.get("/agent/:id", async (c) => {
             {tradeHistory.decisions.slice(0, 5).map((d: AgentDecision) => (
               <div class="border-l-2 border-gray-700 pl-4">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class={`text-xs font-bold px-2 py-0.5 rounded ${
-                    d.action === "buy" ? "bg-green-900/50 text-profit" :
-                    d.action === "sell" ? "bg-red-900/50 text-loss" :
-                    "bg-gray-800 text-gray-400"
-                  }`}>
-                    {d.action?.toUpperCase()}
-                  </span>
+                  <ActionBadge action={d.action} size="xs" />
                   {d.symbol && <span class="text-white text-sm font-semibold">{d.symbol}</span>}
                   {d.confidence != null && (
                     <span class="text-gray-500 text-xs">Confidence: {d.confidence}%</span>
@@ -922,13 +934,7 @@ pages.get("/rounds", async (c) => {
                   <div class="border-l-2 border-gray-700 pl-4 py-2">
                     <div class="flex items-center gap-2 mb-2">
                       <span class="text-white font-semibold text-sm">{agentName}</span>
-                      <span class={`text-xs font-bold px-2 py-0.5 rounded ${
-                        d.action === "buy" ? "bg-green-900/50 text-profit" :
-                        d.action === "sell" ? "bg-red-900/50 text-loss" :
-                        "bg-gray-800 text-gray-400"
-                      }`}>
-                        {d.action?.toUpperCase()}
-                      </span>
+                      <ActionBadge action={d.action} size="xs" />
                       {d.symbol && <span class="text-gray-300 text-sm">{d.symbol}</span>}
                       {d.quantity && <span class="text-gray-500 text-xs">${d.quantity}</span>}
                       <span class="text-gray-500 text-xs ml-auto">
@@ -1025,13 +1031,7 @@ pages.get("/round/:id", async (c) => {
                   >
                     {agentName}
                   </a>
-                  <span class={`text-sm font-bold px-3 py-1 rounded ${
-                    j.action === "buy" ? "bg-green-900/50 text-profit" :
-                    j.action === "sell" ? "bg-red-900/50 text-loss" :
-                    "bg-gray-800 text-gray-400"
-                  }`}>
-                    {j.action?.toUpperCase()}
-                  </span>
+                  <ActionBadge action={j.action} size="sm" />
                   {j.symbol && <span class="text-white font-semibold">{j.symbol}</span>}
                 </div>
                 <div class="text-right">
