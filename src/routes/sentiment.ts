@@ -34,6 +34,7 @@ import {
   getSentimentTimeline,
   getMarketMoodIndex,
 } from "../services/sentiment.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const sentimentRoutes = new Hono();
 
@@ -52,10 +53,7 @@ export const sentimentRoutes = new Hono();
  */
 sentimentRoutes.get("/", async (c) => {
   try {
-    const limitStr = c.req.query("limit");
-    const limit = limitStr
-      ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 50))
-      : 50;
+    const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
     const signalFilter = c.req.query("signal");
 
     const [mood, allSentiments] = await Promise.all([
@@ -382,10 +380,7 @@ sentimentRoutes.get("/sectors", async (c) => {
  */
 sentimentRoutes.get("/news", async (c) => {
   try {
-    const limitStr = c.req.query("limit");
-    const limit = limitStr
-      ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 30))
-      : 30;
+    const limit = parseQueryInt(c.req.query("limit"), 30, 1, 100);
     const categoryFilter = c.req.query("category");
 
     let news = await generateNewsDigest();
@@ -695,10 +690,7 @@ sentimentRoutes.get("/correlation", async (c) => {
  */
 sentimentRoutes.get("/timeline/:symbol", async (c) => {
   const symbol = c.req.param("symbol");
-  const hoursStr = c.req.query("hours");
-  const hours = hoursStr
-    ? Math.min(168, Math.max(1, parseInt(hoursStr, 10) || 24))
-    : 24;
+  const hours = parseQueryInt(c.req.query("hours"), 24, 1, 168);
 
   try {
     const timeline = await getSentimentTimeline(symbol, hours);

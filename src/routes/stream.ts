@@ -43,6 +43,7 @@ import type {
   EventType,
   StreamEvent,
 } from "../services/event-stream.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -78,10 +79,7 @@ streamRoutes.get("/", (c) => {
   const sinceParam = c.req.query("since");
 
   // Parse optional replay count (how many recent events to send on connect)
-  const replayParam = c.req.query("replay");
-  const replayCount = replayParam
-    ? Math.min(50, Math.max(0, parseInt(replayParam, 10) || 10))
-    : 10;
+  const replayCount = parseQueryInt(c.req.query("replay"), 10, 0, 50);
 
   return streamSSE(c, async (stream) => {
     let subscriberId: string | null = null;
@@ -228,15 +226,11 @@ streamRoutes.get("/events", (c) => {
   try {
     const typesParam = c.req.query("types");
     const sinceParam = c.req.query("since");
-    const limitParam = c.req.query("limit");
-
     const typeFilter = typesParam
       ? EventBus.parseTypeFilter(typesParam)
       : undefined;
 
-    const limit = limitParam
-      ? Math.min(100, Math.max(1, parseInt(limitParam, 10) || 100))
-      : 100;
+    const limit = parseQueryInt(c.req.query("limit"), 100, 1, 100);
 
     const events = eventBus.getRecentEvents(
       sinceParam ?? undefined,

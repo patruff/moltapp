@@ -21,6 +21,7 @@ import {
   getStockIndicators,
   getAgentConsensusData,
 } from "../services/signals.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const signalRoutes = new Hono();
 
@@ -60,11 +61,8 @@ signalRoutes.get("/active", async (c) => {
   try {
     const directionFilter = c.req.query("direction"); // bullish, bearish, neutral
     const typeFilter = c.req.query("type"); // signal type
-    const minStrength = parseInt(c.req.query("min_strength") ?? "0", 10);
-    const limitStr = c.req.query("limit");
-    const limit = limitStr
-      ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 50))
-      : 50;
+    const minStrength = parseQueryInt(c.req.query("min_strength"), 0, 0);
+    const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
 
     let signals = await getAllSignals();
 
