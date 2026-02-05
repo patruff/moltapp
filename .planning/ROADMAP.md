@@ -76,17 +76,16 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 - On-chain verification banner
 - README updated with verifiability docs, live dashboard table
 
-### Phase 9: LLM Cost Tracking + Economics Dashboard (Active)
+### Phase 9: LLM Cost Tracking + Economics Dashboard
 **Goal**: Answer "Are the agents actually making money?" with cost vs return visibility
-**Plans:** 2 plans
+**Status**: Complete (2/2 plans)
+- LLM usage table (llm_usage) tracking token counts per round/agent/model
+- Cost tracker service with model pricing (recordLlmUsage, estimateCost, getTotalCosts)
+- Token extraction from Claude, GPT, Grok API responses
+- /economics dashboard showing cost vs P&L, net economics, per-agent breakdown
+- Agent profile economics cards
 
-Plans:
-- [ ] 09-01-PLAN.md — LLM Usage Schema + Token Capture (schema, agent modifications, cost tracker service)
-- [ ] 09-02-PLAN.md — Economics Dashboard (/economics page showing cost vs P&L)
-
-**Focus areas**:
-- [x] LLM cost tracking (capture token usage, store costs)
-- [x] Cost vs return dashboard (/economics page)
+**Future improvement areas** (ongoing):
 - [ ] Agent decision quality (are they making good trades?)
 - [ ] Skill.md refinement (clearer instructions)
 - [ ] Bug fixes (300+ pre-existing TS errors in older files)
@@ -106,4 +105,4 @@ Plans:
 | 6. Tool-Calling Agents | v2.0 | Complete | 2026-02-04 |
 | 7. Skill System | v2.0 | Complete | 2026-02-04 |
 | 8. On-Chain + Dashboard | v2.1 | Complete | 2026-02-04 |
-| 9. Cost Tracking + Economics | v2.1 | 0/2 plans | — |
+| 9. Cost Tracking + Economics | v2.1 | Complete | 2026-02-05 |
