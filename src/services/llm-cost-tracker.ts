@@ -86,8 +86,8 @@ export async function getAgentCosts(
 ): Promise<{ totalCost: number; totalTokens: number }> {
   const rows = await db.select().from(llmUsage).where(eq(llmUsage.agentId, agentId));
   return {
-    totalCost: rows.reduce((sum, r) => sum + parseFloat(r.estimatedCostUsd ?? "0"), 0),
-    totalTokens: rows.reduce((sum, r) => sum + r.totalTokens, 0),
+    totalCost: rows.reduce((sum: number, r: typeof llmUsage.$inferSelect) => sum + parseFloat(r.estimatedCostUsd ?? "0"), 0),
+    totalTokens: rows.reduce((sum: number, r: typeof llmUsage.$inferSelect) => sum + r.totalTokens, 0),
   };
 }
 
