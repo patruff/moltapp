@@ -39,6 +39,11 @@ console.log("[sync-to-hf] Connecting to database...");
 const { db } = await import("../src/db/index.ts");
 const { tradeJustifications } = await import("../src/db/schema/trade-reasoning.ts");
 const { agentDecisions } = await import("../src/db/schema/agent-decisions.ts");
+const { agents } = await import("../src/db/schema/index.ts");
+
+// Import decision quality metrics
+const { generateDecisionQualityReport } = await import("../src/services/decision-quality-dashboard.ts");
+const { eq } = await import("drizzle-orm");
 
 console.log("[sync-to-hf] Fetching trade justifications...");
 const justifications = await db.select().from(tradeJustifications).orderBy(desc(tradeJustifications.timestamp));
@@ -74,9 +79,25 @@ const {
   scoreStrategicForesight,
 } = await import("../src/services/v37-benchmark-engine.ts");
 
-// Merge justifications with decision data into benchmark records (v37: 34-dimension)
+// Generate decision quality reports for all agents
+console.log("[sync-to-hf] Generating decision quality reports for agents...");
+const activeAgents = await db.select().from(agents).where(eq(agents.status, "active"));
+const qualityReportMap = new Map<string, Awaited<ReturnType<typeof generateDecisionQualityReport>>>();
+for (const agent of activeAgents) {
+  try {
+    const report = await generateDecisionQualityReport(agent.id);
+    qualityReportMap.set(agent.id, report);
+    console.log(`[sync-to-hf] Quality report for ${agent.id}: ${report.grade} (${(report.compositeScore * 100).toFixed(1)}%)`);
+  } catch (err) {
+    console.warn(`[sync-to-hf] Failed to generate quality report for ${agent.id}:`, err);
+  }
+}
+
+// Merge justifications with decision data into benchmark records (v38: 40-dimension with quality metrics)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
+  // Get quality report for this agent (if available)
+  const q = qualityReportMap.get(j.agentId);
   // Compute v34-v37 scores for each record
   const causalScore = scoreCausalReasoning(j.reasoning);
   const epistemicScore = scoreEpistemicHumility(
@@ -156,10 +177,29 @@ const records = justifications.map((j) => {
     decision_reversibility_score: reversibilityScore,
     reasoning_composability_score: composabilityScore,
     strategic_foresight_score: foresightScore,
+    // Decision quality metrics (from quality dashboard service)
+    quality_calibration_ece: q?.calibration.ece ?? null,
+    quality_calibration_grade: q?.calibration.grade ?? null,
+    quality_overconfidence_ratio: q?.calibration.overconfidenceRatio ?? null,
+    quality_integrity_score: q?.integrity.integrityScore ?? null,
+    quality_flip_flops: q?.integrity.flipFlops ?? null,
+    quality_contradictions: q?.integrity.contradictions ?? null,
+    quality_accountability_score: q?.accountability.accountabilityScore ?? null,
+    quality_accuracy_rate: q?.accountability.accuracyRate ?? null,
+    quality_total_claims: q?.accountability.totalClaims ?? null,
+    quality_memory_score: q?.memory.memoryScore ?? null,
+    quality_memory_trend: q?.memory.trend ?? null,
+    quality_tool_correctness: q?.toolUse.correctnessScore ?? null,
+    quality_tool_sequence_adherence: q?.toolUse.sequenceAdherence ?? null,
+    quality_tool_violations: q?.toolUse.violations ?? [],
+    quality_composite_score: q?.compositeScore ?? null,
+    quality_grade: q?.grade ?? null,
+    quality_strengths: q?.strengths ?? [],
+    quality_weaknesses: q?.weaknesses ?? [],
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "37.0",
-    dimension_count: 34,
+    benchmark_version: "38.0",
+    dimension_count: 52,
   };
 });
 
@@ -254,10 +294,28 @@ quality scores.
 | \`decision_reversibility_score\` | Exit planning and thesis invalidation quality (0-100) |
 | \`reasoning_composability_score\` | Multi-source synthesis and modular argument quality (0-100) |
 | \`strategic_foresight_score\` | Second-order effects, scenario planning, portfolio thinking (0-100) |
+| \`quality_calibration_ece\` | Expected Calibration Error - lower is better (0-1) |
+| \`quality_calibration_grade\` | Calibration letter grade (A+ to F) |
+| \`quality_overconfidence_ratio\` | How often agent is overconfident (0-1) |
+| \`quality_integrity_score\` | Reasoning consistency score (0-1) |
+| \`quality_flip_flops\` | Number of position reversals without justification |
+| \`quality_contradictions\` | Number of contradictory claims in reasoning |
+| \`quality_accountability_score\` | Claim accuracy tracking score (0-1) |
+| \`quality_accuracy_rate\` | Rate of accurate predictions (0-1) |
+| \`quality_total_claims\` | Total claims made by agent |
+| \`quality_memory_score\` | Cross-session learning score (0-1) |
+| \`quality_memory_trend\` | Learning trend: improving, stable, or declining |
+| \`quality_tool_correctness\` | Tool use correctness score (0-1) |
+| \`quality_tool_sequence_adherence\` | Proper tool sequence adherence (0-1) |
+| \`quality_tool_violations\` | List of tool sequence violations |
+| \`quality_composite_score\` | Weighted composite quality score (0-1) |
+| \`quality_grade\` | Overall quality grade (A+ to F) |
+| \`quality_strengths\` | Top 2 quality dimensions |
+| \`quality_weaknesses\` | Bottom 2 quality dimensions |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 37.0) |
-| \`dimension_count\` | Number of scoring dimensions (34) |
+| \`benchmark_version\` | Benchmark version (e.g. 38.0) |
+| \`dimension_count\` | Number of scoring dimensions (52) |
 
 ## Citation
 
