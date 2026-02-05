@@ -8,6 +8,7 @@ import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
 import { generateDecisionQualityReport, type DecisionQualityReport } from "../services/decision-quality-dashboard.ts";
+import { formatPercentage, calculateTargetMovePercent, calculateTargetMoveValue } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
@@ -205,7 +206,7 @@ function ExitOutcomeBadge({
 
   return (
     <span class={`text-xs font-semibold px-2 py-0.5 rounded ${colorClasses}`}>
-      {label} {pnlSign(pnlPercent)}{pnlPercent.toFixed(1)}%
+      {label} {formatPercentage(pnlPercent)}
     </span>
   );
 }
@@ -233,7 +234,7 @@ function PercentageBadge({ value, label }: { value: number; label: string }) {
 
   return (
     <span class={`text-xs font-semibold px-2 py-0.5 rounded ${colorClasses}`}>
-      {pnlSign(value)}{value.toFixed(1)}% {label}
+      {formatPercentage(value)} {label}
     </span>
   );
 }
@@ -372,7 +373,7 @@ pages.get("/", async (c) => {
                       <div class="text-right">
                         <div class="text-gray-200">${formatCurrency(pos.value)}</div>
                         <div class={`text-xs font-semibold ${pnlColor(pos.unrealizedPnlPercent)}`}>
-                          {pnlSign(pos.unrealizedPnlPercent)}{pos.unrealizedPnlPercent.toFixed(2)}%
+                          {formatPercentage(pos.unrealizedPnlPercent, 2)}
                           <span class={`ml-1 ${pnlColor(pos.unrealizedPnl)}`}>
                             ({pnlSign(pos.unrealizedPnl)}${formatCurrency(Math.abs(pos.unrealizedPnl))})
                           </span>
@@ -608,7 +609,7 @@ pages.get("/agent/:id", async (c) => {
                       <td class="py-2 px-2 text-right text-gray-300">${formatCurrency(p.currentPrice)}</td>
                       <td class="py-2 px-2 text-right text-gray-200">${formatCurrency(value)}</td>
                       <td class={`py-2 px-2 text-right font-semibold ${pnlColor(p.unrealizedPnlPercent)}`}>
-                        {pnlSign(p.unrealizedPnlPercent)}{Number(p.unrealizedPnlPercent).toFixed(2)}%
+                        {formatPercentage(p.unrealizedPnlPercent, 2)}
                         <span class={`text-xs ml-1 ${pnlColor(p.unrealizedPnl)}`}>
                           ({pnlSign(p.unrealizedPnl)}${formatCurrency(Math.abs(p.unrealizedPnl))})
                         </span>
@@ -764,9 +765,8 @@ pages.get("/agent/:id", async (c) => {
                       <span>Target: <span class="text-gray-400">${formatCurrency(t.targetPrice)}</span></span>
                     )}
                     {isActive && t.entryPrice && t.targetPrice && (
-                      <span class={pnlColor(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}>
-                        {pnlSign(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}
-                        {(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100).toFixed(1)}% expected
+                      <span class={pnlColor(calculateTargetMoveValue(t.targetPrice, t.entryPrice))}>
+                        {calculateTargetMovePercent(t.targetPrice, t.entryPrice)} expected
                       </span>
                     )}
                   </div>
@@ -1282,7 +1282,7 @@ pages.get("/economics", async (c) => {
             {totalPnlUsd >= 0 ? "+" : ""}${totalPnlUsd.toFixed(2)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
-            {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}% combined
+            {formatPercentage(totalPnl, 2)} combined
           </div>
         </div>
 
@@ -1343,7 +1343,7 @@ pages.get("/economics", async (c) => {
                 <td class={`px-4 py-3 text-right ${agent.pnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
                   {agent.pnlUsd >= 0 ? "+" : ""}${agent.pnlUsd.toFixed(2)}
                   <span class="text-gray-500 text-xs ml-1">
-                    ({agent.pnlPercent >= 0 ? "+" : ""}{agent.pnlPercent.toFixed(1)}%)
+                    ({formatPercentage(agent.pnlPercent)})
                   </span>
                 </td>
                 <td class={`px-4 py-3 text-right font-bold ${agent.netEconomics >= 0 ? "text-green-400" : "text-red-400"}`}>
