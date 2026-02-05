@@ -24,6 +24,15 @@ export interface MarketData {
   news?: string[];
 }
 
+/** A complete tool trace entry for audit/benchmark */
+export interface ToolTraceEntry {
+  turn: number;
+  tool: string;
+  arguments: Record<string, any>;
+  result: string;
+  timestamp: string;
+}
+
 /** A structured trade decision from an AI agent */
 export interface TradingDecision {
   action: "buy" | "sell" | "hold";
@@ -44,6 +53,8 @@ export interface TradingDecision {
   predictedOutcome?: string;
   /** Portfolio thesis status — why holding, or what changed */
   thesisStatus?: string;
+  /** Complete tool call trace for audit/benchmark */
+  toolTrace?: ToolTraceEntry[];
 }
 
 /** Portfolio position for agent context */
@@ -298,6 +309,9 @@ export abstract class BaseTradingAgent {
       marketData,
     };
 
+    // Capture complete tool trace for audit/benchmark
+    const toolTrace: ToolTraceEntry[] = [];
+
     // Tool-calling loop
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const agentTurn = await this.callWithTools(system, messages, tools);
@@ -311,6 +325,15 @@ export abstract class BaseTradingAgent {
           );
           const result = await executeTool(tc.name, tc.arguments, ctx);
           results.push({ toolCallId: tc.id, result });
+
+          // Record to tool trace for benchmark
+          toolTrace.push({
+            turn: turn + 1,
+            tool: tc.name,
+            arguments: tc.arguments,
+            result: result.length > 2000 ? result.slice(0, 2000) + "...[truncated]" : result,
+            timestamp: new Date().toISOString(),
+          });
         }
 
         // Append assistant turn + tool results to messages
@@ -321,32 +344,43 @@ export abstract class BaseTradingAgent {
       // Text response — try to parse a trading decision
       if (agentTurn.textResponse) {
         try {
-          return this.parseLLMResponse(agentTurn.textResponse);
+          const decision = this.parseLLMResponse(agentTurn.textResponse);
+          // Attach tool trace to decision
+          decision.toolTrace = toolTrace;
+          return decision;
         } catch (err) {
           console.warn(
             `[${this.config.name}] Failed to parse response on turn ${turn + 1}: ${err instanceof Error ? err.message : String(err)}`,
           );
           // If max_tokens, try partial parse; otherwise continue
           if (agentTurn.stopReason === "max_tokens") {
-            return this.fallbackHold("Response truncated (max_tokens)");
+            const fallback = this.fallbackHold("Response truncated (max_tokens)");
+            fallback.toolTrace = toolTrace;
+            return fallback;
           }
           // If end_turn but parse failed, give up
           if (agentTurn.stopReason === "end_turn") {
-            return this.fallbackHold(
+            const fallback = this.fallbackHold(
               `Could not parse decision: ${err instanceof Error ? err.message : String(err)}`,
             );
+            fallback.toolTrace = toolTrace;
+            return fallback;
           }
         }
       }
 
       // No text and no tool calls — shouldn't happen, but guard against it
       if (!agentTurn.textResponse && agentTurn.toolCalls.length === 0) {
-        return this.fallbackHold("Empty response from LLM");
+        const fallback = this.fallbackHold("Empty response from LLM");
+        fallback.toolTrace = toolTrace;
+        return fallback;
       }
     }
 
     // Exhausted all turns without a decision
-    return this.fallbackHold("Max turns exceeded (8)");
+    const fallback = this.fallbackHold(`Max turns exceeded (${MAX_TURNS})`);
+    fallback.toolTrace = toolTrace;
+    return fallback;
   }
 
   // -------------------------------------------------------------------------

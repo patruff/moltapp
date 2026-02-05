@@ -884,7 +884,7 @@ async function executeTradingRound(
           `hallucinations=${hallucinations.flags.length}, discipline=${discipline.passed ? "PASS" : "FAIL"}`,
         );
 
-        // Record justification to DB
+        // Record justification to DB with full tool trace
         const justificationId = `tj_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         await db.insert(tradeJustifications).values({
           id: justificationId,
@@ -892,6 +892,8 @@ async function executeTradingRound(
           reasoning: decision.reasoning,
           confidence: normalizeConfidence(decision.confidence),
           sources,
+          toolTrace: decision.toolTrace ?? null,
+          modelUsed: agent.model,
           intent,
           predictedOutcome: decision.predictedOutcome ?? null,
           coherenceScore: coherence.score,

@@ -50,6 +50,18 @@ export const tradeJustifications = pgTable("trade_justifications", {
   /** Data sources the agent cited in its reasoning */
   sources: jsonb("sources").$type<string[]>(),
 
+  /** Complete tool call trace for full audit trail */
+  toolTrace: jsonb("tool_trace").$type<{
+    turn: number;
+    tool: string;
+    arguments: Record<string, any>;
+    result: string;
+    timestamp: string;
+  }[]>(),
+
+  /** Model used for this decision (e.g., claude-opus-4-5-20251101) */
+  modelUsed: text("model_used"),
+
   /** Trading intent classification */
   intent: text("intent").notNull(),
 
