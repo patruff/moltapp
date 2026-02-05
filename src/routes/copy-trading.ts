@@ -304,8 +304,22 @@ copyTradingRoutes.get("/history/:followerId", async (c) => {
   const followerId = c.req.param("followerId");
   const limitStr = c.req.query("limit");
   const offsetStr = c.req.query("offset");
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+
+  let limit = 20;
+  if (limitStr) {
+    const parsed = parseInt(limitStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(100, Math.max(1, parsed));
+    }
+  }
+
+  let offset = 0;
+  if (offsetStr) {
+    const parsed = parseInt(offsetStr, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      offset = parsed;
+    }
+  }
 
   const trades = await db
     .select()
@@ -577,7 +591,14 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
 
 copyTradingRoutes.get("/leaderboard", async (c) => {
   const limitStr = c.req.query("limit");
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
+
+  let limit = 20;
+  if (limitStr) {
+    const parsed = parseInt(limitStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(100, Math.max(1, parsed));
+    }
+  }
 
   try {
     const followers = await db

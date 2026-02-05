@@ -181,7 +181,14 @@ arenaRoutes.post("/simulate", async (c) => {
 
 arenaRoutes.get("/history", async (c) => {
   const limitStr = c.req.query("limit");
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
+
+  let limit = 20;
+  if (limitStr) {
+    const parsed = parseInt(limitStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(100, Math.max(1, parsed));
+    }
+  }
 
   try {
     // Get recent decisions grouped by round

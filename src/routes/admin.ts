@@ -477,8 +477,24 @@ adminRoutes.get("/api/audit", (c) => {
   const severityParam = c.req.query("severity");
   const agentId = c.req.query("agentId");
   const action = c.req.query("action");
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
-  const offset = parseInt(c.req.query("offset") ?? "0", 10);
+  const limitStr = c.req.query("limit");
+  const offsetStr = c.req.query("offset");
+
+  let limit = 50;
+  if (limitStr) {
+    const parsed = parseInt(limitStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(100, Math.max(1, parsed));
+    }
+  }
+
+  let offset = 0;
+  if (offsetStr) {
+    const parsed = parseInt(offsetStr, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      offset = parsed;
+    }
+  }
 
   // Type-safe parsing of query params to AuditCategory and AuditSeverity
   const category = categoryParam as AuditCategory | undefined;

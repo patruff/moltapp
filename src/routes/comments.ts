@@ -212,8 +212,22 @@ commentRoutes.get("/:decisionId/comments", async (c) => {
 
   const limitStr = c.req.query("limit");
   const offsetStr = c.req.query("offset");
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+
+  let limit = 20;
+  if (limitStr) {
+    const parsed = parseInt(limitStr, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      limit = Math.min(100, Math.max(1, parsed));
+    }
+  }
+
+  let offset = 0;
+  if (offsetStr) {
+    const parsed = parseInt(offsetStr, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      offset = parsed;
+    }
+  }
 
   const comments = await db
     .select()
