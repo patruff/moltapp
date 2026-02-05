@@ -419,7 +419,7 @@ async function buildRoundContext(
   });
 
   // Determine consensus
-  const actions = allDecisions.map((d: any) => d.action);
+  const actions = allDecisions.map((d: { action: string }) => d.action);
   const uniqueActions = new Set(actions);
   const consensus: "unanimous" | "majority" | "split" =
     uniqueActions.size === 1 ? "unanimous" : actions.length >= 3 && actions.filter((a: string) => a === actions[0]).length >= 2 ? "majority" : "split";
@@ -469,7 +469,7 @@ async function buildPortfolioAtTime(
   return {
     estimatedCashBalance: Math.max(0, cashBalance),
     positionCount: symbols.size,
-    recentPriorTrades: priorTrades.slice(0, 5).map((t: any) => ({
+    recentPriorTrades: priorTrades.slice(0, 5).map((t: TradeRow) => ({
       side: t.side,
       symbol: t.stockSymbol,
       quantity: t.stockQuantity,
@@ -656,7 +656,7 @@ async function buildDecisionTimeline(
 
   const configs = getAgentConfigs();
 
-  return decisions.map((d: any) => {
+  return decisions.map((d: DecisionRow) => {
     const config = configs.find((c) => c.agentId === d.agentId);
     const isTarget = d.agentId === agentId;
     return {
