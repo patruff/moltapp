@@ -24,6 +24,9 @@ import type { MarketData } from "../agents/base-agent.ts";
 // Types
 // ---------------------------------------------------------------------------
 
+/** Database agent decision type inferred from schema */
+type AgentDecision = typeof agentDecisions.$inferSelect;
+
 export interface WhaleAlert {
   id: string;
   type: "large_position" | "conviction_spike" | "unusual_volume" | "convergence" | "reversal" | "accumulation" | "distribution";
@@ -202,7 +205,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
   }
 
   for (const [agentId, baseline] of Object.entries(agentBaselines)) {
-    const count = olderDecisions.filter((d: any) => d.agentId === agentId).length;
+    const count = olderDecisions.filter((d: AgentDecision) => d.agentId === agentId).length;
     if (count > 0) {
       baseline.avgConfidence /= count;
       baseline.avgQuantity /= count;
@@ -246,7 +249,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
 
     // Alert 3: Reversal detection (agent switches from buy to sell or vice versa)
     const previousForSymbol = olderDecisions.find(
-      (old: any) => old.agentId === d.agentId && old.symbol === d.symbol && old.action !== "hold" && old.action !== d.action && old.id !== d.id,
+      (old: AgentDecision) => old.agentId === d.agentId && old.symbol === d.symbol && old.action !== "hold" && old.action !== d.action && old.id !== d.id,
     );
     if (previousForSymbol && d.action !== "hold") {
       alerts.push(createAlert({
@@ -389,10 +392,10 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     .sort(([, a], [, b]) => b - a)[0];
 
   // Smart money flow
-  const buyDecisions = decisions.filter((d: any) => d.action === "buy");
-  const sellDecisions = decisions.filter((d: any) => d.action === "sell");
-  const netBullish = buyDecisions.reduce((s: number, d: any) => s + d.confidence, 0);
-  const netBearish = sellDecisions.reduce((s: number, d: any) => s + d.confidence, 0);
+  const buyDecisions = decisions.filter((d: AgentDecision) => d.action === "buy");
+  const sellDecisions = decisions.filter((d: AgentDecision) => d.action === "sell");
+  const netBullish = buyDecisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0);
+  const netBearish = sellDecisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0);
 
   const bullishSymbols: Record<string, number> = {};
   const bearishSymbols: Record<string, number> = {};
@@ -460,7 +463,7 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
     marketData = [];
   }
 
-  const highConvictionTrades = decisions.map((d: any) => {
+  const highConvictionTrades = decisions.map((d: AgentDecision) => {
     const config = getAgentConfig(d.agentId);
     const market = marketData.find((m) => m.symbol.toLowerCase() === d.symbol.toLowerCase());
     return {
@@ -479,10 +482,10 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
   // Per-agent conviction stats
   const configs = getAgentConfigs();
   const avgConvictionByAgent = configs.map((config) => {
-    const agentAll = allDecisions.filter((d: any) => d.agentId === config.agentId);
-    const agentHigh = decisions.filter((d: any) => d.agentId === config.agentId);
+    const agentAll = allDecisions.filter((d: AgentDecision) => d.agentId === config.agentId);
+    const agentHigh = decisions.filter((d: AgentDecision) => d.agentId === config.agentId);
     const avgConfidence = agentAll.length > 0
-      ? agentAll.reduce((s: number, d: any) => s + d.confidence, 0) / agentAll.length
+      ? agentAll.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / agentAll.length
       : 0;
 
     // Conviction trend: compare first half vs second half
@@ -490,10 +493,10 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
     const firstHalf = agentAll.slice(half);
     const secondHalf = agentAll.slice(0, half);
     const avgFirst = firstHalf.length > 0
-      ? firstHalf.reduce((s: number, d: any) => s + d.confidence, 0) / firstHalf.length
+      ? firstHalf.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / firstHalf.length
       : 0;
     const avgSecond = secondHalf.length > 0
-      ? secondHalf.reduce((s: number, d: any) => s + d.confidence, 0) / secondHalf.length
+      ? secondHalf.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / secondHalf.length
       : 0;
 
     return {
@@ -529,7 +532,7 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
     .sort((a, b) => b.avgConfidence - a.avgConfidence);
 
   const overallConviction = allDecisions.length > 0
-    ? Math.round((allDecisions.reduce((s: number, d: any) => s + d.confidence, 0) / allDecisions.length) * 10) / 10
+    ? Math.round((allDecisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / allDecisions.length) * 10) / 10
     : 0;
 
   let interpretation: string;
@@ -579,11 +582,11 @@ export async function getPositionHeatmap(): Promise<PositionHeatmap> {
 
     for (const symbol of symbols) {
       const symbolDecisions = decisions.filter(
-        (d: any) => d.agentId === agentId && d.symbol === symbol && d.action !== "hold",
+        (d: AgentDecision) => d.agentId === agentId && d.symbol === symbol && d.action !== "hold",
       );
       if (symbolDecisions.length === 0) continue;
 
-      const avgConfidence = symbolDecisions.reduce((s: number, d: any) => s + d.confidence, 0) / symbolDecisions.length;
+      const avgConfidence = symbolDecisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / symbolDecisions.length;
       const latestAction = symbolDecisions[0]?.action ?? "hold";
       // Intensity: combination of trade count and avg confidence
       const intensity = Math.min(100, Math.round(symbolDecisions.length * 10 + avgConfidence * 0.5));
