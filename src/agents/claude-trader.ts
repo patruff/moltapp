@@ -139,7 +139,15 @@ export class ClaudeTrader extends BaseTradingAgent {
     if (response.stop_reason === "tool_use") stopReason = "tool_use";
     else if (response.stop_reason === "max_tokens") stopReason = "max_tokens";
 
-    return { toolCalls, textResponse, stopReason };
+    // Extract token usage from Anthropic response
+    const usage = response.usage
+      ? {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        }
+      : undefined;
+
+    return { toolCalls, textResponse, stopReason, usage };
   }
 }
 

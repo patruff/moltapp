@@ -8,6 +8,7 @@
 
 import { executeTool, type ToolContext } from "./trading-tools.ts";
 import { SKILL_TEMPLATE } from "./skill-template.ts";
+import { recordLlmUsage } from "../services/llm-cost-tracker.ts";
 
 // ---------------------------------------------------------------------------
 // Core Types
@@ -145,6 +146,11 @@ export interface AgentTurn {
   toolCalls: ToolCall[];
   textResponse: string | null;
   stopReason: "tool_use" | "end_turn" | "max_tokens";
+  /** Token usage from this LLM call (if available) */
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -316,9 +322,32 @@ export abstract class BaseTradingAgent {
     const toolTrace: ToolTraceEntry[] = [];
     let totalToolCalls = 0;
 
+    // Track LLM token usage across all turns
+    let totalUsage = { inputTokens: 0, outputTokens: 0 };
+
+    // Helper to record usage to database before returning
+    const recordUsage = async () => {
+      if (totalUsage.inputTokens > 0 || totalUsage.outputTokens > 0) {
+        const roundId = `round_${Date.now()}`;
+        await recordLlmUsage({
+          roundId,
+          agentId: this.config.agentId,
+          model: this.config.model,
+          inputTokens: totalUsage.inputTokens,
+          outputTokens: totalUsage.outputTokens,
+        }).catch((err) => console.error(`[${this.config.name}] Failed to record LLM usage:`, err));
+      }
+    };
+
     // Tool-calling loop
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const agentTurn = await this.callWithTools(system, messages, tools);
+
+      // Accumulate usage if available
+      if (agentTurn.usage) {
+        totalUsage.inputTokens += agentTurn.usage.inputTokens;
+        totalUsage.outputTokens += agentTurn.usage.outputTokens;
+      }
 
       if (agentTurn.stopReason === "tool_use" && agentTurn.toolCalls.length > 0) {
         // Check if we're at the tool call limit
@@ -330,6 +359,7 @@ export abstract class BaseTradingAgent {
             `Tool call limit reached (${MAX_TOOL_CALLS}). Based on data gathered, holding position.`,
           );
           fallback.toolTrace = toolTrace;
+          await recordUsage();
           return fallback;
         }
 
@@ -364,6 +394,7 @@ export abstract class BaseTradingAgent {
           const decision = this.parseLLMResponse(agentTurn.textResponse);
           // Attach tool trace to decision
           decision.toolTrace = toolTrace;
+          await recordUsage();
           return decision;
         } catch (err) {
           console.warn(
@@ -373,6 +404,7 @@ export abstract class BaseTradingAgent {
           if (agentTurn.stopReason === "max_tokens") {
             const fallback = this.fallbackHold("Response truncated (max_tokens)");
             fallback.toolTrace = toolTrace;
+            await recordUsage();
             return fallback;
           }
           // If end_turn but parse failed, give up
@@ -381,6 +413,7 @@ export abstract class BaseTradingAgent {
               `Could not parse decision: ${err instanceof Error ? err.message : String(err)}`,
             );
             fallback.toolTrace = toolTrace;
+            await recordUsage();
             return fallback;
           }
         }
@@ -390,6 +423,7 @@ export abstract class BaseTradingAgent {
       if (!agentTurn.textResponse && agentTurn.toolCalls.length === 0) {
         const fallback = this.fallbackHold("Empty response from LLM");
         fallback.toolTrace = toolTrace;
+        await recordUsage();
         return fallback;
       }
     }
@@ -397,6 +431,7 @@ export abstract class BaseTradingAgent {
     // Exhausted all turns without a decision
     const fallback = this.fallbackHold(`Max turns exceeded (${MAX_TURNS})`);
     fallback.toolTrace = toolTrace;
+    await recordUsage();
     return fallback;
   }
 

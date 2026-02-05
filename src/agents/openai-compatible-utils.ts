@@ -82,10 +82,19 @@ export function parseOpenAIResponse(response: ChatCompletion): AgentTurn {
   if (choice.finish_reason === "tool_calls") stopReason = "tool_use";
   else if (choice.finish_reason === "length") stopReason = "max_tokens";
 
+  // Extract token usage from OpenAI response
+  const usage = response.usage
+    ? {
+        inputTokens: response.usage.prompt_tokens,
+        outputTokens: response.usage.completion_tokens,
+      }
+    : undefined;
+
   return {
     toolCalls,
     textResponse: msg.content ?? null,
     stopReason,
+    usage,
   };
 }
 
