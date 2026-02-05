@@ -22,6 +22,8 @@ import { getSearchCacheMetrics } from "../services/search-cache.ts";
 import {
   queryAuditLog,
   getAuditLogStats,
+  type AuditCategory,
+  type AuditSeverity,
 } from "../services/audit-log.ts";
 import {
   getRecoveryReport,
@@ -471,12 +473,16 @@ adminRoutes.get("/api/status", (c) => {
 
 /** Audit log query endpoint */
 adminRoutes.get("/api/audit", (c) => {
-  const category = c.req.query("category") as any;
-  const severity = c.req.query("severity") as any;
+  const categoryParam = c.req.query("category");
+  const severityParam = c.req.query("severity");
   const agentId = c.req.query("agentId");
   const action = c.req.query("action");
   const limit = parseInt(c.req.query("limit") ?? "50", 10);
   const offset = parseInt(c.req.query("offset") ?? "0", 10);
+
+  // Type-safe parsing of query params to AuditCategory and AuditSeverity
+  const category = categoryParam as AuditCategory | undefined;
+  const severity = severityParam as AuditSeverity | undefined;
 
   const result = queryAuditLog({
     category,
