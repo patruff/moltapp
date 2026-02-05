@@ -8,6 +8,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 // Transaction Confirmer
 import {
@@ -226,7 +227,7 @@ hardeningRoutes.get("/risk/anomalies", (c) => {
   const agentId = c.req.query("agentId");
   const type = c.req.query("type") as AnomalyType | undefined;
   const severity = c.req.query("severity");
-  const limit = parseInt(c.req.query("limit") ?? "50");
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
 
   return c.json(getAnomalies({ agentId, type, severity, limit }));
 });
@@ -256,7 +257,7 @@ hardeningRoutes.get("/feedback/:agentId/prompt", (c) => {
 /** Get recent outcomes for an agent */
 hardeningRoutes.get("/feedback/:agentId/outcomes", (c) => {
   const agentId = c.req.param("agentId");
-  const limit = parseInt(c.req.query("limit") ?? "20");
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   return c.json({
     recent: getRecentOutcomes(agentId, limit),
     pending: getPendingOutcomes(agentId),
@@ -294,14 +295,14 @@ hardeningRoutes.get("/logs", (c) => {
   const service = c.req.query("service");
   const roundId = c.req.query("roundId");
   const agentId = c.req.query("agentId");
-  const limit = parseInt(c.req.query("limit") ?? "50");
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
 
   return c.json(getRecentLogs({ level, service, roundId, agentId, limit }));
 });
 
 /** Get recent metrics */
 hardeningRoutes.get("/logs/metrics", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "50");
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   return c.json(getRecentMetrics(limit));
 });
 

@@ -26,6 +26,7 @@ import {
   calculateAgreementMatrix,
 } from "../services/agent-intelligence.ts";
 import { apiError } from "../lib/errors.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const intelligenceRoutes = new Hono();
 
@@ -44,7 +45,7 @@ intelligenceRoutes.get("/", async (c) => {
 
 intelligenceRoutes.get("/consensus", async (c) => {
   const signals = await detectConsensus();
-  const minScore = parseInt(c.req.query("minScore") ?? "0", 10);
+  const minScore = parseQueryInt(c.req.query("minScore"), 0, 0, 100);
 
   const filtered =
     minScore > 0 ? signals.filter((s) => s.swarmScore >= minScore) : signals;
