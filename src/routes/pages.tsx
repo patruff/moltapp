@@ -205,6 +205,20 @@ function ExitOutcomeBadge({
   );
 }
 
+// Component: Direction badge (BULLISH/BEARISH color-coded badge)
+function DirectionBadge({ direction }: { direction: string }) {
+  const colorClasses =
+    direction === "bullish" ? "bg-green-900/30 text-profit" :
+    direction === "bearish" ? "bg-red-900/30 text-loss" :
+    "bg-gray-800 text-gray-400";
+
+  return (
+    <span class={`text-xs px-2 py-0.5 rounded ${colorClasses}`}>
+      {direction}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -298,13 +312,7 @@ pages.get("/", async (c) => {
                 <div class="flex items-center gap-2 mb-1">
                   <span class="text-xs text-gray-500 uppercase">Current Thesis</span>
                   <span class="text-white font-semibold text-sm">{entry.activeThesis.symbol}</span>
-                  <span class={`text-xs px-1.5 py-0.5 rounded ${
-                    entry.activeThesis.direction === "bullish" ? "bg-green-900/30 text-profit" :
-                    entry.activeThesis.direction === "bearish" ? "bg-red-900/30 text-loss" :
-                    "bg-gray-800 text-gray-400"
-                  }`}>
-                    {entry.activeThesis.direction}
-                  </span>
+                  <DirectionBadge direction={entry.activeThesis.direction} />
                   <span class="text-gray-500 text-xs">
                     Conviction: {entry.activeThesis.conviction}/10
                   </span>
@@ -701,13 +709,7 @@ pages.get("/agent/:id", async (c) => {
                     }`}>
                       {t.status.toUpperCase()}
                     </span>
-                    <span class={`text-xs px-2 py-0.5 rounded ${
-                      isBullish ? "bg-green-900/30 text-profit" :
-                      isBearish ? "bg-red-900/30 text-loss" :
-                      "bg-gray-800 text-gray-400"
-                    }`}>
-                      {t.direction}
-                    </span>
+                    <DirectionBadge direction={t.direction} />
                     {t.conviction != null && (
                       <span class="text-gray-500 text-xs">
                         Conviction: {t.conviction}/10
