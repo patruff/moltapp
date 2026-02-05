@@ -15,6 +15,8 @@ import {
   closeThesis,
 } from "../services/agent-theses.ts";
 import { computeIndicators } from "../services/market-aggregator.ts";
+import type { agentTheses } from "../db/schema/agent-theses.ts";
+import type { InferSelectModel } from "drizzle-orm";
 
 // ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
@@ -25,6 +27,53 @@ export interface ToolContext {
   portfolio: PortfolioContext;
   marketData: MarketData[];
 }
+
+// ---------------------------------------------------------------------------
+// Tool Argument Types — strongly typed arguments for each tool
+// ---------------------------------------------------------------------------
+
+export interface GetPortfolioArgs {
+  // No arguments
+}
+
+export interface GetStockPricesArgs {
+  symbols: string[];
+}
+
+export interface GetActiveThesesArgs {
+  // No arguments
+}
+
+export interface UpdateThesisArgs {
+  symbol: string;
+  thesis: string;
+  conviction: string;
+  direction: "bullish" | "bearish" | "neutral";
+  entry_price?: string;
+  target_price?: string;
+}
+
+export interface CloseThesisArgs {
+  symbol: string;
+  reason: string;
+}
+
+export interface SearchNewsArgs {
+  query: string;
+}
+
+export interface GetTechnicalIndicatorsArgs {
+  symbol: string;
+}
+
+export type ToolArgs =
+  | GetPortfolioArgs
+  | GetStockPricesArgs
+  | GetActiveThesesArgs
+  | UpdateThesisArgs
+  | CloseThesisArgs
+  | SearchNewsArgs
+  | GetTechnicalIndicatorsArgs;
 
 // ---------------------------------------------------------------------------
 // Tool Schema Definitions
@@ -194,7 +243,7 @@ export function getOpenAITools() {
  */
 export async function executeTool(
   toolName: string,
-  args: Record<string, any>,
+  args: ToolArgs,
   ctx: ToolContext,
 ): Promise<string> {
   switch (toolName) {
@@ -202,22 +251,22 @@ export async function executeTool(
       return executeGetPortfolio(ctx);
 
     case "get_stock_prices":
-      return executeGetStockPrices(args, ctx);
+      return executeGetStockPrices(args as GetStockPricesArgs, ctx);
 
     case "get_active_theses":
       return executeGetActiveTheses(ctx);
 
     case "update_thesis":
-      return executeUpdateThesis(args, ctx);
+      return executeUpdateThesis(args as UpdateThesisArgs, ctx);
 
     case "close_thesis":
-      return executeCloseThesis(args, ctx);
+      return executeCloseThesis(args as CloseThesisArgs, ctx);
 
     case "search_news":
-      return executeSearchNews(args);
+      return executeSearchNews(args as SearchNewsArgs);
 
     case "get_technical_indicators":
-      return executeGetTechnicalIndicators(args);
+      return executeGetTechnicalIndicators(args as GetTechnicalIndicatorsArgs);
 
     default:
       return JSON.stringify({ error: `Unknown tool: ${toolName}` });
@@ -248,19 +297,19 @@ function executeGetPortfolio(ctx: ToolContext): string {
 }
 
 function executeGetStockPrices(
-  args: Record<string, any>,
+  args: GetStockPricesArgs,
   ctx: ToolContext,
 ): string {
   if (!Array.isArray(args.symbols)) {
     return JSON.stringify({ error: "symbols must be an array" });
   }
-  const symbols: string[] = args.symbols ?? [];
+  const symbols = args.symbols;
   const data =
     symbols.length === 0
       ? ctx.marketData
       : ctx.marketData.filter((d) =>
           symbols.some(
-            (s: string) => s.toLowerCase() === d.symbol.toLowerCase(),
+            (s) => s.toLowerCase() === d.symbol.toLowerCase(),
           ),
         );
   return JSON.stringify(
@@ -278,7 +327,7 @@ async function executeGetActiveTheses(ctx: ToolContext): Promise<string> {
   try {
     const theses = await getActiveTheses(ctx.agentId);
     return JSON.stringify(
-      theses.map((t: any) => ({
+      theses.map((t: InferSelectModel<typeof agentTheses>) => ({
         symbol: t.symbol,
         thesis: t.thesis,
         conviction: t.conviction,
@@ -294,7 +343,7 @@ async function executeGetActiveTheses(ctx: ToolContext): Promise<string> {
 }
 
 async function executeUpdateThesis(
-  args: Record<string, any>,
+  args: UpdateThesisArgs,
   ctx: ToolContext,
 ): Promise<string> {
   if (!args.symbol || typeof args.symbol !== "string") {
@@ -328,7 +377,7 @@ async function executeUpdateThesis(
 }
 
 async function executeCloseThesis(
-  args: Record<string, any>,
+  args: CloseThesisArgs,
   ctx: ToolContext,
 ): Promise<string> {
   if (!args.symbol || typeof args.symbol !== "string") {
@@ -348,11 +397,23 @@ async function executeCloseThesis(
   }
 }
 
-async function executeSearchNews(args: Record<string, any>): Promise<string> {
+interface BraveSearchResult {
+  title?: string;
+  description?: string;
+  url?: string;
+}
+
+interface BraveSearchResponse {
+  web?: {
+    results?: BraveSearchResult[];
+  };
+}
+
+async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
   if (!args.query || typeof args.query !== "string") {
     return JSON.stringify({ results: [], error: "query is required" });
   }
-  const query = args.query ?? "";
+  const query = args.query;
   const apiKey = process.env.BRAVE_API_KEY;
   if (!apiKey) {
     return JSON.stringify({
@@ -381,8 +442,8 @@ async function executeSearchNews(args: Record<string, any>): Promise<string> {
       });
     }
 
-    const data = (await res.json()) as any;
-    const results = (data.web?.results ?? []).slice(0, 5).map((r: any) => ({
+    const data = (await res.json()) as BraveSearchResponse;
+    const results = (data.web?.results ?? []).slice(0, 5).map((r) => ({
       title: r.title ?? "",
       description: (r.description ?? "").slice(0, 300),
       url: r.url ?? "",
@@ -396,11 +457,11 @@ async function executeSearchNews(args: Record<string, any>): Promise<string> {
   }
 }
 
-function executeGetTechnicalIndicators(args: Record<string, any>): string {
+function executeGetTechnicalIndicators(args: GetTechnicalIndicatorsArgs): string {
   if (!args.symbol || typeof args.symbol !== "string") {
     return JSON.stringify({ error: "symbol is required" });
   }
-  const symbol = args.symbol ?? "";
+  const symbol = args.symbol;
   try {
     const indicators = computeIndicators(symbol);
     return JSON.stringify(indicators);
