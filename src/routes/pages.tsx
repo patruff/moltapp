@@ -24,6 +24,9 @@ import {
   gradeToColor,
   scoreToColor,
   formatScorePercentage,
+  formatPnlDisplay,
+  formatQuantity,
+  formatNumber,
 } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
@@ -286,7 +289,7 @@ pages.get("/", async (c) => {
                     {pnlSign(entry.totalPnlPercent)}{entry.totalPnlPercent}%
                   </div>
                   <div class={`text-xs ${pnlColor(entry.totalPnlAbsolute)}`}>
-                    {pnlSign(entry.totalPnlAbsolute)}${formatCurrency(entry.totalPnlAbsolute)}
+                    {formatPnlDisplay(Number(entry.totalPnlAbsolute))}
                   </div>
                 </div>
                 <div class="text-right">
@@ -327,7 +330,7 @@ pages.get("/", async (c) => {
                     <div class="bg-gray-950 rounded p-3 flex justify-between items-center">
                       <div>
                         <div class="text-white font-semibold">{pos.symbol}</div>
-                        <div class="text-gray-500 text-xs">{pos.quantity.toFixed(4)} shares</div>
+                        <div class="text-gray-500 text-xs">{formatQuantity(pos.quantity)} shares</div>
                       </div>
                       <div class="text-right">
                         <div class="text-gray-200">${formatCurrency(pos.value)}</div>
@@ -530,7 +533,7 @@ pages.get("/agent/:id", async (c) => {
             </div>
             <div>
               <div class="text-gray-400 text-sm">Total Tokens</div>
-              <div class="text-gray-300">{agentCosts.totalTokens.toLocaleString()}</div>
+              <div class="text-gray-300">{formatNumber(agentCosts.totalTokens)}</div>
             </div>
           </div>
           <a href="/economics" class="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
@@ -563,7 +566,7 @@ pages.get("/agent/:id", async (c) => {
                   return (
                     <tr class="border-b border-gray-900/50">
                       <td class="py-2 px-2 text-white font-semibold">{p.symbol}</td>
-                      <td class="py-2 px-2 text-right text-gray-300">{Number(p.quantity).toFixed(4)}</td>
+                      <td class="py-2 px-2 text-right text-gray-300">{formatQuantity(p.quantity)}</td>
                       <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(p.averageCostBasis)}</td>
                       <td class="py-2 px-2 text-right text-gray-300">${formatCurrency(p.currentPrice)}</td>
                       <td class="py-2 px-2 text-right text-gray-200">${formatCurrency(value)}</td>
@@ -774,7 +777,7 @@ pages.get("/agent/:id", async (c) => {
                         </span>
                       </td>
                       <td class="py-2 px-2 text-white">{t.stockSymbol}</td>
-                      <td class="py-2 px-2 text-right text-gray-300">{Number(t.stockQuantity).toFixed(4)}</td>
+                      <td class="py-2 px-2 text-right text-gray-300">{formatQuantity(t.stockQuantity)}</td>
                       <td class="py-2 px-2 text-right text-gray-200">${formatCurrency(t.usdcAmount)}</td>
                       <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(t.pricePerToken)}</td>
                       <td class="py-2 px-2">
@@ -1228,7 +1231,7 @@ pages.get("/economics", async (c) => {
             ${costs.totalCost.toFixed(4)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
-            {costs.totalTokens.toLocaleString()} tokens
+            {formatNumber(costs.totalTokens)} tokens
           </div>
         </div>
 
@@ -1236,7 +1239,7 @@ pages.get("/economics", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div class="text-gray-400 text-sm mb-1">Total Trading P&L</div>
           <div class={`text-2xl font-bold ${totalPnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
-            {totalPnlUsd >= 0 ? "+" : ""}${totalPnlUsd.toFixed(2)}
+            {formatPnlDisplay(totalPnlUsd)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
             {formatPercentage(totalPnl, 2)} combined
@@ -1247,7 +1250,7 @@ pages.get("/economics", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div class="text-gray-400 text-sm mb-1">Net Economics</div>
           <div class={`text-2xl font-bold ${isProfit ? "text-green-400" : "text-red-400"}`}>
-            {isProfit ? "+" : ""}${netEconomics.toFixed(2)}
+            {formatPnlDisplay(netEconomics)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
             P&L minus LLM costs
@@ -1295,16 +1298,16 @@ pages.get("/economics", async (c) => {
                   ${agent.cost.toFixed(4)}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-400">
-                  {agent.tokens.toLocaleString()}
+                  {formatNumber(agent.tokens)}
                 </td>
                 <td class={`px-4 py-3 text-right ${agent.pnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {agent.pnlUsd >= 0 ? "+" : ""}${agent.pnlUsd.toFixed(2)}
+                  {formatPnlDisplay(agent.pnlUsd)}
                   <span class="text-gray-500 text-xs ml-1">
                     ({formatPercentage(agent.pnlPercent)})
                   </span>
                 </td>
                 <td class={`px-4 py-3 text-right font-bold ${agent.netEconomics >= 0 ? "text-green-400" : "text-red-400"}`}>
-                  {agent.netEconomics >= 0 ? "+" : ""}${agent.netEconomics.toFixed(2)}
+                  {formatPnlDisplay(agent.netEconomics)}
                 </td>
               </tr>
             ))}

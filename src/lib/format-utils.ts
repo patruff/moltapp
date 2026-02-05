@@ -268,3 +268,54 @@ export function scoreToColor(score: number): string {
 export function formatScorePercentage(score: number, decimals: number = 1): string {
   return (score * 100).toFixed(decimals) + "%";
 }
+
+/**
+ * Format P&L value with sign and currency formatting
+ * Combines pnlSign() and formatCurrency() for consistent P&L display
+ *
+ * @param value - The P&L dollar amount
+ * @returns Formatted string like "+$1,234.56" or "-$567.89"
+ *
+ * @example
+ * formatPnlDisplay(1234.56) // "+$1,234.56"
+ * formatPnlDisplay(-567.89) // "-$567.89"
+ * formatPnlDisplay(0) // "$0.00"
+ */
+export function formatPnlDisplay(value: number): string {
+  const sign = pnlSign(value);
+  return `${sign}$${formatCurrency(Math.abs(value))}`;
+}
+
+/**
+ * Format stock quantity with 4 decimal places
+ * Used for consistent display of share quantities and stock amounts
+ *
+ * @param value - The quantity value (number or string)
+ * @returns Formatted quantity string like "123.4567"
+ *
+ * @example
+ * formatQuantity(123.456789) // "123.4568"
+ * formatQuantity("50") // "50.0000"
+ * formatQuantity("invalid") // "0.0000"
+ */
+export function formatQuantity(value: string | number): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "0.0000";
+  return num.toFixed(4);
+}
+
+/**
+ * Format large numbers with thousand separators
+ * Used for token counts and other large numeric displays
+ *
+ * @param value - The number to format
+ * @returns Formatted string like "1,234,567"
+ *
+ * @example
+ * formatNumber(1234567) // "1,234,567"
+ * formatNumber(1000) // "1,000"
+ * formatNumber(42) // "42"
+ */
+export function formatNumber(value: number): string {
+  return value.toLocaleString();
+}
