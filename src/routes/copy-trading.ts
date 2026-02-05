@@ -26,6 +26,14 @@ import { getAgentConfig, getAgentConfigs, getMarketData } from "../agents/orches
 import type { MarketData } from "../agents/base-agent.ts";
 
 // ---------------------------------------------------------------------------
+// Type Aliases
+// ---------------------------------------------------------------------------
+
+type CopyFollower = typeof copyFollowers.$inferSelect;
+type CopyTrade = typeof copyTrades.$inferSelect;
+type AgentDecision = typeof agentDecisions.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -183,7 +191,7 @@ copyTradingRoutes.delete("/follow/:followerId", async (c) => {
 
   return c.json({
     message: `Unfollowed ${deleted.length} agent(s)`,
-    unfollowed: deleted.map((f: any) => ({
+    unfollowed: deleted.map((f: CopyFollower) => ({
       targetAgentId: f.targetAgentId,
       finalPortfolioValue: parseFloat(f.portfolioValue),
       totalPnl: parseFloat(f.totalPnl),
@@ -219,7 +227,7 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
     // use empty
   }
 
-  const portfolios = follows.map((f: any) => {
+  const portfolios = follows.map((f: CopyFollower) => {
     const positions = (f.positions as CopyPosition[]) ?? [];
     const config = getAgentConfig(f.targetAgentId);
 
@@ -269,8 +277,9 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
   });
 
   // Aggregate
-  const totalValue = portfolios.reduce((s: any, p: any) => s + p.totalValue, 0);
-  const totalInitial = portfolios.reduce((s: any, p: any) => s + p.initialCapital, 0);
+  type Portfolio = typeof portfolios[number];
+  const totalValue = portfolios.reduce((s: number, p: Portfolio) => s + p.totalValue, 0);
+  const totalInitial = portfolios.reduce((s: number, p: Portfolio) => s + p.initialCapital, 0);
 
   return c.json({
     followerId,
@@ -281,7 +290,7 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
       totalPnl: Math.round((totalValue - totalInitial) * 100) / 100,
       totalPnlPercent: totalInitial > 0 ? Math.round(((totalValue - totalInitial) / totalInitial) * 10000) / 100 : 0,
       agentsFollowed: portfolios.length,
-      totalTradesCopied: portfolios.reduce((s: any, p: any) => s + p.tradesCopied, 0),
+      totalTradesCopied: portfolios.reduce((s: number, p: Portfolio) => s + p.tradesCopied, 0),
     },
     portfolios,
   });
@@ -313,7 +322,7 @@ copyTradingRoutes.get("/history/:followerId", async (c) => {
 
   return c.json({
     followerId,
-    trades: trades.map((t: any) => {
+    trades: trades.map((t: CopyTrade) => {
       const config = getAgentConfig(t.sourceAgentId);
       return {
         id: t.id,
@@ -388,7 +397,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
         ),
       );
 
-    const copiedIds = new Set(existingCopyIds.map((r: any) => r.sourceDecisionId));
+    const copiedIds = new Set(existingCopyIds.map((r: { sourceDecisionId: number }) => r.sourceDecisionId));
 
     // Get agent's recent decisions
     const recentDecisions = await db
@@ -399,7 +408,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
       .limit(50);
 
     // Filter to new, uncopied decisions
-    const newDecisions = recentDecisions.filter((d: any) => !copiedIds.has(d.id));
+    const newDecisions = recentDecisions.filter((d: AgentDecision) => !copiedIds.has(d.id));
 
     if (newDecisions.length === 0) {
       syncResults.push({ agentId: follow.targetAgentId, agentName, newDecisions: 0, tradesCopied: 0 });
@@ -549,7 +558,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
       agentId: follow.targetAgentId,
       agentName,
       newDecisions: newDecisions.length,
-      tradesCopied: newDecisions.filter((d: any) => d.action !== "hold").length,
+      tradesCopied: newDecisions.filter((d: AgentDecision) => d.action !== "hold").length,
     });
   }
 
@@ -577,7 +586,7 @@ copyTradingRoutes.get("/leaderboard", async (c) => {
       .orderBy(desc(sql`CAST(${copyFollowers.portfolioValue} AS NUMERIC)`))
       .limit(limit);
 
-    const leaderboard = followers.map((f: any, i: any) => {
+    const leaderboard = followers.map((f: CopyFollower, i: number) => {
       const config = getAgentConfig(f.targetAgentId);
       return {
         rank: i + 1,
