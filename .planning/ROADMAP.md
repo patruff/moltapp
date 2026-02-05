@@ -85,8 +85,18 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 - /economics dashboard showing cost vs P&L, net economics, per-agent breakdown
 - Agent profile economics cards
 
+### Phase 10: Agent Decision Quality
+**Goal**: Improve agent trading quality with decision quality metrics and tracking
+**Status**: Not planned
+**Depends on:** Phase 9
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 10 to break down)
+
+**Details:**
+[To be added during planning]
+
 **Future improvement areas** (ongoing):
-- [ ] Agent decision quality (are they making good trades?)
 - [ ] Skill.md refinement (clearer instructions)
 - [ ] Bug fixes (300+ pre-existing TS errors in older files)
 - [ ] Test coverage
@@ -106,3 +116,4 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 | 7. Skill System | v2.0 | Complete | 2026-02-04 |
 | 8. On-Chain + Dashboard | v2.1 | Complete | 2026-02-04 |
 | 9. Cost Tracking + Economics | v2.1 | Complete | 2026-02-05 |
+| 10. Agent Decision Quality | v2.1 | Not planned | — |
