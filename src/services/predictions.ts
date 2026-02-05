@@ -716,7 +716,7 @@ export async function getActivePredictions(symbol?: string) {
 
   // Attach market data for each prediction
   const withMarkets = await Promise.all(
-    filtered.map(async (pred: any) => {
+    filtered.map(async (pred: Prediction) => {
       const [market] = await db
         .select()
         .from(predictionMarkets)
@@ -1075,7 +1075,7 @@ export async function getHotPredictions() {
     .orderBy(desc(predictionMarkets.totalPool));
 
   const hotPredictions = await Promise.all(
-    markets.slice(0, 20).map(async (market: any) => {
+    markets.slice(0, 20).map(async (market: typeof predictionMarkets.$inferSelect) => {
       const [pred] = await db
         .select()
         .from(predictions)
@@ -1148,7 +1148,7 @@ export async function getPredictionHistory(
 
   // Attach market data
   const withMarkets = await Promise.all(
-    page.map(async (pred: any) => {
+    page.map(async (pred: Prediction) => {
       const [market] = await db
         .select()
         .from(predictionMarkets)
