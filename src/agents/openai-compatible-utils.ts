@@ -7,12 +7,20 @@
  */
 
 import type OpenAI from "openai";
+import type {
+  ChatCompletion,
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+  ChatCompletionMessageToolCall,
+  ChatCompletionAssistantMessageParam,
+  ChatCompletionCreateParamsNonStreaming,
+} from "openai/resources/chat/completions";
 import type { AgentTurn, ToolCall, ToolResult } from "./base-agent.ts";
 
 /**
  * Build initial messages array with user message for OpenAI-compatible APIs.
  */
-export function buildOpenAIMessages(userMessage: string): any[] {
+export function buildOpenAIMessages(userMessage: string): ChatCompletionMessageParam[] {
   return [{ role: "user" as const, content: userMessage }];
 }
 
@@ -24,16 +32,16 @@ export function buildOpenAIMessages(userMessage: string): any[] {
  * - Separate "tool" role messages for each result
  */
 export function appendOpenAIToolResults(
-  messages: any[],
+  messages: ChatCompletionMessageParam[],
   turn: AgentTurn,
   results: ToolResult[],
-): any[] {
-  const assistantMsg: any = {
+): ChatCompletionMessageParam[] {
+  const assistantMsg: ChatCompletionAssistantMessageParam = {
     role: "assistant",
     content: turn.textResponse ?? null,
     tool_calls: turn.toolCalls.map((tc) => ({
       id: tc.id,
-      type: "function",
+      type: "function" as const,
       function: {
         name: tc.name,
         arguments: JSON.stringify(tc.arguments),
@@ -55,7 +63,7 @@ export function appendOpenAIToolResults(
  *
  * Handles tool calls and stop reasons uniformly for all OpenAI-compatible APIs.
  */
-export function parseOpenAIResponse(response: any): AgentTurn {
+export function parseOpenAIResponse(response: ChatCompletion): AgentTurn {
   const choice = response.choices[0];
   if (!choice) {
     return { toolCalls: [], textResponse: null, stopReason: "end_turn" };
@@ -63,8 +71,8 @@ export function parseOpenAIResponse(response: any): AgentTurn {
 
   const msg = choice.message;
   const toolCalls: ToolCall[] = (msg.tool_calls ?? [])
-    .filter((tc: any): tc is Extract<typeof tc, { type: "function" }> => tc.type === "function")
-    .map((tc: any) => ({
+    .filter((tc: ChatCompletionMessageToolCall): tc is Extract<typeof tc, { type: "function" }> => tc.type === "function")
+    .map((tc: Extract<ChatCompletionMessageToolCall, { type: "function" }>) => ({
       id: tc.id,
       name: tc.function.name,
       arguments: JSON.parse(tc.function.arguments || "{}"),
@@ -101,11 +109,11 @@ export function createOpenAICompatibleCaller(
   model: string,
   temperature: number,
   options?: OpenAICallerOptions,
-): (system: string, messages: any[], tools: any[]) => Promise<AgentTurn> {
-  return async (system: string, messages: any[], tools: any[]): Promise<AgentTurn> => {
+): (system: string, messages: ChatCompletionMessageParam[], tools: ChatCompletionTool[]) => Promise<AgentTurn> {
+  return async (system: string, messages: ChatCompletionMessageParam[], tools: ChatCompletionTool[]): Promise<AgentTurn> => {
     const client = getClient();
 
-    const requestParams: any = {
+    const requestParams: ChatCompletionCreateParamsNonStreaming = {
       model,
       temperature,
       messages: [{ role: "system", content: system }, ...messages],
