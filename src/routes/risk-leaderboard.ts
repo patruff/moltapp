@@ -11,6 +11,7 @@ import {
   refreshRiskAdjustedLeaderboard,
   getAgentRiskDetail,
 } from "../services/risk-adjusted-leaderboard.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const riskLeaderboardRoutes = new Hono();
 
@@ -58,10 +59,7 @@ riskLeaderboardRoutes.get("/agent/:agentId", (c) => {
   const detail = getAgentRiskDetail(agentId);
 
   if (!detail.entry) {
-    return c.json(
-      { ok: false, error: `No risk data found for agent ${agentId}` },
-      404,
-    );
+    return apiError(c, "AGENT_NOT_FOUND", `No risk data found for agent ${agentId}`);
   }
 
   return c.json({

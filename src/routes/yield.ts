@@ -21,6 +21,7 @@ import {
   updateProtocolApy,
   updateProtocolStatus,
 } from "../services/defi-yield.ts";
+import { apiError, handleError } from "../lib/errors.ts";
 
 export const yieldRoutes = new Hono();
 
@@ -81,7 +82,7 @@ yieldRoutes.get("/agent/:agentId/optimal", (c) => {
   const idleCash = parseFloat(c.req.query("idleCash") ?? "1000");
 
   if (isNaN(idleCash) || idleCash < 0) {
-    return c.json({ ok: false, error: "Invalid idleCash parameter" }, 400);
+    return apiError(c, "VALIDATION_FAILED", "idleCash must be a non-negative number");
   }
 
   const allocation = calculateOptimalAllocation(agentId, idleCash);
@@ -100,10 +101,7 @@ yieldRoutes.post("/deposit", async (c) => {
     const { agentId, protocolId, amount } = body;
 
     if (!agentId || !protocolId || !amount) {
-      return c.json(
-        { ok: false, error: "agentId, protocolId, and amount are required" },
-        400,
-      );
+      return apiError(c, "VALIDATION_FAILED", "agentId, protocolId, and amount are required");
     }
 
     const position = depositToYield(agentId, protocolId, parseFloat(amount));
@@ -112,13 +110,7 @@ yieldRoutes.post("/deposit", async (c) => {
       position,
     });
   } catch (err) {
-    return c.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      400,
-    );
+    return handleError(c, err);
   }
 });
 
@@ -131,10 +123,7 @@ yieldRoutes.post("/withdraw", async (c) => {
     const { positionId } = body;
 
     if (!positionId) {
-      return c.json(
-        { ok: false, error: "positionId is required" },
-        400,
-      );
+      return apiError(c, "VALIDATION_FAILED", "positionId is required");
     }
 
     const result = withdrawFromYield(positionId);
@@ -143,13 +132,7 @@ yieldRoutes.post("/withdraw", async (c) => {
       ...result,
     });
   } catch (err) {
-    return c.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      400,
-    );
+    return handleError(c, err);
   }
 });
 
@@ -162,7 +145,7 @@ yieldRoutes.post("/emergency-withdraw", async (c) => {
     const { agentId } = body;
 
     if (!agentId) {
-      return c.json({ ok: false, error: "agentId is required" }, 400);
+      return apiError(c, "VALIDATION_FAILED", "agentId is required");
     }
 
     const result = emergencyWithdrawAll(agentId);
@@ -171,13 +154,7 @@ yieldRoutes.post("/emergency-withdraw", async (c) => {
       ...result,
     });
   } catch (err) {
-    return c.json(
-      {
-        ok: false,
-        error: err instanceof Error ? err.message : String(err),
-      },
-      400,
-    );
+    return handleError(c, err);
   }
 });
 
@@ -212,7 +189,7 @@ yieldRoutes.post("/protocols/:id/apy", async (c) => {
   const { apy } = body;
 
   if (typeof apy !== "number" || apy < 0) {
-    return c.json({ ok: false, error: "Valid apy number required" }, 400);
+    return apiError(c, "VALIDATION_FAILED", "apy must be a non-negative number");
   }
 
   updateProtocolApy(protocolId, apy);
@@ -228,10 +205,7 @@ yieldRoutes.post("/protocols/:id/status", async (c) => {
   const { status } = body;
 
   if (!["active", "degraded", "paused"].includes(status)) {
-    return c.json(
-      { ok: false, error: "status must be: active, degraded, or paused" },
-      400,
-    );
+    return apiError(c, "VALIDATION_FAILED", "status must be: active, degraded, or paused");
   }
 
   updateProtocolStatus(protocolId, status);
