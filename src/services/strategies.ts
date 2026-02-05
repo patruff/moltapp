@@ -35,6 +35,12 @@ import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
 // Types
 // ---------------------------------------------------------------------------
 
+/** Database types inferred from schema */
+type Strategy = typeof strategies.$inferSelect;
+type StrategyAdoption = typeof strategyAdoptions.$inferSelect;
+type StrategyRating = typeof strategyRatings.$inferSelect;
+type StrategySignal = typeof strategySignals.$inferSelect;
+
 /** Valid strategy categories */
 export type StrategyCategory =
   | "momentum"
@@ -460,7 +466,7 @@ export async function rateStrategy(
   const avgRating =
     totalRatings > 0
       ? (
-          allRatings.reduce((sum: number, r: any) => sum + r.rating, 0) / totalRatings
+          allRatings.reduce((sum: number, r: StrategyRating) => sum + r.rating, 0) / totalRatings
         ).toFixed(2)
       : "0";
 
@@ -638,7 +644,7 @@ export async function getStrategyLeaderboard() {
     if (adoptions.length === 0) continue;
 
     const performances = adoptions
-      .map((a: any) => parseFloat(a.performanceSinceAdoption ?? "0"))
+      .map((a: StrategyAdoption) => parseFloat(a.performanceSinceAdoption ?? "0"))
       .filter((p: number) => !isNaN(p));
 
     const avgPerf =
@@ -647,7 +653,7 @@ export async function getStrategyLeaderboard() {
         : 0;
 
     const totalTrades = adoptions.reduce(
-      (sum: number, a: any) => sum + (a.tradesExecuted ?? 0),
+      (sum: number, a: StrategyAdoption) => sum + (a.tradesExecuted ?? 0),
       0,
     );
 
@@ -950,10 +956,10 @@ export async function getStrategyPerformance(
     .from(strategyAdoptions)
     .where(eq(strategyAdoptions.strategyId, strategyId));
 
-  const activeAdoptions = adoptions.filter((a: any) => a.status === "active");
+  const activeAdoptions = adoptions.filter((a: StrategyAdoption) => a.status === "active");
 
   const performances = adoptions
-    .map((a: any) => parseFloat(a.performanceSinceAdoption ?? "0"))
+    .map((a: StrategyAdoption) => parseFloat(a.performanceSinceAdoption ?? "0"))
     .filter((p: number) => !isNaN(p))
     .sort((a: number, b: number) => a - b);
 
@@ -972,7 +978,7 @@ export async function getStrategyPerformance(
       : 0;
 
   const totalTrades = adoptions.reduce(
-    (sum: number, a: any) => sum + (a.tradesExecuted ?? 0),
+    (sum: number, a: StrategyAdoption) => sum + (a.tradesExecuted ?? 0),
     0,
   );
 
@@ -1137,7 +1143,7 @@ export async function getStrategyComparison(
       .where(eq(strategyAdoptions.strategyId, id));
 
     const performances = adoptions
-      .map((a: any) => parseFloat(a.performanceSinceAdoption ?? "0"))
+      .map((a: StrategyAdoption) => parseFloat(a.performanceSinceAdoption ?? "0"))
       .filter((p: number) => !isNaN(p));
 
     const avgPerf =
@@ -1155,7 +1161,7 @@ export async function getStrategyComparison(
 
     const recentStrength =
       signals.length > 0
-        ? signals.reduce((s: number, sig: any) => s + sig.strength, 0) / signals.length
+        ? signals.reduce((s: number, sig: StrategySignal) => s + sig.strength, 0) / signals.length
         : 0;
 
     // Total signals
@@ -1216,11 +1222,11 @@ export async function getStrategyComparison(
 export async function getMarketplaceStats(): Promise<MarketplaceStats> {
   // Total strategies
   const allStrategies = await db.select().from(strategies);
-  const activeStrategies = allStrategies.filter((s: any) => s.status === "active");
+  const activeStrategies = allStrategies.filter((s: Strategy) => s.status === "active");
 
   // Total adoptions
   const allAdoptions = await db.select().from(strategyAdoptions);
-  const activeAdoptions = allAdoptions.filter((a: any) => a.status === "active");
+  const activeAdoptions = allAdoptions.filter((a: StrategyAdoption) => a.status === "active");
 
   // Total signals
   const allSignals = await db
@@ -1229,7 +1235,7 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
 
   // Average performance across all active adoptions
   const performances = activeAdoptions
-    .map((a: any) => parseFloat(a.performanceSinceAdoption ?? "0"))
+    .map((a: StrategyAdoption) => parseFloat(a.performanceSinceAdoption ?? "0"))
     .filter((p: number) => !isNaN(p));
 
   const avgPerformance =
@@ -1241,7 +1247,7 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
 
   // Average rating across all strategies
   const ratingValues = allStrategies
-    .map((s: any) => parseFloat(s.avgRating))
+    .map((s: Strategy) => parseFloat(s.avgRating))
     .filter((r: number) => r > 0);
 
   const avgRating =
@@ -1277,10 +1283,10 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const recentStrategies = allStrategies.filter(
-    (s: any) => s.createdAt && s.createdAt >= sevenDaysAgo,
+    (s: Strategy) => s.createdAt && s.createdAt >= sevenDaysAgo,
   );
   const recentAdoptionsList = allAdoptions.filter(
-    (a: any) => a.adoptedAt && a.adoptedAt >= sevenDaysAgo,
+    (a: StrategyAdoption) => a.adoptedAt && a.adoptedAt >= sevenDaysAgo,
   );
 
   const recentSignals = await db
