@@ -1138,6 +1138,110 @@ Your trading system tracks `symbolKnowledge` scores. Repeatedly losing on the SA
 }
 ```
 
+**THESIS DECAY — When Old Positions Become Dead Weight**
+
+**The Problem:**
+You entered AAPLx 45 days ago at $175 with a strong thesis (Services growth +18% YoY). Price is now $161 (-8%). Over the past 6 rounds, your confidence has slowly declined from 75 → 68 → 62 → 58 → 55. You're still holding because "I was right when I entered" and "it's only down 8%, not worth closing yet."
+
+**Why This Is a Trap:**
+This is **sunk cost fallacy** masquerading as conviction. The question isn't "Was my entry good 45 days ago?" but "Would I make THIS trade TODAY at current price and conditions?"
+
+**The Thesis Decay Rule:**
+
+Every **30 days**, reset your conviction to baseline (50 points) and re-evaluate from scratch as if it's a NEW entry:
+- Ignore your entry price (sunk cost)
+- Ignore past performance (recency bias)
+- Ask: "At $161 TODAY, would this setup earn ≥70 confidence?"
+
+If answer is NO → close the position. Don't wait for recovery based on old analysis.
+
+**WORKED EXAMPLE — The Aging AAPLx Thesis:**
+
+**Round 1 (45 days ago) — Initial Entry:**
+- Price: $175
+- Thesis: "Services revenue +18% YoY, install base growing, PT $210 (+20%)"
+- Catalyst: Strong Services growth confirmed in earnings
+- Confidence: 75 (strong entry)
+- Decision: **BUY** $3.00 USDC
+
+**Rounds 2-7 (Weeks 1-6) — Gradual Decay:**
+- Week 1: $172 (-1.7%) — confidence 73 — "Small pullback, thesis intact, HOLD"
+- Week 2: $168 (-4.0%) — confidence 68 — "Market rotation, not fundamental issue, HOLD"
+- Week 3: $165 (-5.7%) — confidence 62 — "Services growth still on track per analyst notes, HOLD"
+- Week 4: $163 (-6.9%) — confidence 58 — "Oversold, should bounce soon, HOLD"
+- Week 5: $160 (-8.6%) — confidence 55 — "I don't want to sell at a loss, HOLD"
+- Week 6: $161 (-8.0%) — confidence 55 — "Been holding 6 weeks, might as well see it through, HOLD"
+
+**Round 8 (Today, Day 45) — Thesis Decay Check:**
+
+**The 30-Day Reset Test:**
+Position is >30 days old → reset conviction to 50 and re-evaluate as if NEW entry:
+
+**Honest Re-Evaluation at $161 TODAY:**
+
+1. **Catalyst strength:** Services growth was +18% in Q1 earnings (45 days ago), but Q2 guidance (released 3 weeks ago) lowered to +12% YoY growth
+   - Catalyst strength: **WEAKENED** (-10 points)
+
+2. **Entry vs target:** Originally $175 → $210 (+20% upside). Now $161 → $210 (+30% upside)
+   - Math looks BETTER (+30% vs +20%), but upside increased because thesis FAILED, not because opportunity improved
+   - This is a **red flag**, not a green light (-5 points)
+
+3. **Technical setup:** RSI 42 (neutral, not oversold like original 32 entry), no clear support level
+   - Technical: **WORSE** than original entry (-5 points)
+
+4. **Time decay:** 6 weeks have passed, original 6-8 week timeframe almost expired with no progress
+   - Thesis timeline: **BROKEN** (-10 points)
+
+**New confidence if entering TODAY:**
+- Baseline: 50
+- Catalyst: +5 (Services still growing, just slower)
+- Entry quality: +0 (neutral technical setup)
+- Risk: -10 (thesis already failed once, guidance lowered)
+- **Total: 45 confidence** (below 70 threshold)
+
+**Decision: CLOSE the position**
+- You would NOT buy AAPLx at $161 today with 45 confidence
+- Holding is equivalent to buying — you're allocating capital to this idea
+- Exit the "thesis zombie" and reallocate to fresh 75+ confidence setups
+
+**Tool Call:**
+```json
+{
+  "tool": "close_thesis",
+  "arguments": {
+    "symbol": "AAPLx",
+    "reason": "CLOSE: Thesis decay after 45 days. Original catalyst (Services +18% growth) has weakened to +12% guidance. Re-evaluated as if new entry: only 45 confidence (below 70 threshold). Exiting -8% loss to reallocate capital to fresh opportunities. CATEGORY: CATALYST FAILED (Services growth decelerated). LEARNING: Don't hold aging theses hoping for recovery—if conviction <70 today, exit regardless of entry price."
+  }
+}
+```
+
+**The Key Insight:**
+"Down 8%" is NOT a reason to hold. The only question is: "Would I allocate capital to THIS idea TODAY?"
+- If YES (≥70 confidence) → Hold or add
+- If NO (<70 confidence) → Close and move on
+
+**Contrast with Legitimate Hold (Fresh Conviction):**
+
+Same scenario, but Q2 guidance was STRONG (Services +22% vs +18% prior):
+- Re-evaluation: Baseline 50 + catalyst strengthened (+15) + oversold entry (+10) = 75 confidence
+- Decision: **HOLD** — would buy today at $161, so holding is justified
+
+**Age-Based Recalibration Checklist:**
+
+☐ Is this thesis >30 days old?
+☐ Reset conviction to 50 (ignore sunk cost of entry price)
+☐ Re-score as if NEW entry: baseline + signals - risks
+☐ If new score <70 → close the position (it's dead weight)
+☐ If new score ≥70 → hold or scale (thesis still valid)
+
+**Quick Rule:**
+- **Aging winner** (price up, conviction up) → Hold, it's working ✅
+- **Aging loser** (price down, conviction down) → Re-test at baseline, usually close ❌
+- **Aging flat** (price flat, conviction flat) → Re-test at baseline, often close (opportunity cost) ⚠️
+
+**Why This Matters:**
+Every dollar in an aging low-conviction position is a dollar NOT available for fresh high-conviction setups. Capital rotation is key.
+
 **ANTI-PATTERN: The Averaging Down Trap (Why Lower Price ≠ Better Entry)**
 
 **The Temptation:**
