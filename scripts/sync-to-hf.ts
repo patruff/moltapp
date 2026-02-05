@@ -134,22 +134,24 @@ const records = justifications.map((j) => {
   );
   const reversibilityScore = scoreDecisionReversibility(
     j.reasoning,
-    j.action ?? "hold",
     j.confidence,
-    j.predictedOutcome ?? null,
+    (j.sources as string[]) ?? [],
+    j.coherenceScore ?? 0,
+    (j.hallucinationFlags as string[]) ?? [],
+    [],
   );
   // v37 new dimensions
   const composabilityScore = scoreReasoningComposability(
     j.reasoning,
     (j.sources as string[]) ?? [],
     [],
+    [],
   );
   const foresightScore = scoreStrategicForesight(
     j.reasoning,
     j.action ?? "hold",
-    j.confidence,
+    j.predictedOutcome ?? null,
     (j.sources as string[]) ?? [],
-    j.quantity ?? 0,
   );
   return {
     agent_id: j.agentId,
