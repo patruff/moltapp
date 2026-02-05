@@ -15,6 +15,7 @@
 import { desc, eq, and, gte } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/index.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -186,18 +187,10 @@ export function validateToolSequence(
 
 /**
  * Compute a letter grade from a numeric score (0-1).
+ * Wrapper for shared computeGrade utility.
  */
 export function computeToolUseGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.9) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.8) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.7) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.6) return "C";
-  if (score >= 0.5) return "D";
-  return "F";
+  return computeGrade(score);
 }
 
 // ---------------------------------------------------------------------------

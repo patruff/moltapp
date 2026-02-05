@@ -18,6 +18,7 @@
 import { eq, desc } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, decisionQualitySnapshots } from "../db/schema/index.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 
 // Quality service imports
 import { analyzeCalibration } from "./confidence-calibration-analyzer.ts";
@@ -104,22 +105,7 @@ const DIMENSION_WEIGHTS = {
 // Grade Computation
 // ---------------------------------------------------------------------------
 
-/**
- * Compute a letter grade from a numeric score (0-1).
- */
-export function computeGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D";
-  return "F";
-}
+// Note: computeGrade() now imported from ../lib/grade-calculator.ts
 
 // ---------------------------------------------------------------------------
 // Main Report Generation
