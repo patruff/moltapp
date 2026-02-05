@@ -15,6 +15,16 @@ type Trade = typeof trades.$inferSelect;
 type AgentDecision = typeof agentDecisions.$inferSelect;
 type Thesis = typeof agentTheses.$inferSelect;
 type DbPosition = typeof positions.$inferSelect;
+type TradeJustification = typeof tradeJustifications.$inferSelect;
+
+// Tool trace type from trade justifications schema
+type TradeJustificationToolCall = {
+  turn: number;
+  tool: string;
+  arguments: Record<string, any>;
+  result: string;
+  timestamp: string;
+};
 
 // Computed types from orchestrator functions
 type AgentPosition = {
@@ -323,13 +333,13 @@ pages.get("/agent/:id", async (c) => {
     Promise.resolve(getAgentConfig(agentId)),
     getAgentPortfolio(agentId).catch(() => ({
       cashBalance: 0,
-      positions: [] as any[],
+      positions: [] as AgentPosition[],
       totalValue: 0,
       totalPnl: 0,
       totalPnlPercent: 0,
     })),
     getAgentTradeHistory(agentId, 10, 0).catch(() => ({
-      decisions: [] as any[],
+      decisions: [] as AgentDecision[],
       total: 0,
       limit: 10,
       offset: 0,
@@ -351,8 +361,8 @@ pages.get("/agent/:id", async (c) => {
       .where(eq(trades.agentId, agentId))
       .orderBy(desc(trades.createdAt))
       .limit(20)
-      .catch(() => [] as any[]),
-    getThesisHistory(agentId, 10).catch(() => [] as any[]),
+      .catch(() => []),
+    getThesisHistory(agentId, 10).catch(() => []),
   ]);
 
   return c.render(
@@ -907,7 +917,7 @@ pages.get("/round/:id", async (c) => {
         {justifications.map((j: typeof justifications[number]) => {
           const config = getAgentConfig(j.agentId);
           const agentName = config?.name || j.agentId;
-          const toolTrace = j.toolTrace as any[] | null;
+          const toolTrace = j.toolTrace as TradeJustificationToolCall[] | null;
 
           return (
             <div id={j.agentId} class="bg-gray-900 border border-gray-800 rounded-lg p-6">
