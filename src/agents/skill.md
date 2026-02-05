@@ -1333,6 +1333,105 @@ Answer B (STRONG): "Actually, at $195.50 I'm now +11.7% toward my $210 target (+
 ❌ "AAPLx is my best performer (+11.7%) so I should ADD more to maximize gains!"
 → This is **recency bias** + **concentration risk**. Position already 23.9% = adding would push to 30%+ (mandatory rebalancing territory). One bad earnings miss could wipe out weeks of gains across entire portfolio.
 
+**WORKED EXAMPLE - The Position Scaling Trap (Repeated Adds = Creeping Concentration):**
+
+**The Trap:** Each individual add looks justified (new data point, position still under 25%), but cumulative adds across multiple rounds create dangerous concentration without the agent realizing it.
+
+**Scenario — AAPLx Across 5 Trading Rounds:**
+
+**Round 1 (Initial Entry):**
+- Price: $175
+- Entry: "Services revenue +18% YoY, PT $210 (+20%), RSI 32 (oversold)"
+- Position size: $3.00 USDC
+- Portfolio allocation: **15%** (safe initial position)
+
+**Round 2 (First Add) — 1 week later:**
+- Price: $182 (+4.0%)
+- New data: "Services install base grew 12M users week-over-week, confirming thesis"
+- Decision: "New catalyst (user growth), position still <20%, add $1.50"
+- Post-add size: $4.50 USDC
+- Portfolio allocation: **18%** (still within safe range)
+- ✅ Individual decision looks good — follows rules (new catalyst, <20%, thesis strengthening)
+
+**Round 3 (Second Add) — 1 week later:**
+- Price: $189 (+8.0% from entry)
+- New data: "Analyst upgraded AAPL to 'Buy' with $215 PT, citing Services momentum"
+- Decision: "New catalyst (analyst upgrade), position 18% → adding $1.50 more"
+- Post-add size: $6.00 USDC
+- Portfolio allocation: **22%** (above 20% warning, but below 25% max)
+- ⚠️ Warning light should flash here — but agent sees: "Just upgraded, thesis still valid, below 25%"
+
+**Round 4 (Third Add) — 1 week later:**
+- Price: $196 (+12.0% from entry)
+- New data: "Preorders for new iPhone model up 8% vs last year (per channel checks)"
+- Decision: "New catalyst (iPhone preorders), position 22% → confidence still 76, adding $1.50"
+- Post-add size: $7.50 USDC
+- Portfolio allocation: **26%** (OVER 25% max threshold)
+- 🚨 CONCENTRATION RISK — but agent rationalizes: "Thesis keeps strengthening, can't pass this up"
+
+**Round 5 (The Reckoning) — 2 weeks later:**
+- Price: $204 → $167 overnight (-18.1%)
+- News: "Apple Services growth decelerated to 9% QoQ (vs 18% expected) + China iPhone ban rumors"
+- Thesis: BROKEN (Services growth was the core thesis)
+- Decision: Must exit — thesis invalidated
+- Exit price: $167
+- **Loss: -4.6% on total $7.50 position = -$0.35 USDC**
+- **BUT**: If had maintained 15% allocation ($3.00 position), loss would be only -$0.14 USDC
+- **Concentration penalty: 2.5x larger loss** due to repeated scaling
+
+**Portfolio Impact:**
+- Original portfolio: $20.00 → $19.65 after loss (-1.75%)
+- If stayed at 15%: $20.00 → $19.86 after loss (-0.70%)
+- **Extra damage from overconcentration: -1.05% portfolio hit** (60% larger drawdown)
+
+**What Went Wrong — Post-Mortem:**
+
+1. **Each add passed individual rules** ✓
+   - Had new catalyst each time ✓
+   - Position was <25% at time of decision (mostly) ✓
+   - Confidence ≥75 each time ✓
+
+2. **BUT: No tracking of cumulative adds** ✗
+   - Round 1→2→3→4: Added **4 separate times** to SAME position
+   - Each time felt like "just a small add" ($1.50), but compounded to $7.50 total
+   - Never asked: "How many times have I scaled THIS specific position?"
+
+3. **Recency bias masked as "thesis strengthening"** ✗
+   - User growth → analyst upgrade → preorder data = 3 CORRELATED signals, not independent
+   - All were "Services doing well" in different forms (not truly new catalysts)
+   - Each add was emotional reinforcement ("I'm right!"), not objective new information
+
+**The Lesson — Position Scaling Gate (New Rule):**
+
+**Before adding to ANY existing position, ask:**
+
+1. ✅ "Is this a NEW catalyst or just confirmation of the same thesis?"
+   - User growth + analyst upgrade + preorders = SAME thesis (Services strength)
+   - NEW catalyst would be: "Entered new market (e.g., healthcare) with $5B revenue opportunity"
+
+2. ✅ "How many times have I scaled THIS position in the last 4 rounds?"
+   - 0-1 times = OK to consider scaling (if rules pass)
+   - 2 times = CAUTION (approaching concentration risk)
+   - 3+ times = **STOP** — you're building dangerous concentration through repeated small adds
+
+3. ✅ "If I exited this position today and re-evaluated, would I allocate 26% of my portfolio to it?"
+   - Answer is almost always NO — position grew through momentum, not planned strategy
+   - If answer is NO → don't add more, consider trimming instead
+
+**Better Approach — Scale Once, Then Trim:**
+
+**Rounds 1-2:** Initial entry ($3.00) → scale once on strong catalyst ($1.50) → 18% allocation ✓
+
+**Rounds 3-4:** Price runs from $182 → $196 (+7.7%) → allocation grows from 18% → 22-23% naturally
+
+**Round 3 decision:** Don't add again — instead, trim back to 18% and take partial profits
+
+**Round 5:** When thesis breaks, only have 18% exposure ($3.60), not 26% ($5.20)
+- Loss at 18% allocation: -$0.26 (vs -$0.35 actual)
+- Portfolio impact: -1.30% (vs -1.75% actual)
+
+**KEY INSIGHT:** Winning positions should grow through **price appreciation**, not through **repeated manual adds**. If you keep adding, you're chasing momentum, not following strategy.
+
 **Quick Position Sizing Reference:**
 | Scenario | Confidence | Size | Example |
 |----------|-----------|------|---------|
