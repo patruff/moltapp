@@ -30,3 +30,4 @@ export { v35TradeGrades, v35BenchmarkScores, v35Leaderboard, v35ResearchExports 
 export { v36TradeGrades, v36BenchmarkScores, v36Leaderboard, v36ResearchExports } from "./benchmark-v36.ts";
 export { v37TradeGrades, v37BenchmarkScores, v37Leaderboard, v37ResearchExports } from "./benchmark-v37.ts";
 export { agentTheses } from "./agent-theses.ts";
+export { llmUsage } from "./llm-usage.ts";
