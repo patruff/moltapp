@@ -490,6 +490,59 @@ pages.get("/agent/:id", async (c) => {
               const matchingPosition = portfolio.positions.find((p: AgentPosition) => p.symbol === t.symbol);
               const currentPnlPercent = matchingPosition?.unrealizedPnlPercent;
 
+              // Calculate exit outcome for closed theses
+              let exitOutcome: string | null = null;
+              let exitPrice: number | null = null;
+              let exitPnlPercent: number | null = null;
+
+              if (!isActive && t.entryPrice) {
+                // Find the first sell trade after thesis was created (for bullish)
+                // or first buy trade (for bearish short covers)
+                const exitTrade = onChainTrades.find((trade: Trade) =>
+                  trade.stockSymbol === t.symbol &&
+                  trade.side === (isBullish ? "sell" : "buy") &&
+                  new Date(trade.createdAt) >= new Date(t.createdAt)
+                );
+
+                if (exitTrade && exitTrade.pricePerToken) {
+                  exitPrice = Number(exitTrade.pricePerToken);
+                  const entryPrice = Number(t.entryPrice);
+
+                  // Calculate P&L
+                  let calculatedPnl: number;
+                  if (isBullish) {
+                    calculatedPnl = ((exitPrice - entryPrice) / entryPrice) * 100;
+                  } else if (isBearish) {
+                    // For bearish: profit when price goes down (entry > exit)
+                    calculatedPnl = ((entryPrice - exitPrice) / entryPrice) * 100;
+                  } else {
+                    calculatedPnl = 0;
+                  }
+                  exitPnlPercent = calculatedPnl;
+
+                  // Determine outcome category
+                  if (t.targetPrice) {
+                    const targetPrice = Number(t.targetPrice);
+                    const targetPnlPercent = isBullish
+                      ? ((targetPrice - entryPrice) / entryPrice) * 100
+                      : ((entryPrice - targetPrice) / entryPrice) * 100;
+
+                    if (calculatedPnl >= targetPnlPercent * 0.95) {
+                      exitOutcome = "TARGET_HIT";
+                    } else if (calculatedPnl <= -5) {
+                      exitOutcome = "STOPPED_OUT";
+                    } else if (calculatedPnl > 0) {
+                      exitOutcome = "PROFITABLE";
+                    } else {
+                      exitOutcome = "LOSS";
+                    }
+                  } else {
+                    // No target price - just check if profitable
+                    exitOutcome = calculatedPnl > 0 ? "PROFITABLE" : "LOSS";
+                  }
+                }
+              }
+
               return (
                 <div class={`border-l-2 ${isActive ? "border-blue-500" : "border-gray-700"} pl-4 pb-3`}>
                   <div class="flex items-start gap-2 mb-2">
@@ -520,6 +573,22 @@ pages.get("/agent/:id", async (c) => {
                         {pnlSign(currentPnlPercent)}{Number(currentPnlPercent).toFixed(1)}% current
                       </span>
                     )}
+                    {!isActive && exitOutcome && exitPnlPercent != null && (() => {
+                      const pnl = exitPnlPercent; // Type assertion - guaranteed non-null here
+                      return (
+                        <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
+                          exitOutcome === "TARGET_HIT" ? "bg-green-900/50 text-green-400" :
+                          exitOutcome === "PROFITABLE" ? "bg-green-900/30 text-profit" :
+                          exitOutcome === "STOPPED_OUT" ? "bg-red-900/50 text-red-400" :
+                          "bg-red-900/30 text-loss"
+                        }`}>
+                          {exitOutcome === "TARGET_HIT" ? "✓ Target Hit" :
+                           exitOutcome === "PROFITABLE" ? "✓ Profit" :
+                           exitOutcome === "STOPPED_OUT" ? "✗ Stopped" :
+                           "✗ Loss"} {pnlSign(pnl)}{pnl.toFixed(1)}%
+                        </span>
+                      );
+                    })()}
                     <span class="text-gray-600 text-xs ml-auto">
                       {t.updatedAt ? formatTimeAgo(new Date(t.updatedAt)) : "—"}
                     </span>
@@ -529,10 +598,13 @@ pages.get("/agent/:id", async (c) => {
                     {t.entryPrice && (
                       <span>Entry: <span class="text-gray-400">${formatCurrency(t.entryPrice)}</span></span>
                     )}
+                    {exitPrice && !isActive && (
+                      <span>Exit: <span class="text-gray-400">${formatCurrency(exitPrice)}</span></span>
+                    )}
                     {t.targetPrice && (
                       <span>Target: <span class="text-gray-400">${formatCurrency(t.targetPrice)}</span></span>
                     )}
-                    {t.entryPrice && t.targetPrice && (
+                    {isActive && t.entryPrice && t.targetPrice && (
                       <span class={pnlColor(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}>
                         {pnlSign(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100)}
                         {(((Number(t.targetPrice) - Number(t.entryPrice)) / Number(t.entryPrice)) * 100).toFixed(1)}% expected
