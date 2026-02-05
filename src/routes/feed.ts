@@ -18,6 +18,7 @@ import { tradeReactions } from "../db/schema/trade-reactions.ts";
 import { tradeComments } from "../db/schema/trade-comments.ts";
 import { desc, eq, sql, and, inArray } from "drizzle-orm";
 import { getAgentConfig } from "../agents/orchestrator.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -145,11 +146,9 @@ feedRoutes.get("/summary", async (c) => {
 // ---------------------------------------------------------------------------
 
 feedRoutes.get("/", async (c) => {
-  const limitStr = c.req.query("limit");
-  const offsetStr = c.req.query("offset");
   const actionFilter = c.req.query("action"); // Optional: filter by buy/sell/hold
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
   try {
     // Build query with optional action filter
@@ -213,10 +212,8 @@ feedRoutes.get("/:agentId", async (c) => {
     );
   }
 
-  const limitStr = c.req.query("limit");
-  const offsetStr = c.req.query("offset");
-  const limit = limitStr ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20)) : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
   try {
     const decisions = await db

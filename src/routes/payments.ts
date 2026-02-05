@@ -20,6 +20,7 @@ import {
   getAgentPaymentHistory,
 } from "../services/payments.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const paymentRoutes = new Hono();
 
@@ -225,14 +226,8 @@ paymentRoutes.get("/history/:agentId", async (c) => {
   }
 
   try {
-    const limitStr = c.req.query("limit");
-    const offsetStr = c.req.query("offset");
-    const limit = limitStr
-      ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 50))
-      : 50;
-    const offset = offsetStr
-      ? Math.max(0, parseInt(offsetStr, 10) || 0)
-      : 0;
+    const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
+    const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
     const history = await getAgentPaymentHistory(agentId, limit, offset);
 

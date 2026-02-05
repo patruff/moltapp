@@ -27,6 +27,7 @@ import {
   getRiskContribution,
   compareAttribution,
 } from "../services/attribution.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const attributionRoutes = new Hono();
 
@@ -247,10 +248,7 @@ attributionRoutes.get("/:agentId/contributions", async (c) => {
   if (err) return c.json(err, 400);
 
   try {
-    const limitStr = c.req.query("limit");
-    const limit = limitStr
-      ? Math.min(200, Math.max(1, parseInt(limitStr, 10) || 50))
-      : 50;
+    const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
 
     const contributions = await getTradeContributions(agentId, limit);
 

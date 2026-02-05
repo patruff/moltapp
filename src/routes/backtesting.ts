@@ -22,6 +22,7 @@ import {
   getHistoricalPerformance,
 } from "../services/backtesting.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const backtestRoutes = new Hono();
 
@@ -31,8 +32,7 @@ export const backtestRoutes = new Hono();
 
 backtestRoutes.get("/compare", async (c) => {
   try {
-    const daysStr = c.req.query("days");
-    const days = daysStr ? Math.min(365, Math.max(7, parseInt(daysStr, 10) || 90)) : 90;
+    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
 
     const comparison = await getBacktestComparison();
 
@@ -74,9 +74,8 @@ backtestRoutes.get("/:agentId", async (c) => {
   }
 
   try {
-    const daysStr = c.req.query("days");
+    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
     const capitalStr = c.req.query("capital");
-    const days = daysStr ? Math.min(365, Math.max(7, parseInt(daysStr, 10) || 90)) : 90;
     const capital = capitalStr ? Math.min(1000000, Math.max(1000, parseFloat(capitalStr) || 10000)) : 10000;
 
     const endDate = new Date().toISOString().slice(0, 10);
@@ -122,8 +121,7 @@ backtestRoutes.get("/:agentId/equity", async (c) => {
   }
 
   try {
-    const daysStr = c.req.query("days");
-    const days = daysStr ? Math.min(365, Math.max(7, parseInt(daysStr, 10) || 90)) : 90;
+    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
 
     const curve = await generateEquityCurve(agentId, days);
 

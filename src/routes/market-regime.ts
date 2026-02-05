@@ -24,6 +24,7 @@ import {
   getMarketBreadth,
   getSectorRotation,
 } from "../services/market-regime.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 export const marketRegimeRoutes = new Hono();
 
@@ -107,8 +108,7 @@ marketRegimeRoutes.get("/regime", async (c) => {
 
 marketRegimeRoutes.get("/regime/history", async (c) => {
   try {
-    const daysStr = c.req.query("days");
-    const days = daysStr ? Math.min(365, Math.max(7, parseInt(daysStr, 10) || 90)) : 90;
+    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
 
     const history = await getRegimeHistory(days);
 
