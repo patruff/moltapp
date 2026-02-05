@@ -24,19 +24,19 @@ import { createOpenAIClientGetter } from "./client-factory.ts";
 
 const GPT_AGENT_CONFIG = {
   agentId: "gpt-momentum-trader",
-  name: "GPT-4o-mini",
-  model: "gpt-4o-mini",
+  name: "o3",
+  model: "o3",
   provider: "openai" as const,
   description:
-    "Autonomous trading agent powered by OpenAI GPT-4o-mini.",
-  personality: "Autonomous AI trader. Develops its own strategy from market data.",
-  tradingStyle: "Self-directed — uses tools to research and form its own views.",
+    "Flagship autonomous trading agent powered by OpenAI o3 — advanced reasoning model with deliberative alignment.",
+  personality: "Systematic reasoner. Builds detailed mental models before trading decisions.",
+  tradingStyle: "Multi-step reasoning with explicit uncertainty quantification.",
   riskTolerance: "moderate" as const,
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
-  temperature: 0.5,
+  temperature: 1, // o3 reasoning model requires temperature 1
   skillOverrides: {
-    AGENT_NAME: "GPT-4o-mini",
+    AGENT_NAME: "o3",
   },
 };
 

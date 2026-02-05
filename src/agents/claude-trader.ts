@@ -21,19 +21,19 @@ import { createAnthropicClientGetter } from "./client-factory.ts";
 
 const CLAUDE_AGENT_CONFIG = {
   agentId: "claude-value-investor",
-  name: "Haiku 4.5",
-  model: "claude-haiku-4-5-20251101",
+  name: "Opus 4.5",
+  model: "claude-opus-4-5-20251101",
   provider: "anthropic" as const,
   description:
-    "Autonomous trading agent powered by Anthropic Claude Haiku 4.5.",
-  personality: "Autonomous AI trader. Develops its own strategy from market data.",
-  tradingStyle: "Self-directed — uses tools to research and form its own views.",
+    "Flagship autonomous trading agent powered by Anthropic Claude Opus 4.5 — the most capable reasoning model.",
+  personality: "Deep analytical thinker. Builds sophisticated multi-factor theses with extended reasoning.",
+  tradingStyle: "Thesis-driven portfolio construction with rigorous risk management.",
   riskTolerance: "moderate" as const,
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
-  temperature: 0.3,
+  temperature: 1, // Opus 4.5 uses extended thinking, temperature must be 1
   skillOverrides: {
-    AGENT_NAME: "Haiku 4.5",
+    AGENT_NAME: "Opus 4.5",
   },
 };
 

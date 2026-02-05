@@ -5,11 +5,16 @@
  * risk limits. Protects against runaway losses, oversized positions,
  * and overtrading.
  *
+ * Daily Trading Mode:
+ * - Agents run ONCE PER DAY and can make up to 6 trades per session
+ * - No cooldown between trades within a daily session
+ * - Circuit breaker resets at midnight UTC
+ *
  * Limits:
- * - MAX_TRADE_USDC: Configurable max trade size (default $50 USDC)
- * - DAILY_LOSS_LIMIT: Halt trading if agent loses > X% in a day (default 10%)
- * - COOLDOWN_PERIOD: Minimum time between trades per agent (default 10 min)
- * - POSITION_LIMIT: Max % of portfolio in single stock (default 25%)
+ * - MAX_TRADE_USDC: Max trade size (default $5 USDC per trade)
+ * - DAILY_LOSS_LIMIT: Halt trading if agent loses > 10% in a day
+ * - MAX_DAILY_TRADES: 6 trades per agent per day
+ * - POSITION_LIMIT: Max 25% of portfolio in single stock
  *
  * State is stored in-memory with periodic flush to DynamoDB when available.
  * All circuit breaker activations are logged.
@@ -35,11 +40,11 @@ export interface CircuitBreakerConfig {
 }
 
 const DEFAULT_CONFIG: CircuitBreakerConfig = {
-  maxTradeUsdc: 5,         // $1-5 trades
+  maxTradeUsdc: 5,         // $1-5 per trade, up to 6 trades = $30/day max
   dailyLossLimitPercent: 10,
-  cooldownSeconds: 7200,   // 2 hours — portfolio-hold strategy
+  cooldownSeconds: 0,      // No cooldown — agents run once daily with multi-trade sessions
   positionLimitPercent: 25,
-  maxDailyTrades: 6,       // ~2 per agent per day
+  maxDailyTrades: 6,       // 6 trades per agent per daily session
 };
 
 // ---------------------------------------------------------------------------
