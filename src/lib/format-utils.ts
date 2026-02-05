@@ -98,3 +98,120 @@ export function truncateText(text: string, maxLength: number = 200): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + "...";
 }
+
+/**
+ * Format a number as USD currency with 2 decimal places
+ * @param value - The value to format (number or string)
+ * @returns Formatted currency string like "1,234.56"
+ *
+ * @example
+ * formatCurrency(1234.5678) // "1,234.57"
+ * formatCurrency("5000") // "5,000.00"
+ * formatCurrency("invalid") // "0.00"
+ */
+export function formatCurrency(value: string | number): string {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (isNaN(num)) return "0.00";
+  return num.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/**
+ * Format a date as relative time (e.g., "5m ago", "2h ago")
+ * @param date - The date to format (null returns "Never")
+ * @returns Formatted time string like "5m ago" or "2d ago"
+ *
+ * @example
+ * formatTimeAgo(new Date(Date.now() - 5 * 60 * 1000)) // "5m ago"
+ * formatTimeAgo(new Date(Date.now() - 2 * 60 * 60 * 1000)) // "2h ago"
+ * formatTimeAgo(null) // "Never"
+ */
+export function formatTimeAgo(date: Date | null): string {
+  if (!date) return "Never";
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  return `${diffDays}d ago`;
+}
+
+/**
+ * Get CSS color class for positive/negative/neutral P&L
+ * @param pnlPercent - The P&L percentage value
+ * @returns CSS class string: "text-profit", "text-loss", or "text-gray-400"
+ *
+ * @example
+ * pnlColor(5.5) // "text-profit"
+ * pnlColor(-2.3) // "text-loss"
+ * pnlColor(0) // "text-gray-400"
+ */
+export function pnlColor(pnlPercent: string | number): string {
+  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
+  if (num > 0) return "text-profit";
+  if (num < 0) return "text-loss";
+  return "text-gray-400";
+}
+
+/**
+ * Get sign prefix for positive numbers (empty for negative/zero)
+ * @param pnlPercent - The P&L percentage value
+ * @returns "+" for positive numbers, "" for negative/zero
+ *
+ * @example
+ * pnlSign(5.5) // "+"
+ * pnlSign(-2.3) // ""
+ * pnlSign(0) // ""
+ */
+export function pnlSign(pnlPercent: string | number): string {
+  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
+  if (num > 0) return "+";
+  return "";
+}
+
+/**
+ * Get karma badge stars based on karma level
+ * @param karma - The karma score
+ * @returns Star symbols (★): 1 star (10+), 2 stars (50+), 3 stars (100+)
+ *
+ * @example
+ * karmaBadge(5) // ""
+ * karmaBadge(25) // " ★"
+ * karmaBadge(75) // " ★★"
+ * karmaBadge(150) // " ★★★"
+ */
+export function karmaBadge(karma: number): string {
+  if (karma >= 100) return " \u2605\u2605\u2605";
+  if (karma >= 50) return " \u2605\u2605";
+  if (karma >= 10) return " \u2605";
+  return "";
+}
+
+/**
+ * Generate Solscan transaction URL
+ * @param sig - The transaction signature
+ * @returns Full Solscan transaction URL
+ *
+ * @example
+ * solscanTxUrl("abc123...") // "https://solscan.io/tx/abc123..."
+ */
+export function solscanTxUrl(sig: string): string {
+  return `https://solscan.io/tx/${sig}`;
+}
+
+/**
+ * Generate Solscan wallet URL
+ * @param address - The wallet address
+ * @returns Full Solscan wallet URL
+ *
+ * @example
+ * solscanWalletUrl("abc123...") // "https://solscan.io/account/abc123..."
+ */
+export function solscanWalletUrl(address: string): string {
+  return `https://solscan.io/account/${address}`;
+}

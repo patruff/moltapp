@@ -19,6 +19,8 @@
  * - DISCORD_ALERTS_WEBHOOK_URL: Alerts/errors channel (optional, falls back to main)
  */
 
+import { pnlSign } from "../lib/format-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -536,8 +538,8 @@ export async function notifyDailySummary(
 ): Promise<boolean> {
   const agentLines = summary.agentPerformance.map((a) => {
     const pnlEmoji = a.pnl >= 0 ? "📈" : "📉";
-    const pnlSign = a.pnl >= 0 ? "+" : "";
-    return `**${a.agentName}**: ${a.trades} trades, ${a.wins}W/${a.losses}L, ${pnlEmoji} ${pnlSign}$${a.pnl.toFixed(2)} (${pnlSign}${a.pnlPercent.toFixed(2)}%)`;
+    const sign = pnlSign(a.pnl);
+    return `**${a.agentName}**: ${a.trades} trades, ${a.wins}W/${a.losses}L, ${pnlEmoji} ${sign}$${a.pnl.toFixed(2)} (${sign}${a.pnlPercent.toFixed(2)}%)`;
   });
 
   // Sort by P&L descending for ranking
@@ -549,7 +551,7 @@ export async function notifyDailySummary(
   const embed: DiscordEmbed = {
     title: `📊 Daily Summary — ${summary.date}`,
     description: winner
-      ? `🏆 **${winner.agentName}** leads with ${winner.pnl >= 0 ? "+" : ""}$${winner.pnl.toFixed(2)}`
+      ? `🏆 **${winner.agentName}** leads with ${pnlSign(winner.pnl)}$${winner.pnl.toFixed(2)}`
       : "No agent activity today",
     color: COLORS.DAILY_SUMMARY,
     fields: [

@@ -8,7 +8,20 @@ import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
 import { generateDecisionQualityReport, type DecisionQualityReport } from "../services/decision-quality-dashboard.ts";
-import { formatPercentage, calculateTargetMovePercent, calculateTargetMoveValue, truncateAddress, truncateText } from "../lib/format-utils.ts";
+import {
+  formatPercentage,
+  calculateTargetMovePercent,
+  calculateTargetMoveValue,
+  truncateAddress,
+  truncateText,
+  formatCurrency,
+  formatTimeAgo,
+  pnlColor,
+  pnlSign,
+  karmaBadge,
+  solscanTxUrl,
+  solscanWalletUrl,
+} from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
@@ -92,60 +105,7 @@ pages.use(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function formatCurrency(value: string | number): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
-  if (isNaN(num)) return "$0.00";
-  return num.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatTimeAgo(date: Date | null): string {
-  if (!date) return "Never";
-  const now = Date.now();
-  const diffMs = now - date.getTime();
-  const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHrs = Math.floor(diffMin / 60);
-  if (diffHrs < 24) return `${diffHrs}h ago`;
-  const diffDays = Math.floor(diffHrs / 24);
-  return `${diffDays}d ago`;
-}
-
-function pnlColor(pnlPercent: string | number): string {
-  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
-  if (num > 0) return "text-profit";
-  if (num < 0) return "text-loss";
-  return "text-gray-400";
-}
-
-function pnlSign(pnlPercent: string | number): string {
-  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
-  if (num > 0) return "+";
-  return "";
-}
-
-function karmaBadge(karma: number): string {
-  if (karma >= 100) return " \u2605\u2605\u2605";
-  if (karma >= 50) return " \u2605\u2605";
-  if (karma >= 10) return " \u2605";
-  return "";
-}
-
-/** @deprecated Use truncateAddress from format-utils.ts instead */
-
-/** Solana Explorer URL for a transaction */
-function solscanTxUrl(sig: string): string {
-  return `https://solscan.io/tx/${sig}`;
-}
-
-/** Solana Explorer URL for a wallet */
-function solscanWalletUrl(address: string): string {
-  return `https://solscan.io/account/${address}`;
-}
+// All formatting utilities moved to src/lib/format-utils.ts for reusability
 
 // Helper: Calculate P&L for a thesis based on entry, exit, and direction
 function calculateThesisPnl(

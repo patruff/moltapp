@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import { html } from "hono/html";
 import { getArenaOverview } from "../services/analytics.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { pnlSign } from "../lib/format-utils.ts";
 
 export const arenaPageRoutes = new Hono();
 
@@ -353,7 +354,7 @@ arenaPageRoutes.get("/", async (c) => {
       ${rankings.map((agent, i) => {
         const colors = agentColors[agent.agentId] ?? { bg: "#1a1a2a", text: "#a0a0b0", border: "#4a4a5a", icon: "?" };
         const pnlClass = agent.totalPnl >= 0 ? "positive" : "negative";
-        const pnlSign = agent.totalPnl >= 0 ? "+" : "";
+        const sign = pnlSign(agent.totalPnl);
         const lastActionClass = agent.lastAction === "buy" ? "action-buy" : agent.lastAction === "sell" ? "action-sell" : "action-hold";
 
         return html`
@@ -375,7 +376,7 @@ arenaPageRoutes.get("/", async (c) => {
               </div>
               <div class="metric">
                 <div class="metric-label">P&L</div>
-                <div class="metric-value ${pnlClass}">${pnlSign}$${Math.abs(agent.totalPnl).toFixed(2)}</div>
+                <div class="metric-value ${pnlClass}">${sign}$${Math.abs(agent.totalPnl).toFixed(2)}</div>
               </div>
               <div class="metric">
                 <div class="metric-label">Decisions</div>
