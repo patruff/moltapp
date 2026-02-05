@@ -106,7 +106,11 @@ async function testMarketData(): Promise<{ passed: boolean; details: string }> {
   }
 
   const headers: Record<string, string> = { "x-api-key": jupiterApiKey };
-  const mints = Object.values(XSTOCKS_CATALOG).slice(0, 5).map(s => s.mintAddress).join(",");
+  // XSTOCKS_CATALOG is an array of StockToken objects
+  const testStocks = XSTOCKS_CATALOG.slice(0, 5);
+  const mints = testStocks.map(s => s.mintAddress).join(",");
+
+  logVerbose(`Testing Jupiter with mints: ${mints.slice(0, 100)}...`);
 
   const response = await fetch(`https://api.jup.ag/price/v3?ids=${mints}`, { headers });
 
@@ -114,22 +118,32 @@ async function testMarketData(): Promise<{ passed: boolean; details: string }> {
     return { passed: false, details: `Jupiter API returned ${response.status}` };
   }
 
-  const data = await response.json() as { data: Record<string, { price: string }> };
-  const prices = Object.entries(data.data || {});
+  const data = await response.json() as Record<string, { usdPrice: number; priceChange24h?: number }>;
+  // v3 API returns mint addresses as top-level keys (no .data wrapper)
+  const prices = Object.entries(data).filter(([k]) => k.length > 30); // Filter out non-mint keys
 
   if (prices.length === 0) {
-    return { passed: false, details: "No prices returned from Jupiter (API key may be invalid)" };
+    return { passed: false, details: `No prices returned from Jupiter. Response: ${JSON.stringify(data).slice(0, 200)}` };
   }
 
   const issues: string[] = [];
+  const priceSamples: string[] = [];
+
   for (const [mint, info] of prices) {
-    const price = parseFloat(info.price);
-    if (isNaN(price) || price <= 0) {
-      issues.push(`Invalid price for ${mint}: ${info.price}`);
+    const price = info.usdPrice;
+    if (typeof price !== "number" || isNaN(price) || price <= 0) {
+      issues.push(`Invalid price for ${mint}: ${price}`);
+      continue;
     }
     // Check for reasonable stock prices ($1 - $10000)
     if (price < 0.01 || price > 50000) {
       issues.push(`Suspicious price for ${mint}: $${price.toFixed(2)}`);
+    }
+
+    // Find symbol for this mint
+    const stock = testStocks.find(s => s.mintAddress === mint);
+    if (stock) {
+      priceSamples.push(`${stock.symbol}: $${price.toFixed(2)}`);
     }
   }
 
@@ -137,12 +151,7 @@ async function testMarketData(): Promise<{ passed: boolean; details: string }> {
     return { passed: false, details: issues.join("\n") };
   }
 
-  const samplePrices = prices.slice(0, 3).map(([m, i]) => {
-    const symbol = Object.entries(XSTOCKS_CATALOG).find(([_, s]) => s.mintAddress === m)?.[0] || m.slice(0, 8);
-    return `${symbol}: $${parseFloat(i.price).toFixed(2)}`;
-  }).join(", ");
-
-  return { passed: true, details: `${prices.length} live prices fetched. Sample: ${samplePrices}` };
+  return { passed: true, details: `${prices.length} live prices fetched. Sample: ${priceSamples.slice(0, 3).join(", ")}` };
 }
 
 // =============================================================================
@@ -405,7 +414,7 @@ async function testThesisTools(): Promise<{ passed: boolean; details: string }> 
 async function testAgentConfigs(): Promise<{ passed: boolean; details: string }> {
   const agents = [
     { agent: claudeTrader, expectedModel: "claude-opus-4-5-20251101", expectedName: "Opus 4.5" },
-    { agent: gptTrader, expectedModel: "gpt-5.2-xhigh", expectedName: "GPT-5.2" },
+    { agent: gptTrader, expectedModel: "gpt-5.2", expectedName: "GPT-5.2" },
     { agent: grokTrader, expectedModel: "grok-4", expectedName: "Grok 4" },
   ];
 
@@ -515,11 +524,11 @@ await runTest("Live Agent Analysis", testLiveAgentAnalysis);
 
 // Summary
 console.log("\n" + "=".repeat(60));
-const passed = results.filter(r => r.passed).length;
-const failed = results.filter(r => !r.passed).length;
+const passed = results.filter(r => r.passed && !r.details.startsWith("SKIPPED")).length;
 const skipped = results.filter(r => r.details.startsWith("SKIPPED")).length;
+const failed = results.filter(r => !r.passed && !r.details.startsWith("SKIPPED")).length;
 
-console.log(`  Results: ${passed} passed, ${failed - skipped} failed, ${skipped} skipped`);
+console.log(`  Results: ${passed} passed, ${failed} failed, ${skipped} skipped`);
 console.log(`  Total time: ${results.reduce((s, r) => s + r.duration, 0)}ms`);
 console.log("=".repeat(60) + "\n");
 

@@ -82,6 +82,15 @@ export function parseOpenAIResponse(response: any): AgentTurn {
 }
 
 /**
+ * Options for OpenAI-compatible callers.
+ */
+export interface OpenAICallerOptions {
+  reasoningEffort?: "low" | "medium" | "high" | "xhigh";
+  /** Use max_completion_tokens instead of max_tokens (required for GPT-5.x models) */
+  useCompletionTokens?: boolean;
+}
+
+/**
  * Create a callWithTools method for OpenAI-compatible APIs.
  *
  * Returns a closure that captures the client getter, model name, and temperature,
@@ -91,17 +100,31 @@ export function createOpenAICompatibleCaller(
   getClient: () => OpenAI,
   model: string,
   temperature: number,
+  options?: OpenAICallerOptions,
 ): (system: string, messages: any[], tools: any[]) => Promise<AgentTurn> {
   return async (system: string, messages: any[], tools: any[]): Promise<AgentTurn> => {
     const client = getClient();
 
-    const response = await client.chat.completions.create({
+    const requestParams: any = {
       model,
-      max_tokens: 16000, // Extended for flagship reasoning models (o3, Grok 3)
       temperature,
       messages: [{ role: "system", content: system }, ...messages],
       tools,
-    });
+    };
+
+    // GPT-5.x models use max_completion_tokens instead of max_tokens
+    if (options?.useCompletionTokens || model.startsWith("gpt-5")) {
+      requestParams.max_completion_tokens = 16000;
+    } else {
+      requestParams.max_tokens = 16000;
+    }
+
+    // Add reasoning_effort for GPT-5.2 and similar reasoning models
+    if (options?.reasoningEffort) {
+      requestParams.reasoning_effort = options.reasoningEffort;
+    }
+
+    const response = await client.chat.completions.create(requestParams);
 
     return parseOpenAIResponse(response);
   };

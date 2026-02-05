@@ -25,16 +25,17 @@ import { createOpenAIClientGetter } from "./client-factory.ts";
 const GPT_AGENT_CONFIG = {
   agentId: "gpt-momentum-trader",
   name: "GPT-5.2",
-  model: "gpt-5.2-xhigh",
+  model: "gpt-5.2",
   provider: "openai" as const,
   description:
-    "Flagship autonomous trading agent powered by OpenAI GPT-5.2 (xhigh) — top-tier intelligence with 400K context.",
+    "Flagship autonomous trading agent powered by OpenAI GPT-5.2 with xhigh reasoning effort — top-tier intelligence with 400K context.",
   personality: "Systematic reasoner. Builds detailed mental models before trading decisions.",
   tradingStyle: "Multi-step reasoning with explicit uncertainty quantification.",
   riskTolerance: "moderate" as const,
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
-  temperature: 0.7,
+  temperature: 1, // Required for reasoning models
+  reasoningEffort: "xhigh" as const, // Maximum reasoning for complex trading decisions
   skillOverrides: {
     AGENT_NAME: "GPT-5.2",
   },
@@ -54,6 +55,7 @@ export class GPTTrader extends BaseTradingAgent {
       getClient,
       this.config.model,
       this.config.temperature,
+      { reasoningEffort: GPT_AGENT_CONFIG.reasoningEffort },
     );
   }
 
