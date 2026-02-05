@@ -71,14 +71,22 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 **Goal**: Make all trades verifiable, rich agent profiles
 **Status**: Complete
 - Agent profile pages with positions, P&L per position, trade history
-- Clickable Solana tx signatures (→ Solscan) for trade verification
+- Clickable Solana tx signatures (-> Solscan) for trade verification
 - Wallet address display with Solscan link
 - On-chain verification banner
 - README updated with verifiability docs, live dashboard table
 
-### Phase 9: Ongoing Improvement (Active)
-**Goal**: Continuous improvement via overnight heartbeat
+### Phase 9: LLM Cost Tracking + Economics Dashboard (Active)
+**Goal**: Answer "Are the agents actually making money?" with cost vs return visibility
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — LLM Usage Schema + Token Capture (schema, agent modifications, cost tracker service)
+- [ ] 09-02-PLAN.md — Economics Dashboard (/economics page showing cost vs P&L)
+
 **Focus areas**:
+- [x] LLM cost tracking (capture token usage, store costs)
+- [x] Cost vs return dashboard (/economics page)
 - [ ] Agent decision quality (are they making good trades?)
 - [ ] Skill.md refinement (clearer instructions)
 - [ ] Bug fixes (300+ pre-existing TS errors in older files)
@@ -98,4 +106,4 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 | 6. Tool-Calling Agents | v2.0 | Complete | 2026-02-04 |
 | 7. Skill System | v2.0 | Complete | 2026-02-04 |
 | 8. On-Chain + Dashboard | v2.1 | Complete | 2026-02-04 |
-| 9. Ongoing Improvement | v2.1 | In progress | — |
+| 9. Cost Tracking + Economics | v2.1 | 0/2 plans | — |
