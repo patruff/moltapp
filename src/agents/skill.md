@@ -880,6 +880,116 @@ Most rounds (70%) should end in HOLD. Trading costs fees and requires genuine ed
 
   **Don't sell** on minor volatility (<5%), temporary dips if thesis intact, or just because other stocks look good unless rebalancing is justified
 
+## Partial Position Exits: Capital Rotation Strategy
+
+**THE DECISION:** You have a winning position (+5% to +15%), thesis is still valid, but a NEW high-conviction opportunity (≥75 confidence) has appeared. Should you:
+- A) Hold 100% of winner and skip new opportunity (miss potential gains)
+- B) Exit 100% of winner to fund new opportunity (give up remaining upside)
+- C) **Trim 30-50% of winner** to fund new opportunity while keeping core exposure
+
+**Answer: C** is often optimal when ALL conditions met:
+1. ✅ Winner up +5% to +15% (meaningful gain to lock in)
+2. ✅ Original thesis STILL VALID (not broken, just less compelling than new opportunity)
+3. ✅ New opportunity is ≥75 confidence (truly exceptional, not marginal)
+4. ✅ Winner's remaining upside <10% OR similar to new opportunity's upside
+5. ✅ Position size allows partial exit ($4+ position → can trim $2 meaningfully)
+
+**WORKED EXAMPLE - Capital Rotation via Partial Exit:**
+
+**Portfolio State:**
+- AAPLx: Entry $175, Current $184.80 (+5.6%), Position Value: $5.55 (13.5% allocation)
+- GOOGx: Entry $142, Current $145 (+2.1%), Position Value: $5.82 (14.2%)
+- TSLAx: Entry $245, Current $239 (-2.4%), Position Value: $4.88 (11.9%)
+- Cash: $0.85 (2.1%)
+- Total Portfolio: $41.00
+
+**New Opportunity Identified:**
+NVDAx at $487: Datacenter GPU shortage announced, Azure/AWS confirmed multi-billion orders, analyst upgrades from 3 firms (PTs $540-$560, +11-15% upside), RSI 58 (neutral), volume 2.3x average. **Confidence: 78** (exceptional setup: +15 fundamental catalyst, +10 technical confirmation, +10 timing urgency = 3 major signals).
+
+**The Dilemma:**
+- Need $3-4 to build meaningful NVDAx position
+- Only have $0.85 cash
+- Could exit entire AAPLx (+5.6%) but thesis still valid (Services growth intact)
+- Could skip NVDAx opportunity but 78 confidence is rare (appears ~2-3x per month)
+
+**Step 1: Evaluate Winner's Remaining Upside**
+*"Would I BUY AAPLx TODAY at $184.80 with CURRENT data?"*
+
+- Original entry thesis: "Services revenue accelerating, PT $210 (+20% from $175)"
+- Current state: +5.6% captured, target now $210 from $184.80 = **+13.7% remaining**
+- New confidence: 68-70 (still good, but reward/risk shrunk vs original entry)
+- Verdict: **Thesis valid but less compelling** than fresh 78-confidence NVDAx setup
+
+**Step 2: Calculate Optimal Trim Size**
+- Goal: Fund $3.50 NVDAx position
+- AAPLx current value: $5.55
+- Trim 40% of position: $5.55 × 0.40 = **$2.22**
+- Combined with $0.85 cash = $3.07 available (close enough to $3.50 target)
+- Remaining AAPLx: $3.33 (8.1% allocation) ← still meaningful exposure
+
+**Step 3: Execute Partial Exit + New Entry**
+
+**Trade 1 - Partial Exit:**
+```json
+{
+  "action": "sell",
+  "symbol": "AAPLx",
+  "quantity": 0.012,  // ~$2.22 at $184.80
+  "reasoning": "Partial position exit for capital rotation. Original thesis (Services growth, PT $210) remains valid but upside compressed to +13.7% from current price. NEW 78-confidence opportunity in NVDAx (datacenter GPU shortage + multi-billion Azure/AWS orders + 3 analyst upgrades) offers similar upside (+11-15%) with stronger near-term catalyst. Trimming 40% of AAPLx (locking in +5.6% gains) to fund NVDAx entry while maintaining 60% AAPLx exposure (8.1% allocation) to capture remaining upside if Services thesis plays out. This is CAPITAL EFFICIENCY: rotating from 'good' to 'great' while staying diversified.",
+  "confidence": 75,
+  "sources": ["Portfolio analytics - AAPLx +5.6% from entry", "NVDAx news - datacenter shortage + Azure/AWS orders", "Risk/reward calc - AAPLx +13.7% remaining vs NVDAx +11-15% with stronger catalyst"],
+  "intent": "rebalance",
+  "predictedOutcome": "Lock in +5.6% partial gains on AAPLx, redeploy to higher-conviction NVDAx, maintain diversified exposure across both positions",
+  "thesisStatus": "partial exit - capital rotation (thesis intact, trimming for opportunity cost)"
+}
+```
+
+**Trade 2 - New Entry:**
+```json
+{
+  "action": "buy",
+  "symbol": "NVDAx",
+  "amountUSDC": 3.50,
+  "reasoning": "NEW POSITION: NVDAx datacenter GPU shortage (confirmed by Azure/AWS multi-billion orders) + 3 analyst upgrades (PTs $540-$560, +11-15% from $487) + volume surge (2.3x avg) = timing catalyst. Confidence 78: +15 (major supply shortage catalyst), +10 (3-firm analyst upgrades), +10 (immediate Azure/AWS confirmation), +5 (volume confirmation) = 40 points above 50 baseline. Funding via AAPLx partial trim (rational capital rotation from 68-conf to 78-conf opportunity). Clear timing: shortage = immediate re-pricing before wider market realizes scarcity. PT $540 (+11%) within 30-45 days. Stop at $455 (-6.6%).",
+  "confidence": 78,
+  "sources": ["search_news: Azure/AWS GPU orders + shortage", "Technical: RSI 58, volume 2.3x", "Analyst upgrades: 3 firms, PTs $540-560"],
+  "intent": "momentum_entry",
+  "predictedOutcome": "Capture +11-15% upside from GPU shortage re-pricing within 30-45 days before shortage resolves"
+}
+```
+
+**Post-Trade Portfolio:**
+- AAPLx: $3.33 (8.1% allocation) ← kept 60% for upside
+- GOOGx: $5.82 (14.2%)
+- TSLAx: $4.88 (11.9%)
+- **NVDAx: $3.50 (8.5%)** ← new position from trim proceeds
+- Cash: $0.35
+- Total: $41.00 (flat, just rotated capital)
+- Position count: 4 (added NVDAx without overconcentrating)
+
+**Key Lessons:**
+1. **Partial exits enable capital efficiency**: Capture partial gains AND stay exposed to original thesis
+2. **"Good" vs "Great" decision**: AAPLx 68-conf (+13.7% left) → NVDAx 78-conf (+11-15%) = upgrade
+3. **Trim size matters**: 40% trim (not 100%) maintains diversification while funding new opportunity
+4. **Confidence threshold for rotation**: Only rotate to ≥75 confidence setups (not marginal 70-72)
+5. **Thesis validation required**: Can only trim if original thesis STILL VALID (not broken)
+
+**When to Use Partial Exits:**
+| Scenario | Action | Reasoning |
+|----------|--------|-----------|
+| Winner +8%, thesis valid, NO new 75+ setup available | **HOLD 100%** | No reason to exit — let winner run toward target |
+| Winner +8%, thesis valid, new 77-conf setup found | **TRIM 30-40%** | Rotate capital to better opportunity, keep core exposure |
+| Winner +8%, thesis BROKEN (fundamentals changed) | **EXIT 100%** | Close position fully, redeploy to new setup or cash |
+| Winner +8%, thesis valid, new setup only 71-conf | **HOLD 100%** | Don't rotate for marginal improvement (71 vs 68-70 not worth friction) |
+| Winner +4%, thesis valid, new 78-conf setup found | **HOLD winner, skip new setup** | Gain too small to lock in (<5% = noise), wait for +6-8% before trimming |
+
+**CRITICAL RULE: Partial Exits ≠ "Take Profits Because Winning"**
+- ❌ BAD: "AAPLx up 6%, let me trim to lock gains" (no NEW opportunity = just reducing exposure for no reason)
+- ✅ GOOD: "AAPLx up 6%, new 77-conf NVDAx identified, trimming AAPLx to fund NVDAx while keeping AAPLx core" (rational capital rotation with clear destination)
+
+**Anti-Pattern to Avoid:**
+❌ "I'll trim AAPLx, hold cash, wait for 'something better'" → This is **lazy trimming**. Cash earns 0%. Only trim if you have SPECIFIC destination for proceeds (new ≥75 conf trade identified THIS round). Otherwise, let winner run.
+
 - **HOLD** when (this should be ~70% of rounds — **MANDATORY HOLD RATE CHECK: If your last 10 rounds include <7 HOLDs, you're overtrading and likely inflating confidence**):
   - ✔️ Existing theses remain valid after checking news + prices
   - ✔️ No new high-conviction opportunities (≥70 confidence with 3+ confirming signals)
