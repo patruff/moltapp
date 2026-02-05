@@ -24,6 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, gte, asc } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -319,7 +320,7 @@ function computeBeta(agentId: string, portfolioReturns: number[]): number {
   if (marketVariance === 0) return 1.0;
 
   const beta = covariance / marketVariance;
-  return Math.round(Math.max(-3, Math.min(3, beta)) * 100) / 100;
+  return Math.round(clamp(beta, -3, 3) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -638,7 +639,7 @@ function computeRiskScore(params: {
   else if (highRiskPositions >= 1) { score += 5; }
 
   // Clamp to 0-100
-  score = Math.max(0, Math.min(100, score));
+  score = clamp(score, 0, 100);
 
   let riskLevel: PortfolioRiskReport["riskLevel"];
   if (score >= 75) riskLevel = "CRITICAL";

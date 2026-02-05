@@ -14,6 +14,8 @@
  * 5. CONSISTENCY UNDER PRESSURE: Same fundamentals, different framing — same decision?
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -187,7 +189,7 @@ export function measureAnchoringResistance(
   }
 
   return {
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     anchoredReferences: anchoredRefs,
   };
 }
@@ -230,7 +232,7 @@ export function measureNoiseSensitivity(
   if (confidenceSwing > 0.15) score -= 0.1;
 
   return {
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     actionFlipped,
     confidenceSwing,
     textDivergence,
