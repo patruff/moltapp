@@ -21,9 +21,11 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, sql, and, gte, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, gte, inArray, type InferSelectModel } from "drizzle-orm";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+
+type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -705,7 +707,7 @@ export async function analyzeHistoricalConsensus(
       .where(eq(agentDecisions.roundId, roundId as string));
 
     // Convert to TradingRoundResult format
-    const results: TradingRoundResult[] = decisions.map((d: any) => ({
+    const results: TradingRoundResult[] = decisions.map((d: AgentDecisionRow) => ({
       agentId: d.agentId,
       agentName: d.agentId,
       decision: {

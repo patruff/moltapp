@@ -15,10 +15,12 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+
+type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -599,7 +601,7 @@ export async function getRegimeAgentCorrelation(): Promise<RegimeAgentCorrelatio
 
   // Build per-agent, per-regime performance
   const agentResults = configs.map((config) => {
-    const agentDecs = allDecisions.filter((d: any) => d.agentId === config.agentId);
+    const agentDecs = allDecisions.filter((d: AgentDecisionRow) => d.agentId === config.agentId);
 
     const performanceByRegime: Record<string, {
       avgConfidence: number;

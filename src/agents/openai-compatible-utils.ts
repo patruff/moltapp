@@ -97,7 +97,7 @@ export function createOpenAICompatibleCaller(
 
     const response = await client.chat.completions.create({
       model,
-      max_tokens: 2048,
+      max_tokens: 16000, // Extended for flagship reasoning models (o3, Grok 3)
       temperature,
       messages: [{ role: "system", content: system }, ...messages],
       tools,

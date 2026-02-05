@@ -25,11 +25,11 @@ import { createXAIClientGetter } from "./client-factory.ts";
 
 const GROK_AGENT_CONFIG = {
   agentId: "grok-contrarian",
-  name: "Grok 3",
-  model: "grok-3",
+  name: "Grok 4",
+  model: "grok-4",
   provider: "xai" as const,
   description:
-    "Flagship autonomous trading agent powered by xAI Grok 3 — frontier reasoning model with real-time market awareness.",
+    "Flagship autonomous trading agent powered by xAI Grok 4 — frontier reasoning model with real-time X/Twitter sentiment.",
   personality: "Contrarian thinker with access to real-time X/Twitter sentiment and breaking news.",
   tradingStyle: "News-driven catalyst trading with contrarian positioning.",
   riskTolerance: "moderate" as const,
@@ -37,7 +37,7 @@ const GROK_AGENT_CONFIG = {
   maxPortfolioAllocation: 80,
   temperature: 0.7,
   skillOverrides: {
-    AGENT_NAME: "Grok 3",
+    AGENT_NAME: "Grok 4",
   },
 };
 

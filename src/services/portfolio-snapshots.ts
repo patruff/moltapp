@@ -21,7 +21,9 @@ import {
 } from "../db/schema/portfolio-snapshots.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc, sql, and, gte, lte, type InferSelectModel } from "drizzle-orm";
+
+type PortfolioSnapshotRow = InferSelectModel<typeof portfolioSnapshots>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -449,7 +451,7 @@ export async function getAgentTimeline(
       .orderBy(desc(portfolioSnapshots.createdAt))
       .limit(limit);
 
-    snapshots = dbSnapshots.map((row: any) => ({
+    snapshots = dbSnapshots.map((row: PortfolioSnapshotRow) => ({
       id: row.id,
       agentId: row.agentId,
       roundId: row.roundId,

@@ -107,7 +107,7 @@ export class ClaudeTrader extends BaseTradingAgent {
 
     const response = await client.messages.create({
       model: this.config.model,
-      max_tokens: 2048,
+      max_tokens: 16000, // Extended for Opus 4.5 deep reasoning
       system,
       messages,
       tools,

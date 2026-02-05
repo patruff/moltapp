@@ -2,12 +2,13 @@ import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { agents, positions, trades, transactions } from "../db/schema/index.ts";
 import { agentTheses } from "../db/schema/agent-theses.ts";
-import { eq, sql, count, max, desc, and } from "drizzle-orm";
+import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
 type TradeRow = typeof trades.$inferSelect;
+type AgentRow = InferSelectModel<typeof agents>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -165,7 +166,7 @@ async function refreshLeaderboard(): Promise<void> {
   // Step 7: Compute per-agent metrics using Decimal.js
   let totalVolumeDecimal = new Decimal(0);
 
-  const entries: LeaderboardEntry[] = allAgents.map((agent: any) => {
+  const entries: LeaderboardEntry[] = allAgents.map((agent: AgentRow) => {
     const agentPositions = allPositions.filter(
       (p: PositionRow) => p.agentId === agent.id
     );

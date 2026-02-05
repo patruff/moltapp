@@ -21,9 +21,11 @@
 
 import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq } from "drizzle-orm";
+import { eq, type InferSelectModel } from "drizzle-orm";
 import { getWalletBalances, type TokenBalance } from "./solana-tracker.ts";
 import { XSTOCKS_CATALOG, TOKEN_2022_PROGRAM_ADDRESS } from "../config/constants.ts";
+
+type PositionRow = InferSelectModel<typeof positions>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -158,7 +160,7 @@ export async function reconcileAgent(
     return {
       agentId,
       walletAddress,
-      positions: dbPositions.map((p: any) => ({
+      positions: dbPositions.map((p: PositionRow) => ({
         agentId,
         walletAddress,
         symbol: p.symbol,
