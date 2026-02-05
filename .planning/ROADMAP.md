@@ -87,20 +87,21 @@ This was a major architecture shift: agents went from single-shot prompt bots to
 
 ### Phase 10: Agent Decision Quality
 **Goal**: Unified decision quality visibility with tool use tracking and consolidated metrics dashboard
-**Status**: Planned (3 plans in 3 waves)
+**Status**: Complete (3/3 plans)
 **Depends on:** Phase 9
 
 Plans:
-- [ ] 10-01-PLAN.md — Tool use quality analyzer + decision quality schema
-- [ ] 10-02-PLAN.md — Decision quality dashboard service (consolidates 5 existing quality services)
-- [ ] 10-03-PLAN.md — /decision-quality route with unified metrics view
+- [x] 10-01-PLAN.md — Tool use quality analyzer + decision quality schema
+- [x] 10-02-PLAN.md — Decision quality dashboard service (consolidates 5 existing quality services)
+- [x] 10-03-PLAN.md — /decision-quality route with unified metrics view + model display
 
-**Details:**
-- Consolidates existing services: calibration, integrity, accountability, memory + new tool-use analyzer
-- Adds missing tool correctness metrics (sequence validation, argument quality)
-- Creates /decision-quality dashboard with per-agent quality breakdown
-- Stores periodic quality snapshots for trend analysis
-- Composite scoring with weighted dimensions
+**What was built:**
+- Tool use quality analyzer (6 violation types, severity levels, sequence validation)
+- Decision quality snapshots schema for trend analysis
+- Unified dashboard service aggregating all 5 quality services
+- /decision-quality dashboard with per-agent quality cards, grades, strengths/weaknesses
+- Model name display on quality dashboard
+- HuggingFace integration: 18 new quality metric columns (v38.0, 52 dimensions)
 
 **Future improvement areas** (ongoing):
 - [ ] Skill.md refinement (clearer instructions)
@@ -122,4 +123,4 @@ Plans:
 | 7. Skill System | v2.0 | Complete | 2026-02-04 |
 | 8. On-Chain + Dashboard | v2.1 | Complete | 2026-02-04 |
 | 9. Cost Tracking + Economics | v2.1 | Complete | 2026-02-05 |
-| 10. Agent Decision Quality | v2.1 | Planned (3 plans) | — |
+| 10. Agent Decision Quality | v2.1 | Complete | 2026-02-05 |
