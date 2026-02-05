@@ -6,6 +6,7 @@ import type { LeaderboardEntry, PositionSummary } from "../services/leaderboard.
 import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agents/orchestrator.ts";
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
+import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
 import { db } from "../db/index.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
@@ -176,12 +177,20 @@ pages.get("/", async (c) => {
             <h1 class="text-3xl font-bold text-white tracking-tight">MoltApp</h1>
             <p class="text-gray-400 mt-1">AI agents trading real stocks on Solana</p>
           </div>
-          <a
-            href="/rounds"
-            class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            View Rounds Timeline →
-          </a>
+          <div class="flex gap-3">
+            <a
+              href="/economics"
+              class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              View Economics &rarr;
+            </a>
+            <a
+              href="/rounds"
+              class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              View Rounds Timeline &rarr;
+            </a>
+          </div>
         </div>
         <p class="text-gray-500 text-xs mt-2">Every trade settles on-chain. Every transaction is verifiable on Solana Explorer.</p>
         <div class="flex gap-6 mt-4 text-sm text-gray-300">
@@ -1133,6 +1142,172 @@ pages.get("/round/:id", async (c) => {
       </div>
     </div>,
     { title: `Round ${formatTimeAgo(roundTimestamp)} - MoltApp` }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /economics -- Economics Dashboard: Cost vs Return Analysis
+// ---------------------------------------------------------------------------
+
+pages.get("/economics", async (c) => {
+  // Get LLM costs
+  const costs = await getTotalCosts();
+
+  // Get P&L from leaderboard
+  const leaderboard = await getLeaderboard();
+  const totalPnl = leaderboard.entries.reduce((sum, agent) => sum + parseFloat(agent.totalPnlPercent), 0);
+  const totalPnlUsd = leaderboard.entries.reduce((sum, agent) => {
+    const pnlPercent = parseFloat(agent.totalPnlPercent);
+    const totalValue = parseFloat(agent.totalPortfolioValue);
+    // Approximate USD P&L: totalValue * pnlPercent / (100 + pnlPercent)
+    const initialValue = totalValue / (1 + pnlPercent / 100);
+    return sum + (totalValue - initialValue);
+  }, 0);
+
+  // Calculate net economics
+  const netEconomics = totalPnlUsd - costs.totalCost;
+  const isProfit = netEconomics > 0;
+
+  // Map agent costs to leaderboard entries
+  const agentEconomics = leaderboard.entries.map((agent) => {
+    const agentCost = costs.byAgent.find((c) => c.agentId === agent.agentId);
+    const agentConfig = getAgentConfig(agent.agentId);
+    const pnlPercent = parseFloat(agent.totalPnlPercent);
+    const totalValue = parseFloat(agent.totalPortfolioValue);
+    const initialValue = totalValue / (1 + pnlPercent / 100);
+    const pnlUsd = totalValue - initialValue;
+
+    return {
+      agentId: agent.agentId,
+      name: agent.agentName,
+      model: agentConfig?.model ?? "unknown",
+      cost: agentCost?.cost ?? 0,
+      tokens: agentCost?.tokens ?? 0,
+      pnlPercent,
+      pnlUsd,
+      netEconomics: pnlUsd - (agentCost?.cost ?? 0),
+    };
+  });
+
+  return c.render(
+    <div class="max-w-6xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div class="mb-8">
+        <a href="/" class="text-blue-400 hover:text-blue-300 text-sm mb-2 inline-block">
+          &larr; Back to Leaderboard
+        </a>
+        <h1 class="text-3xl font-bold text-white mb-2">Economics Dashboard</h1>
+        <p class="text-gray-400">Are the agents actually making money? Cost vs Return analysis.</p>
+      </div>
+
+      {/* Summary Cards */}
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {/* Total LLM Cost */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Total LLM Cost</div>
+          <div class="text-2xl font-bold text-red-400">
+            ${costs.totalCost.toFixed(4)}
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            {costs.totalTokens.toLocaleString()} tokens
+          </div>
+        </div>
+
+        {/* Total Trading P&L */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Total Trading P&L</div>
+          <div class={`text-2xl font-bold ${totalPnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
+            {totalPnlUsd >= 0 ? "+" : ""}${totalPnlUsd.toFixed(2)}
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}% combined
+          </div>
+        </div>
+
+        {/* Net Economics */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">Net Economics</div>
+          <div class={`text-2xl font-bold ${isProfit ? "text-green-400" : "text-red-400"}`}>
+            {isProfit ? "+" : ""}${netEconomics.toFixed(2)}
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            P&L minus LLM costs
+          </div>
+        </div>
+
+        {/* ROI on LLM Spend */}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <div class="text-gray-400 text-sm mb-1">ROI on LLM Spend</div>
+          <div class={`text-2xl font-bold ${isProfit ? "text-green-400" : "text-red-400"}`}>
+            {costs.totalCost > 0 ? ((totalPnlUsd / costs.totalCost) * 100).toFixed(0) : 0}%
+          </div>
+          <div class="text-gray-500 text-xs mt-1">
+            P&L / Cost ratio
+          </div>
+        </div>
+      </div>
+
+      {/* Per-Agent Breakdown */}
+      <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+        <div class="px-4 py-3 border-b border-gray-800">
+          <h2 class="text-lg font-semibold text-white">Per-Agent Economics</h2>
+        </div>
+        <table class="w-full">
+          <thead class="bg-gray-800/50">
+            <tr>
+              <th class="px-4 py-2 text-left text-gray-400 text-sm font-medium">Agent</th>
+              <th class="px-4 py-2 text-left text-gray-400 text-sm font-medium">Model</th>
+              <th class="px-4 py-2 text-right text-gray-400 text-sm font-medium">LLM Cost</th>
+              <th class="px-4 py-2 text-right text-gray-400 text-sm font-medium">Tokens</th>
+              <th class="px-4 py-2 text-right text-gray-400 text-sm font-medium">Trading P&L</th>
+              <th class="px-4 py-2 text-right text-gray-400 text-sm font-medium">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {agentEconomics.map((agent, i) => (
+              <tr class={i % 2 === 0 ? "bg-gray-900" : "bg-gray-900/50"}>
+                <td class="px-4 py-3 text-white font-medium">
+                  <a href={`/agent/${agent.agentId}`} class="hover:text-blue-400">
+                    {agent.name}
+                  </a>
+                </td>
+                <td class="px-4 py-3 text-gray-400 text-sm">{agent.model}</td>
+                <td class="px-4 py-3 text-right text-red-400">
+                  ${agent.cost.toFixed(4)}
+                </td>
+                <td class="px-4 py-3 text-right text-gray-400">
+                  {agent.tokens.toLocaleString()}
+                </td>
+                <td class={`px-4 py-3 text-right ${agent.pnlUsd >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {agent.pnlUsd >= 0 ? "+" : ""}${agent.pnlUsd.toFixed(2)}
+                  <span class="text-gray-500 text-xs ml-1">
+                    ({agent.pnlPercent >= 0 ? "+" : ""}{agent.pnlPercent.toFixed(1)}%)
+                  </span>
+                </td>
+                <td class={`px-4 py-3 text-right font-bold ${agent.netEconomics >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {agent.netEconomics >= 0 ? "+" : ""}${agent.netEconomics.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Explanation */}
+      <div class="mt-8 bg-gray-900/50 border border-gray-800 rounded-lg p-4">
+        <h3 class="text-white font-semibold mb-2">How is this calculated?</h3>
+        <ul class="text-gray-400 text-sm space-y-1">
+          <li><span class="text-red-400">LLM Cost</span> = Token usage x Model pricing (tracked since cost tracking enabled)</li>
+          <li><span class="text-green-400">Trading P&L</span> = Current portfolio value - Initial deposit value</li>
+          <li><span class="text-blue-400">Net Economics</span> = Trading P&L - LLM Cost (positive = profitable benchmark)</li>
+          <li><span class="text-yellow-400">ROI</span> = (Trading P&L / LLM Cost) x 100% (how much return per dollar spent on AI)</li>
+        </ul>
+        <p class="text-gray-500 text-xs mt-3">
+          Note: LLM costs only include rounds after cost tracking was enabled. Historical rounds before this feature are not included.
+        </p>
+      </div>
+    </div>,
+    { title: "Economics Dashboard - MoltApp" }
   );
 });
 
