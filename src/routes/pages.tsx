@@ -140,6 +140,21 @@ function solscanWalletUrl(address: string): string {
   return `https://solscan.io/account/${address}`;
 }
 
+// Helper: Calculate P&L for a thesis based on entry, exit, and direction
+function calculateThesisPnl(
+  entryPrice: number,
+  exitPrice: number,
+  direction: string
+): number {
+  if (direction === "bullish") {
+    return ((exitPrice - entryPrice) / entryPrice) * 100;
+  } else if (direction === "bearish") {
+    // For bearish: profit when price goes down (entry > exit)
+    return ((entryPrice - exitPrice) / entryPrice) * 100;
+  }
+  return 0;
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -507,14 +522,7 @@ pages.get("/agent/:id", async (c) => {
             const exitPrice = Number(exitTrade.pricePerToken);
             const entryPrice = Number(t.entryPrice);
 
-            let calculatedPnl: number;
-            if (isBullish) {
-              calculatedPnl = ((exitPrice - entryPrice) / entryPrice) * 100;
-            } else if (isBearish) {
-              calculatedPnl = ((entryPrice - exitPrice) / entryPrice) * 100;
-            } else {
-              calculatedPnl = 0;
-            }
+            const calculatedPnl = calculateThesisPnl(entryPrice, exitPrice, t.direction);
 
             if (calculatedPnl > 0) {
               winsCount++;
@@ -578,16 +586,8 @@ pages.get("/agent/:id", async (c) => {
                   exitPrice = Number(exitTrade.pricePerToken);
                   const entryPrice = Number(t.entryPrice);
 
-                  // Calculate P&L
-                  let calculatedPnl: number;
-                  if (isBullish) {
-                    calculatedPnl = ((exitPrice - entryPrice) / entryPrice) * 100;
-                  } else if (isBearish) {
-                    // For bearish: profit when price goes down (entry > exit)
-                    calculatedPnl = ((entryPrice - exitPrice) / entryPrice) * 100;
-                  } else {
-                    calculatedPnl = 0;
-                  }
+                  // Calculate P&L using helper function
+                  const calculatedPnl = calculateThesisPnl(entryPrice, exitPrice, t.direction);
                   exitPnlPercent = calculatedPnl;
 
                   // Determine outcome category
