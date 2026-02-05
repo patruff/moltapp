@@ -471,8 +471,8 @@ pages.get("/agent/:id", async (c) => {
     );
   }
 
-  // Fetch agent config, portfolio, trade history, wallet, on-chain trades, thesis history, and LLM costs in parallel
-  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades, thesisHistory, agentCosts] = await Promise.all([
+  // Fetch agent config, portfolio, trade history, wallet, on-chain trades, thesis history, LLM costs, and decision quality in parallel
+  const [agentConfig, portfolio, tradeHistory, wallet, onChainTrades, thesisHistory, agentCosts, qualityReport] = await Promise.all([
     Promise.resolve(getAgentConfig(agentId)),
     getAgentPortfolio(agentId).catch(() => ({
       cashBalance: 0,
@@ -507,6 +507,7 @@ pages.get("/agent/:id", async (c) => {
       .catch(() => []),
     getThesisHistory(agentId, MAX_THESIS_HISTORY).catch(() => []),
     getAgentCosts(agentId).catch(() => ({ totalCost: 0, totalTokens: 0 })),
+    generateDecisionQualityReport(agentId).catch(() => null),
   ]);
 
   return c.render(
@@ -602,6 +603,91 @@ pages.get("/agent/:id", async (c) => {
           </div>
           <a href="/economics" class="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
             View full economics &rarr;
+          </a>
+        </div>
+      )}
+
+      {/* Decision Quality */}
+      {qualityReport && (
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+          <h2 class="text-lg font-bold text-white mb-4">Decision Quality</h2>
+
+          {/* Composite Score & Grade */}
+          <div class="flex items-center gap-4 mb-6">
+            <div>
+              <div class="text-sm text-gray-400 mb-1">Overall Grade</div>
+              <div class={`text-3xl font-bold ${gradeToColor(qualityReport.grade)}`}>
+                {qualityReport.grade}
+              </div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-400 mb-1">Composite Score</div>
+              <div class={`text-2xl font-semibold ${scoreToColor(qualityReport.compositeScore)}`}>
+                {formatScorePercentage(qualityReport.compositeScore)}
+              </div>
+            </div>
+          </div>
+
+          {/* Quality Dimensions Grid */}
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            {/* Calibration */}
+            <div class="bg-gray-800/50 rounded p-3">
+              <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Calibration</div>
+              <div class={`text-lg font-bold ${gradeToColor(qualityReport.calibration.grade)}`}>
+                {qualityReport.calibration.grade}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                ECE: {formatScorePercentage(qualityReport.calibration.ece)}
+              </div>
+            </div>
+
+            {/* Integrity */}
+            <div class="bg-gray-800/50 rounded p-3">
+              <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Integrity</div>
+              <div class={`text-lg font-bold ${scoreToColor(qualityReport.integrity.integrityScore)}`}>
+                {formatScorePercentage(qualityReport.integrity.integrityScore)}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                {qualityReport.integrity.contradictions} contradictions
+              </div>
+            </div>
+
+            {/* Accountability */}
+            <div class="bg-gray-800/50 rounded p-3">
+              <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Accountability</div>
+              <div class={`text-lg font-bold ${scoreToColor(qualityReport.accountability.accountabilityScore)}`}>
+                {formatScorePercentage(qualityReport.accountability.accountabilityScore)}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                {Math.round(qualityReport.accountability.accuracyRate * 100)}% accuracy
+              </div>
+            </div>
+
+            {/* Memory */}
+            <div class="bg-gray-800/50 rounded p-3">
+              <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Memory</div>
+              <div class={`text-lg font-bold ${scoreToColor(qualityReport.memory.memoryScore)}`}>
+                {formatScorePercentage(qualityReport.memory.memoryScore)}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                {qualityReport.memory.trend === "improving" ? "📈" : qualityReport.memory.trend === "declining" ? "📉" : "→"} {qualityReport.memory.trend}
+              </div>
+            </div>
+
+            {/* Tool Use */}
+            <div class="bg-gray-800/50 rounded p-3">
+              <div class="text-xs text-gray-500 uppercase tracking-wide mb-1">Tool Use</div>
+              <div class={`text-lg font-bold ${scoreToColor(qualityReport.toolUse.correctnessScore)}`}>
+                {formatScorePercentage(qualityReport.toolUse.correctnessScore)}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                {qualityReport.toolUse.violations.length} violations
+              </div>
+            </div>
+          </div>
+
+          <a href="/quality-dashboard" class="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block">
+            View full quality dashboard &rarr;
           </a>
         </div>
       )}
