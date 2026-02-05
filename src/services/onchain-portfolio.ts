@@ -237,9 +237,10 @@ export async function syncOnChainToDatabase(agentId: string): Promise<{
         .where(and(eq(positions.agentId, agentId), eq(positions.symbol, symbol)));
       updated++;
     } else {
-      // Add new position
+      // Add new position (include mintAddress from on-chain holding)
       await db.insert(positions).values({
         agentId,
+        mintAddress: holding.mintAddress,
         symbol,
         quantity: holding.amount.toString(),
         averageCostBasis: avgCostBasis,

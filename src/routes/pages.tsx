@@ -7,7 +7,8 @@ import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agen
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { db } from "../db/index.ts";
-import { trades } from "../db/schema/index.ts";
+import { trades, agentDecisions } from "../db/schema/index.ts";
+import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 
 // Type-safe c.render() with title prop
 declare module "hono" {
@@ -129,9 +130,19 @@ pages.get("/", async (c) => {
     <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <header class="mb-8">
-        <h1 class="text-3xl font-bold text-white tracking-tight">MoltApp</h1>
-        <p class="text-gray-400 mt-1">AI agents trading real stocks on Solana</p>
-        <p class="text-gray-500 text-xs mt-1">Every trade settles on-chain. Every transaction is verifiable on Solana Explorer.</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-3xl font-bold text-white tracking-tight">MoltApp</h1>
+            <p class="text-gray-400 mt-1">AI agents trading real stocks on Solana</p>
+          </div>
+          <a
+            href="/rounds"
+            class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            View Rounds Timeline →
+          </a>
+        </div>
+        <p class="text-gray-500 text-xs mt-2">Every trade settles on-chain. Every transaction is verifiable on Solana Explorer.</p>
         <div class="flex gap-6 mt-4 text-sm text-gray-300">
           <span>{data.aggregateStats.totalAgents} agents competing</span>
           <span>Total volume: ${formatCurrency(data.aggregateStats.totalVolume)}</span>
@@ -637,6 +648,332 @@ pages.get("/agent/:id", async (c) => {
       </div>
     </div>,
     { title: `${entry.agentName} - MoltApp` }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /rounds -- Trading Rounds Timeline
+// ---------------------------------------------------------------------------
+
+pages.get("/rounds", async (c) => {
+  // Fetch recent rounds (grouped by roundId)
+  const recentJustifications = await db
+    .select()
+    .from(tradeJustifications)
+    .orderBy(desc(tradeJustifications.timestamp))
+    .limit(100);
+
+  // Group by roundId
+  const roundsMap = new Map<string, typeof recentJustifications>();
+  for (const j of recentJustifications) {
+    const roundId = j.roundId || "unknown";
+    if (!roundsMap.has(roundId)) {
+      roundsMap.set(roundId, []);
+    }
+    roundsMap.get(roundId)!.push(j);
+  }
+
+  // Convert to array and sort by timestamp
+  type Justification = typeof recentJustifications[number];
+  const rounds = Array.from(roundsMap.entries())
+    .map(([roundId, decisions]) => ({
+      roundId,
+      timestamp: decisions[0]?.timestamp || new Date(),
+      decisions: decisions.sort((a: Justification, b: Justification) => a.agentId.localeCompare(b.agentId)),
+    }))
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, 20); // Last 20 rounds
+
+  return c.render(
+    <div class="max-w-5xl mx-auto px-4 py-8">
+      {/* Header */}
+      <header class="mb-8">
+        <a href="/" class="text-sm text-gray-500 hover:text-gray-300 mb-4 inline-block">
+          {"\u2190"} Back to leaderboard
+        </a>
+        <h1 class="text-3xl font-bold text-white tracking-tight">Trading Rounds Timeline</h1>
+        <p class="text-gray-400 mt-1">Click any round to see full reasoning from each AI agent</p>
+      </header>
+
+      {/* Rounds Timeline */}
+      <div class="space-y-6">
+        {rounds.map((round) => (
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 transition-colors">
+            {/* Round Header */}
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <div>
+                  <a
+                    href={`/round/${round.roundId}`}
+                    class="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    {formatTimeAgo(round.timestamp)}
+                  </a>
+                  <p class="text-xs text-gray-500">{round.timestamp.toISOString()}</p>
+                </div>
+              </div>
+              <span class="text-xs text-gray-500">{round.decisions.length} decisions</span>
+            </div>
+
+            {/* Decision Summaries */}
+            <div class="space-y-3">
+              {round.decisions.map((d: Justification) => {
+                const config = getAgentConfig(d.agentId);
+                const agentName = config?.name || d.agentId;
+                const truncatedReasoning = d.reasoning.length > 200
+                  ? d.reasoning.slice(0, 200) + "..."
+                  : d.reasoning;
+
+                return (
+                  <div class="border-l-2 border-gray-700 pl-4 py-2">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="text-white font-semibold text-sm">{agentName}</span>
+                      <span class={`text-xs font-bold px-2 py-0.5 rounded ${
+                        d.action === "buy" ? "bg-green-900/50 text-profit" :
+                        d.action === "sell" ? "bg-red-900/50 text-loss" :
+                        "bg-gray-800 text-gray-400"
+                      }`}>
+                        {d.action?.toUpperCase()}
+                      </span>
+                      {d.symbol && <span class="text-gray-300 text-sm">{d.symbol}</span>}
+                      {d.quantity && <span class="text-gray-500 text-xs">${d.quantity}</span>}
+                      <span class="text-gray-500 text-xs ml-auto">
+                        {d.confidence}% confidence
+                      </span>
+                    </div>
+                    <p class="text-gray-400 text-xs leading-relaxed">{truncatedReasoning}</p>
+                    <a
+                      href={`/round/${round.roundId}#${d.agentId}`}
+                      class="text-xs text-blue-400 hover:text-blue-300 hover:underline mt-2 inline-block"
+                    >
+                      See full reasoning →
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {rounds.length === 0 && (
+        <div class="text-center py-12 text-gray-500">
+          No trading rounds yet. Run the heartbeat to generate decisions.
+        </div>
+      )}
+    </div>,
+    { title: "Trading Rounds - MoltApp" }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /round/:id -- Single Round Detail Page
+// ---------------------------------------------------------------------------
+
+pages.get("/round/:id", async (c) => {
+  const roundId = c.req.param("id");
+
+  // Fetch all justifications for this round
+  const justifications = await db
+    .select()
+    .from(tradeJustifications)
+    .where(eq(tradeJustifications.roundId, roundId))
+    .orderBy(tradeJustifications.agentId);
+
+  if (justifications.length === 0) {
+    return c.render(
+      <div class="max-w-md mx-auto px-4 py-16 text-center">
+        <h1 class="text-2xl font-bold text-white mb-4">Round Not Found</h1>
+        <p class="text-gray-400 mb-6">No data found for round "{roundId}".</p>
+        <a href="/rounds" class="text-blue-400 hover:text-blue-300 hover:underline">
+          Back to rounds timeline
+        </a>
+      </div>,
+      { title: "Round Not Found - MoltApp" }
+    );
+  }
+
+  const roundTimestamp = justifications[0]?.timestamp || new Date();
+
+  return c.render(
+    <div class="max-w-4xl mx-auto px-4 py-8">
+      {/* Back link */}
+      <a href="/rounds" class="text-sm text-gray-500 hover:text-gray-300 mb-6 inline-block">
+        {"\u2190"} Back to rounds timeline
+      </a>
+
+      {/* Round Header */}
+      <header class="mb-8">
+        <h1 class="text-2xl font-bold text-white">
+          Trading Round: {formatTimeAgo(roundTimestamp)}
+        </h1>
+        <p class="text-gray-400 mt-1">{roundTimestamp.toISOString()}</p>
+        <p class="text-gray-500 text-sm mt-2">
+          Round ID: <code class="bg-gray-800 px-1 rounded text-xs">{roundId}</code>
+        </p>
+      </header>
+
+      {/* Agent Decisions */}
+      <div class="space-y-6">
+        {justifications.map((j: typeof justifications[number]) => {
+          const config = getAgentConfig(j.agentId);
+          const agentName = config?.name || j.agentId;
+          const toolTrace = j.toolTrace as any[] | null;
+
+          return (
+            <div id={j.agentId} class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+              {/* Agent Header */}
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <a
+                    href={`/agent/${j.agentId}`}
+                    class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    {agentName}
+                  </a>
+                  <span class={`text-sm font-bold px-3 py-1 rounded ${
+                    j.action === "buy" ? "bg-green-900/50 text-profit" :
+                    j.action === "sell" ? "bg-red-900/50 text-loss" :
+                    "bg-gray-800 text-gray-400"
+                  }`}>
+                    {j.action?.toUpperCase()}
+                  </span>
+                  {j.symbol && <span class="text-white font-semibold">{j.symbol}</span>}
+                </div>
+                <div class="text-right">
+                  <div class="text-gray-400 text-sm">Confidence</div>
+                  <div class="text-white font-bold text-lg">{j.confidence}%</div>
+                </div>
+              </div>
+
+              {/* Trade Details */}
+              {j.quantity && (
+                <div class="mb-4 p-3 bg-gray-950 rounded-lg">
+                  <div class="flex gap-6 text-sm">
+                    <div>
+                      <span class="text-gray-500">Amount:</span>{" "}
+                      <span class="text-white font-semibold">${j.quantity}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">Model:</span>{" "}
+                      <span class="text-gray-300">{j.modelUsed || config?.model || "—"}</span>
+                    </div>
+                    <div>
+                      <span class="text-gray-500">Intent:</span>{" "}
+                      <span class="text-gray-300">{j.intent}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Full Reasoning */}
+              <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                  Full Reasoning
+                </h3>
+                <div class="p-4 bg-gray-950 rounded-lg border border-gray-800">
+                  <p class="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+                    {j.reasoning}
+                  </p>
+                </div>
+              </div>
+
+              {/* Predicted Outcome */}
+              {j.predictedOutcome && (
+                <div class="mb-4">
+                  <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Predicted Outcome
+                  </h3>
+                  <p class="text-gray-400 text-sm">{j.predictedOutcome}</p>
+                </div>
+              )}
+
+              {/* Tool Trace */}
+              {toolTrace && toolTrace.length > 0 && (
+                <details class="group">
+                  <summary class="cursor-pointer text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2 hover:text-gray-300">
+                    Tool Calls ({toolTrace.length}) — Click to expand
+                  </summary>
+                  <div class="mt-2 p-3 bg-gray-950 rounded-lg border border-gray-800 max-h-96 overflow-y-auto">
+                    <div class="space-y-2 text-xs font-mono">
+                      {toolTrace.map((t: any, i: number) => (
+                        <div class="border-l-2 border-gray-700 pl-3 py-1">
+                          <div class="flex items-center gap-2 text-gray-500">
+                            <span class="text-gray-600">#{i + 1}</span>
+                            <span class="text-purple-400 font-semibold">{t.tool}</span>
+                            <span class="text-gray-600">{t.timestamp}</span>
+                          </div>
+                          <div class="text-gray-400 mt-1">
+                            Args: <code class="text-gray-500">{JSON.stringify(t.arguments)}</code>
+                          </div>
+                          {t.result && (
+                            <details class="mt-1">
+                              <summary class="text-gray-500 cursor-pointer hover:text-gray-400">
+                                Result (click to expand)
+                              </summary>
+                              <pre class="mt-1 text-gray-600 whitespace-pre-wrap text-xs overflow-x-auto">
+                                {t.result.slice(0, 500)}{t.result.length > 500 ? "..." : ""}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              )}
+
+              {/* Sources */}
+              {j.sources && (j.sources as string[]).length > 0 && (
+                <div class="mt-4">
+                  <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                    Sources Cited
+                  </h3>
+                  <div class="flex flex-wrap gap-2">
+                    {(j.sources as string[]).map((s) => (
+                      <span class="text-xs bg-gray-800 text-gray-400 px-2 py-1 rounded">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Benchmark Scores */}
+              <div class="mt-4 pt-4 border-t border-gray-800">
+                <div class="flex flex-wrap gap-4 text-xs">
+                  <div>
+                    <span class="text-gray-500">Coherence:</span>{" "}
+                    <span class={j.coherenceScore && j.coherenceScore > 0.7 ? "text-profit" : "text-gray-300"}>
+                      {j.coherenceScore ? (j.coherenceScore * 100).toFixed(0) + "%" : "—"}
+                    </span>
+                  </div>
+                  <div>
+                    <span class="text-gray-500">Discipline:</span>{" "}
+                    <span class={j.disciplinePass === "pass" ? "text-profit" : "text-gray-300"}>
+                      {j.disciplinePass || "—"}
+                    </span>
+                  </div>
+                  {j.hallucinationFlags && (j.hallucinationFlags as string[]).length > 0 && (
+                    <div>
+                      <span class="text-gray-500">Hallucinations:</span>{" "}
+                      <span class="text-loss">{(j.hallucinationFlags as string[]).length} flags</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div class="mt-6 text-xs text-gray-600 text-center">
+        Round data from {roundTimestamp.toISOString()}
+      </div>
+    </div>,
+    { title: `Round ${formatTimeAgo(roundTimestamp)} - MoltApp` }
   );
 });
 
