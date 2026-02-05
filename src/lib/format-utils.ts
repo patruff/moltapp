@@ -354,3 +354,21 @@ export function formatROI(pnlUsd: number, costUsd: number): string {
   const roi = (pnlUsd / costUsd) * 100;
   return roi.toFixed(0) + "%";
 }
+
+/**
+ * Calculate absolute USD P&L from portfolio value and percentage return
+ * Reverse-engineers initial investment from current value and return percentage
+ *
+ * @param totalValue - Current portfolio value in USD
+ * @param pnlPercent - P&L percentage (e.g., 25.5 for 25.5% return)
+ * @returns Absolute P&L in USD
+ *
+ * @example
+ * calculatePnlUsd(12500, 25) // 2500 (started with $10k, now $12.5k)
+ * calculatePnlUsd(9000, -10) // -1000 (started with $10k, now $9k)
+ * calculatePnlUsd(10000, 0) // 0 (breakeven)
+ */
+export function calculatePnlUsd(totalValue: number, pnlPercent: number): number {
+  const initialValue = totalValue / (1 + pnlPercent / 100);
+  return totalValue - initialValue;
+}

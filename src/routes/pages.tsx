@@ -29,6 +29,7 @@ import {
   formatNumber,
   formatCost,
   formatROI,
+  calculatePnlUsd,
 } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
@@ -207,12 +208,6 @@ function calculateThesisWinRate(
     lossesCount: losses,
     totalClosed
   };
-}
-
-// Helper: Calculate absolute USD P&L from portfolio value and percentage return
-function calculatePnlUsd(totalValue: number, pnlPercent: number): number {
-  const initialValue = totalValue / (1 + pnlPercent / 100);
-  return totalValue - initialValue;
 }
 
 // Component: Exit outcome badge (TARGET_HIT/PROFITABLE/STOPPED_OUT/LOSS)
