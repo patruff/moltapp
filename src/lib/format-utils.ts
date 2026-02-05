@@ -319,3 +319,38 @@ export function formatQuantity(value: string | number): string {
 export function formatNumber(value: number): string {
   return value.toLocaleString();
 }
+
+/**
+ * Format LLM API costs with 4 decimal places
+ * Used for displaying agent costs, total costs in economics dashboard
+ *
+ * @param value - The cost in USD
+ * @returns Formatted cost string like "0.1234"
+ *
+ * @example
+ * formatCost(0.123456) // "0.1235"
+ * formatCost(1.5) // "1.5000"
+ * formatCost(0) // "0.0000"
+ */
+export function formatCost(value: number): string {
+  return value.toFixed(4);
+}
+
+/**
+ * Format return on investment as a percentage
+ * Handles edge cases like zero or negative cost
+ *
+ * @param pnlUsd - P&L in USD (can be negative)
+ * @param costUsd - Total cost in USD
+ * @returns Formatted ROI string like "250%" or "0%"
+ *
+ * @example
+ * formatROI(100, 40) // "250%"
+ * formatROI(-20, 40) // "-50%"
+ * formatROI(50, 0) // "0%"
+ */
+export function formatROI(pnlUsd: number, costUsd: number): string {
+  if (costUsd <= 0) return "0%";
+  const roi = (pnlUsd / costUsd) * 100;
+  return roi.toFixed(0) + "%";
+}

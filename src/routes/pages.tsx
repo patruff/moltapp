@@ -27,6 +27,8 @@ import {
   formatPnlDisplay,
   formatQuantity,
   formatNumber,
+  formatCost,
+  formatROI,
 } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
@@ -529,7 +531,7 @@ pages.get("/agent/:id", async (c) => {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <div class="text-gray-400 text-sm">Total LLM Cost</div>
-              <div class="text-red-400 font-bold">${agentCosts.totalCost.toFixed(4)}</div>
+              <div class="text-red-400 font-bold">${formatCost(agentCosts.totalCost)}</div>
             </div>
             <div>
               <div class="text-gray-400 text-sm">Total Tokens</div>
@@ -1228,7 +1230,7 @@ pages.get("/economics", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div class="text-gray-400 text-sm mb-1">Total LLM Cost</div>
           <div class="text-2xl font-bold text-red-400">
-            ${costs.totalCost.toFixed(4)}
+            ${formatCost(costs.totalCost)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
             {formatNumber(costs.totalTokens)} tokens
@@ -1261,7 +1263,7 @@ pages.get("/economics", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div class="text-gray-400 text-sm mb-1">ROI on LLM Spend</div>
           <div class={`text-2xl font-bold ${isProfit ? "text-green-400" : "text-red-400"}`}>
-            {costs.totalCost > 0 ? ((totalPnlUsd / costs.totalCost) * 100).toFixed(0) : 0}%
+            {formatROI(totalPnlUsd, costs.totalCost)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
             P&L / Cost ratio
@@ -1295,7 +1297,7 @@ pages.get("/economics", async (c) => {
                 </td>
                 <td class="px-4 py-3 text-gray-400 text-sm">{agent.model}</td>
                 <td class="px-4 py-3 text-right text-red-400">
-                  ${agent.cost.toFixed(4)}
+                  ${formatCost(agent.cost)}
                 </td>
                 <td class="px-4 py-3 text-right text-gray-400">
                   {formatNumber(agent.tokens)}
