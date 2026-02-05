@@ -28,6 +28,7 @@ import {
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { desc, eq, sql, and } from "drizzle-orm";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -186,7 +187,7 @@ arenaRoutes.get("/history", async (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 

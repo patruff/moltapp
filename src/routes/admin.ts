@@ -31,6 +31,7 @@ import {
   getStuckTrades,
 } from "../services/trade-recovery.ts";
 import { getAgentConfigs, getTradingInfraStatus } from "../agents/orchestrator.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 const adminRoutes = new Hono();
 
@@ -484,7 +485,7 @@ adminRoutes.get("/api/audit", (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 

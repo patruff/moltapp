@@ -23,6 +23,7 @@ import { db } from "../db/index.ts";
 import { competitionScores } from "../db/schema/portfolio-snapshots.ts";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import type { TradingRoundResult } from "../agents/base-agent.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -202,7 +203,7 @@ function scoreRiskAdjusted(
       score = Math.max(0, 40 - confidencePenalty);
     }
 
-    scores.set(agentId, Math.min(100, Math.max(0, score)));
+    scores.set(agentId, clamp(score, 0, 100));
   }
 
   return scores;
@@ -240,7 +241,7 @@ function scoreConsistency(
       score += 10;
     }
 
-    scores.set(result.agentId, Math.min(100, Math.max(0, score)));
+    scores.set(result.agentId, clamp(score, 0, 100));
   }
 
   return scores;
@@ -283,7 +284,7 @@ function scoreDecisionQuality(
       score -= 10;
     }
 
-    scores.set(result.agentId, Math.min(100, Math.max(0, score)));
+    scores.set(result.agentId, clamp(score, 0, 100));
   }
 
   return scores;

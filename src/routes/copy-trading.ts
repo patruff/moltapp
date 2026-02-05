@@ -24,6 +24,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gt } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Type Aliases
@@ -309,7 +310,7 @@ copyTradingRoutes.get("/history/:followerId", async (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 
@@ -596,7 +597,7 @@ copyTradingRoutes.get("/leaderboard", async (c) => {
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = Math.min(100, Math.max(1, parsed));
+      limit = clamp(parsed, 1, 100);
     }
   }
 
