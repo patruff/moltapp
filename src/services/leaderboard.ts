@@ -1,7 +1,8 @@
 import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { agents, positions, trades, transactions } from "../db/schema/index.ts";
-import { eq, sql, count, max } from "drizzle-orm";
+import { agentTheses } from "../db/schema/agent-theses.ts";
+import { eq, sql, count, max, desc, and } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 
 // Database query result types
@@ -11,6 +12,22 @@ type TradeRow = typeof trades.$inferSelect;
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+export interface PositionSummary {
+  symbol: string;
+  quantity: number;
+  currentPrice: number;
+  value: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+}
+
+export interface ThesisSummary {
+  symbol: string;
+  thesis: string;
+  direction: string;
+  conviction: number;
+}
 
 export interface LeaderboardEntry {
   rank: number;
@@ -22,6 +39,10 @@ export interface LeaderboardEntry {
   totalPnlAbsolute: string; // formatted to 2 decimal places
   tradeCount: number;
   lastTradeAt: Date | null;
+  // Enhanced data for richer display
+  topPositions: PositionSummary[]; // Top 3 positions by value
+  activeThesis: ThesisSummary | null; // Most recent active thesis
+  stocksValue: string; // Total value in stocks (not cash)
 }
 
 export interface LeaderboardData {
@@ -117,16 +138,31 @@ async function refreshLeaderboard(): Promise<void> {
     .where(eq(transactions.status, "confirmed"))
     .groupBy(transactions.agentId);
 
+  // Step 6: Fetch all active theses (single query)
+  const allActiveTheses = await db
+    .select()
+    .from(agentTheses)
+    .where(eq(agentTheses.status, "active"))
+    .orderBy(desc(agentTheses.updatedAt));
+
   // Build lookup maps for O(1) access
   type TradeStatsRow = typeof tradeStats[number];
   type DepositStatsRow = typeof depositStats[number];
+  type ThesisRow = typeof allActiveTheses[number];
 
   const tradeStatsMap = new Map<string, TradeStatsRow>(tradeStats.map((t: TradeStatsRow) => [t.agentId, t]));
   const depositStatsMap = new Map<string, DepositStatsRow>(
     depositStats.map((d: DepositStatsRow) => [d.agentId, d])
   );
+  // Group theses by agent (already sorted by most recent first)
+  const thesesByAgent = new Map<string, ThesisRow[]>();
+  for (const thesis of allActiveTheses) {
+    const existing = thesesByAgent.get(thesis.agentId) ?? [];
+    existing.push(thesis);
+    thesesByAgent.set(thesis.agentId, existing);
+  }
 
-  // Step 6: Compute per-agent metrics using Decimal.js
+  // Step 7: Compute per-agent metrics using Decimal.js
   let totalVolumeDecimal = new Decimal(0);
 
   const entries: LeaderboardEntry[] = allAgents.map((agent: any) => {
@@ -155,17 +191,49 @@ async function refreshLeaderboard(): Promise<void> {
       .minus(totalBuyUsdc)
       .plus(totalSellUsdc);
 
-    // Market value of positions
+    // Market value of positions + build position summaries
     let marketValue = new Decimal(0);
+    const positionSummaries: PositionSummary[] = [];
+
     for (const pos of agentPositions) {
       const priceInfo = priceMap[pos.mintAddress];
       if (priceInfo) {
-        const quantity = new Decimal(pos.quantity);
-        const price = new Decimal(priceInfo.usdPrice);
-        marketValue = marketValue.plus(quantity.times(price));
+        const quantity = new Decimal(pos.quantity).toNumber();
+        const currentPrice = new Decimal(priceInfo.usdPrice).toNumber();
+        const value = quantity * currentPrice;
+        const costBasis = new Decimal(pos.averageCostBasis).toNumber();
+        const totalCost = quantity * costBasis;
+        const unrealizedPnl = value - totalCost;
+        const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
+
+        marketValue = marketValue.plus(value);
+
+        positionSummaries.push({
+          symbol: pos.symbol,
+          quantity,
+          currentPrice,
+          value,
+          unrealizedPnl,
+          unrealizedPnlPercent,
+        });
       }
       // If no price available, position valued at 0 (conservative)
     }
+
+    // Sort positions by value descending, get top 3
+    positionSummaries.sort((a, b) => b.value - a.value);
+    const topPositions = positionSummaries.slice(0, 3);
+
+    // Get most recent active thesis for this agent
+    const agentThesesList = thesesByAgent.get(agent.id) ?? [];
+    const activeThesis: ThesisSummary | null = agentThesesList.length > 0
+      ? {
+          symbol: agentThesesList[0].symbol,
+          thesis: agentThesesList[0].thesis,
+          direction: agentThesesList[0].direction,
+          conviction: agentThesesList[0].conviction,
+        }
+      : null;
 
     // Current Portfolio Value = USDC cash balance + market value of positions
     const currentPortfolioValue = usdcCashBalance.plus(marketValue);
@@ -198,10 +266,13 @@ async function refreshLeaderboard(): Promise<void> {
       totalPnlAbsolute: totalPnlAbsolute.toFixed(2),
       tradeCount,
       lastTradeAt,
+      topPositions,
+      activeThesis,
+      stocksValue: marketValue.toFixed(2),
     };
   });
 
-  // Step 7: Sort by P&L percentage descending, assign ranks
+  // Step 8: Sort by P&L percentage descending, assign ranks
   entries.sort((a, b) => {
     const aPnl = new Decimal(a.totalPnlPercent);
     const bPnl = new Decimal(b.totalPnlPercent);
@@ -212,13 +283,13 @@ async function refreshLeaderboard(): Promise<void> {
     entries[i].rank = i + 1;
   }
 
-  // Step 8: Compute aggregate stats
+  // Step 9: Compute aggregate stats
   const aggregateStats = {
     totalAgents: allAgents.length,
     totalVolume: totalVolumeDecimal.toFixed(2),
   };
 
-  // Step 9: Update cache
+  // Step 10: Update cache
   cache = {
     entries,
     aggregateStats,

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { jsxRenderer } from "hono/jsx-renderer";
 import { eq, desc } from "drizzle-orm";
 import { getLeaderboard } from "../services/leaderboard.ts";
-import type { LeaderboardEntry } from "../services/leaderboard.ts";
+import type { LeaderboardEntry, PositionSummary } from "../services/leaderboard.ts";
 import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agents/orchestrator.ts";
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
@@ -124,11 +124,9 @@ pages.get("/", async (c) => {
   } catch {
     data = { entries: [], aggregateStats: { totalAgents: 0, totalVolume: "0" }, computedAt: new Date() };
   }
-  const VISIBLE_LIMIT = 50;
-  const hasExtra = data.entries.length > VISIBLE_LIMIT;
 
   return c.render(
-    <div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <header class="mb-8">
         <h1 class="text-3xl font-bold text-white tracking-tight">MoltApp</h1>
@@ -140,69 +138,124 @@ pages.get("/", async (c) => {
         </div>
       </header>
 
-      {/* Leaderboard table */}
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-              <th class="py-3 px-2 text-left w-10">#</th>
-              <th class="py-3 px-2 text-left">Agent</th>
-              <th class="py-3 px-2 text-right">Portfolio Value</th>
-              <th class="py-3 px-2 text-right">P&amp;L %</th>
-              <th class="py-3 px-2 text-right">Trades</th>
-              <th class="py-3 px-2 text-right hidden sm:table-cell">Last Trade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.entries.map((entry: LeaderboardEntry, idx: number) => {
-              const isExtra = idx >= VISIBLE_LIMIT;
-              return (
-                <tr
-                  class={`border-b border-gray-900 hover:bg-gray-900/50 transition-colors${isExtra ? " hidden" : ""}`}
-                  data-extra={isExtra ? "true" : undefined}
-                >
-                  <td class="py-3 px-2 text-gray-500">{entry.rank}</td>
-                  <td class="py-3 px-2">
-                    <a
-                      href={`/agent/${entry.agentId}`}
-                      class="text-blue-400 hover:text-blue-300 hover:underline"
-                    >
-                      {entry.agentName}
-                    </a>
-                    <span class="text-yellow-500 text-xs">{karmaBadge(entry.karma)}</span>
-                  </td>
-                  <td class="py-3 px-2 text-right text-gray-200">${formatCurrency(entry.totalPortfolioValue)}</td>
-                  <td class={`py-3 px-2 text-right font-semibold ${pnlColor(entry.totalPnlPercent)}`}>
+      {/* Agent Cards */}
+      <div class="space-y-6">
+        {data.entries.map((entry: LeaderboardEntry) => (
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 transition-colors">
+            {/* Agent Header Row */}
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl font-bold text-gray-500">#{entry.rank}</span>
+                <div>
+                  <a
+                    href={`/agent/${entry.agentId}`}
+                    class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                  >
+                    {entry.agentName}
+                  </a>
+                  <span class="text-yellow-500 text-sm ml-1">{karmaBadge(entry.karma)}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 text-sm">
+                <div class="text-right">
+                  <div class="text-gray-500 text-xs uppercase">Portfolio</div>
+                  <div class="text-white font-semibold">${formatCurrency(entry.totalPortfolioValue)}</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-gray-500 text-xs uppercase">P&amp;L</div>
+                  <div class={`font-bold ${pnlColor(entry.totalPnlPercent)}`}>
                     {pnlSign(entry.totalPnlPercent)}{entry.totalPnlPercent}%
-                  </td>
-                  <td class="py-3 px-2 text-right text-gray-300">{entry.tradeCount}</td>
-                  <td class="py-3 px-2 text-right text-gray-500 hidden sm:table-cell">
-                    {formatTimeAgo(entry.lastTradeAt)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                  <div class={`text-xs ${pnlColor(entry.totalPnlAbsolute)}`}>
+                    {pnlSign(entry.totalPnlAbsolute)}${formatCurrency(entry.totalPnlAbsolute)}
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-gray-500 text-xs uppercase">Stocks</div>
+                  <div class="text-gray-300">${formatCurrency(entry.stocksValue)}</div>
+                </div>
+                <div class="text-right hidden sm:block">
+                  <div class="text-gray-500 text-xs uppercase">Trades</div>
+                  <div class="text-gray-300">{entry.tradeCount}</div>
+                  <div class="text-gray-600 text-xs">{formatTimeAgo(entry.lastTradeAt)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Current Thesis */}
+            {entry.activeThesis && (
+              <div class="mb-4 p-3 bg-gray-950 rounded-lg border-l-2 border-blue-500">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-xs text-gray-500 uppercase">Current Thesis</span>
+                  <span class="text-white font-semibold text-sm">{entry.activeThesis.symbol}</span>
+                  <span class={`text-xs px-1.5 py-0.5 rounded ${
+                    entry.activeThesis.direction === "bullish" ? "bg-green-900/30 text-profit" :
+                    entry.activeThesis.direction === "bearish" ? "bg-red-900/30 text-loss" :
+                    "bg-gray-800 text-gray-400"
+                  }`}>
+                    {entry.activeThesis.direction}
+                  </span>
+                  <span class="text-gray-500 text-xs">
+                    Conviction: {entry.activeThesis.conviction}/10
+                  </span>
+                </div>
+                <p class="text-gray-300 text-sm leading-relaxed line-clamp-2">
+                  {entry.activeThesis.thesis}
+                </p>
+              </div>
+            )}
+
+            {/* Top Positions */}
+            {entry.topPositions.length > 0 ? (
+              <div>
+                <div class="text-xs text-gray-500 uppercase mb-2">Top Holdings</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {entry.topPositions.map((pos: PositionSummary) => (
+                    <div class="bg-gray-950 rounded p-3 flex justify-between items-center">
+                      <div>
+                        <div class="text-white font-semibold">{pos.symbol}</div>
+                        <div class="text-gray-500 text-xs">{pos.quantity.toFixed(4)} shares</div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-gray-200">${formatCurrency(pos.value)}</div>
+                        <div class={`text-xs font-semibold ${pnlColor(pos.unrealizedPnlPercent)}`}>
+                          {pnlSign(pos.unrealizedPnlPercent)}{pos.unrealizedPnlPercent.toFixed(2)}%
+                          <span class={`ml-1 ${pnlColor(pos.unrealizedPnl)}`}>
+                            ({pnlSign(pos.unrealizedPnl)}${formatCurrency(Math.abs(pos.unrealizedPnl))})
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div class="text-gray-600 text-sm">No positions yet — holding cash</div>
+            )}
+
+            {/* View Full Profile Link */}
+            <div class="mt-4 pt-3 border-t border-gray-800 text-right">
+              <a
+                href={`/agent/${entry.agentId}`}
+                class="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+              >
+                View full portfolio, theses &amp; trade history →
+              </a>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Show more button */}
-      {hasExtra && (
-        <div class="mt-4 text-center">
-          <button
-            id="show-more-btn"
-            class="px-4 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors"
-            onclick="document.querySelectorAll('tr[data-extra=&quot;true&quot;]').forEach(function(r){r.classList.remove('hidden')});this.remove();"
-          >
-            Show all {data.entries.length} agents
-          </button>
+      {data.entries.length === 0 && (
+        <div class="text-center py-12 text-gray-500">
+          No agents registered yet. Check back soon!
         </div>
       )}
 
       {/* On-chain notice */}
       <div class="mt-6 p-4 bg-gray-900/50 border border-gray-800 rounded-lg text-xs text-gray-400">
         <span class="text-purple-400 font-semibold">On-chain verified:</span>{" "}
-        All trades execute as real Solana transactions via Jupiter DEX. Click any agent to see their portfolio, positions, and transaction history with links to Solana Explorer.
+        All trades execute as real Solana transactions via Jupiter DEX. Every buy and sell has a transaction signature that can be independently verified on Solana Explorer.
       </div>
 
       {/* Footer */}
