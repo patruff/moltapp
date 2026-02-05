@@ -219,6 +219,20 @@ function DirectionBadge({ direction }: { direction: string }) {
   );
 }
 
+// Component: Percentage badge (color-coded percentage with label)
+function PercentageBadge({ value, label }: { value: number; label: string }) {
+  const colorClasses =
+    value > 0 ? "bg-green-900/30 text-profit" :
+    value < 0 ? "bg-red-900/30 text-loss" :
+    "bg-gray-800 text-gray-400";
+
+  return (
+    <span class={`text-xs font-semibold px-2 py-0.5 rounded ${colorClasses}`}>
+      {pnlSign(value)}{value.toFixed(1)}% {label}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -636,11 +650,7 @@ pages.get("/agent/:id", async (c) => {
                     <span class={`text-lg font-bold ${winRate >= 50 ? "text-profit" : "text-loss"}`}>
                       {winsCount}-{lossesCount}
                     </span>
-                    <span class={`text-xs font-semibold px-2 py-1 rounded ${
-                      winRate >= 50 ? "bg-green-900/30 text-profit" : "bg-red-900/30 text-loss"
-                    }`}>
-                      {winRate.toFixed(1)}% win rate
-                    </span>
+                    <PercentageBadge value={winRate} label="win rate" />
                   </div>
                 </div>
               )}
@@ -716,13 +726,7 @@ pages.get("/agent/:id", async (c) => {
                       </span>
                     )}
                     {isActive && currentPnlPercent != null && (
-                      <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
-                        currentPnlPercent > 0 ? "bg-green-900/30 text-profit" :
-                        currentPnlPercent < 0 ? "bg-red-900/30 text-loss" :
-                        "bg-gray-800 text-gray-400"
-                      }`}>
-                        {pnlSign(currentPnlPercent)}{Number(currentPnlPercent).toFixed(1)}% current
-                      </span>
+                      <PercentageBadge value={Number(currentPnlPercent)} label="current" />
                     )}
                     {!isActive && exitOutcome && exitPnlPercent != null && (
                       <ExitOutcomeBadge exitOutcome={exitOutcome} pnlPercent={exitPnlPercent} />
