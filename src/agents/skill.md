@@ -1067,6 +1067,72 @@ If portfolio has >5 positions:
   → WARNING: "It's working so I'll add more" = recency bias. Ask: "Would I start this position TODAY at current price with current data?" If no, don't add.
 ```
 
+**WORKED EXAMPLE - Position Rebalancing in Action:**
+
+**Scenario:** Your portfolio has appreciated, and one winner now dominates. Should you trim?
+
+**Portfolio State (Current Round):**
+- Total Portfolio Value: $103.20 USDC
+- Position Count: 5 positions
+- AAPLx: Entry $175, Current $195.50 (+11.7%), Current Value: $24.68 = **23.9% allocation**
+- NVDAx: Entry $487, Current $498 (+2.3%), Current Value: $20.45 = 19.8%
+- TSLAx: Entry $245, Current $239 (-2.4%), Current Value: $19.05 = 18.5%
+- GOOGx: Entry $142, Current $145 (+2.1%), Current Value: $19.32 = 18.7%
+- MSFTx: Entry $380, Current $388 (+2.1%), Current Value: $19.70 = 19.1%
+
+**Step 1: Check Rebalancing Thresholds**
+- Warning threshold (20%): AAPLx at 23.9% = **EXCEEDED** ⚠️
+- Mandatory rebalance (30%): Not yet, but approaching
+- Original thesis for AAPLx: "Services revenue acceleration, PT $210 (+20% from $175 entry)"
+- Thesis status: Still intact — no target hit, no stop triggered
+
+**Step 2: Ask the Key Question**
+*"Would I BUY AAPLx TODAY at $195.50 for the SAME reasons I bought at $175?"*
+
+Answer A (WEAK): "Yes, it's still going up and Services are strong."
+→ ❌ RECENCY BIAS — Price momentum ≠ valid entry reason
+
+Answer B (STRONG): "Actually, at $195.50 I'm now +11.7% toward my $210 target (+20% originally). The reward/risk ratio has shrunk: only 7.4% upside left vs 11.7% already captured. If I were starting fresh, I'd want at least 10-12% upside for a 70+ confidence trade. At current price, confidence would be 65-68, below my entry threshold."
+→ ✅ HONEST ASSESSMENT — Risk/reward has deteriorated
+
+**Step 3: Calculate Trim Target**
+- Current allocation: 23.9% (above 20% warning)
+- Target allocation: 15-18% (comfortable range for a winning position)
+- Target trim: Reduce by 5-8 percentage points
+- Trim amount: $5.50 - $8.25 USDC (~¼ to ⅓ of position)
+
+**Step 4: Execute Trim Decision**
+```json
+{
+  "action": "sell",
+  "symbol": "AAPLx",
+  "quantity": 0.32,  // ~$6.25 worth at $195.50
+  "reasoning": "Position rebalancing — AAPLx now 23.9% of portfolio (above 20% warning threshold). Original thesis intact but risk/reward has deteriorated: +11.7% captured toward +20% target, leaving only 7.4% upside vs original 20%. Trimming ¼ position to reduce allocation to ~17% (safer range) while maintaining core exposure. Will reallocate proceeds to new opportunities or hold cash for better entries.",
+  "confidence": 78,  // High confidence in rebalancing discipline
+  "sources": ["Portfolio analytics - current allocation 23.9%", "Original thesis review - PT $210 from $175 entry"],
+  "intent": "hedge",  // Risk management via rebalancing
+  "predictedOutcome": "Lock in +11.7% gains on trimmed shares, reduce concentration risk, maintain 17% exposure to capture remaining upside if thesis plays out",
+  "thesisStatus": "partial exit — rebalancing concentration (thesis still intact)"
+}
+```
+
+**Step 5: Post-Trim Portfolio**
+- AAPLx: $18.43 = 17.9% allocation ✓
+- NVDAx: 19.8%, TSLAx: 18.5%, GOOGx: 18.7%, MSFTx: 19.1%
+- Cash: $6.25 available for new opportunities
+- Portfolio now balanced: no position >20%, diversified across 5 holdings
+
+**Key Lessons:**
+1. **23.9% allocation = rebalancing signal**, even if thesis intact
+2. **Risk/reward calculation is critical**: "Would I buy THIS position at CURRENT price?" If no → trim
+3. **Trim size matters**: Removed ¼ position (not entire position) to stay exposed while reducing risk
+4. **Rebalancing ≠ lack of conviction**: You can love the stock AND trim for portfolio health
+5. **Cash is a position**: Having dry powder for new 75+ confidence opportunities is valuable
+
+**Anti-Pattern to Avoid:**
+❌ "AAPLx is my best performer (+11.7%) so I should ADD more to maximize gains!"
+→ This is **recency bias** + **concentration risk**. Position already 23.9% = adding would push to 30%+ (mandatory rebalancing territory). One bad earnings miss could wipe out weeks of gains across entire portfolio.
+
 **Quick Position Sizing Reference:**
 | Scenario | Confidence | Size | Example |
 |----------|-----------|------|---------|
