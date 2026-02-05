@@ -7,6 +7,7 @@
  */
 
 import { Hono } from "hono";
+import { parseQueryInt } from "../lib/query-params.ts";
 import {
   generateFingerprint,
   getAllFingerprints,
@@ -30,7 +31,7 @@ const app = new Hono();
  */
 app.get("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const lookbackRounds = parseInt(c.req.query("lookbackRounds") ?? "200");
+  const lookbackRounds = parseQueryInt(c.req.query("lookbackRounds"), 200, 1, 1000);
 
   try {
     const fingerprint = await generateFingerprint(agentId, { lookbackRounds });

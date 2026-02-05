@@ -12,6 +12,7 @@
 import { Hono } from "hono";
 import { html } from "hono/html";
 import { env } from "../config/env.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 import { getLockStatus } from "../services/trading-lock.ts";
 import {
   getCircuitBreakerStatus,
@@ -531,7 +532,7 @@ adminRoutes.get("/api/recovery/stuck", (c) => {
 
 /** Circuit breaker activations */
 adminRoutes.get("/api/circuit-breaker/activations", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   return c.json({ activations: getRecentActivations(limit) });
 });
 

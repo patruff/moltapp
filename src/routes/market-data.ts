@@ -104,7 +104,7 @@ marketDataRoutes.get("/indicators/:symbol", (c) => {
  */
 marketDataRoutes.get("/candles/:symbol", (c) => {
   const symbol = c.req.param("symbol");
-  const period = parseInt(c.req.query("period") ?? "30");
+  const period = parseQueryInt(c.req.query("period"), 30, 1, 1440);
   const count = parseQueryInt(c.req.query("count"), 48, 1, 200);
 
   const candles = buildCandles(symbol, period, count);
