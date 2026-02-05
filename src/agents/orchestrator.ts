@@ -52,6 +52,7 @@ if (process.env.BRAVE_API_KEY) {
   console.log("[Orchestrator] Brave Search enabled");
 }
 import { recordBalanceSnapshot, preTradeFundCheck } from "../services/agent-wallets.ts";
+import { getOnChainPortfolio } from "../services/onchain-portfolio.ts";
 import {
   executeDecision as executeTradeDecision,
   executePipeline,
@@ -486,7 +487,7 @@ export async function getPortfolioContext(
       .where(eq(trades.agentId, agentId));
 
     // Calculate cash balance: start with initial capital, subtract buys, add sells
-    const INITIAL_CAPITAL = 10000; // $10k starting capital per AI agent
+    const INITIAL_CAPITAL = 50; // $50 starting capital per AI agent (actual funding)
     let cashBalance = INITIAL_CAPITAL;
     for (const trade of agentTrades) {
       if (trade.side === "buy") {
@@ -3178,24 +3179,45 @@ export async function getAgentTradeHistory(
 
 /**
  * Get the portfolio (current positions) for an AI agent.
+ * Reads directly from Solana blockchain for accurate on-chain data.
  */
 export async function getAgentPortfolio(agentId: string) {
   try {
-    const marketData = await getMarketData();
-    const portfolio = await getPortfolioContext(agentId, marketData);
-    return portfolio;
+    // Use on-chain portfolio service for accurate blockchain data
+    const onChainPortfolio = await getOnChainPortfolio(agentId);
+    return {
+      cashBalance: onChainPortfolio.cashBalance,
+      positions: onChainPortfolio.positions.map((p) => ({
+        symbol: p.symbol,
+        quantity: p.quantity,
+        averageCostBasis: p.averageCostBasis,
+        currentPrice: p.currentPrice,
+        unrealizedPnl: p.unrealizedPnl,
+        unrealizedPnlPercent: p.unrealizedPnlPercent,
+      })),
+      totalValue: onChainPortfolio.totalValue,
+      totalPnl: onChainPortfolio.totalPnl,
+      totalPnlPercent: onChainPortfolio.totalPnlPercent,
+    };
   } catch (error) {
     console.error(
-      `[Orchestrator] Failed to get portfolio for ${agentId}:`,
+      `[Orchestrator] Failed to get on-chain portfolio for ${agentId}:`,
       error,
     );
-    return {
-      cashBalance: 0,
-      positions: [],
-      totalValue: 0,
-      totalPnl: 0,
-      totalPnlPercent: 0,
-    };
+    // Fallback to database-based portfolio if on-chain fails
+    try {
+      const marketData = await getMarketData();
+      const portfolio = await getPortfolioContext(agentId, marketData);
+      return portfolio;
+    } catch {
+      return {
+        cashBalance: 0,
+        positions: [],
+        totalValue: 0,
+        totalPnl: 0,
+        totalPnlPercent: 0,
+      };
+    }
   }
 }
 

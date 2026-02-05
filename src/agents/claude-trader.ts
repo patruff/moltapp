@@ -6,6 +6,11 @@
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
+import type {
+  MessageParam,
+  ToolUnion,
+  ContentBlockParam,
+} from "@anthropic-ai/sdk/resources/messages";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -53,21 +58,21 @@ export class ClaudeTrader extends BaseTradingAgent {
   // Provider-specific tool-calling implementation
   // -----------------------------------------------------------------------
 
-  getProviderTools() {
+  getProviderTools(): ToolUnion[] {
     return getAnthropicTools();
   }
 
-  buildInitialMessages(userMessage: string): any[] {
+  buildInitialMessages(userMessage: string): MessageParam[] {
     return [{ role: "user", content: userMessage }];
   }
 
   appendToolResults(
-    messages: any[],
+    messages: MessageParam[],
     turn: AgentTurn,
     results: ToolResult[],
-  ): any[] {
+  ): MessageParam[] {
     // Build the assistant message with tool_use blocks
-    const assistantContent: any[] = [];
+    const assistantContent: ContentBlockParam[] = [];
 
     // Add text if present
     if (turn.textResponse) {
@@ -100,8 +105,8 @@ export class ClaudeTrader extends BaseTradingAgent {
 
   async callWithTools(
     system: string,
-    messages: any[],
-    tools: any[],
+    messages: MessageParam[],
+    tools: ToolUnion[],
   ): Promise<AgentTurn> {
     const client = this.getClient();
 

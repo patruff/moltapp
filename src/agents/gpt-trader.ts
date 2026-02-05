@@ -5,6 +5,10 @@
  * Uses the shared skill.md prompt template with momentum strategy overrides.
  */
 
+import type {
+  ChatCompletionMessageParam,
+  ChatCompletionTool,
+} from "openai/resources/chat/completions";
 import {
   BaseTradingAgent,
   type AgentTurn,
@@ -46,7 +50,11 @@ const GPT_AGENT_CONFIG = {
 // ---------------------------------------------------------------------------
 
 export class GPTTrader extends BaseTradingAgent {
-  callWithTools: (system: string, messages: any[], tools: any[]) => Promise<AgentTurn>;
+  callWithTools: (
+    system: string,
+    messages: ChatCompletionMessageParam[],
+    tools: ChatCompletionTool[],
+  ) => Promise<AgentTurn>;
 
   constructor() {
     super(GPT_AGENT_CONFIG);
@@ -63,19 +71,19 @@ export class GPTTrader extends BaseTradingAgent {
   // Provider-specific tool-calling implementation
   // -----------------------------------------------------------------------
 
-  getProviderTools() {
+  getProviderTools(): ChatCompletionTool[] {
     return getOpenAITools();
   }
 
-  buildInitialMessages(userMessage: string): any[] {
+  buildInitialMessages(userMessage: string): ChatCompletionMessageParam[] {
     return buildOpenAIMessages(userMessage);
   }
 
   appendToolResults(
-    messages: any[],
+    messages: ChatCompletionMessageParam[],
     turn: AgentTurn,
     results: ToolResult[],
-  ): any[] {
+  ): ChatCompletionMessageParam[] {
     return appendOpenAIToolResults(messages, turn, results);
   }
 }

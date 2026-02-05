@@ -222,22 +222,22 @@ export abstract class BaseTradingAgent {
   /** Make a single LLM call with tools and return the response turn */
   abstract callWithTools(
     system: string,
-    messages: any[],
-    tools: any[],
+    messages: unknown[],
+    tools: unknown[],
   ): Promise<AgentTurn>;
 
   /** Get tools in the provider's native format */
-  abstract getProviderTools(): any[];
+  abstract getProviderTools(): unknown[];
 
   /** Build initial messages array from a user message string */
-  abstract buildInitialMessages(userMessage: string): any[];
+  abstract buildInitialMessages(userMessage: string): unknown[];
 
   /** Append tool results to the conversation messages */
   abstract appendToolResults(
-    messages: any[],
+    messages: unknown[],
     turn: AgentTurn,
     results: ToolResult[],
-  ): any[];
+  ): unknown[];
 
   // -------------------------------------------------------------------------
   // Public API — analyze() delegates to the tool-calling loop

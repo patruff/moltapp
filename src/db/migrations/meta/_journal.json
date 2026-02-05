@@ -85,6 +85,13 @@
       "when": 1770208332416,
       "tag": "0011_tiny_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1770276033736,
+      "tag": "0012_awesome_chimera",
+      "breakpoints": true
     }
   ]
 }

@@ -1,14 +1,18 @@
 #!/usr/bin/env npx tsx
 /**
- * MoltApp Trading Heartbeat
+ * MoltApp Trading Heartbeat — Highest Reasoners Benchmark
  *
- * Runs trading rounds on a 30-minute interval, matching the EventBridge schedule.
- * Use this for local development / hackathon demos.
+ * End-to-end tracing from model reasoning → benchmark scoring → Solana settlement.
+ *
+ * Three sources of truth:
+ * 1. Models — Full tool traces and reasoning chains
+ * 2. Benchmark — 34-dimension scoring to HuggingFace
+ * 3. Blockchain — On-chain token balances and transactions
  *
  * Usage:
- *   npx tsx scripts/heartbeat.ts                  # Default: 30 min interval
+ *   npx tsx scripts/heartbeat.ts                  # Default: 120 min interval
  *   npx tsx scripts/heartbeat.ts --interval 10    # 10 min interval
- *   npx tsx scripts/heartbeat.ts --once            # Single round then exit
+ *   npx tsx scripts/heartbeat.ts --once           # Single round then exit
  */
 
 import { resolve, dirname } from "path";
@@ -32,6 +36,7 @@ try {
 
 const { runTradingRound } = await import("../src/agents/orchestrator.ts");
 const { syncToHuggingFace } = await import("./hf-sync-lib.ts");
+const { syncAllAgentPortfolios } = await import("../src/services/onchain-portfolio.ts");
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -53,6 +58,15 @@ async function executeRound() {
   console.log(`${"=".repeat(60)}\n`);
 
   try {
+    // Sync on-chain portfolios BEFORE trading round (source of truth: blockchain)
+    console.log("  Syncing on-chain portfolios...");
+    try {
+      const syncResult = await syncAllAgentPortfolios();
+      console.log(`  On-chain sync: ${syncResult.totalSynced} positions across ${syncResult.agents.length} agents`);
+    } catch (syncErr) {
+      console.warn(`  On-chain sync failed (non-critical): ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`);
+    }
+
     const result = await runTradingRound();
 
     const executed = result.results.filter((r) => r.executed).length;
@@ -79,6 +93,17 @@ async function executeRound() {
     );
 
     consecutiveFailures = 0;
+
+    // Sync on-chain portfolios AFTER trading round (capture executed trades)
+    if (executed > 0) {
+      console.log("  Syncing post-trade portfolios...");
+      try {
+        const postSyncResult = await syncAllAgentPortfolios();
+        console.log(`  Post-trade sync: ${postSyncResult.totalSynced} positions updated`);
+      } catch (syncErr) {
+        console.warn(`  Post-trade sync failed (non-critical): ${syncErr instanceof Error ? syncErr.message : String(syncErr)}`);
+      }
+    }
 
     // Sync benchmark data to HuggingFace after each successful round
     try {

@@ -25,6 +25,7 @@ import {
   runTradingRound,
 } from "../agents/orchestrator.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
+import { getAllOnChainPortfolios } from "../services/onchain-portfolio.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -220,6 +221,54 @@ agentRoutes.get("/:agentId/portfolio", async (c) => {
       })),
     },
   });
+});
+
+// ---------------------------------------------------------------------------
+// GET /agents/portfolios/on-chain — All agent portfolios from Solana blockchain
+// ---------------------------------------------------------------------------
+
+agentRoutes.get("/portfolios/on-chain", async (c) => {
+  try {
+    const portfolios = await getAllOnChainPortfolios();
+
+    return c.json({
+      portfolios: portfolios.map((p) => ({
+        agentId: p.agentId,
+        agentName: p.agentName,
+        walletAddress: p.walletAddress,
+        cashBalance: p.cashBalance,
+        positions: p.positions.map((pos) => ({
+          symbol: pos.symbol,
+          name: pos.name,
+          quantity: pos.quantity,
+          currentPrice: pos.currentPrice,
+          value: pos.value,
+          averageCostBasis: pos.averageCostBasis,
+          unrealizedPnl: pos.unrealizedPnl,
+          unrealizedPnlPercent: pos.unrealizedPnlPercent,
+        })),
+        totalValue: p.totalValue,
+        totalPnl: p.totalPnl,
+        totalPnlPercent: p.totalPnlPercent,
+        initialCapital: p.initialCapital,
+        lastSyncedAt: p.lastSyncedAt,
+        source: p.source,
+      })),
+      count: portfolios.length,
+      syncedAt: new Date().toISOString(),
+      description: "On-chain portfolios read directly from Solana blockchain — source of truth for agent holdings.",
+    });
+  } catch (error) {
+    console.error("[API] Failed to get on-chain portfolios:", error);
+    return c.json(
+      {
+        error: "on_chain_fetch_failed",
+        code: "on_chain_fetch_failed",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      500,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------
