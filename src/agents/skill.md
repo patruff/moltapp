@@ -1332,6 +1332,104 @@ After averaging down with $3 more:
 **Key Insight:**
 Lower price is NOT the same as better opportunity. If you wouldn't start this position TODAY at current price (without the emotional attachment of already owning it), then you shouldn't add more capital to it.
 
+**ANTI-PATTERN: The Comfortable Winner Trap (Why "Still Working" ≠ Best Use of Capital)**
+
+**The Situation:**
+You own a winner that's profitable (+5-10%), thesis is still valid (confidence 65-72), but a materially better opportunity has emerged elsewhere (confidence 75-82). The temptation is to hold the winner because "it's still working" rather than rotate capital to the superior setup.
+
+**Why This Is a Trap:**
+
+This is a subtle form of portfolio inefficiency because it prioritizes **comfort over optimization**:
+1. **Opportunity cost** — Every dollar in a "good enough" position is a dollar NOT deployed in a clearly superior opportunity
+2. **Recency bias** — You're attached to the winner because it's been profitable, not because it's the best current use of capital
+3. **Capital stagnation** — Portfolio gets dominated by early wins that should be rotated to maintain alpha generation
+
+**The Honesty Test (Critical):**
+Ask: "If I had NO positions and $10 cash today, how would I allocate it between my current holdings and new opportunities?"
+
+If you'd allocate MORE to the new opportunity than to the current winner, that's your signal to rotate.
+
+**WORKED EXAMPLE - The Comfortable Winner vs Superior Opportunity:**
+
+**Current Winner (Comfortable Hold):**
+- AAPLx entry at $175, now $189 (+8% unrealized)
+- Original thesis: "Services revenue growth accelerating to +18% YoY, multiple expansion to 28x forward P/E"
+- Current state: Services growth confirmed at +16% YoY (slightly below thesis but still solid)
+- Current confidence: **68** (thesis intact but momentum slowing)
+- Position size: $3.50 (14% of portfolio)
+
+**New Opportunity Emerges:**
+- MSFTx at $375 (Azure Cloud opportunity)
+- Thesis: "Azure revenue +31% YoY (vs AWS +12%), market share gains accelerating, partnership with NVDA announced yesterday"
+- Confidence: **78** (strong catalyst + technical confirmation + fundamental strength)
+- Available capital: $1.20 USDC cash
+
+**The Comfortable Winner Trap Decision:**
+```
+❌ BAD REASONING: "AAPLx is still profitable and thesis hasn't broken. I'll hold it and use my $1.20 cash for a small MSFTx position."
+
+Why this is suboptimal:
+- You're treating AAPLx status as binary (working/broken) instead of relative (good/better)
+- MSFTx gets only $1.20 allocation despite being 78-confidence vs AAPLx's 68-confidence
+- You're implicitly valuing "already profitable" higher than "better risk/reward going forward"
+```
+
+**The Optimal Capital Rotation Decision:**
+```
+✅ BETTER REASONING: "AAPLx thesis is intact but momentum slowing (68 conf). MSFTx offers superior risk/reward (78 conf, new catalyst). I'll trim or exit AAPLx to properly size MSFTx position."
+
+Action:
+1. SELL 60% of AAPLx position ($2.10 proceeds + $1.20 cash = $3.30 available)
+2. Lock in +8% profit on the trimmed portion
+3. BUY MSFTx with $3.00 (12% portfolio allocation for a 78-confidence setup)
+4. Keep 40% AAPLx exposure ($1.40 remaining) as diversification
+
+Result:
+- Captured profit on mediocre winner
+- Properly sized superior opportunity
+- Maintained some AAPL exposure if thesis re-accelerates
+- Capital now allocated by conviction (78 conf → larger size, 68 conf → smaller size)
+```
+
+**Compare: When to HOLD Winners vs When to ROTATE Capital:**
+
+| Scenario | Current Winner | New Opportunity | Action | Why? |
+|----------|---------------|-----------------|--------|------|
+| **HOLD WINNER** | TSMx +6%, confidence 76 (thesis strengthening with new chip orders) | GOOGx confidence 72 (decent but not exceptional) | ✅ HOLD TSM | Current position superior or equal to alternatives |
+| **ROTATE CAPITAL** | AAPLx +8%, confidence 68 (thesis intact but slowing) | MSFTx confidence 78 (new catalyst + momentum) | ✅ TRIM/EXIT AAPL, BUY MSFT | New opportunity materially better (10+ confidence points) |
+| **HOLD WINNER** | NVDAx +12%, confidence 81 (thesis accelerating with data center demand) | METAx confidence 79 (strong but not superior) | ✅ HOLD NVDA | Current position still highest conviction |
+| **ROTATE CAPITAL** | BAx +5%, confidence 65 (thesis weakening, financials under pressure) | JPMx confidence 75 (better fundamentals in same sector) | ✅ EXIT BA, BUY JPM | Same sector, clearly superior setup available |
+
+**The Decision Framework:**
+
+**Step 1:** Evaluate CURRENT conviction on winner (not historical)
+- Re-rate the thesis TODAY: Has momentum strengthened, remained flat, or weakened?
+- Ignore past profit/loss—focus only on forward-looking risk/reward
+
+**Step 2:** Compare confidence spread between current and new opportunity
+- Spread <5 points: Hold winner (not worth rotation costs)
+- Spread 5-10 points: Consider partial trim (rotate 30-50% of position)
+- Spread >10 points: Strong rotation signal (trim 50-80% or full exit)
+
+**Step 3:** Size new position by conviction, not by "available cash"
+- Don't let arbitrary cash levels dictate position sizing
+- If new setup deserves $3-4 allocation but you only have $1.20 cash, TRIM winners to fund proper sizing
+
+**Step 4:** Lock profits and rotate efficiently
+- Exiting at +8% to redeploy at higher conviction is GOOD TRADING
+- Don't confuse "taking profits early" (panic exit) with "capital rotation" (strategic reallocation)
+
+**Key Insight:**
+A winner that's "still working" isn't automatically worth holding. Every position competes for capital against every other opportunity (current + new). The question isn't "Is this position profitable?" but rather "Is this position the BEST use of this capital TODAY?"
+
+If the answer is no—and a materially better opportunity exists—rotation is the optimal move even if the current winner hasn't "broken."
+
+**Warning Signs You're Falling Into the Trap:**
+1. You defend a position by saying "it's still profitable" rather than "it's still the best opportunity"
+2. You're sizing new positions based on "available cash" rather than relative conviction
+3. You hesitate to exit winners even when you admit another opportunity is clearly superior
+4. Your portfolio has 3-4 "okay" positions (confidence 65-70) instead of 2-3 "strong" positions (confidence 75-82)
+
 **Portfolio Construction Rules:**
 
 | Rule | Threshold | Rationale |
