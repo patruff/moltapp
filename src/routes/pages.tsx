@@ -162,6 +162,45 @@ function findExitTrade(
   );
 }
 
+// Helper: Calculate win rate for closed theses
+function calculateThesisWinRate(
+  theses: Thesis[],
+  trades: Trade[]
+): { winRate: number; winsCount: number; lossesCount: number; totalClosed: number } {
+  const closedTheses = theses.filter((t: Thesis) => t.status === "closed");
+
+  const { wins, losses } = closedTheses.reduce(
+    (acc, thesis) => {
+      const exitTrade = findExitTrade(thesis, trades);
+
+      if (exitTrade && exitTrade.pricePerToken && thesis.entryPrice) {
+        const exitPrice = Number(exitTrade.pricePerToken);
+        const entryPrice = Number(thesis.entryPrice);
+        const pnl = calculateThesisPnl(entryPrice, exitPrice, thesis.direction);
+
+        if (pnl > 0) {
+          acc.wins++;
+        } else {
+          acc.losses++;
+        }
+      }
+
+      return acc;
+    },
+    { wins: 0, losses: 0 }
+  );
+
+  const totalClosed = wins + losses;
+  const winRate = totalClosed > 0 ? (wins / totalClosed) * 100 : 0;
+
+  return {
+    winRate,
+    winsCount: wins,
+    lossesCount: losses,
+    totalClosed
+  };
+}
+
 // Component: Exit outcome badge (TARGET_HIT/PROFITABLE/STOPPED_OUT/LOSS)
 function ExitOutcomeBadge({
   exitOutcome,
@@ -604,30 +643,10 @@ pages.get("/agent/:id", async (c) => {
       {/* Investment Theses History */}
       {thesisHistory.length > 0 && (() => {
         // Calculate thesis win rate for closed theses
-        const closedTheses = thesisHistory.filter((t: Thesis) => t.status === "closed");
-        let winsCount = 0;
-        let lossesCount = 0;
-
-        closedTheses.forEach((t: Thesis) => {
-          // Find exit trade to determine outcome
-          const exitTrade = findExitTrade(t, onChainTrades);
-
-          if (exitTrade && exitTrade.pricePerToken && t.entryPrice) {
-            const exitPrice = Number(exitTrade.pricePerToken);
-            const entryPrice = Number(t.entryPrice);
-
-            const calculatedPnl = calculateThesisPnl(entryPrice, exitPrice, t.direction);
-
-            if (calculatedPnl > 0) {
-              winsCount++;
-            } else {
-              lossesCount++;
-            }
-          }
-        });
-
-        const totalClosedWithData = winsCount + lossesCount;
-        const winRate = totalClosedWithData > 0 ? (winsCount / totalClosedWithData) * 100 : 0;
+        const { winRate, winsCount, lossesCount, totalClosed } = calculateThesisWinRate(
+          thesisHistory,
+          onChainTrades
+        );
 
         return (
           <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
@@ -636,7 +655,7 @@ pages.get("/agent/:id", async (c) => {
                 <h2 class="text-lg font-bold text-white mb-1">Investment Theses</h2>
                 <p class="text-xs text-gray-500">Agent's documented investment reasoning for each stock position.</p>
               </div>
-              {totalClosedWithData > 0 && (
+              {totalClosed > 0 && (
                 <div class="text-right">
                   <div class="text-sm text-gray-400 mb-1">Track Record</div>
                   <div class="flex items-center gap-2">
