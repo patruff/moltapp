@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: 10-agent-decision-quality
-Plan: 02 of 3 (Decision Quality Dashboard) - COMPLETE
-Status: In progress
+Phase: 10-agent-decision-quality - COMPLETE
+Plan: 03 of 3 (Quality Dashboard Route) - COMPLETE
+Status: Phase complete
 
-Progress: [======----] 67% (2 of 3 plans complete)
+Progress: [==========] 100% (3 of 3 plans complete)
 
 Platform is fully operational. All core systems built and running:
 - 3 autonomous tool-calling agents (Claude, GPT, Grok) with shared skill.md
@@ -29,11 +29,12 @@ Platform is fully operational. All core systems built and running:
 - Overnight heartbeat running trading rounds every 2 hours
 - LLM token usage tracking with cost estimation (llm_usage table)
 - /economics dashboard showing cost vs trading returns
-- **NEW: Tool use quality analyzer (validates agent tool-calling patterns)**
-- **NEW: Decision quality snapshots schema (stores composite quality metrics)**
-- **NEW: Decision quality dashboard service (aggregates all 5 quality services)**
+- **Tool use quality analyzer (validates agent tool-calling patterns)**
+- **Decision quality snapshots schema (stores composite quality metrics)**
+- **Decision quality dashboard service (aggregates all 5 quality services)**
+- **NEW: /decision-quality dashboard route (shows all quality metrics with model names)**
 
-Last activity: 2026-02-05 — Completed 10-02-PLAN.md (Decision Quality Dashboard)
+Last activity: 2026-02-05 — Completed 10-03-PLAN.md (Quality Dashboard Route)
 
 ## Architecture Summary
 
@@ -75,10 +76,11 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 - [x] Brain feed — live agent reasoning stream
 - [x] 40+ benchmark scoring dimensions
 
-### Quality Analysis (Phase 10)
+### Quality Analysis (Phase 10) - COMPLETE
 - [x] Tool use quality analyzer (src/services/tool-use-quality-analyzer.ts)
 - [x] Decision quality snapshots schema (src/db/schema/decision-quality.ts)
-- [x] Decision quality dashboard (src/services/decision-quality-dashboard.ts)
+- [x] Decision quality dashboard service (src/services/decision-quality-dashboard.ts)
+- [x] /decision-quality route with unified quality metrics and model display
 
 ### Infrastructure
 - [x] Hono 4.x API server
@@ -104,6 +106,7 @@ Agents (Claude/GPT/Grok) → skill.md prompt → Tool-calling loop (max 15 turns
 | 2026-02-05 | Dimension weights: calibration 20%, integrity 20%, accountability 20%, memory 15%, tool-use 25% | Tool use weighted highest as correct patterns are critical |
 | 2026-02-05 | Calibration score = 1 - ECE | Makes calibration directionally consistent with other scores |
 | 2026-02-05 | Default score 0.5 for missing data | New agents get neutral score, not failure |
+| 2026-02-05 | Model name display on quality dashboard | User requested model details visible on website |
 
 ## What Needs Improvement
 
@@ -134,17 +137,23 @@ The heartbeat.sh script runs every 2 hours and:
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 10-02-PLAN.md (Decision Quality Dashboard)
+Stopped at: Completed 10-03-PLAN.md (Quality Dashboard Route)
 Resume file: None
 
 Changes this session:
-- Created decision-quality-dashboard service (aggregates all 5 quality services)
-- Implements generateDecisionQualityReport, storeQualitySnapshot, getLatestQualitySnapshot
-- Added generateAllQualityReports for batch processing
-- Weighted composite scoring with research-backed weights
+- Created /decision-quality route with unified quality dashboard
+- Shows all 5 quality dimensions per agent (calibration, integrity, accountability, memory, tool use)
+- Added model name display per user feedback (claude-opus-4-5-20251101, gpt-4o-mini, grok-beta)
+- Summary cards with aggregate metrics (avg score, best/worst dimensions)
+- Added homepage link to decision quality dashboard
 - TypeScript compilation: 0 errors
 
+Phase 10 (Agent Decision Quality) COMPLETE:
+- Plan 10-01: Tool use quality analyzer
+- Plan 10-02: Decision quality dashboard service
+- Plan 10-03: Quality dashboard route (this session)
+
 Next steps:
-- Execute 10-03-PLAN.md (Quality API Route)
-- Expose quality dashboard via API endpoint
-- Add quality metrics to agent profile page
+- Phase 10 complete - select next improvement area
+- Consider: integrating quality snapshots into heartbeat
+- Consider: adding quality trends to agent profile pages
