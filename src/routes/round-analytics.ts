@@ -14,6 +14,7 @@ import {
   getAnalyticsStatus,
   type RoundDecision,
 } from "../services/round-analytics.ts";
+import { parseQueryInt } from "../lib/query-params.js";
 
 const app = new Hono();
 
@@ -24,7 +25,7 @@ app.get("/status", (c) => {
 
 /** GET /recent — recent round analytics */
 app.get("/recent", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "20", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 200);
   const analytics = getRecentRoundAnalytics(limit);
   return c.json({ analytics, count: analytics.length });
 });
@@ -41,14 +42,14 @@ app.get("/round/:roundId", (c) => {
 
 /** GET /summary — comprehensive analytics summary */
 app.get("/summary", (c) => {
-  const days = parseInt(c.req.query("days") ?? "7", 10);
+  const days = parseQueryInt(c.req.query("days"), 7, 1, 365);
   const summary = generateAnalyticsSummary(days);
   return c.json(summary);
 });
 
 /** GET /trends — agent performance trends */
 app.get("/trends", (c) => {
-  const window = parseInt(c.req.query("window") ?? "20", 10);
+  const window = parseQueryInt(c.req.query("window"), 20, 1, 100);
   const trends = computeAgentTrends(window);
   return c.json({ trends, windowSize: window, computedAt: new Date().toISOString() });
 });
@@ -80,7 +81,7 @@ app.post("/analyze", async (c) => {
 
 /** GET /quality — round quality scores over time */
 app.get("/quality", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   const analytics = getRecentRoundAnalytics(limit);
   const scores = analytics.map((a) => ({
     roundId: a.roundId,
@@ -96,7 +97,7 @@ app.get("/quality", (c) => {
 
 /** GET /participation — participation and execution rates over time */
 app.get("/participation", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   const analytics = getRecentRoundAnalytics(limit);
   const rates = analytics.map((a) => ({
     roundId: a.roundId,
@@ -112,7 +113,7 @@ app.get("/participation", (c) => {
 
 /** GET /market-context — market conditions at time of each round */
 app.get("/market-context", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "20", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 200);
   const analytics = getRecentRoundAnalytics(limit);
   const contexts = analytics.map((a) => ({
     roundId: a.roundId,
