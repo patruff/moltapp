@@ -80,6 +80,14 @@ const pages = new Hono();
 const TARGET_HIT_THRESHOLD = 0.95;  // 95% of target = "hit"
 const STOPPED_OUT_THRESHOLD = -5;   // -5% loss = "stopped out"
 
+// Pagination limits (used throughout the UI)
+const MAX_RECENT_DECISIONS = 5;     // Recent decisions shown on agent profile
+const MAX_TRADE_HISTORY = 10;       // Trade history items per agent
+const MAX_THESIS_HISTORY = 10;      // Thesis history items per agent
+const MAX_ONCHAIN_TRADES = 20;      // On-chain trade history limit
+const MAX_TRADING_ROUNDS = 20;      // Trading rounds shown in timeline
+const JUSTIFICATIONS_FETCH_BUFFER = 100; // Fetch buffer for filtering rounds
+
 // ---------------------------------------------------------------------------
 // Layout middleware
 // ---------------------------------------------------------------------------
@@ -472,10 +480,10 @@ pages.get("/agent/:id", async (c) => {
       totalPnl: 0,
       totalPnlPercent: 0,
     })),
-    getAgentTradeHistory(agentId, 10, 0).catch(() => ({
+    getAgentTradeHistory(agentId, MAX_TRADE_HISTORY, 0).catch(() => ({
       decisions: [] as AgentDecision[],
       total: 0,
-      limit: 10,
+      limit: MAX_TRADE_HISTORY,
       offset: 0,
     })),
     Promise.resolve(getAgentWallet(agentId)),
@@ -494,9 +502,9 @@ pages.get("/agent/:id", async (c) => {
       .from(trades)
       .where(eq(trades.agentId, agentId))
       .orderBy(desc(trades.createdAt))
-      .limit(20)
+      .limit(MAX_ONCHAIN_TRADES)
       .catch(() => []),
-    getThesisHistory(agentId, 10).catch(() => []),
+    getThesisHistory(agentId, MAX_THESIS_HISTORY).catch(() => []),
     getAgentCosts(agentId).catch(() => ({ totalCost: 0, totalTokens: 0 })),
   ]);
 
@@ -832,7 +840,7 @@ pages.get("/agent/:id", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
           <h2 class="text-lg font-bold text-white mb-4">Recent Decisions</h2>
           <div class="space-y-4">
-            {tradeHistory.decisions.slice(0, 5).map((d: AgentDecision) => (
+            {tradeHistory.decisions.slice(0, MAX_RECENT_DECISIONS).map((d: AgentDecision) => (
               <div class="border-l-2 border-gray-700 pl-4">
                 <div class="flex items-center gap-2 mb-1">
                   <ActionBadge action={d.action} size="xs" />
@@ -888,7 +896,7 @@ pages.get("/rounds", async (c) => {
     .select()
     .from(tradeJustifications)
     .orderBy(desc(tradeJustifications.timestamp))
-    .limit(100);
+    .limit(JUSTIFICATIONS_FETCH_BUFFER);
 
   // Group by roundId
   const roundsMap = new Map<string, typeof recentJustifications>();
@@ -909,7 +917,7 @@ pages.get("/rounds", async (c) => {
       decisions: decisions.sort((a: Justification, b: Justification) => a.agentId.localeCompare(b.agentId)),
     }))
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-    .slice(0, 20); // Last 20 rounds
+    .slice(0, MAX_TRADING_ROUNDS);
 
   return c.render(
     <div class="max-w-5xl mx-auto px-4 py-8">
