@@ -30,6 +30,7 @@ import {
   retryDeadLetter,
   type AlertEventType,
 } from "../services/alert-webhooks.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const alertRoutes = new Hono();
 
@@ -234,7 +235,7 @@ alertRoutes.get("/events", (c) => {
   const agentId = c.req.query("agentId");
   const symbol = c.req.query("symbol");
   const severity = c.req.query("severity") as "info" | "warning" | "critical" | undefined;
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
 
   const events = getRecentAlerts({ type, agentId, symbol, severity, limit });
 
@@ -255,7 +256,7 @@ alertRoutes.get("/stats", (c) => {
 // ---------------------------------------------------------------------------
 
 alertRoutes.get("/dead-letter", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   const entries = getDeadLetterQueue(limit);
   return c.json({ deadLetter: entries, total: entries.length });
 });

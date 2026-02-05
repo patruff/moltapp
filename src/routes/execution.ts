@@ -28,6 +28,7 @@ import {
   detectStuckTrades,
 } from "../services/trade-recovery.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const executionRoutes = new Hono();
 

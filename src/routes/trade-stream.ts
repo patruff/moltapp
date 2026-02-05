@@ -20,6 +20,7 @@ import {
   type TradeStreamEvent,
   type TradeStreamEventType,
 } from "../services/trade-stream.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 const app = new Hono();
 
@@ -122,7 +123,7 @@ app.get("/live", (c) => {
  * - since: ISO timestamp to filter events after
  */
 app.get("/events", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 200);
   const typesParam = c.req.query("types");
   const agentId = c.req.query("agentId");
   const since = c.req.query("since");
