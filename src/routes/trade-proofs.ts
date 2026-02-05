@@ -20,6 +20,7 @@ import {
   getRecentProofs,
   getTradeProofMetrics,
 } from "../services/trade-proof.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const tradeProofRoutes = new Hono();
 
@@ -30,7 +31,7 @@ tradeProofRoutes.get("/", (c) => {
 
 /** GET /recent — get recent proofs */
 tradeProofRoutes.get("/recent", (c) => {
-  const limit = parseInt(c.req.query("limit") ?? "20", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
   return c.json({ proofs: getRecentProofs(limit) });
 });
 
@@ -65,14 +66,14 @@ tradeProofRoutes.get("/round/:roundId", (c) => {
 /** GET /agent/:agentId — get proofs for an agent */
 tradeProofRoutes.get("/agent/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
   return c.json({ agentId, proofs: getAgentProofs(agentId, limit) });
 });
 
 /** GET /type/:type — get proofs by type */
 tradeProofRoutes.get("/type/:type", (c) => {
   const type = c.req.param("type") as "transaction" | "round" | "performance" | "competition";
-  const limit = parseInt(c.req.query("limit") ?? "50", 10);
+  const limit = parseQueryInt(c.req.query("limit"), 50, 1, 100);
   return c.json({ type, proofs: getProofsByType(type, limit) });
 });
 
