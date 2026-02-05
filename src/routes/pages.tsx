@@ -486,12 +486,72 @@ pages.get("/agent/:id", async (c) => {
       </div>
 
       {/* Investment Theses History */}
-      {thesisHistory.length > 0 && (
-        <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
-          <h2 class="text-lg font-bold text-white mb-1">Investment Theses</h2>
-          <p class="text-xs text-gray-500 mb-4">Agent's documented investment reasoning for each stock position.</p>
-          <div class="space-y-4">
-            {thesisHistory.map((t: Thesis) => {
+      {thesisHistory.length > 0 && (() => {
+        // Calculate thesis win rate for closed theses
+        const closedTheses = thesisHistory.filter((t: Thesis) => t.status === "closed");
+        let winsCount = 0;
+        let lossesCount = 0;
+
+        closedTheses.forEach((t: Thesis) => {
+          const isBullish = t.direction === "bullish";
+          const isBearish = t.direction === "bearish";
+
+          // Find exit trade to determine outcome
+          const exitTrade = onChainTrades.find((trade: Trade) =>
+            trade.stockSymbol === t.symbol &&
+            trade.side === (isBullish ? "sell" : "buy") &&
+            new Date(trade.createdAt) >= new Date(t.createdAt)
+          );
+
+          if (exitTrade && exitTrade.pricePerToken && t.entryPrice) {
+            const exitPrice = Number(exitTrade.pricePerToken);
+            const entryPrice = Number(t.entryPrice);
+
+            let calculatedPnl: number;
+            if (isBullish) {
+              calculatedPnl = ((exitPrice - entryPrice) / entryPrice) * 100;
+            } else if (isBearish) {
+              calculatedPnl = ((entryPrice - exitPrice) / entryPrice) * 100;
+            } else {
+              calculatedPnl = 0;
+            }
+
+            if (calculatedPnl > 0) {
+              winsCount++;
+            } else {
+              lossesCount++;
+            }
+          }
+        });
+
+        const totalClosedWithData = winsCount + lossesCount;
+        const winRate = totalClosedWithData > 0 ? (winsCount / totalClosedWithData) * 100 : 0;
+
+        return (
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h2 class="text-lg font-bold text-white mb-1">Investment Theses</h2>
+                <p class="text-xs text-gray-500">Agent's documented investment reasoning for each stock position.</p>
+              </div>
+              {totalClosedWithData > 0 && (
+                <div class="text-right">
+                  <div class="text-sm text-gray-400 mb-1">Track Record</div>
+                  <div class="flex items-center gap-2">
+                    <span class={`text-lg font-bold ${winRate >= 50 ? "text-profit" : "text-loss"}`}>
+                      {winsCount}-{lossesCount}
+                    </span>
+                    <span class={`text-xs font-semibold px-2 py-1 rounded ${
+                      winRate >= 50 ? "bg-green-900/30 text-profit" : "bg-red-900/30 text-loss"
+                    }`}>
+                      {winRate.toFixed(1)}% win rate
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div class="space-y-4">
+              {thesisHistory.map((t: Thesis) => {
               const isActive = t.status === "active";
               const isBullish = t.direction === "bullish";
               const isBearish = t.direction === "bearish";
@@ -627,9 +687,10 @@ pages.get("/agent/:id", async (c) => {
                 </div>
               );
             })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* On-Chain Trade History */}
       <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
