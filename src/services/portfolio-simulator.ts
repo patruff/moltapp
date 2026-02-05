@@ -18,8 +18,11 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, gte, lte, and } from "drizzle-orm";
+import { eq, desc, gte, lte, and, InferSelectModel } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+
+// Infer types from database schema
+type AgentDecision = InferSelectModel<typeof agentDecisions>;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -424,8 +427,8 @@ export async function quickSimulation(
     .where(eq(agentDecisions.agentId, agentId))
     .orderBy(agentDecisions.createdAt);
 
-  const actionDecisions = decisions.filter((d: any) => d.action !== "hold");
-  const highConfidence = actionDecisions.filter((d: any) => d.confidence >= 50);
+  const actionDecisions = decisions.filter((d: AgentDecision) => d.action !== "hold");
+  const highConfidence = actionDecisions.filter((d: AgentDecision) => d.confidence >= 50);
 
   // Simplified return estimation based on confidence-weighted decisions
   let estimatedReturn = 0;
@@ -436,7 +439,7 @@ export async function quickSimulation(
   }
 
   const avgConfidence = decisions.length > 0
-    ? decisions.reduce((s: any, d: any) => s + d.confidence, 0) / decisions.length
+    ? decisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / decisions.length
     : 0;
 
   return {
