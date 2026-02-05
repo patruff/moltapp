@@ -244,17 +244,12 @@ tradingRoutes.post("/reasoned-buy", async (c) => {
 
   const parsed = strictBuySchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      {
-        ok: false,
-        error: "REASONING_REQUIRED",
-        message:
-          "MoltApp benchmark requires reasoning for all trades. " +
-          "Include: reasoning (min 20 chars), confidence (0-1), sources (array), intent.",
-        validation: parsed.error.flatten(),
-      },
-      400,
-    );
+    return apiError(c, "REASONING_REQUIRED", {
+      message:
+        "MoltApp benchmark requires reasoning for all trades. " +
+        "Include: reasoning (min 20 chars), confidence (0-1), sources (array), intent.",
+      validation: parsed.error.flatten(),
+    });
   }
 
   const agentId = c.get("agentId");
@@ -318,17 +313,12 @@ tradingRoutes.post("/reasoned-sell", async (c) => {
 
   const parsed = strictSellSchema.safeParse(body);
   if (!parsed.success) {
-    return c.json(
-      {
-        ok: false,
-        error: "REASONING_REQUIRED",
-        message:
-          "MoltApp benchmark requires reasoning for all trades. " +
-          "Include: reasoning (min 20 chars), confidence (0-1), sources (array), intent.",
-        validation: parsed.error.flatten(),
-      },
-      400,
-    );
+    return apiError(c, "REASONING_REQUIRED", {
+      message:
+        "MoltApp benchmark requires reasoning for all trades. " +
+        "Include: reasoning (min 20 chars), confidence (0-1), sources (array), intent.",
+      validation: parsed.error.flatten(),
+    });
   }
 
   const agentId = c.get("agentId");

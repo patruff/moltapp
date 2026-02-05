@@ -26,6 +26,7 @@ export const ErrorCodes = {
   INSUFFICIENT_USDC_BALANCE: { status: 400, code: "insufficient_usdc_balance" },
   INSUFFICIENT_SOL_FOR_FEES: { status: 400, code: "insufficient_sol_for_fees" },
   INSUFFICIENT_STOCK_BALANCE: { status: 400, code: "insufficient_stock_balance" },
+  REASONING_REQUIRED: { status: 400, code: "reasoning_required" },
 
   // 401 Unauthorized
   INVALID_IDENTITY_TOKEN: { status: 401, code: "invalid_identity_token" },
