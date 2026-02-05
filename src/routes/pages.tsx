@@ -8,7 +8,7 @@ import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
 import { generateDecisionQualityReport, type DecisionQualityReport } from "../services/decision-quality-dashboard.ts";
-import { formatPercentage, calculateTargetMovePercent, calculateTargetMoveValue } from "../lib/format-utils.ts";
+import { formatPercentage, calculateTargetMovePercent, calculateTargetMoveValue, truncateAddress, truncateText } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
@@ -135,11 +135,7 @@ function karmaBadge(karma: number): string {
   return "";
 }
 
-/** Truncate a Solana tx signature for display */
-function truncateTx(sig: string): string {
-  if (sig.length <= 16) return sig;
-  return sig.slice(0, 8) + "..." + sig.slice(-8);
-}
+/** @deprecated Use truncateAddress from format-utils.ts instead */
 
 /** Solana Explorer URL for a transaction */
 function solscanTxUrl(sig: string): string {
@@ -820,7 +816,7 @@ pages.get("/agent/:id", async (c) => {
                       <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(t.pricePerToken)}</td>
                       <td class="py-2 px-2">
                         {isPaper ? (
-                          <span class="text-gray-600">{truncateTx(t.txSignature)} (paper)</span>
+                          <span class="text-gray-600">{truncateAddress(t.txSignature)} (paper)</span>
                         ) : (
                           <a
                             href={solscanTxUrl(t.txSignature)}
@@ -829,7 +825,7 @@ pages.get("/agent/:id", async (c) => {
                             class="text-purple-400 hover:text-purple-300 hover:underline"
                             title={t.txSignature}
                           >
-                            {truncateTx(t.txSignature)}
+                            {truncateAddress(t.txSignature)}
                           </a>
                         )}
                       </td>
