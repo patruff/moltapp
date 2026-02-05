@@ -238,6 +238,16 @@ function PercentageBadge({ value, label }: { value: number; label: string }) {
   );
 }
 
+// Component: Status badge (ACTIVE/CLOSED status indicator)
+function StatusBadge({ status, isActive }: { status: string; isActive: boolean }) {
+  const colorClasses = isActive ? "bg-blue-900/50 text-blue-400" : "bg-gray-800 text-gray-500";
+  return (
+    <span class={`text-xs font-semibold px-2 py-0.5 rounded ${colorClasses}`}>
+      {status.toUpperCase()}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // GET / -- Leaderboard
 // ---------------------------------------------------------------------------
@@ -725,11 +735,7 @@ pages.get("/agent/:id", async (c) => {
                 <div class={`border-l-2 ${isActive ? "border-blue-500" : "border-gray-700"} pl-4 pb-3`}>
                   <div class="flex items-start gap-2 mb-2">
                     <span class="text-white text-sm font-bold">{t.symbol}</span>
-                    <span class={`text-xs font-semibold px-2 py-0.5 rounded ${
-                      isActive ? "bg-blue-900/50 text-blue-400" : "bg-gray-800 text-gray-500"
-                    }`}>
-                      {t.status.toUpperCase()}
-                    </span>
+                    <StatusBadge status={t.status} isActive={isActive} />
                     <DirectionBadge direction={t.direction} />
                     {t.conviction != null && (
                       <span class="text-gray-500 text-xs">
