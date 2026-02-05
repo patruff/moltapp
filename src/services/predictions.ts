@@ -30,6 +30,12 @@ import { getMarketData } from "../agents/orchestrator.ts";
 // Types
 // ---------------------------------------------------------------------------
 
+/** Database prediction type inferred from schema */
+type Prediction = typeof predictions.$inferSelect;
+
+/** Database bet type inferred from schema */
+type Bet = typeof predictionBets.$inferSelect;
+
 /** Valid prediction types */
 export type PredictionType =
   | "price_target"
@@ -50,6 +56,19 @@ export type PredictionStatus =
   | "resolved_incorrect"
   | "expired"
   | "cancelled";
+
+// ---------------------------------------------------------------------------
+// Validation Constants
+// ---------------------------------------------------------------------------
+
+/** Valid prediction types for validation */
+const VALID_PREDICTION_TYPES: PredictionType[] = ["price_target", "direction", "volatility", "outperform"];
+
+/** Valid directions for validation */
+const VALID_DIRECTIONS: PredictionDirection[] = ["bullish", "bearish", "neutral"];
+
+/** Valid time horizons for validation */
+const VALID_HORIZONS: TimeHorizon[] = ["1h", "4h", "1d", "1w", "1m"];
 
 /** Aggregate stats for an agent's prediction track record */
 export interface AgentPredictionStats {
@@ -83,6 +102,22 @@ export interface PredictionLeaderboardEntry {
   calibrationScore: number;
   profitability: number;
   rank: number;
+}
+
+// ---------------------------------------------------------------------------
+// Utility Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Round a number to a specified number of decimal places.
+ *
+ * @param value - The number to round
+ * @param decimals - Number of decimal places
+ * @returns Rounded number
+ */
+function roundTo(value: number, decimals: number): number {
+  const multiplier = Math.pow(10, decimals);
+  return Math.round(value * multiplier) / multiplier;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,8 +162,8 @@ export function calculateDynamicOdds(
   oddsAgainst = Math.max(MIN_ODDS, Math.min(MAX_ODDS, oddsAgainst));
 
   return {
-    oddsFor: Math.round(oddsFor * 10000) / 10000,
-    oddsAgainst: Math.round(oddsAgainst * 10000) / 10000,
+    oddsFor: roundTo(oddsFor, 4),
+    oddsAgainst: roundTo(oddsAgainst, 4),
   };
 }
 
@@ -169,21 +204,18 @@ export async function createPrediction(
   }
 
   // Validate prediction type
-  const validTypes: PredictionType[] = ["price_target", "direction", "volatility", "outperform"];
-  if (!validTypes.includes(predictionType)) {
-    throw new Error(`Invalid prediction type: ${predictionType}. Must be one of: ${validTypes.join(", ")}`);
+  if (!VALID_PREDICTION_TYPES.includes(predictionType)) {
+    throw new Error(`Invalid prediction type: ${predictionType}. Must be one of: ${VALID_PREDICTION_TYPES.join(", ")}`);
   }
 
   // Validate direction
-  const validDirections: PredictionDirection[] = ["bullish", "bearish", "neutral"];
-  if (!validDirections.includes(direction)) {
-    throw new Error(`Invalid direction: ${direction}. Must be one of: ${validDirections.join(", ")}`);
+  if (!VALID_DIRECTIONS.includes(direction)) {
+    throw new Error(`Invalid direction: ${direction}. Must be one of: ${VALID_DIRECTIONS.join(", ")}`);
   }
 
   // Validate time horizon
-  const validHorizons: TimeHorizon[] = ["1h", "4h", "1d", "1w", "1m"];
-  if (!validHorizons.includes(timeHorizon)) {
-    throw new Error(`Invalid time horizon: ${timeHorizon}. Must be one of: ${validHorizons.join(", ")}`);
+  if (!VALID_HORIZONS.includes(timeHorizon)) {
+    throw new Error(`Invalid time horizon: ${timeHorizon}. Must be one of: ${VALID_HORIZONS.join(", ")}`);
   }
 
   // price_target type requires a target price
@@ -565,7 +597,7 @@ export async function resolvePrediction(
         .update(predictionBets)
         .set({
           status: "won",
-          payout: String(Math.round(payout * 100) / 100),
+          payout: String(roundTo(payout, 2)),
         })
         .where(eq(predictionBets.id, bet.id));
     } else {
@@ -678,7 +710,7 @@ export async function getActivePredictions(symbol?: string) {
   // Filter by symbol if provided
   const filtered = symbol
     ? results.filter(
-        (p: any) => p.symbol.toLowerCase() === symbol.toLowerCase(),
+        (p: Prediction) => p.symbol.toLowerCase() === symbol.toLowerCase(),
       )
     : results;
 
@@ -733,8 +765,8 @@ export async function getPredictionById(id: string) {
     .orderBy(desc(predictionBets.createdAt));
 
   // Compute bet summary
-  const forBets = bets.filter((b: any) => b.position === "for");
-  const againstBets = bets.filter((b: any) => b.position === "against");
+  const forBets = bets.filter((b: Bet) => b.position === "for");
+  const againstBets = bets.filter((b: Bet) => b.position === "against");
 
   return {
     ...prediction,
@@ -744,12 +776,12 @@ export async function getPredictionById(id: string) {
       totalBets: bets.length,
       forBets: forBets.length,
       againstBets: againstBets.length,
-      forVolume: forBets.reduce((sum: number, b: any) => sum + parseFloat(b.amount), 0),
+      forVolume: forBets.reduce((sum: number, b: Bet) => sum + parseFloat(b.amount), 0),
       againstVolume: againstBets.reduce(
-        (sum: number, b: any) => sum + parseFloat(b.amount),
+        (sum: number, b: Bet) => sum + parseFloat(b.amount),
         0,
       ),
-      uniqueBettors: new Set(bets.map((b: any) => b.bettorId)).size,
+      uniqueBettors: new Set(bets.map((b: Bet) => b.bettorId)).size,
     },
   };
 }
@@ -772,13 +804,13 @@ export async function getAgentPredictionStats(
     .where(eq(predictions.agentId, agentId))
     .orderBy(desc(predictions.createdAt));
 
-  const active = agentPredictions.filter((p: any) => p.status === "active");
+  const active = agentPredictions.filter((p: Prediction) => p.status === "active");
   const resolved = agentPredictions.filter(
-    (p: any) =>
+    (p: Prediction) =>
       p.status === "resolved_correct" || p.status === "resolved_incorrect",
   );
-  const correct = resolved.filter((p: any) => p.status === "resolved_correct");
-  const incorrect = resolved.filter((p: any) => p.status === "resolved_incorrect");
+  const correct = resolved.filter((p: Prediction) => p.status === "resolved_correct");
+  const incorrect = resolved.filter((p: Prediction) => p.status === "resolved_incorrect");
 
   // Win rate
   const winRate =
@@ -787,18 +819,18 @@ export async function getAgentPredictionStats(
   // Average confidence
   const avgConfidence =
     agentPredictions.length > 0
-      ? agentPredictions.reduce((sum: number, p: any) => sum + p.confidence, 0) /
+      ? agentPredictions.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) /
         agentPredictions.length
       : 0;
 
   const avgConfidenceWhenCorrect =
     correct.length > 0
-      ? correct.reduce((sum: number, p: any) => sum + p.confidence, 0) / correct.length
+      ? correct.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) / correct.length
       : 0;
 
   const avgConfidenceWhenIncorrect =
     incorrect.length > 0
-      ? incorrect.reduce((sum: number, p: any) => sum + p.confidence, 0) / incorrect.length
+      ? incorrect.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) / incorrect.length
       : 0;
 
   // Calibration score: how close is confidence to actual accuracy?
@@ -852,7 +884,7 @@ export async function getAgentPredictionStats(
           symbol: pred.symbol,
           direction: pred.direction,
           confidence: pred.confidence,
-          priceDelta: Math.round(deltaPct * 100) / 100,
+          priceDelta: roundTo(deltaPct, 2),
         };
       }
     }
@@ -862,7 +894,7 @@ export async function getAgentPredictionStats(
           symbol: pred.symbol,
           direction: pred.direction,
           confidence: pred.confidence,
-          priceDelta: Math.round(deltaPct * 100) / 100,
+          priceDelta: roundTo(deltaPct, 2),
         };
       }
     }
@@ -901,14 +933,13 @@ export async function getAgentPredictionStats(
     resolvedPredictions: resolved.length,
     correctPredictions: correct.length,
     incorrectPredictions: incorrect.length,
-    winRate: Math.round(winRate * 10000) / 10000,
-    avgConfidence: Math.round(avgConfidence * 10) / 10,
-    avgConfidenceWhenCorrect: Math.round(avgConfidenceWhenCorrect * 10) / 10,
-    avgConfidenceWhenIncorrect:
-      Math.round(avgConfidenceWhenIncorrect * 10) / 10,
+    winRate: roundTo(winRate, 4),
+    avgConfidence: roundTo(avgConfidence, 1),
+    avgConfidenceWhenCorrect: roundTo(avgConfidenceWhenCorrect, 1),
+    avgConfidenceWhenIncorrect: roundTo(avgConfidenceWhenIncorrect, 1),
     calibrationScore,
     totalBetsReceived,
-    totalPoolVolume: Math.round(totalPoolVolume * 100) / 100,
+    totalPoolVolume: roundTo(totalPoolVolume, 2),
     bestCall,
     worstCall,
     predictionsByType,
@@ -936,7 +967,7 @@ export async function getPredictionLeaderboard(): Promise<
     .from(predictions)
     .orderBy(desc(predictions.createdAt));
 
-  const agentIds = [...new Set(allPreds.map((p: any) => p.agentId))];
+  const agentIds = [...new Set(allPreds.map((p: Prediction) => p.agentId))];
 
   const entries: PredictionLeaderboardEntry[] = [];
 
@@ -959,7 +990,7 @@ export async function getPredictionLeaderboard(): Promise<
       winRate: stats.winRate,
       avgConfidence: stats.avgConfidence,
       calibrationScore: stats.calibrationScore,
-      profitability: Math.round(profitability * 100) / 100,
+      profitability: roundTo(profitability, 2),
       rank: 0, // assigned below
     });
   }
@@ -1009,10 +1040,10 @@ export async function getMarketOdds(predictionId: string) {
       for: forPool,
       against: againstPool,
       forPercent:
-        totalPool > 0 ? Math.round((forPool / totalPool) * 10000) / 100 : 50,
+        totalPool > 0 ? roundTo((forPool / totalPool) * 100, 2) : 50,
       againstPercent:
         totalPool > 0
-          ? Math.round((againstPool / totalPool) * 10000) / 100
+          ? roundTo((againstPool / totalPool) * 100, 2)
           : 50,
     },
     odds: {
@@ -1020,8 +1051,8 @@ export async function getMarketOdds(predictionId: string) {
       against: liveOdds.oddsAgainst,
     },
     impliedProbability: {
-      forPercent: Math.round(impliedProbFor * 100) / 100,
-      againstPercent: Math.round(impliedProbAgainst * 100) / 100,
+      forPercent: roundTo(impliedProbFor * 100, 2),
+      againstPercent: roundTo(impliedProbAgainst * 100, 2),
     },
     totalBets: market.totalBets,
   };
@@ -1104,11 +1135,11 @@ export async function getPredictionHistory(
 
   // Apply filters
   if (agentId) {
-    allPredictions = allPredictions.filter((p: any) => p.agentId === agentId);
+    allPredictions = allPredictions.filter((p: Prediction) => p.agentId === agentId);
   }
   if (symbol) {
     allPredictions = allPredictions.filter(
-      (p: any) => p.symbol.toLowerCase() === symbol.toLowerCase(),
+      (p: Prediction) => p.symbol.toLowerCase() === symbol.toLowerCase(),
     );
   }
 
