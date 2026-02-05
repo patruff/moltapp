@@ -64,8 +64,13 @@ export function appendOpenAIToolResults(
  * Handles tool calls and stop reasons uniformly for all OpenAI-compatible APIs.
  */
 export function parseOpenAIResponse(response: ChatCompletion): AgentTurn {
+  // Handle missing or empty choices array
+  if (!response.choices || response.choices.length === 0) {
+    return { toolCalls: [], textResponse: null, stopReason: "end_turn" };
+  }
+
   const choice = response.choices[0];
-  if (!choice) {
+  if (!choice || !choice.message) {
     return { toolCalls: [], textResponse: null, stopReason: "end_turn" };
   }
 
