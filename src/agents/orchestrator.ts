@@ -21,7 +21,7 @@ import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { claudeTrader } from "./claude-trader.ts";
 import { gptTrader } from "./gpt-trader.ts";
 import { grokTrader } from "./grok-trader.ts";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, type InferSelectModel } from "drizzle-orm";
 import type {
   BaseTradingAgent,
   MarketData,
@@ -331,6 +331,13 @@ import {
 } from "../services/v28-benchmark-engine.ts";
 
 // ---------------------------------------------------------------------------
+// Type aliases for database results
+// ---------------------------------------------------------------------------
+
+type Position = InferSelectModel<typeof positions>;
+type AgentDecision = InferSelectModel<typeof agentDecisions>;
+
+// ---------------------------------------------------------------------------
 // All registered agents
 // ---------------------------------------------------------------------------
 
@@ -490,7 +497,7 @@ export async function getPortfolioContext(
     }
 
     // Build position details with current market prices
-    const positionDetails: AgentPosition[] = agentPositions.map((pos: any) => {
+    const positionDetails: AgentPosition[] = agentPositions.map((pos: Position) => {
       const market = marketData.find(
         (m) => m.symbol.toLowerCase() === pos.symbol.toLowerCase(),
       );
@@ -894,7 +901,7 @@ async function executeTradingRound(
           quantity: decision.quantity,
           roundId,
           disciplinePass: discipline.passed ? "pass" : "fail",
-        }).catch((err: any) => {
+        }).catch((err: unknown) => {
           console.warn(
             `[Orchestrator] Justification insert failed: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -3084,13 +3091,13 @@ export async function getAgentStats(agentId: string) {
       .orderBy(desc(agentDecisions.createdAt));
 
     const totalDecisions = decisions.length;
-    const buyDecisions = decisions.filter((d: any) => d.action === "buy");
-    const sellDecisions = decisions.filter((d: any) => d.action === "sell");
-    const holdDecisions = decisions.filter((d: any) => d.action === "hold");
+    const buyDecisions = decisions.filter((d: AgentDecision) => d.action === "buy");
+    const sellDecisions = decisions.filter((d: AgentDecision) => d.action === "sell");
+    const holdDecisions = decisions.filter((d: AgentDecision) => d.action === "hold");
 
     const avgConfidence =
       totalDecisions > 0
-        ? decisions.reduce((sum: any, d: any) => sum + d.confidence, 0) / totalDecisions
+        ? decisions.reduce((sum: number, d: AgentDecision) => sum + d.confidence, 0) / totalDecisions
         : 0;
 
     // Symbol frequency
