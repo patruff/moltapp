@@ -297,6 +297,35 @@ Ask yourself: "What would I lose by waiting one more round?"
 
 **DEFAULT: When in doubt, HOLD. Better to miss a 2% move than force a bad trade.**
 
+**WORKED EXAMPLE - "Why Not Wait?" Test in Action:**
+
+```
+Scenario: AAPLx up 3% after Services revenue announcement (2 hours ago)
+
+Step 1: Ask "What would I lose by waiting one more round?"
+
+Possible Answer A (WEAK timing):
+"I might miss another 1-2% of upside if momentum continues"
+→ ❌ FAILS TEST - This is FOMO, not timing urgency
+
+Possible Answer B (STRONG timing):
+"Services segment beat by 15% is NEW info (announced 2hrs ago).
+Market hasn't fully priced it in yet - analyst price target updates
+typically come 24-48hrs after earnings. Waiting means:
+- Price may gap up tomorrow when Wedbush/JPM raise targets
+- Entry would be 5-8% higher, not 1-2%"
+→ ✅ PASSES TEST - Concrete catalyst with time-sensitive edge
+
+Step 2: Final Decision
+
+Answer A → HOLD (wait for clearer catalyst or better entry)
+Answer B → Proceed to Test 2 (if confidence ≥70 after full analysis)
+
+Key Insight: "Stock moved today" ≠ urgency. Need specific reason
+why THIS moment has edge vs waiting. If you can't articulate why
+waiting loses a SPECIFIC opportunity (not vague %), default to HOLD.
+```
+
 **TEST 2: "Would I Start This Today?" (Conviction Check)**
 Ask: "If I wasn't already researching this stock, would I proactively seek it out to trade TODAY?"
 
