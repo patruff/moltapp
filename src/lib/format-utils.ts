@@ -215,3 +215,56 @@ export function solscanTxUrl(sig: string): string {
 export function solscanWalletUrl(address: string): string {
   return `https://solscan.io/account/${address}`;
 }
+
+/**
+ * Get CSS background color class for grade badge
+ * @param grade - The letter grade (A, B, C, D/F)
+ * @returns CSS class string for badge styling
+ *
+ * @example
+ * gradeToColor("A+") // "bg-green-900/50 text-green-400"
+ * gradeToColor("B") // "bg-blue-900/50 text-blue-400"
+ * gradeToColor("C-") // "bg-yellow-900/50 text-yellow-400"
+ * gradeToColor("D") // "bg-red-900/50 text-red-400"
+ */
+export function gradeToColor(grade: string): string {
+  if (grade.startsWith("A")) return "bg-green-900/50 text-green-400";
+  if (grade.startsWith("B")) return "bg-blue-900/50 text-blue-400";
+  if (grade.startsWith("C")) return "bg-yellow-900/50 text-yellow-400";
+  return "bg-red-900/50 text-red-400";
+}
+
+/**
+ * Get CSS background color class for score bar visualization
+ * @param score - The numeric score (0.0 to 1.0)
+ * @returns CSS class string for bar color
+ *
+ * @example
+ * scoreToColor(0.85) // "bg-green-500"
+ * scoreToColor(0.65) // "bg-blue-500"
+ * scoreToColor(0.45) // "bg-yellow-500"
+ * scoreToColor(0.25) // "bg-red-500"
+ */
+export function scoreToColor(score: number): string {
+  if (score >= 0.8) return "bg-green-500";
+  if (score >= 0.6) return "bg-blue-500";
+  if (score >= 0.4) return "bg-yellow-500";
+  return "bg-red-500";
+}
+
+/**
+ * Format a score as percentage with custom decimal places
+ * Used for displaying normalized scores (0.0-1.0) as percentages
+ *
+ * @param score - The score value (0.0 to 1.0)
+ * @param decimals - Number of decimal places (default: 1)
+ * @returns Formatted percentage string like "78.5%"
+ *
+ * @example
+ * formatScorePercentage(0.785) // "78.5%"
+ * formatScorePercentage(0.92, 0) // "92%"
+ * formatScorePercentage(0.6543, 2) // "65.43%"
+ */
+export function formatScorePercentage(score: number, decimals: number = 1): string {
+  return (score * 100).toFixed(decimals) + "%";
+}

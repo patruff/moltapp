@@ -21,6 +21,9 @@ import {
   karmaBadge,
   solscanTxUrl,
   solscanWalletUrl,
+  gradeToColor,
+  scoreToColor,
+  formatScorePercentage,
 } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
@@ -1130,7 +1133,7 @@ pages.get("/round/:id", async (c) => {
                   <div>
                     <span class="text-gray-500">Coherence:</span>{" "}
                     <span class={j.coherenceScore && j.coherenceScore > 0.7 ? "text-profit" : "text-gray-300"}>
-                      {j.coherenceScore ? (j.coherenceScore * 100).toFixed(0) + "%" : "—"}
+                      {j.coherenceScore ? formatScorePercentage(j.coherenceScore, 0) : "—"}
                     </span>
                   </div>
                   <div>
@@ -1381,22 +1384,6 @@ pages.get("/decision-quality", async (c) => {
   const bestDimension = sortedDimensions[0];
   const worstDimension = sortedDimensions[sortedDimensions.length - 1];
 
-  // Grade badge color helper
-  const gradeColor = (grade: string): string => {
-    if (grade.startsWith("A")) return "bg-green-900/50 text-green-400";
-    if (grade.startsWith("B")) return "bg-blue-900/50 text-blue-400";
-    if (grade.startsWith("C")) return "bg-yellow-900/50 text-yellow-400";
-    return "bg-red-900/50 text-red-400";
-  };
-
-  // Score bar color helper
-  const scoreBarColor = (score: number): string => {
-    if (score >= 0.8) return "bg-green-500";
-    if (score >= 0.6) return "bg-blue-500";
-    if (score >= 0.4) return "bg-yellow-500";
-    return "bg-red-500";
-  };
-
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -1414,7 +1401,7 @@ pages.get("/decision-quality", async (c) => {
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
           <div class="text-gray-400 text-sm mb-1">Average Quality Score</div>
           <div class="text-2xl font-bold text-white">
-            {(avgCompositeScore * 100).toFixed(1)}%
+            {formatScorePercentage(avgCompositeScore)}
           </div>
           <div class="text-gray-500 text-xs mt-1">
             Across {reports.length} agents
@@ -1428,7 +1415,7 @@ pages.get("/decision-quality", async (c) => {
             {bestDimension[0]}
           </div>
           <div class="text-gray-500 text-xs mt-1">
-            {(bestDimension[1] * 100).toFixed(1)}% avg
+            {formatScorePercentage(bestDimension[1])} avg
           </div>
         </div>
 
@@ -1439,7 +1426,7 @@ pages.get("/decision-quality", async (c) => {
             {worstDimension[0]}
           </div>
           <div class="text-gray-500 text-xs mt-1">
-            {(worstDimension[1] * 100).toFixed(1)}% avg
+            {formatScorePercentage(worstDimension[1])} avg
           </div>
         </div>
       </div>
@@ -1476,7 +1463,7 @@ pages.get("/decision-quality", async (c) => {
                     {modelName}
                   </div>
                 </div>
-                <span class={`text-lg font-bold px-3 py-1 rounded ${gradeColor(report.grade)}`}>
+                <span class={`text-lg font-bold px-3 py-1 rounded ${gradeToColor(report.grade)}`}>
                   {report.grade}
                 </span>
               </div>
@@ -1485,11 +1472,11 @@ pages.get("/decision-quality", async (c) => {
               <div class="mb-4">
                 <div class="flex justify-between text-sm mb-1">
                   <span class="text-gray-400">Composite Score</span>
-                  <span class="text-white font-semibold">{(report.compositeScore * 100).toFixed(1)}%</span>
+                  <span class="text-white font-semibold">{formatScorePercentage(report.compositeScore)}</span>
                 </div>
                 <div class="h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div
-                    class={`h-full ${scoreBarColor(report.compositeScore)}`}
+                    class={`h-full ${scoreToColor(report.compositeScore)}`}
                     style={`width: ${report.compositeScore * 100}%`}
                   ></div>
                 </div>
@@ -1502,11 +1489,11 @@ pages.get("/decision-quality", async (c) => {
                   <span class="text-gray-400 w-24">Calibration</span>
                   <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      class={`h-full ${scoreBarColor(calibrationScore)}`}
+                      class={`h-full ${scoreToColor(calibrationScore)}`}
                       style={`width: ${calibrationScore * 100}%`}
                     ></div>
                   </div>
-                  <span class="text-gray-300 w-12 text-right">{(calibrationScore * 100).toFixed(0)}%</span>
+                  <span class="text-gray-300 w-12 text-right">{formatScorePercentage(calibrationScore, 0)}</span>
                 </div>
 
                 {/* Integrity */}
@@ -1514,11 +1501,11 @@ pages.get("/decision-quality", async (c) => {
                   <span class="text-gray-400 w-24">Integrity</span>
                   <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      class={`h-full ${scoreBarColor(integrityScore)}`}
+                      class={`h-full ${scoreToColor(integrityScore)}`}
                       style={`width: ${integrityScore * 100}%`}
                     ></div>
                   </div>
-                  <span class="text-gray-300 w-12 text-right">{(integrityScore * 100).toFixed(0)}%</span>
+                  <span class="text-gray-300 w-12 text-right">{formatScorePercentage(integrityScore, 0)}</span>
                 </div>
 
                 {/* Accountability */}
@@ -1526,11 +1513,11 @@ pages.get("/decision-quality", async (c) => {
                   <span class="text-gray-400 w-24">Accountability</span>
                   <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      class={`h-full ${scoreBarColor(accountabilityScore)}`}
+                      class={`h-full ${scoreToColor(accountabilityScore)}`}
                       style={`width: ${accountabilityScore * 100}%`}
                     ></div>
                   </div>
-                  <span class="text-gray-300 w-12 text-right">{(accountabilityScore * 100).toFixed(0)}%</span>
+                  <span class="text-gray-300 w-12 text-right">{formatScorePercentage(accountabilityScore, 0)}</span>
                 </div>
 
                 {/* Memory */}
@@ -1538,11 +1525,11 @@ pages.get("/decision-quality", async (c) => {
                   <span class="text-gray-400 w-24">Memory</span>
                   <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      class={`h-full ${scoreBarColor(memoryScore)}`}
+                      class={`h-full ${scoreToColor(memoryScore)}`}
                       style={`width: ${memoryScore * 100}%`}
                     ></div>
                   </div>
-                  <span class="text-gray-300 w-12 text-right">{(memoryScore * 100).toFixed(0)}%</span>
+                  <span class="text-gray-300 w-12 text-right">{formatScorePercentage(memoryScore, 0)}</span>
                 </div>
 
                 {/* Tool Use */}
@@ -1550,11 +1537,11 @@ pages.get("/decision-quality", async (c) => {
                   <span class="text-gray-400 w-24">Tool Use</span>
                   <div class="flex-1 mx-2 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      class={`h-full ${scoreBarColor(toolUseScore)}`}
+                      class={`h-full ${scoreToColor(toolUseScore)}`}
                       style={`width: ${toolUseScore * 100}%`}
                     ></div>
                   </div>
-                  <span class="text-gray-300 w-12 text-right">{(toolUseScore * 100).toFixed(0)}%</span>
+                  <span class="text-gray-300 w-12 text-right">{formatScorePercentage(toolUseScore, 0)}</span>
                 </div>
               </div>
 
