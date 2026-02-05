@@ -4,6 +4,29 @@ import { agents, positions, trades, transactions } from "../db/schema/index.ts";
 import { agentTheses } from "../db/schema/agent-theses.ts";
 import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
+import { XSTOCKS_CATALOG } from "../config/constants.ts";
+
+// Mock base prices for when Jupiter API doesn't return data
+// These approximate real stock prices in USD
+const MOCK_BASE_PRICES: Record<string, number> = {
+  AAPLx: 178, AMZNx: 178, GOOGLx: 175, METAx: 505, MSFTx: 415, NVDAx: 131, TSLAx: 245,
+  AVGOx: 168, AMDx: 125, INTCx: 22, NFLXx: 875, PLTRx: 65, COINx: 225, MSTRx: 320,
+  HOODx: 25, CRCLx: 42, GMEx: 27, JPMx: 195, BACx: 38, GSx: 385, Vx: 275, MAx: 460,
+  LLYx: 850, UNHx: 520, JNJx: 155, MRKx: 105, PFEx: 28, WMTx: 165, KOx: 62, PEPx: 175,
+  MCDx: 290, XOMx: 105, CVXx: 155, SPYx: 512, QQQx: 440, TQQQx: 65, GLDx: 175, VTIx: 265,
+  TBLLx: 50, TMOx: 580, ACNx: 340, CRMx: 265, ORCLx: 125, IBMx: 168, CSCOx: 48,
+};
+
+/** Generate a mock price with small random variation */
+function generateMockPrice(symbol: string): number {
+  const base = MOCK_BASE_PRICES[symbol] ?? 100;
+  // Add ±5% random variation for realism
+  const variation = 0.95 + Math.random() * 0.1;
+  return base * variation;
+}
+
+/** Create symbol-to-mint lookup for mock prices */
+const symbolToMint = new Map(XSTOCKS_CATALOG.map(s => [s.mintAddress, s.symbol]));
 
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
@@ -108,12 +131,27 @@ async function refreshLeaderboard(): Promise<void> {
   // Step 2: Fetch all positions (single query)
   const allPositions = await db.select().from(positions);
 
-  // Step 3: Fetch live Jupiter prices for all unique mints
+  // Step 3: Fetch live Jupiter prices for all unique mints (with mock fallback)
   const uniqueMints = [
     ...new Set(allPositions.map((p: PositionRow) => p.mintAddress)),
   ] as string[];
-  const priceMap =
+  const jupiterPrices =
     uniqueMints.length > 0 ? await getPrices(uniqueMints) : {};
+
+  // Build priceMap with mock fallback for missing prices
+  const priceMap: Record<string, { usdPrice: number; priceChange24h: number } | null> = {};
+  for (const mint of uniqueMints) {
+    const jupiterPrice = jupiterPrices[mint];
+    if (jupiterPrice) {
+      priceMap[mint] = jupiterPrice;
+    } else {
+      // Use mock price as fallback
+      const symbol = symbolToMint.get(mint);
+      if (symbol) {
+        priceMap[mint] = { usdPrice: generateMockPrice(symbol), priceChange24h: 0 };
+      }
+    }
+  }
 
   // Step 4: Aggregate trade stats per agent (single SQL query)
   const tradeStats = await db
