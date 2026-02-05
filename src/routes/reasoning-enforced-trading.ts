@@ -46,6 +46,7 @@ import {
   analyzeCoherenceWithContext,
 } from "../services/benchmark-evidence-collector.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { apiError } from "../lib/errors.ts";
 
 export const reasoningEnforcedTradingRoutes = new Hono();
 
@@ -96,7 +97,7 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) {
     stats.validationFailed++;
-    return c.json({ ok: false, error: "Invalid JSON body" }, 400);
+    return apiError(c, "INVALID_JSON");
   }
 
   // Determine if this is a hold or trade
@@ -116,15 +117,10 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
       if (!holdResult.success) {
         stats.validationFailed++;
         agentStats.rejected++;
-        return c.json({
-          ok: false,
-          error: "Validation failed",
-          details: holdResult.error.issues.map((i) => ({
-            field: i.path.join("."),
-            message: i.message,
-          })),
+        return apiError(c, "VALIDATION_FAILED", {
+          errors: holdResult.error.flatten().fieldErrors,
           hint: "Hold decisions still require reasoning and confidence. Use GET /schema for the full specification.",
-        }, 400);
+        });
       }
       // Return early for holds (no trade execution needed)
       stats.validationPassed++;
@@ -150,25 +146,19 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
     if (!tradeResult.success) {
       stats.validationFailed++;
       agentStats.rejected++;
-      return c.json({
-        ok: false,
-        error: "Trade reasoning validation failed",
-        details: tradeResult.error.issues.map((i) => ({
-          field: i.path.join("."),
-          message: i.message,
-        })),
+      return apiError(c, "VALIDATION_FAILED", {
+        errors: tradeResult.error.flatten().fieldErrors,
         hint: "Every trade MUST include: reasoning (min 20 chars), confidence (0-1), sources (array, min 1), and intent. Use GET /schema for details.",
-      }, 400);
+      });
     }
 
     validated = tradeResult.data;
   } catch (err) {
     stats.validationFailed++;
     agentStats.rejected++;
-    return c.json({
-      ok: false,
-      error: `Schema validation error: ${err instanceof Error ? err.message : String(err)}`,
-    }, 400);
+    return apiError(c, "VALIDATION_FAILED",
+      err instanceof Error ? err.message : String(err)
+    );
   }
 
   stats.validationPassed++;
@@ -340,12 +330,10 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
   };
 
   if (!qualityGatePassed) {
-    return c.json({
-      ok: false,
-      error: "Trade rejected by quality gate",
+    return apiError(c, "QUALITY_GATE_REJECTED", {
       message: `Composite score ${scorecard.compositeScore} below threshold 0.3. Improve reasoning coherence and accuracy.`,
       scorecard,
-    }, 422);
+    });
   }
 
   return c.json({
@@ -362,19 +350,15 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
 reasoningEnforcedTradingRoutes.post("/validate", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body) {
-    return c.json({ ok: false, error: "Invalid JSON body" }, 400);
+    return apiError(c, "INVALID_JSON");
   }
 
   const result = tradeWithReasoningSchema.safeParse(body);
 
   if (!result.success) {
-    return c.json({
-      ok: false,
+    return apiError(c, "VALIDATION_FAILED", {
       valid: false,
-      errors: result.error.issues.map((i) => ({
-        field: i.path.join("."),
-        message: i.message,
-      })),
+      errors: result.error.flatten().fieldErrors,
     });
   }
 

@@ -46,6 +46,9 @@ export const ErrorCodes = {
   DELIBERATION_NOT_FOUND: { status: 404, code: "deliberation_not_found" },
   REASONING_NOT_FOUND: { status: 404, code: "reasoning_not_found" },
 
+  // 422 Unprocessable Entity
+  QUALITY_GATE_REJECTED: { status: 422, code: "quality_gate_rejected" },
+
   // 429 Too Many Requests
   RATE_LIMITED: { status: 429, code: "rate_limited" },
 
