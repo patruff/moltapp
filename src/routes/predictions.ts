@@ -34,6 +34,7 @@ import {
   getHotPredictions,
   getPredictionHistory,
 } from "../services/predictions.ts";
+import { parseQueryInt } from "../lib/query-params.ts";
 
 export const predictionRoutes = new Hono();
 
@@ -210,12 +211,8 @@ predictionRoutes.get("/agent/:agentId/stats", async (c) => {
 
 predictionRoutes.get("/agent/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const limitStr = c.req.query("limit");
-  const offsetStr = c.req.query("offset");
-  const limit = limitStr
-    ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20))
-    : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
   try {
     const history = await getPredictionHistory(agentId, undefined, limit, offset);
@@ -248,12 +245,8 @@ predictionRoutes.get("/agent/:agentId", async (c) => {
 
 predictionRoutes.get("/symbol/:symbol", async (c) => {
   const symbol = c.req.param("symbol");
-  const limitStr = c.req.query("limit");
-  const offsetStr = c.req.query("offset");
-  const limit = limitStr
-    ? Math.min(100, Math.max(1, parseInt(limitStr, 10) || 20))
-    : 20;
-  const offset = offsetStr ? Math.max(0, parseInt(offsetStr, 10) || 0) : 0;
+  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
+  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
 
   try {
     const history = await getPredictionHistory(undefined, symbol, limit, offset);
