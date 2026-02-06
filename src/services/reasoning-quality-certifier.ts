@@ -20,6 +20,7 @@
  */
 
 import { createHash } from "crypto";
+import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,10 +152,9 @@ export function certifyReasoning(
   const actionabilityScore = scoreActionability(reasoning, action);
   dimensions.push(actionabilityScore);
 
-  // Compute composite score
-  const weights = [0.20, 0.25, 0.20, 0.15, 0.20];
+  // Compute composite score (weights imported from scoring-weights.ts)
   const compositeScore = Math.round(
-    dimensions.reduce((sum, d, i) => sum + d.score * weights[i], 0) * 100,
+    dimensions.reduce((sum, d, i) => sum + d.score * CERTIFICATION_WEIGHTS_ARRAY[i], 0) * 100,
   ) / 100;
 
   // Determine certification level

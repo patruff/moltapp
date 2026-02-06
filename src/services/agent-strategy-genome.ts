@@ -19,6 +19,7 @@
  */
 
 import { clamp } from "../lib/math-utils.ts";
+import { GENOME_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -450,7 +451,6 @@ export function compareGenomes(agentA: string, agentB: string): GenomeComparison
 export function getGenomePillarScore(agentId: string): number {
   const genome = genomes.get(agentId);
   if (!genome) return 0.5;
-  // Weighted average of gene scores
-  const weights = [0.10, 0.15, 0.15, 0.10, 0.20, 0.10, 0.10, 0.10];
-  return genome.genes.reduce((s, g, i) => s + g.score * (weights[i] ?? 0.125), 0);
+  // Weighted average of gene scores (weights imported from scoring-weights.ts)
+  return genome.genes.reduce((s, g, i) => s + g.score * (GENOME_WEIGHTS_ARRAY[i] ?? 0.125), 0);
 }
