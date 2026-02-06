@@ -651,9 +651,7 @@ function generateInsights(
   const insights: string[] = [];
 
   // Best P&L
-  const bestPnl = snapshots.reduce((best, s) =>
-    s.totalPnl > best.totalPnl ? s : best,
-  );
+  const bestPnl = findMax(snapshots, "totalPnl")!;
   if (bestPnl.totalPnl !== 0) {
     insights.push(
       `${bestPnl.agentName} leads with $${bestPnl.totalPnl.toFixed(2)} total P&L`,
@@ -661,9 +659,7 @@ function generateInsights(
   }
 
   // Best win rate
-  const bestWinRate = snapshots.reduce((best, s) =>
-    s.winRate > best.winRate ? s : best,
-  );
+  const bestWinRate = findMax(snapshots, "winRate")!;
   if (bestWinRate.winRate > 0) {
     insights.push(
       `${bestWinRate.agentName} has the highest win rate at ${bestWinRate.winRate.toFixed(1)}%`,
@@ -671,9 +667,7 @@ function generateInsights(
   }
 
   // Most active trader
-  const mostActive = snapshots.reduce((most, s) =>
-    s.totalTrades > most.totalTrades ? s : most,
-  );
+  const mostActive = findMax(snapshots, "totalTrades")!;
   if (mostActive.totalTrades > 0) {
     insights.push(
       `${mostActive.agentName} is the most active with ${mostActive.totalTrades} trades across ${roundHistory.length} rounds`,
@@ -681,9 +675,7 @@ function generateInsights(
   }
 
   // Conviction accuracy comparison
-  const bestConviction = snapshots.reduce((best, s) =>
-    s.convictionAccuracy > best.convictionAccuracy ? s : best,
-  );
+  const bestConviction = findMax(snapshots, "convictionAccuracy")!;
   if (bestConviction.convictionAccuracy > 0) {
     insights.push(
       `${bestConviction.agentName} has best conviction accuracy: ${bestConviction.convictionAccuracy.toFixed(1)}% success on high-confidence trades`,

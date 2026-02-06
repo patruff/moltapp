@@ -99,15 +99,17 @@ const JUSTIFICATIONS_FETCH_BUFFER = 100; // Fetch buffer for filtering rounds
 
 /** Map from friendly URL slugs to internal agent IDs */
 const AGENT_SLUG_TO_ID: Record<string, string> = {
-  "opus45": "claude-value-investor",
+  "opus46": "claude-value-investor",
+  "opus45": "claude-value-investor", // backward compat for old links
   "gpt52": "gpt-momentum-trader",
   "grok4": "grok-contrarian",
 };
 
-/** Map from internal agent IDs to friendly slugs (reverse lookup) */
-const AGENT_ID_TO_SLUG: Record<string, string> = Object.fromEntries(
-  Object.entries(AGENT_SLUG_TO_ID).map(([slug, id]) => [id, slug])
-);
+/** Map from internal agent IDs to friendly slugs (reverse lookup, first slug wins) */
+const AGENT_ID_TO_SLUG: Record<string, string> = {};
+for (const [slug, id] of Object.entries(AGENT_SLUG_TO_ID)) {
+  if (!AGENT_ID_TO_SLUG[id]) AGENT_ID_TO_SLUG[id] = slug;
+}
 
 /** Resolve a slug or ID to the canonical agent ID */
 function resolveAgentId(slugOrId: string): string {
