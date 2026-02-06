@@ -421,7 +421,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "65149c9016eaa0a8b4f115d4c86517c1f9d66251f22f373b95fca85331bdba6e.zip"
+     "S3Key": "5240a871609a080f06148ed5fcca53ff86c8e5d6ca83cc4730531d2461dc784b.zip"
     },
     "Environment": {
      "Variables": {
@@ -457,7 +457,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/ApiFunction/Resource",
-    "aws:asset:path": "asset.65149c9016eaa0a8b4f115d4c86517c1f9d66251f22f373b95fca85331bdba6e",
+    "aws:asset:path": "asset.5240a871609a080f06148ed5fcca53ff86c8e5d6ca83cc4730531d2461dc784b",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
@@ -699,7 +699,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "7a0ae83bac117adb5d915ce185ad3f9c868c6e3fcbb22dcc51b9faabc16d747e.zip"
+     "S3Key": "6e22e669383fc9ad10b983586baf54ca461cf9f02eed7da21e9279938b93b854.zip"
     },
     "Environment": {
      "Variables": {
@@ -735,7 +735,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/TradingFunction/Resource",
-    "aws:asset:path": "asset.7a0ae83bac117adb5d915ce185ad3f9c868c6e3fcbb22dcc51b9faabc16d747e",
+    "aws:asset:path": "asset.6e22e669383fc9ad10b983586baf54ca461cf9f02eed7da21e9279938b93b854",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }

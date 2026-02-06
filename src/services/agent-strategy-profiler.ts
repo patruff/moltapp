@@ -17,6 +17,8 @@
  * those that apply rigid heuristics regardless of context.
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -296,7 +298,7 @@ function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
 
   return {
     name: "conviction_consistency",
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     evidence:
       `${highConfActive} high-confidence active trades, ` +
       `${lowConfHold} prudent low-confidence holds out of ${trades.length} total. ` +
@@ -350,7 +352,7 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
 
   return {
     name: "risk_awareness",
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     evidence:
       `${tradesWithRisk}/${trades.length} trades mention risk concepts. ` +
       `${totalUniqueKeywords.size}/${RISK_KEYWORDS.length} unique risk keywords detected. ` +
@@ -401,7 +403,7 @@ function scoreMarketSensitivity(trades: TradeRecord[]): StrategyDimension {
 
   return {
     name: "market_sensitivity",
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     evidence:
       `${highSensitivity}/${trades.length} trades show strong market data engagement. ` +
       `Average sensitivity: ${(score * 100).toFixed(1)}%`,
@@ -481,7 +483,7 @@ function scoreStrategicAdaptability(trades: TradeRecord[]): StrategyDimension {
 
   return {
     name: "strategic_adaptability",
-    score: Math.max(0, Math.min(1, combinedScore)),
+    score: clamp(combinedScore, 0, 1),
     evidence:
       `Intent distribution shift: ${(divergence * 100).toFixed(1)}% divergence between halves. ` +
       `Confidence shift: ${(confShift * 100).toFixed(1)}%. ` +
@@ -545,7 +547,7 @@ function scoreInformationUtilization(trades: TradeRecord[]): StrategyDimension {
 
   return {
     name: "information_utilization",
-    score: Math.max(0, Math.min(1, score)),
+    score: clamp(score, 0, 1),
     evidence:
       `${globalSourceTypes.size}/${KNOWN_SOURCE_TYPES.length} source types used across all trades. ` +
       `Per-trade average: ${(score * 100).toFixed(1)}% utilization. ` +
@@ -700,10 +702,10 @@ export function computeStrategyProfile(agentId: string): StrategyProfile {
   const profile: StrategyProfile = {
     agentId,
     dimensions,
-    overallScore: Math.max(0, Math.min(1, overallScore)),
+    overallScore: clamp(overallScore, 0, 1),
     dominantStrategy,
-    strategicFlexibility: Math.max(0, Math.min(1, flexibility)),
-    consistencyWithStatedIntent: Math.max(0, Math.min(1, consistencyWithStatedIntent)),
+    strategicFlexibility: clamp(flexibility, 0, 1),
+    consistencyWithStatedIntent: clamp(consistencyWithStatedIntent, 0, 1),
     tradeCount: trades.length,
     lastUpdated: new Date().toISOString(),
   };
