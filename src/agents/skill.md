@@ -949,6 +949,172 @@ Last 10 rounds included:
 "Last 10 trades: 8 buys/sells, 2 holds (20% hold rate = OVERTRADING). Average confidence: 74. Win rate: 3/8 = 37.5%. I'm overconfident by 36.5 points. ACTION: Next 10 rounds, reduce all confidence by 25 points AND require 4 independent signals for any trade. Target: 7+ holds in next 10 rounds."
 ```
 
+---
+
+### 📊 CONFIDENCE CALIBRATION FRAMEWORK (Systematic Tracking & Recovery)
+
+**WHY THIS MATTERS:**
+The system tracks your confidence vs actual outcomes across ALL your trades. Agents who consistently claim 75 confidence but only achieve 50% win rate get flagged for overconfidence. This framework helps you detect and correct calibration drift BEFORE it damages your P&L and karma score.
+
+**CALIBRATION TRACKING PROTOCOL:**
+
+**Every 10 Trades - Run Full Calibration Audit:**
+
+1. **Calculate Confidence Inflation/Deflation:**
+   ```
+   Avg Claimed Confidence - Actual Win Rate% = Calibration Error
+
+   Examples:
+   • Claimed 72 avg, Won 48% → +24 points OVERCONFIDENT
+   • Claimed 68 avg, Won 71% → -3 points UNDERCONFIDENT (rare, well-calibrated)
+   • Claimed 78 avg, Won 42% → +36 points SEVERELY OVERCONFIDENT
+   ```
+
+2. **Determine Calibration Status:**
+   ```
+   Calibration Error:
+   • -5 to +5 points → ✅ WELL-CALIBRATED (continue current approach)
+   • +6 to +15 points → ⚠️ MILD OVERCONFIDENCE (apply minor correction)
+   • +16 to +25 points → 🚨 MODERATE OVERCONFIDENCE (apply standard correction)
+   • +26+ points → 🔴 SEVERE OVERCONFIDENCE (apply aggressive correction)
+   ```
+
+3. **Apply Confidence Penalty Schedule:**
+
+   **MILD OVERCONFIDENCE (+6 to +15):**
+   ```
+   Penalty: Reduce all confidence scores by 10 points for next 5 trades
+   Recovery: If next 5 trades show <+10 error, remove penalty
+   Extra Rule: Require 3+ independent signals (not 2) for any 70+ confidence
+   ```
+
+   **MODERATE OVERCONFIDENCE (+16 to +25):**
+   ```
+   Penalty: Reduce all confidence scores by 20 points for next 10 trades
+   Recovery: If next 10 trades show <+10 error, reduce penalty to -10 for 5 more trades
+   Extra Rule: Require 4 independent signals for any 70+ confidence
+   Baseline Adjustment: Lower baseline from 50 → 45 temporarily
+   ```
+
+   **SEVERE OVERCONFIDENCE (+26+):**
+   ```
+   Penalty: Reduce all confidence scores by 30 points for next 15 trades
+   Recovery: Gradual - if next 5 trades show improvement, reduce penalty to -20 for 10 trades
+   Extra Rule: Require 5 independent signals for 75+ confidence, 4 for 70+
+   Baseline Adjustment: Lower baseline from 50 → 40 temporarily
+   HOLD Requirement: Next 10 rounds MUST include 8+ HOLDs (80% HOLD rate to reset behavior)
+   ```
+
+4. **Recovery Path (Exiting Penalty Mode):**
+   ```
+   After completing penalty period:
+   • Run new 10-trade audit
+   • If calibration error now <+10 → exit penalty mode, return to normal scoring
+   • If calibration error still >+15 → extend penalty by 50% (e.g., 10 trades → 15 trades)
+   • Track "calibration streak" - consecutive 10-trade periods with <+10 error
+   ```
+
+**WORKED EXAMPLE - MODERATE OVERCONFIDENCE CORRECTION:**
+
+**Initial Audit (After 10 Trades):**
+```
+Trades: 7 buys/sells, 3 HOLDs (30% HOLD rate)
+Claimed Confidence: Avg 76
+Actual Win Rate: 4/7 = 57%
+Calibration Error: 76 - 57 = +19 points (MODERATE OVERCONFIDENCE)
+
+Diagnosis:
+• Overconfident by 19 points
+• HOLD rate too low (need 70%)
+• Likely counting correlated signals as independent
+```
+
+**Applied Correction:**
+```
+PENALTY ACTIVE: Next 10 trades
+• Reduce all confidence by 20 points
+• Require 4 independent signals for 70+ confidence (not 3)
+• Lower baseline 50 → 45
+• Target: 7+ HOLDs in next 10 rounds
+
+Example Trade Under Penalty:
+  Normal calculation: 50 + 15 (earnings) + 10 (RSI) + 5 (strategy) = 70
+  With penalty: 70 - 20 = 50 → FORCED HOLD (below threshold)
+
+  This FORCES you to find stronger setups (4+ signals) to reach 70+ after penalty
+```
+
+**Mid-Penalty Check (After 5 More Trades):**
+```
+Next 5 Trades: 2 buys, 3 HOLDs (60% HOLD rate - improving)
+Claimed Confidence: Avg 68 (after -20 penalty applied)
+Actual Win Rate: 2/2 = 100% (small sample but good)
+
+Progress: HOLD rate improving, win rate up
+Action: Continue penalty for remaining 5 trades, then re-audit
+```
+
+**Final Re-Audit (After Full 10-Trade Penalty Period):**
+```
+Penalty Period Complete (10 trades):
+• 4 buys/sells, 6 HOLDs (60% HOLD rate - much better)
+• Claimed Confidence: Avg 69 (after penalty)
+• Actual Win Rate: 3/4 = 75%
+• Calibration Error: 69 - 75 = -6 points (WELL-CALIBRATED!)
+
+Result: ✅ PENALTY REMOVED
+• Return to normal baseline (50)
+• Require 3 signals for 70+ confidence (normal rule)
+• Maintain discipline learned during penalty period
+```
+
+**KEY INSIGHT - PENALTY AS TRAINING WHEELS:**
+The -20 point penalty doesn't change reality - it changes your BEHAVIOR. By forcing you to find 4 signals instead of 3, you build better research habits. By the time penalty is removed, you've internalized higher standards and naturally score more conservatively.
+
+**CALIBRATION RED FLAGS (Check These Weekly):**
+
+🚩 **"My confidence keeps dropping into HOLD range after penalty"**
+→ GOOD! This means penalty is working. You were inflating before, now you're being honest. Keep the discipline.
+
+🚩 **"I'm trading less (more HOLDs) but win rate is higher"**
+→ EXCELLENT! Quality over quantity. This is correct calibration.
+
+🚩 **"Penalty removed but I'm slipping back to old habits"**
+→ WARNING! Re-run audit immediately. You may need extended penalty period.
+
+🚩 **"I have 5 signals but confidence still only 65 after penalty"**
+→ Check signal independence! You may be counting correlated signals. Use Independence Test.
+
+🚩 **"Win rate is good but I'm trading too much (low HOLD rate)"**
+→ You're getting LUCKY on weak setups. This won't last. Raise your standards before luck runs out.
+
+**CALIBRATION MEMORY (Track Across Sessions):**
+
+Keep a mental log of your last 3 calibration audits:
+```
+Session 1 (10 trades): +24 error (MODERATE - penalty applied)
+Session 2 (10 trades): +8 error (MILD - penalty working)
+Session 3 (10 trades): +3 error (WELL-CALIBRATED - penalty removed)
+
+Trend: IMPROVING ✅
+```
+
+If you see:
+```
+Session 1: +18 error
+Session 2: +22 error (WORSE)
+Session 3: +27 error (EVEN WORSE)
+```
+→ 🔴 SYSTEMATIC PROBLEM: You're not learning from mistakes. Possible causes:
+  - Not actually running the tool calls you claim
+  - Counting correlated signals as independent
+  - Ignoring contradictions in your analysis
+  - Fabricating data to justify trades you want to make
+
+**ACTION:** Immediately enter SEVERE penalty mode (baseline 40, -30 penalty, 5 signals required, 80% HOLD rate) for 20 trades.
+
+---
+
 **CRITICAL CONFIDENCE RULES (prevent inflation):**
 
 1. **Each signal must come from an ACTUAL tool call** — you can't add +5 for "RSI oversold" unless you called `get_technical_indicators` and saw the RSI value
