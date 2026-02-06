@@ -21,6 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
+import { splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -227,7 +228,7 @@ function scoreStructuralCompleteness(reasoning: string): CertificationDimension 
   CONCLUSION_PATTERNS.lastIndex = 0;
   if (hasConclusion) indicators.push("Contains conclusion");
 
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 10);
+  const sentences = splitSentences(reasoning, 10);
   const wordCount = reasoning.split(/\s+/).length;
   if (wordCount > 50) indicators.push(`${wordCount} words (sufficient depth)`);
 
@@ -299,7 +300,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
   }
 
   // Check for circular reasoning
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 20);
+  const sentences = splitSentences(reasoning, 20);
   let circularFlag = false;
   if (sentences.length >= 2) {
     const first = sentences[0].trim().toLowerCase().slice(0, 50);
