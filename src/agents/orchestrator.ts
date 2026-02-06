@@ -108,6 +108,7 @@ import {
 import { recordBenchmarkScore } from "../services/benchmark-reproducibility.ts";
 import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
 import { runLendingPhase } from "../monad/lending-engine.ts";
+import { runMeetingOfMinds } from "../services/meeting-of-minds.ts";
 import {
   analyzeDeepCoherence,
   recordDeepAnalysis,
@@ -1594,6 +1595,18 @@ async function executeTradingRound(
         executed: false,
         executionError: msg,
       });
+    }
+  }
+
+  // --- Meeting of Minds: Post-Trade Deliberation ---
+  if (process.env.MEETING_OF_MINDS_ENABLED !== "false") {
+    try {
+      const meeting = await runMeetingOfMinds(results, ALL_AGENTS, marketData, roundId);
+      console.log(
+        `[Round] Meeting of Minds: ${meeting.consensus.type} — ${meeting.consensus.summary}`,
+      );
+    } catch (err) {
+      console.error(`[Round] Meeting of Minds failed: ${errorMessage(err)}`);
     }
   }
 

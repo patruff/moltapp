@@ -37,6 +37,8 @@ import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
+import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
+import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
 // Type aliases for database query results and computed types
 type Trade = typeof trades.$inferSelect;
@@ -320,6 +322,8 @@ pages.get("/", async (c) => {
     data = { entries: [], aggregateStats: { totalAgents: 0, totalVolume: "0" }, computedAt: new Date() };
   }
 
+  const latestMeeting = getLatestMeeting();
+
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -468,6 +472,64 @@ pages.get("/", async (c) => {
       {data.entries.length === 0 && (
         <div class="text-center py-12 text-gray-500">
           No agents registered yet. Check back soon!
+        </div>
+      )}
+
+      {/* Meeting of Minds Widget */}
+      {latestMeeting && (
+        <div class="mt-6 bg-gray-900 border border-indigo-800/50 rounded-lg p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-bold text-indigo-300">Latest Meeting of Minds</h2>
+            <span class="text-xs text-gray-500">
+              Round {latestMeeting.roundId} &middot; {formatTimeAgo(new Date(latestMeeting.completedAt))}
+            </span>
+          </div>
+
+          <div class="mb-3">
+            <span class={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+              latestMeeting.consensus.type === "unanimous"
+                ? "bg-green-900 text-green-200"
+                : latestMeeting.consensus.type === "majority"
+                  ? "bg-yellow-900 text-yellow-200"
+                  : "bg-red-900 text-red-200"
+            }`}>
+              {latestMeeting.consensus.type.toUpperCase()}
+            </span>
+            <span class="text-white ml-2 font-semibold">
+              {latestMeeting.consensus.action.toUpperCase()} {latestMeeting.consensus.symbol}
+            </span>
+            <span class="text-gray-400 ml-2 text-sm">
+              ({latestMeeting.consensus.agreementScore}% agreement)
+            </span>
+          </div>
+
+          {latestMeeting.consensus.mostPersuasive && (
+            <p class="text-sm text-gray-300 mb-1">
+              <span class="text-indigo-400">Most Persuasive:</span>{" "}
+              {latestMeeting.consensus.mostPersuasive}
+            </p>
+          )}
+          {latestMeeting.consensus.dissenter && (
+            <p class="text-sm text-gray-300 mb-1">
+              <span class="text-orange-400">Dissenter:</span>{" "}
+              {latestMeeting.consensus.dissenter}
+            </p>
+          )}
+
+          {latestMeeting.keyDiscrepancies.length > 0 && (
+            <p class="text-sm text-gray-400 mt-2 italic">
+              {latestMeeting.keyDiscrepancies[0]}
+            </p>
+          )}
+
+          <div class="mt-3 pt-3 border-t border-gray-800 text-right">
+            <a
+              href={`/meeting/${latestMeeting.roundId}`}
+              class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline"
+            >
+              View Full Transcript &rarr;
+            </a>
+          </div>
         </div>
       )}
 
@@ -2112,6 +2174,158 @@ pages.get("/performance", async (c) => {
       </div>
     </div>,
     { title: "Daily Performance | MoltApp" }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /meeting/:roundId -- Meeting of Minds Transcript
+// ---------------------------------------------------------------------------
+
+const AGENT_COLORS: Record<string, string> = {
+  "claude-value-investor": "border-purple-500 bg-purple-950/30",
+  "gpt-momentum-trader": "border-green-500 bg-green-950/30",
+  "grok-contrarian": "border-orange-500 bg-orange-950/30",
+};
+
+const AGENT_NAME_COLORS: Record<string, string> = {
+  "claude-value-investor": "text-purple-400",
+  "gpt-momentum-trader": "text-green-400",
+  "grok-contrarian": "text-orange-400",
+};
+
+pages.get("/meeting/:roundId", (c) => {
+  const roundId = c.req.param("roundId");
+  const meeting = getMeetingByRoundId(roundId);
+
+  if (!meeting) {
+    return c.render(
+      <div class="max-w-4xl mx-auto px-4 py-8">
+        <p class="text-gray-400">No meeting found for round {roundId}.</p>
+        <a href="/" class="text-blue-400 hover:underline text-sm">{"\u2190"} Back to leaderboard</a>
+      </div>,
+      { title: "Meeting Not Found | MoltApp" }
+    );
+  }
+
+  return c.render(
+    <div class="max-w-4xl mx-auto px-4 py-8">
+      <a href="/" class="text-blue-400 hover:underline text-sm mb-4 inline-block">
+        {"\u2190"} Back to leaderboard
+      </a>
+
+      <header class="mb-6">
+        <h1 class="text-2xl font-bold text-white">Meeting of Minds</h1>
+        <p class="text-gray-400 text-sm mt-1">
+          Round {meeting.roundId} &middot; {meeting.completedAt} &middot; {meeting.durationMs}ms
+        </p>
+      </header>
+
+      {/* Consensus Banner */}
+      <div class={`mb-6 p-4 rounded-lg border ${
+        meeting.consensus.type === "unanimous"
+          ? "border-green-700 bg-green-950/30"
+          : meeting.consensus.type === "majority"
+            ? "border-yellow-700 bg-yellow-950/30"
+            : "border-red-700 bg-red-950/30"
+      }`}>
+        <div class="flex items-center gap-3">
+          <span class={`text-lg font-bold ${
+            meeting.consensus.type === "unanimous" ? "text-green-300"
+              : meeting.consensus.type === "majority" ? "text-yellow-300"
+                : "text-red-300"
+          }`}>
+            {meeting.consensus.type.toUpperCase()}
+          </span>
+          <span class="text-white font-semibold">
+            {meeting.consensus.action.toUpperCase()} {meeting.consensus.symbol}
+          </span>
+          <span class="text-gray-400 text-sm">
+            {meeting.consensus.agreementScore}% agreement
+          </span>
+        </div>
+        <p class="text-gray-300 text-sm mt-1">{meeting.consensus.summary}</p>
+        {meeting.consensus.mostPersuasive && (
+          <p class="text-sm text-indigo-300 mt-1">
+            Most Persuasive: {meeting.consensus.mostPersuasive}
+          </p>
+        )}
+      </div>
+
+      {/* Transcript */}
+      <div class="space-y-4">
+        {meeting.transcript.map((msg: MeetingMessage) => {
+          const borderColor = AGENT_COLORS[msg.agentId] ?? "border-gray-600 bg-gray-900/30";
+          const nameColor = AGENT_NAME_COLORS[msg.agentId] ?? "text-gray-300";
+          const roundLabel = msg.round === 0
+            ? "Opening Thesis"
+            : msg.round <= 3
+              ? `Discussion Round ${msg.round}`
+              : "Final Vote";
+
+          return (
+            <div class={`border-l-4 rounded-r-lg p-4 ${borderColor}`}>
+              <div class="flex items-center gap-2 mb-2">
+                <span class={`font-bold ${nameColor}`}>{msg.agentName}</span>
+                <span class={`text-xs px-2 py-0.5 rounded ${
+                  msg.round === 0
+                    ? "bg-blue-900 text-blue-200"
+                    : msg.round <= 3
+                      ? "bg-gray-700 text-gray-300"
+                      : "bg-indigo-900 text-indigo-200"
+                }`}>
+                  {roundLabel}
+                </span>
+              </div>
+              <p class="text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">
+                {msg.content}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Final Votes */}
+      <div class="mt-6">
+        <h2 class="text-lg font-bold text-white mb-3">Final Votes</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {meeting.finalVotes.map((vote) => {
+            const nameColor = AGENT_NAME_COLORS[vote.agentId] ?? "text-gray-300";
+            return (
+              <div class="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                <div class={`font-bold ${nameColor} mb-1`}>{vote.agentName}</div>
+                <div class="text-white font-semibold">
+                  {vote.action.toUpperCase()} {vote.symbol}
+                </div>
+                <div class="text-gray-400 text-xs mt-1">
+                  Confidence: {vote.confidence}%
+                </div>
+                {vote.convincedBy && (
+                  <div class="text-indigo-400 text-xs mt-1">
+                    Convinced by: {vote.convincedBy}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Key Discrepancies */}
+      {meeting.keyDiscrepancies.length > 0 && (
+        <div class="mt-6">
+          <h2 class="text-lg font-bold text-white mb-2">Key Discrepancies</h2>
+          <ul class="list-disc list-inside text-sm text-gray-300 space-y-1">
+            {meeting.keyDiscrepancies.map((d) => <li>{d}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Meeting Metadata */}
+      <div class="mt-6 text-xs text-gray-600 text-center">
+        Meeting ID: {meeting.meetingId} &middot; Est. LLM cost: ${meeting.totalLlmCost.toFixed(2)}
+      </div>
+    </div>,
+    { title: `Meeting of Minds — Round ${meeting.roundId} | MoltApp` }
   );
 });
 
