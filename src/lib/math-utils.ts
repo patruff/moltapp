@@ -733,3 +733,121 @@ export function countByCondition<T>(
   }
   return count;
 }
+
+/**
+ * Calculates a weighted sum of values from an array of objects.
+ * Each item contributes item[valueProp] * item[weightProp] to the total.
+ *
+ * Common use cases:
+ * - Composite scores: dimension.score * dimension.weight
+ * - Weighted averages: sum of (value * weight) / sum of weights
+ * - Portfolio calculations: position.value * position.allocation
+ *
+ * @param items - Array of objects with numeric value and weight properties
+ * @param valueProp - Property name for the value to weight
+ * @param weightProp - Property name for the weight to apply
+ * @returns Sum of (value * weight) for all items
+ *
+ * @example
+ * const dimensions = [
+ *   {name: 'logic', score: 0.8, weight: 0.3},
+ *   {name: 'evidence', score: 0.6, weight: 0.5},
+ *   {name: 'risk', score: 0.9, weight: 0.2}
+ * ];
+ * weightedSum(dimensions, 'score', 'weight') // 0.8*0.3 + 0.6*0.5 + 0.9*0.2 = 0.72
+ *
+ * const positions = [{value: 1000, allocation: 0.6}, {value: 500, allocation: 0.4}];
+ * weightedSum(positions, 'value', 'allocation') // 1000*0.6 + 500*0.4 = 800
+ */
+export function weightedSum<T>(
+  items: readonly T[],
+  valueProp: keyof T & string,
+  weightProp: keyof T & string,
+): number {
+  return items.reduce((sum, item) => {
+    const value = item[valueProp];
+    const weight = item[weightProp];
+    if (typeof value === "number" && typeof weight === "number") {
+      return sum + value * weight;
+    }
+    return sum;
+  }, 0);
+}
+
+/**
+ * Calculates the dot product of two numeric vectors.
+ * Returns the sum of element-wise products: a[0]*b[0] + a[1]*b[1] + ...
+ *
+ * Common use cases:
+ * - Cosine similarity calculation (numerator)
+ * - Vector projection
+ * - Weighted gene scores in strategy genomes
+ *
+ * @param a - First vector (readonly array of numbers)
+ * @param b - Second vector (readonly array of numbers, must match length of a)
+ * @returns Dot product of the two vectors
+ * @throws Error if vectors have different lengths
+ *
+ * @example
+ * dotProduct([1, 2, 3], [4, 5, 6]) // 1*4 + 2*5 + 3*6 = 32
+ * dotProduct([0.8, 0.6], [0.3, 0.7]) // 0.8*0.3 + 0.6*0.7 = 0.66
+ */
+export function dotProduct(a: readonly number[], b: readonly number[]): number {
+  if (a.length !== b.length) {
+    throw new Error(`dotProduct: vectors must have same length (got ${a.length} and ${b.length})`);
+  }
+  return a.reduce((sum, val, i) => sum + val * b[i], 0);
+}
+
+/**
+ * Calculates the magnitude (Euclidean norm) of a numeric vector.
+ * Returns sqrt(v[0]^2 + v[1]^2 + ... + v[n]^2)
+ *
+ * Common use cases:
+ * - Cosine similarity calculation (denominator)
+ * - Distance calculations
+ * - Normalization
+ *
+ * @param v - Vector (readonly array of numbers)
+ * @returns Magnitude of the vector
+ *
+ * @example
+ * vectorMagnitude([3, 4]) // sqrt(3^2 + 4^2) = 5
+ * vectorMagnitude([1, 0, 0]) // 1
+ * vectorMagnitude([0.6, 0.8]) // 1.0
+ */
+export function vectorMagnitude(v: readonly number[]): number {
+  return Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
+}
+
+/**
+ * Calculates the cosine similarity between two numeric vectors.
+ * Returns dot(a,b) / (magnitude(a) * magnitude(b))
+ * Result ranges from -1 (opposite) to 1 (identical), with 0 meaning orthogonal.
+ *
+ * Common use cases:
+ * - Strategy genome similarity comparison
+ * - Agent fingerprint matching
+ * - Pattern correlation analysis
+ *
+ * @param a - First vector (readonly array of numbers)
+ * @param b - Second vector (readonly array of numbers, must match length of a)
+ * @returns Cosine similarity between the two vectors, or 0 if either vector is zero
+ *
+ * @example
+ * cosineSimilarity([1, 0], [1, 0]) // 1.0 (identical direction)
+ * cosineSimilarity([1, 0], [0, 1]) // 0.0 (orthogonal)
+ * cosineSimilarity([1, 1], [-1, -1]) // -1.0 (opposite direction)
+ */
+export function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
+  const dot = dotProduct(a, b);
+  const magA = vectorMagnitude(a);
+  const magB = vectorMagnitude(b);
+
+  // Handle zero vectors
+  if (magA === 0 || magB === 0) {
+    return 0;
+  }
+
+  return dot / (magA * magB);
+}

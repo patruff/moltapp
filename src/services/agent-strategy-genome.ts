@@ -18,7 +18,7 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
-import { clamp, countWords } from "../lib/math-utils.ts";
+import { clamp, cosineSimilarity, countWords } from "../lib/math-utils.ts";
 import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
@@ -349,10 +349,8 @@ function computeGenome(agentId: string, obs: TradeObservation[]): StrategyGenome
   if (prevGenome) {
     const prevVector = prevGenome.genes.map((g) => g.score);
     const currVector = genes.map((g) => g.score);
-    const dotProduct = prevVector.reduce((s, v, i) => s + v * currVector[i], 0);
-    const magPrev = Math.sqrt(prevVector.reduce((s, v) => s + v * v, 0));
-    const magCurr = Math.sqrt(currVector.reduce((s, v) => s + v * v, 0));
-    genomeStability = magPrev > 0 && magCurr > 0 ? dotProduct / (magPrev * magCurr) : 0.5;
+    const similarity = cosineSimilarity(prevVector, currVector);
+    genomeStability = similarity !== 0 ? similarity : 0.5;
   }
 
   return {
@@ -397,14 +395,6 @@ export function recordGenomeObservation(obs: TradeObservation): void {
 
     genomes.set(obs.agentId, genome);
   }
-}
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length || a.length === 0) return 0;
-  const dot = a.reduce((s, v, i) => s + v * b[i], 0);
-  const magA = Math.sqrt(a.reduce((s, v) => s + v * v, 0));
-  const magB = Math.sqrt(b.reduce((s, v) => s + v * v, 0));
-  return magA > 0 && magB > 0 ? dot / (magA * magB) : 0;
 }
 
 /**

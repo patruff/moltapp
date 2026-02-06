@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { mean, round2, round3, splitSentences } from "../lib/math-utils.ts";
+import { mean, round2, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,14 +206,15 @@ export function analyzeDeepCoherence(
   }
 
   // Compute overall score
-  const overallScore = round2(
-    logicalStructure.score * logicalStructure.weight +
-      evidenceGrounding.score * evidenceGrounding.weight +
-      riskAwareness.score * riskAwareness.weight +
-      temporalReasoning.score * temporalReasoning.weight +
-      counterfactualThinking.score * counterfactualThinking.weight +
-      quantitativeRigor.score * quantitativeRigor.weight,
-  );
+  const dimensions = [
+    logicalStructure,
+    evidenceGrounding,
+    riskAwareness,
+    temporalReasoning,
+    counterfactualThinking,
+    quantitativeRigor,
+  ];
+  const overallScore = round2(weightedSum(dimensions, "score", "weight"));
 
   // Text quality bonus/penalty
   let adjustedScore = overallScore;
