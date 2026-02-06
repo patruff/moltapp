@@ -20,6 +20,7 @@ import {
   type PortfolioRiskReport,
 } from "../services/portfolio-risk-analyzer.ts";
 import { getPortfolioContext } from "../agents/orchestrator.ts";
+import { findMin, findMax } from "../lib/math-utils.ts";
 
 const riskAnalysis = new Hono();
 
@@ -58,8 +59,8 @@ riskAnalysis.get("/compare", async (c) => {
       portfolioValue: r.portfolioValue,
       warnings: r.warnings.length,
     })),
-    lowestRisk: reports.reduce((min, r) => (r.riskScore < min.riskScore ? r : min), reports[0])?.agentId ?? null,
-    highestRisk: reports.reduce((max, r) => (r.riskScore > max.riskScore ? r : max), reports[0])?.agentId ?? null,
+    lowestRisk: findMin(reports, "riskScore")?.agentId ?? null,
+    highestRisk: findMax(reports, "riskScore")?.agentId ?? null,
     generatedAt: new Date().toISOString(),
   });
 });

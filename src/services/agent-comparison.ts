@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -266,12 +266,8 @@ export function buildAgentSnapshot(
 
   // P&L
   const totalPnl = tradesWithPnl.reduce((s, t) => s + (t.pnl ?? 0), 0);
-  const bestTrade = tradesWithPnl.length > 0
-    ? tradesWithPnl.reduce((best, t) => (t.pnl ?? 0) > (best.pnl ?? 0) ? t : best)
-    : null;
-  const worstTrade = tradesWithPnl.length > 0
-    ? tradesWithPnl.reduce((worst, t) => (t.pnl ?? 0) < (worst.pnl ?? 0) ? t : worst)
-    : null;
+  const bestTrade = findMax(tradesWithPnl, "pnl") ?? null;
+  const worstTrade = findMin(tradesWithPnl, "pnl") ?? null;
 
   // Favorite stock
   const symbolCounts: Record<string, number> = {};
