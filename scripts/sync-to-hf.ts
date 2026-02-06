@@ -39,7 +39,7 @@ console.log("[sync-to-hf] Connecting to database...");
 const { db } = await import("../src/db/index.ts");
 const { tradeJustifications } = await import("../src/db/schema/trade-reasoning.ts");
 const { agentDecisions } = await import("../src/db/schema/agent-decisions.ts");
-const { agents } = await import("../src/db/schema/index.ts");
+const { agents, portfolioSnapshots } = await import("../src/db/schema/index.ts");
 
 // Import decision quality metrics
 const { generateDecisionQualityReport } = await import("../src/services/decision-quality-dashboard.ts");
@@ -56,6 +56,20 @@ const decisionMap = new Map<string, (typeof decisions)[number]>();
 for (const d of decisions) {
   decisionMap.set(`${d.agentId}|${d.roundId}|${d.symbol}`, d);
 }
+
+// Fetch portfolio snapshots for portfolio context
+console.log("[sync-to-hf] Fetching portfolio snapshots...");
+const snapshots = await db.select().from(portfolioSnapshots).orderBy(desc(portfolioSnapshots.createdAt));
+
+// Build lookup from snapshots keyed by agentId+roundId for portfolio context
+const snapshotMap = new Map<string, (typeof snapshots)[number]>();
+for (const s of snapshots) {
+  const key = `${s.agentId}|${s.roundId}`;
+  if (!snapshotMap.has(key)) {
+    snapshotMap.set(key, s); // Keep first (most recent) snapshot per round
+  }
+}
+console.log(`[sync-to-hf] Loaded ${snapshots.length} portfolio snapshots.`);
 
 // Import v35 scoring functions for enrichment
 const {
@@ -93,11 +107,13 @@ for (const agent of activeAgents) {
   }
 }
 
-// Merge justifications with decision data into benchmark records (v38: 40-dimension with quality metrics)
+// Merge justifications with decision data into benchmark records (v39: 40-dimension with quality metrics + portfolio context)
 const records = justifications.map((j) => {
   const d = decisionMap.get(`${j.agentId}|${j.roundId}|${j.symbol}`);
   // Get quality report for this agent (if available)
   const q = qualityReportMap.get(j.agentId);
+  // Get portfolio snapshot for this agent+round (if available)
+  const snap = snapshotMap.get(`${j.agentId}|${j.roundId}`);
   // Compute v34-v37 scores for each record
   const causalScore = scoreCausalReasoning(j.reasoning, (j.sources as string[]) ?? []);
   const epistemicScore = scoreEpistemicHumility(
@@ -198,10 +214,18 @@ const records = justifications.map((j) => {
     quality_grade: q?.grade ?? null,
     quality_strengths: q?.strengths ?? [],
     quality_weaknesses: q?.weaknesses ?? [],
+    // Portfolio context at time of decision (from portfolio snapshots)
+    portfolio_cash_balance_usdc: snap ? parseFloat(snap.cashBalance) : null,
+    portfolio_positions_value_usdc: snap ? parseFloat(snap.positionsValue) : null,
+    portfolio_total_value_usdc: snap ? parseFloat(snap.totalValue) : null,
+    portfolio_total_pnl_usdc: snap ? parseFloat(snap.totalPnl) : null,
+    portfolio_total_pnl_percent: snap ? parseFloat(snap.totalPnlPercent) : null,
+    portfolio_position_count: snap?.positionCount ?? null,
+    // Metadata
     round_id: j.roundId ?? null,
     timestamp: j.timestamp?.toISOString() ?? null,
-    benchmark_version: "38.0",
-    dimension_count: 52,
+    benchmark_version: "39.0",
+    dimension_count: 58,
   };
 });
 
@@ -314,10 +338,16 @@ quality scores.
 | \`quality_grade\` | Overall quality grade (A+ to F) |
 | \`quality_strengths\` | Top 2 quality dimensions |
 | \`quality_weaknesses\` | Bottom 2 quality dimensions |
+| \`portfolio_cash_balance_usdc\` | Agent's USDC cash balance at time of decision |
+| \`portfolio_positions_value_usdc\` | Total value of stock positions in USDC |
+| \`portfolio_total_value_usdc\` | Total portfolio value (cash + positions) |
+| \`portfolio_total_pnl_usdc\` | Cumulative P&L in USDC since inception |
+| \`portfolio_total_pnl_percent\` | Cumulative P&L as percentage |
+| \`portfolio_position_count\` | Number of open positions at time of decision |
 | \`round_id\` | Trading round identifier |
 | \`timestamp\` | ISO-8601 decision timestamp |
-| \`benchmark_version\` | Benchmark version (e.g. 38.0) |
-| \`dimension_count\` | Number of scoring dimensions (52) |
+| \`benchmark_version\` | Benchmark version (e.g. 39.0) |
+| \`dimension_count\` | Number of scoring dimensions (58) |
 
 ## Citation
 
