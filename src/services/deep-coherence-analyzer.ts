@@ -19,6 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
+import { splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -385,7 +386,7 @@ function scoreQuantitativeRigor(
 
 function computeTextMetrics(reasoning: string): TextMetrics {
   const words = reasoning.split(/\s+/).filter((w) => w.length > 0);
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 3);
+  const sentences = splitSentences(reasoning, 3);
   const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
 
   // Count technical terms

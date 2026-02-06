@@ -18,6 +18,7 @@
  */
 
 import type { Context, Next } from "hono";
+import { splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -115,7 +116,7 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
     else score += 0.15;
 
     // Bonus for multi-sentence reasoning
-    const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 5);
+    const sentences = splitSentences(reasoning, 5);
     if (sentences.length >= 3) score += 0.1;
   }
 

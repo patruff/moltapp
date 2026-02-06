@@ -16,6 +16,8 @@
  * 8. THESIS STRUCTURE: Is there a clear thesis → evidence → conclusion flow?
  */
 
+import { splitSentences } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -237,7 +239,7 @@ function scoreToGrade(score: number): string {
 export function scoreReasoningDepth(reasoning: string): DepthScore {
   const words = reasoning.split(/\s+/).filter((w) => w.length > 0);
   const wordCount = words.length;
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const sentences = splitSentences(reasoning, 0);
   const sentenceCount = sentences.length;
   const avgSentenceLength = sentenceCount > 0 ? wordCount / sentenceCount : 0;
   const uniqueWords = new Set(words.map((w) => w.toLowerCase()));

@@ -19,6 +19,8 @@
  *   - Integration: Are source data points used in the logical argument?
  */
 
+import { splitSentences } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -237,7 +239,7 @@ const SOURCE_INTEGRATION_PATTERNS = [
 export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResult {
   const words = reasoning.split(/\s+/).filter((w) => w.length > 0);
   const wordCount = words.length;
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const sentences = splitSentences(reasoning, 0);
   const sentenceCount = Math.max(1, sentences.length);
 
   // 1. Step count: distinct reasoning steps (sentences with substance)

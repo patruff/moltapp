@@ -22,7 +22,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, splitSentences } from "../lib/math-utils.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -629,7 +629,7 @@ reasoningExplorerRoutes.get("/agent-style", (c) => {
     let totalDataRef = 0;
 
     for (const entry of entries) {
-      const sentences = entry.reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 3);
+      const sentences = splitSentences(entry.reasoning, 3);
       totalSentences += sentences.length;
       totalQuestions += (entry.reasoning.match(/\?/g) ?? []).length;
       totalHedging += (entry.reasoning.match(/\b(might|could|possibly|perhaps|maybe|uncertain)\b/gi) ?? []).length;

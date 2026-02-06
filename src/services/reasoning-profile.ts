@@ -14,6 +14,8 @@
  * 6. CONSISTENCY: Does the agent reason similarly across similar situations?
  */
 
+import { splitSentences } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -225,7 +227,7 @@ function analyzeVocabulary(entries: ReasoningEntry[]): VocabularyProfile {
     lengths.push(entry.reasoning.length);
 
     // Count sentences
-    const sentences = entry.reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+    const sentences = splitSentences(entry.reasoning, 0);
     totalSentences += sentences.length;
 
     // Count words
