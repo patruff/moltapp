@@ -735,6 +735,40 @@ export function countByCondition<T>(
 }
 
 /**
+ * Calculates a weighted sum using custom value and weight extraction functions.
+ * Provides maximum flexibility for computing weighted sums from any data structure.
+ *
+ * Common use cases:
+ * - Weighted gene scores: genes.map with weight array lookup
+ * - Confidence-weighted predictions: extract confidence and weight per item
+ * - Custom scoring: conditional logic to determine value/weight
+ *
+ * @param items - Array of items to process
+ * @param valueFn - Function to extract numeric value from each item
+ * @param weightFn - Function to extract numeric weight for each item
+ * @returns Sum of (valueFn(item) * weightFn(item)) for all items
+ *
+ * @example
+ * // Weighted gene scores with index-based weights:
+ * const genes = [{score: 0.8}, {score: 0.6}, {score: 0.9}];
+ * const weights = [0.5, 0.3, 0.2];
+ * weightedSum(genes, (g) => g.score, (g, i) => weights[i]) // 0.8*0.5 + 0.6*0.3 + 0.9*0.2 = 0.76
+ *
+ * // Confidence-weighted predictions:
+ * const votes = [{prediction: 1, confidence: 75, weight: 0.4}, {prediction: 0, confidence: 60, weight: 0.6}];
+ * weightedSum(votes, (v) => v.confidence, (v) => v.weight) // 75*0.4 + 60*0.6 = 66
+ *
+ * // Custom logic (switch statement):
+ * const items = [{status: 'high', weight: 0.5}, {status: 'low', weight: 0.3}];
+ * weightedSum(items, (i) => i.status === 'high' ? 1.0 : 0.2, (i) => i.weight) // 1.0*0.5 + 0.2*0.3 = 0.56
+ */
+export function weightedSum<T>(
+  items: readonly T[],
+  valueFn: (item: T, index: number) => number,
+  weightFn: (item: T, index: number) => number,
+): number;
+
+/**
  * Calculates a weighted sum of values from an array of objects.
  * Each item contributes item[valueProp] * item[weightProp] to the total.
  *
@@ -763,7 +797,26 @@ export function weightedSum<T>(
   items: readonly T[],
   valueProp: keyof T & string,
   weightProp: keyof T & string,
+): number;
+
+// Implementation (handles both overloads)
+export function weightedSum<T>(
+  items: readonly T[],
+  valueParam: ((item: T, index: number) => number) | (keyof T & string),
+  weightParam: ((item: T, index: number) => number) | (keyof T & string),
 ): number {
+  // Function-based overload
+  if (typeof valueParam === "function" && typeof weightParam === "function") {
+    return items.reduce((sum, item, index) => {
+      const value = valueParam(item, index);
+      const weight = weightParam(item, index);
+      return sum + value * weight;
+    }, 0);
+  }
+
+  // Property-based overload
+  const valueProp = valueParam as keyof T & string;
+  const weightProp = weightParam as keyof T & string;
   return items.reduce((sum, item) => {
     const value = item[valueProp];
     const weight = item[weightProp];

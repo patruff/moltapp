@@ -18,7 +18,7 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
-import { clamp, cosineSimilarity, countWords } from "../lib/math-utils.ts";
+import { clamp, cosineSimilarity, countWords, weightedSum } from "../lib/math-utils.ts";
 import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
@@ -450,5 +450,9 @@ export function getGenomePillarScore(agentId: string): number {
   const genome = genomes.get(agentId);
   if (!genome) return 0.5;
   // Weighted average of gene scores (weights imported from scoring-weights.ts)
-  return genome.genes.reduce((s, g, i) => s + g.score * (GENOME_WEIGHTS_ARRAY[i] ?? 0.125), 0);
+  return weightedSum(
+    genome.genes,
+    (g) => g.score,
+    (_g, i) => GENOME_WEIGHTS_ARRAY[i] ?? 0.125,
+  );
 }
