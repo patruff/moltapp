@@ -406,6 +406,12 @@ let cachedMarketData: MarketData[] | null = null;
 let cachedMarketDataTimestamp = 0;
 const MARKET_DATA_CACHE_TTL_MS = 10_000; // 10 seconds
 
+/** Standard risk constraints used across all benchmark scoring versions */
+const BENCHMARK_RISK_CONSTRAINTS = { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" as const };
+
+/** Standard portfolio baseline used across all benchmark scoring versions */
+const BENCHMARK_PORTFOLIO_BASELINE = { cashBalance: 10000, totalValue: 10000, positions: [] as never[] };
+
 export async function getMarketData(): Promise<MarketData[]> {
   // Check cache first
   const now = Date.now();
@@ -2649,8 +2655,8 @@ async function executeTradingRound(
       const hallucinations = detectHallucinations(d.reasoning, marketData);
       const discipline = checkInstructionDiscipline(
         { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
 
       const depth = analyzeReasoningDepthV24(d.reasoning);
@@ -2711,8 +2717,8 @@ async function executeTradingRound(
       const hallucinations = detectHallucinations(d.reasoning, marketData);
       const discipline = checkInstructionDiscipline(
         { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
       const depth = analyzeReasoningDepthV24(d.reasoning);
       const sourceQ = analyzeSourceQualityV24(d.reasoning, d.sources ?? []);
@@ -2775,8 +2781,8 @@ async function executeTradingRound(
       const hallucinations = detectHallucinations(d.reasoning, marketData);
       const discipline = checkInstructionDiscipline(
         { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01 },
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
 
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
@@ -2858,8 +2864,8 @@ async function executeTradingRound(
       const hallucinations = detectHallucinations(d.reasoning, marketData);
       const discipline = checkInstructionDiscipline(
         d,
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
 
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
@@ -2942,8 +2948,8 @@ async function executeTradingRound(
       const hallucinationsV36 = detectHallucinations(d.reasoning, marketData);
       const disciplineV36 = checkInstructionDiscipline(
         { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01V36 },
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
 
       const sourcesV36 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
@@ -3026,8 +3032,8 @@ async function executeTradingRound(
       const hallucinationsV37 = detectHallucinations(d.reasoning, marketData);
       const disciplineV37 = checkInstructionDiscipline(
         { action: d.action, symbol: d.symbol, quantity: d.quantity, confidence: conf01V37 },
-        { maxPositionSize: 25, maxPortfolioAllocation: 85, riskTolerance: "moderate" },
-        { cashBalance: 10000, totalValue: 10000, positions: [] },
+        BENCHMARK_RISK_CONSTRAINTS,
+        BENCHMARK_PORTFOLIO_BASELINE,
       );
 
       const sourcesV37 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
