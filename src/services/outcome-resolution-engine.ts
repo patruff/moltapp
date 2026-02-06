@@ -83,6 +83,73 @@ const engineState = {
 const MAX_RECENT = 200;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Outcome classification threshold: absolute P&L % below this = breakeven.
+ * Prevents classifying tiny moves (±0.05%) as profit/loss.
+ *
+ * Examples:
+ * - P&L +0.08% → breakeven (too small to matter)
+ * - P&L +0.15% → profit (exceeds threshold)
+ * - P&L -0.12% → loss (exceeds threshold)
+ */
+const OUTCOME_BREAKEVEN_THRESHOLD = 0.1;
+
+/**
+ * Hold action direction accuracy threshold: if |P&L| < this %, hold is correct.
+ * Prevents penalizing agents for small deviations when they correctly chose inaction.
+ *
+ * 2% threshold = hold is accurate if price moves < ±2%.
+ */
+const HOLD_DIRECTION_ACCURACY_THRESHOLD = 2;
+
+/**
+ * High confidence threshold for calibration assessment (0.6 = 60%).
+ * Trades with confidence ≥ 60% should be directionally correct for good calibration.
+ *
+ * Used to check: "Did high-confidence trades succeed?"
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.6;
+
+/**
+ * Low confidence threshold for calibration tolerance (0.3 = 30%).
+ * Trades with confidence < 30% are expected to fail, so incorrect direction is acceptable.
+ *
+ * Used to check: "Low-confidence trades can fail without penalty."
+ */
+const CONFIDENCE_LOW_THRESHOLD = 0.3;
+
+/**
+ * Entry price fallback multiplier when no historical price available.
+ * Uses 99% of current price as synthetic entry (1% loss assumed).
+ *
+ * Example: Current price $100 → entry price $99 (as if entered 1% higher).
+ */
+const ENTRY_PRICE_FALLBACK_MULTIPLIER = 0.99;
+
+/**
+ * Calibration bucket boundaries for Expected Calibration Error (ECE) calculation.
+ * Groups trades by confidence level to measure accuracy vs predicted confidence.
+ *
+ * Standard 5-bucket split: 0-20%, 20-40%, 40-60%, 60-80%, 80-100%.
+ */
+const CALIBRATION_BUCKET_BOUNDARIES = [
+  { label: "0.0-0.2", min: 0, max: 0.2 },
+  { label: "0.2-0.4", min: 0.2, max: 0.4 },
+  { label: "0.4-0.6", min: 0.4, max: 0.6 },
+  { label: "0.6-0.8", min: 0.6, max: 0.8 },
+  { label: "0.8-1.0", min: 0.8, max: 1.0 },
+] as const;
+
+/**
+ * Well-calibrated threshold: if |actualWinRate - expectedWinRate| < 0.1, bucket is well-calibrated.
+ * Example: 60-80% confidence bucket with 68% win rate = 0.02 ECE → well-calibrated.
+ */
+const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.1;
+
+// ---------------------------------------------------------------------------
 // Core Resolution Logic
 // ---------------------------------------------------------------------------
 
@@ -115,7 +182,7 @@ export function resolveOutcome(
     }
 
     // Classify outcome
-    if (Math.abs(pnlPercent) < 0.1) {
+    if (Math.abs(pnlPercent) < OUTCOME_BREAKEVEN_THRESHOLD) {
       outcome = "breakeven";
     } else if (pnlPercent > 0) {
       outcome = "profit";
@@ -129,7 +196,7 @@ export function resolveOutcome(
     } else if (justification.action === "sell") {
       directionCorrect = currentPrice < entryPrice;
     } else {
-      directionCorrect = Math.abs(pnlPercent) < 2;
+      directionCorrect = Math.abs(pnlPercent) < HOLD_DIRECTION_ACCURACY_THRESHOLD;
     }
   } else {
     outcome = "breakeven";
@@ -140,10 +207,10 @@ export function resolveOutcome(
   const confidence01 = justification.confidence > 1
     ? justification.confidence / 100
     : justification.confidence;
-  const isHighConfidence = confidence01 >= 0.6;
+  const isHighConfidence = confidence01 >= CONFIDENCE_HIGH_THRESHOLD;
   const calibrated = isHighConfidence
     ? directionCorrect
-    : !directionCorrect || confidence01 < 0.3;
+    : !directionCorrect || confidence01 < CONFIDENCE_LOW_THRESHOLD;
 
   return {
     justificationId: justification.id,
@@ -189,7 +256,7 @@ export async function runOutcomeResolution(
 
       if (!currentPrice) continue;
 
-      const entryPrice = currentPrice * 0.99;
+      const entryPrice = currentPrice * ENTRY_PRICE_FALLBACK_MULTIPLIER;
 
       const result = resolveOutcome(
         {
@@ -270,13 +337,7 @@ export function computeCalibration(
 
   const agentId = resolutions[0].agentId;
 
-  const bucketDefs = [
-    { label: "0.0-0.2", min: 0, max: 0.2 },
-    { label: "0.2-0.4", min: 0.2, max: 0.4 },
-    { label: "0.4-0.6", min: 0.4, max: 0.6 },
-    { label: "0.6-0.8", min: 0.6, max: 0.8 },
-    { label: "0.8-1.0", min: 0.8, max: 1.0 },
-  ];
+  const bucketDefs = CALIBRATION_BUCKET_BOUNDARIES;
 
   const buckets: CalibrationBucket[] = [];
   let totalCorrect = 0;
@@ -304,7 +365,7 @@ export function computeCalibration(
 
     totalCorrect += wins;
 
-    if (ece < 0.1) {
+    if (ece < CALIBRATION_WELL_CALIBRATED_THRESHOLD) {
       wellCalibrated += inBucket.length;
     } else if (winRate < expectedWinRate) {
       overconfident += inBucket.length;
