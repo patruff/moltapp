@@ -17,7 +17,7 @@
  * Production would persist to DynamoDB.
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -274,26 +274,14 @@ export function getSlippageStats(since?: Date): SlippageStats {
   // 24-hour stats
   const now24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const last24h = filtered.filter((r) => new Date(r.timestamp) >= now24h);
-  const avg24h =
-    last24h.length > 0
-      ? last24h.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) /
-        last24h.length
-      : 0;
+  const avg24h = averageByKey(last24h, 'slippageBps', Math.abs);
 
   // Trend: compare first half vs second half average slippage
   const halfIdx = Math.floor(filtered.length / 2);
   const firstHalf = filtered.slice(halfIdx);
   const secondHalf = filtered.slice(0, halfIdx);
-  const firstAvg =
-    firstHalf.length > 0
-      ? firstHalf.reduce((s, r) => s + Math.abs(r.slippageBps), 0) /
-        firstHalf.length
-      : 0;
-  const secondAvg =
-    secondHalf.length > 0
-      ? secondHalf.reduce((s, r) => s + Math.abs(r.slippageBps), 0) /
-        secondHalf.length
-      : 0;
+  const firstAvg = averageByKey(firstHalf, 'slippageBps', Math.abs);
+  const secondAvg = averageByKey(secondHalf, 'slippageBps', Math.abs);
   const trendBps = Math.round(secondAvg - firstAvg);
 
   return {
@@ -342,9 +330,7 @@ export function getAgentSlippageProfiles(): AgentSlippageProfile[] {
       0,
     );
     const favorableCount = agentRecords.filter((r) => r.favorable).length;
-    const avgBps =
-      agentRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) /
-      agentRecords.length;
+    const avgBps = averageByKey(agentRecords, 'slippageBps', Math.abs);
 
     // Find worst and best slippage
     const sorted = [...agentRecords].sort(
@@ -404,24 +390,14 @@ export function getStockSlippageProfiles(): StockSlippageProfile[] {
       (sum, r) => sum + r.totalImpactUsd,
       0,
     );
-    const avgBps =
-      stockRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) /
-      stockRecords.length;
+    const avgBps = averageByKey(stockRecords, 'slippageBps', Math.abs);
     const maxBps = Math.max(...stockRecords.map((r) => Math.abs(r.slippageBps)));
 
     const buys = stockRecords.filter((r) => r.action === "buy");
     const sells = stockRecords.filter((r) => r.action === "sell");
 
-    const buyBps =
-      buys.length > 0
-        ? buys.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) /
-          buys.length
-        : 0;
-    const sellBps =
-      sells.length > 0
-        ? sells.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) /
-          sells.length
-        : 0;
+    const buyBps = averageByKey(buys, 'slippageBps', Math.abs);
+    const sellBps = averageByKey(sells, 'slippageBps', Math.abs);
 
     // By hour of day
     const byHour: Record<number, { total: number; count: number }> = {};

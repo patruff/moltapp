@@ -13,7 +13,7 @@
  * 6. AGGREGATED CHAIN QUALITY SCORE: Overall chain integrity metric
  */
 
-import { normalize, round2 } from "../lib/math-utils.ts";
+import { normalize, round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -786,8 +786,8 @@ export function getChainValidationPillarScore(agentId: string): number {
   const history = agentChainHistory.get(agentId);
   if (!history || history.length === 0) return 0.5;
 
-  const avgQuality = history.reduce((sum, r) => sum + r.chainQualityScore, 0) / history.length;
-  const avgEvidence = history.reduce((sum, r) => sum + r.avgStepEvidence, 0) / history.length;
+  const avgQuality = averageByKey(history, 'chainQualityScore');
+  const avgEvidence = averageByKey(history, 'avgStepEvidence');
 
   const totalDefects = history.reduce((sum, r) => sum + r.defects.length, 0);
   const totalSteps = history.reduce((sum, r) => sum + r.stepCount, 0);
@@ -815,8 +815,8 @@ export function getAllChainProfiles(): Record<
   for (const [agentId, history] of agentChainHistory.entries()) {
     if (history.length === 0) continue;
 
-    const avgQuality = history.reduce((sum, r) => sum + r.chainQualityScore, 0) / history.length;
-    const avgEvidence = history.reduce((sum, r) => sum + r.avgStepEvidence, 0) / history.length;
+    const avgQuality = averageByKey(history, 'chainQualityScore');
+    const avgEvidence = averageByKey(history, 'avgStepEvidence');
 
     const totalDefects = history.reduce((sum, r) => sum + r.defects.length, 0);
     const totalSteps = history.reduce((sum, r) => sum + r.stepCount, 0);
