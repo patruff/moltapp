@@ -2786,7 +2786,7 @@ async function executeTradingRound(
       );
 
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
-      const intent = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
 
       const grade = gradeTradeV33({
         agentId: r.agentId,
@@ -2869,7 +2869,7 @@ async function executeTradingRound(
       );
 
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
-      const intent = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
       const peerReasonings = allReasonings.filter((_: string, i: number) => results[i].agentId !== r.agentId);
 
       const grade = gradeTradeV35({
@@ -2953,7 +2953,7 @@ async function executeTradingRound(
       );
 
       const sourcesV36 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
-      const intentV36 = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const intentV36 = d.intent ?? classifyIntent(d.reasoning, d.action);
       const peerReasoningsV36 = allReasoningsV36.filter((_: string, i: number) => results[i].agentId !== r.agentId);
 
       const gradeV36 = gradeTradeV36({
@@ -3037,7 +3037,7 @@ async function executeTradingRound(
       );
 
       const sourcesV37 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
-      const intentV37 = d.intent ?? classifyIntent(d.action, d.reasoning);
+      const intentV37 = d.intent ?? classifyIntent(d.reasoning, d.action);
       const peerReasoningsV37 = allReasoningsV37.filter((_: string, i: number) => results[i].agentId !== r.agentId);
 
       const gradeV37 = gradeTradeV37({
