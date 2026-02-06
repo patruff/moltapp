@@ -17,7 +17,7 @@
  * those that apply rigid heuristics regardless of context.
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -192,17 +192,6 @@ function countKeywordMatches(
   }
 
   return { totalHits, uniqueHits };
-}
-
-/**
- * Compute standard deviation of an array of numbers.
- */
-function stdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance =
-    values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
 }
 
 /**

@@ -177,3 +177,24 @@ export function calculateAverage<T extends Record<string, any>>(
 export function normalize(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
+
+/**
+ * Computes the arithmetic mean of a number array.
+ * Returns 0 for empty arrays.
+ */
+export function mean(values: number[]): number {
+  return values.length > 0
+    ? values.reduce((s, v) => s + v, 0) / values.length
+    : 0;
+}
+
+/**
+ * Computes the population standard deviation of a number array.
+ * Returns 0 for arrays with fewer than 2 elements.
+ */
+export function stdDev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const avg = mean(values);
+  const variance = values.reduce((s, v) => s + (v - avg) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}

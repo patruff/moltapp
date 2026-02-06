@@ -17,7 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { clamp, round3 } from "../lib/math-utils.ts";
+import { clamp, mean, round3 } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
@@ -78,11 +78,6 @@ export function recordComparisonEntry(entry: ComparisonEntry): void {
 // Statistical Helpers
 // ---------------------------------------------------------------------------
 
-/** Arithmetic mean of an array. Returns 0 for empty arrays. */
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((s, v) => s + v, 0) / values.length;
-}
 
 /** Sample variance (Bessel-corrected, n-1 denominator). */
 function variance(values: number[]): number {

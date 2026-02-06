@@ -15,6 +15,8 @@
  * This is the data science backbone of MoltApp's benchmark.
  */
 
+import { mean } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -476,9 +478,6 @@ function inferProvider(agentId: string): string {
   return "unknown";
 }
 
-function mean(values: number[]): number {
-  return values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
-}
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;

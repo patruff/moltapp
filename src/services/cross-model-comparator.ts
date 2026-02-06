@@ -116,6 +116,8 @@ const roundComparisons: RoundComparisonResult[] = [];
 // Helpers
 // ---------------------------------------------------------------------------
 
+import { mean, stdDev } from "../lib/math-utils.ts";
+
 function tokenize(text: string): string[] {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
 }
@@ -136,18 +138,6 @@ function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
   }
   const union = a.size + b.size - intersection;
   return union === 0 ? 0 : intersection / union;
-}
-
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  return values.reduce((s, v) => s + v, 0) / values.length;
-}
-
-function stdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const m = mean(values);
-  const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
 }
 
 // ---------------------------------------------------------------------------

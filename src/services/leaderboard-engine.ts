@@ -18,7 +18,7 @@
  * Rankings are updated in real-time as trades are scored.
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { mean, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -350,12 +350,12 @@ export function getLeaderboard(options?: {
     const recentN = Math.min(relevantScores.length, state.coherenceHistory.length);
     const slice = <T>(arr: T[]) => arr.slice(-recentN);
 
-    const avgCoherence = avg(slice(state.coherenceHistory));
-    const halRate = avg(slice(state.hallucinationHistory));
-    const discRate = avg(slice(state.disciplineHistory));
-    const avgCalibration = avg(slice(state.calibrationHistory));
-    const winRate = avg(slice(state.outcomeHistory));
-    const avgPnl = avg(slice(state.pnlHistory));
+    const avgCoherence = mean(slice(state.coherenceHistory));
+    const halRate = mean(slice(state.hallucinationHistory));
+    const discRate = mean(slice(state.disciplineHistory));
+    const avgCalibration = mean(slice(state.calibrationHistory));
+    const winRate = mean(slice(state.outcomeHistory));
+    const avgPnl = mean(slice(state.pnlHistory));
 
     // Sharpe ratio estimate (simplified)
     const pnlSlice = slice(state.pnlHistory);
@@ -516,16 +516,11 @@ export function getAgentLeaderboardDetail(agentId: string): {
 // Utility Functions
 // ---------------------------------------------------------------------------
 
-function avg(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  return arr.reduce((s, v) => s + v, 0) / arr.length;
-}
-
 function sharpeRatio(returns: number[]): number {
   if (returns.length < 3) return 0;
-  const mean = avg(returns);
-  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+  const m = mean(returns);
+  const variance = returns.reduce((s, r) => s + (r - m) ** 2, 0) / returns.length;
   const stdDev = Math.sqrt(variance);
   if (stdDev === 0) return 0;
-  return mean / stdDev;
+  return m / stdDev;
 }

@@ -16,6 +16,8 @@
  * and gets exported to HuggingFace.
  */
 
+import { normalize } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -198,12 +200,6 @@ function invertRate(rate: number): number {
   return 1 - Math.min(1, Math.max(0, rate));
 }
 
-/**
- * Clamp to [0, 1].
- */
-function clamp01(v: number): number {
-  return Math.min(1, Math.max(0, v));
-}
 
 // ---------------------------------------------------------------------------
 // Composite Score Computation
@@ -216,10 +212,10 @@ export function normalizeFactors(factors: RankingFactors): Record<string, number
   return {
     pnlPercent: normalizePnl(factors.pnlPercent),
     sharpeRatio: normalizeSharpe(factors.sharpeRatio),
-    coherence: clamp01(factors.coherence),
+    coherence: normalize(factors.coherence),
     hallucinationRate: invertRate(factors.hallucinationRate),
-    disciplineRate: clamp01(factors.disciplineRate),
-    calibration: clamp01(factors.calibration),
+    disciplineRate: normalize(factors.disciplineRate),
+    calibration: normalize(factors.calibration),
   };
 }
 

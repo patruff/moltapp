@@ -19,6 +19,8 @@
  * All computations are in-memory from recorded return samples. No DB required.
  */
 
+import { mean } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -181,17 +183,6 @@ const samplesByRound = new Map<string, AgentReturnSample[]>();
 // ---------------------------------------------------------------------------
 // Internal Helpers — Statistics
 // ---------------------------------------------------------------------------
-
-/**
- * Compute the arithmetic mean of an array of numbers.
- * Returns 0 for an empty array.
- */
-function mean(values: number[]): number {
-  if (values.length === 0) return 0;
-  let sum = 0;
-  for (const v of values) sum += v;
-  return sum / values.length;
-}
 
 /**
  * Compute sample variance with Bessel's correction (N-1 denominator).

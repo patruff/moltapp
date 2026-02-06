@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords, round3 } from "../lib/math-utils.ts";
+import { countWords, normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,7 +141,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     nonHold.length > 0
       ? nonHold.reduce((s, t) => s + Math.min(1, t.confidence > 1 ? t.confidence / 100 : t.confidence), 0) / nonHold.length
       : 0.5;
-  const riskAppetite = clamp01(avgConfidence);
+  const riskAppetite = normalize(avgConfidence);
 
   // 2. Conviction: relative trade sizes (normalized by max)
   const quantities = nonHold.map((t) => t.quantity);
@@ -150,11 +150,11 @@ export function computeDNA(agentId: string): StrategyDNA {
     quantities.length > 0
       ? quantities.reduce((s, q) => s + q / maxQty, 0) / quantities.length
       : 0.5;
-  const conviction = clamp01(avgRelativeSize);
+  const conviction = normalize(avgRelativeSize);
 
   // 3. Patience: hold rate
   const holdRate = trades.filter((t) => t.action === "hold").length / trades.length;
-  const patience = clamp01(holdRate);
+  const patience = normalize(holdRate);
 
   // 4. Sector Concentration: Herfindahl index of symbols traded
   const symbolCounts: Record<string, number> = {};
@@ -166,7 +166,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     (s, c) => s + Math.pow(c / total, 2),
     0,
   );
-  const sectorConcentration = clamp01(hhi);
+  const sectorConcentration = normalize(hhi);
 
   // 5. Contrarianism: how often agent goes opposite to peers
   let contrarianCount = 0;
@@ -185,7 +185,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     }
   }
   const contrarianism =
-    peerComparisons > 0 ? clamp01(contrarianCount / peerComparisons) : 0.5;
+    peerComparisons > 0 ? normalize(contrarianCount / peerComparisons) : 0.5;
 
   // 6. Adaptability: variance in intent distribution across time halves
   const half = Math.floor(trades.length / 2);
@@ -206,13 +206,13 @@ export function computeDNA(agentId: string): StrategyDNA {
   for (const intent of allIntents) {
     intentShift += Math.abs((dist1[intent] ?? 0) - (dist2[intent] ?? 0));
   }
-  const adaptability = clamp01(intentShift / 2); // normalize
+  const adaptability = normalize(intentShift / 2); // normalize
 
   // 7. Reasoning Depth: average word count / 200 (200 words = 1.0)
   const avgWordCount =
     trades.reduce((s, t) => s + countWords(t.reasoning), 0) /
     trades.length;
-  const reasoningDepth = clamp01(avgWordCount / 200);
+  const reasoningDepth = normalize(avgWordCount / 200);
 
   // 8. Confidence Accuracy: correlation between confidence and coherence
   const confCoherencePairs = trades
@@ -243,7 +243,7 @@ export function computeDNA(agentId: string): StrategyDNA {
 
     const denom = Math.sqrt(varConf * varCoh);
     if (denom > 0) {
-      confidenceAccuracy = clamp01((covariance / denom + 1) / 2); // map [-1,1] to [0,1]
+      confidenceAccuracy = normalize((covariance / denom + 1) / 2); // map [-1,1] to [0,1]
     }
   }
 
@@ -265,7 +265,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     0,
   );
   const maxEntropy = Math.log2(Math.max(intentProbs.length, 2));
-  const consistency = clamp01(1 - (maxEntropy > 0 ? entropy / maxEntropy : 0));
+  const consistency = normalize(1 - (maxEntropy > 0 ? entropy / maxEntropy : 0));
 
   const dna: StrategyDNA = {
     agentId,
@@ -432,8 +432,4 @@ export function detectStyleDrift(agentId: string): {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function clamp01(v: number): number {
-  return Math.min(1, Math.max(0, v));
-}
 

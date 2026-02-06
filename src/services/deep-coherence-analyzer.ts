@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { round3, splitSentences } from "../lib/math-utils.ts";
+import { mean, round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -453,12 +453,12 @@ export function getAgentDeepCoherenceStats(agentId: string) {
 
   // Compute dimension averages
   const dimAvgs = {
-    logicalStructure: avg(history.map((r) => r.dimensions.logicalStructure.score)),
-    evidenceGrounding: avg(history.map((r) => r.dimensions.evidenceGrounding.score)),
-    riskAwareness: avg(history.map((r) => r.dimensions.riskAwareness.score)),
-    temporalReasoning: avg(history.map((r) => r.dimensions.temporalReasoning.score)),
-    counterfactualThinking: avg(history.map((r) => r.dimensions.counterfactualThinking.score)),
-    quantitativeRigor: avg(history.map((r) => r.dimensions.quantitativeRigor.score)),
+    logicalStructure: mean(history.map((r) => r.dimensions.logicalStructure.score)),
+    evidenceGrounding: mean(history.map((r) => r.dimensions.evidenceGrounding.score)),
+    riskAwareness: mean(history.map((r) => r.dimensions.riskAwareness.score)),
+    temporalReasoning: mean(history.map((r) => r.dimensions.temporalReasoning.score)),
+    counterfactualThinking: mean(history.map((r) => r.dimensions.counterfactualThinking.score)),
+    quantitativeRigor: mean(history.map((r) => r.dimensions.quantitativeRigor.score)),
   };
 
   // Count strength/weakness frequency
@@ -498,6 +498,3 @@ export function getAllAgentsDeepCoherenceStats() {
   return agents.map((agentId) => getAgentDeepCoherenceStats(agentId));
 }
 
-function avg(nums: number[]): number {
-  return nums.length > 0 ? Math.round((nums.reduce((s, v) => s + v, 0) / nums.length) * 100) / 100 : 0;
-}

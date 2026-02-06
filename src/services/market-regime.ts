@@ -13,6 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
+import { stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -245,16 +246,6 @@ function sma(prices: number[], period: number): number {
   if (prices.length === 0) return 0;
   const slice = prices.slice(-period);
   return slice.reduce((s, p) => s + p, 0) / slice.length;
-}
-
-/**
- * Calculate standard deviation of a numeric series.
- */
-function stdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1);
-  return Math.sqrt(variance);
 }
 
 /**

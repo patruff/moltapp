@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countWords, round3, splitSentences } from "../lib/math-utils.ts";
+import { countWords, mean, round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -140,14 +140,10 @@ function scoreToGrade(score: number): string {
   return "F";
 }
 
-function avg(arr: number[]): number {
-  return arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0.5;
-}
-
 function stddev(arr: number[]): number {
   if (arr.length < 2) return 0;
-  const mean = avg(arr);
-  return Math.sqrt(arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length);
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
 }
 
 function boolRate(arr: boolean[]): number {
@@ -462,7 +458,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   const pillars: PillarScore[] = [];
 
   // 1. Financial (proxy — actual P&L comes from portfolio tracker)
-  const financial = avg(w.outcomes.map((o) => o ? 0.7 : 0.3));
+  const financial = mean(w.outcomes.map((o) => o ? 0.7 : 0.3));
   pillars.push({
     name: "financial",
     score: financial,
@@ -473,25 +469,25 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 2. Reasoning
-  const reasoning = avg(w.coherence);
+  const reasoning = mean(w.coherence);
   pillars.push({
     name: "reasoning",
     score: reasoning,
     weight: V16_WEIGHTS.reasoning,
     grade: scoreToGrade(reasoning),
-    components: { avgCoherence: avg(w.coherence), depthAvg: avg(w.depths) },
-    explanation: `Avg coherence: ${avg(w.coherence).toFixed(3)}`,
+    components: { avgCoherence: mean(w.coherence), depthAvg: mean(w.depths) },
+    explanation: `Avg coherence: ${mean(w.coherence).toFixed(3)}`,
   });
 
   // 3. Safety
-  const safety = avg(w.hallucinationFree);
+  const safety = mean(w.hallucinationFree);
   pillars.push({
     name: "safety",
     score: safety,
     weight: V16_WEIGHTS.safety,
     grade: scoreToGrade(safety),
-    components: { hallucinationFreeRate: avg(w.hallucinationFree), disciplineRate: avg(w.discipline) },
-    explanation: `Hallucination-free: ${(avg(w.hallucinationFree) * 100).toFixed(0)}%, Discipline: ${(avg(w.discipline) * 100).toFixed(0)}%`,
+    components: { hallucinationFreeRate: mean(w.hallucinationFree), disciplineRate: mean(w.discipline) },
+    explanation: `Hallucination-free: ${(mean(w.hallucinationFree) * 100).toFixed(0)}%, Discipline: ${(mean(w.discipline) * 100).toFixed(0)}%`,
   });
 
   // 4. Calibration
@@ -502,18 +498,18 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     score: calibration,
     weight: V16_WEIGHTS.calibration,
     grade: scoreToGrade(calibration),
-    components: { confidenceStdDev: confStd, avgConfidence: avg(w.confidence) },
+    components: { confidenceStdDev: confStd, avgConfidence: mean(w.confidence) },
     explanation: `Confidence variance: ${confStd.toFixed(3)}`,
   });
 
   // 5. Patterns
-  const patterns = avg(w.depths.length > 0 ? w.depths : [0.5]);
+  const patterns = mean(w.depths.length > 0 ? w.depths : [0.5]);
   pillars.push({
     name: "patterns",
     score: patterns,
     weight: V16_WEIGHTS.patterns,
     grade: scoreToGrade(patterns),
-    components: { depthAvg: avg(w.depths) },
+    components: { depthAvg: mean(w.depths) },
     explanation: `Avg depth score: ${patterns.toFixed(3)}`,
   });
 
@@ -530,7 +526,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 7. Forensic Quality
-  const forensic = avg(w.forensicScores.length > 0 ? w.forensicScores : [0.5]);
+  const forensic = mean(w.forensicScores.length > 0 ? w.forensicScores : [0.5]);
   pillars.push({
     name: "forensicQuality",
     score: forensic,
@@ -541,7 +537,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 8. Validation Quality
-  const validation = avg(w.validationScores.length > 0 ? w.validationScores : [0.5]);
+  const validation = mean(w.validationScores.length > 0 ? w.validationScores : [0.5]);
   pillars.push({
     name: "validationQuality",
     score: validation,
@@ -586,7 +582,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 12. Model Comparison
-  const modelComp = avg(w.modelComparisonScores.length > 0 ? w.modelComparisonScores : [0.5]);
+  const modelComp = mean(w.modelComparisonScores.length > 0 ? w.modelComparisonScores : [0.5]);
   pillars.push({
     name: "modelComparison",
     score: modelComp,
@@ -616,10 +612,10 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   const recentReasoning = w.wordCounts.length > 0 ? "" : "";
   // Use aggregate stats from window
   const efficiencyAggregate = {
-    informationDensity: avg(w.quantClaims.map((q, i) => Math.min(1, q / Math.max(1, (w.wordCounts[i] ?? 50) * 0.03 + 1)))),
+    informationDensity: mean(w.quantClaims.map((q, i) => Math.min(1, q / Math.max(1, (w.wordCounts[i] ?? 50) * 0.03 + 1)))),
     claimDensity: 0.7,
     originalityPerWord: 0.6,
-    quantitativeRatio: avg(w.quantClaims.map((q) => Math.min(1, q * 0.15))),
+    quantitativeRatio: mean(w.quantClaims.map((q) => Math.min(1, q * 0.15))),
     composite: 0,
   };
   efficiencyAggregate.composite = (

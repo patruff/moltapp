@@ -15,6 +15,8 @@
  * 7. Forensic Quality (Structure, Originality, Clarity, Cross-trade integrity)
  */
 
+import { mean } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -101,10 +103,6 @@ function pushMetric(arr: number[] | boolean[], val: number | boolean): void {
   if (arr.length > WINDOW_SIZE) arr.length = WINDOW_SIZE;
 }
 
-function avg(arr: number[]): number {
-  if (arr.length === 0) return 0;
-  return arr.reduce((s, v) => s + v, 0) / arr.length;
-}
 
 // ---------------------------------------------------------------------------
 // Recording (called by orchestrator)
@@ -159,9 +157,9 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Financial",
     weight: 0.20,
     components: {
-      pnl: normalizePnl(avg(m.pnl)),
-      sharpe: normalizeSharpe(avg(m.sharpe)),
-      winRate: avg(m.winRate),
+      pnl: normalizePnl(mean(m.pnl)),
+      sharpe: normalizeSharpe(mean(m.sharpe)),
+      winRate: mean(m.winRate),
     },
     score: 0,
     grade: "",
@@ -176,8 +174,8 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Reasoning",
     weight: 0.20,
     components: {
-      coherence: avg(m.coherence),
-      depth: avg(m.depth),
+      coherence: mean(m.coherence),
+      depth: mean(m.depth),
     },
     score: 0,
     grade: "",
@@ -192,8 +190,8 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Safety",
     weight: 0.15,
     components: {
-      hallucinationFree: avg(m.hallucinationFree),
-      discipline: avg(m.discipline),
+      hallucinationFree: mean(m.hallucinationFree),
+      discipline: mean(m.discipline),
     },
     score: 0,
     grade: "",
@@ -218,9 +216,9 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   const patterns: PillarScore = {
     name: "Patterns",
     weight: 0.10,
-    components: { patternQuality: avg(m.patternQuality) },
-    score: Math.round(avg(m.patternQuality) * 100) / 100,
-    grade: scoreToGrade(avg(m.patternQuality)),
+    components: { patternQuality: mean(m.patternQuality) },
+    score: Math.round(mean(m.patternQuality) * 100) / 100,
+    grade: scoreToGrade(mean(m.patternQuality)),
   };
 
   // Pillar 6: Adaptability (variance of coherence across different market conditions)
@@ -238,10 +236,10 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Forensic Quality",
     weight: 0.15,
     components: {
-      structure: avg(m.forensicStructure),
-      originality: avg(m.forensicOriginality),
-      clarity: avg(m.forensicClarity),
-      integrity: avg(m.forensicIntegrity),
+      structure: mean(m.forensicStructure),
+      originality: mean(m.forensicOriginality),
+      clarity: mean(m.forensicClarity),
+      integrity: mean(m.forensicIntegrity),
     },
     score: 0,
     grade: "",
@@ -380,12 +378,12 @@ function computeAdaptability(coherence: number[], pnl: number[]): number {
   if (coherence.length < 10) return 0.5;
 
   // Variance of coherence: lower variance = more consistent = higher adaptability
-  const mean = avg(coherence);
-  const variance = coherence.reduce((s, v) => s + (v - mean) ** 2, 0) / coherence.length;
-  const stdDev = Math.sqrt(variance);
+  const avg = mean(coherence);
+  const variance = coherence.reduce((s, v) => s + (v - avg) ** 2, 0) / coherence.length;
+  const sd = Math.sqrt(variance);
 
   // Consistency score: 1 - normalized std dev
-  return Math.max(0, Math.min(1, 1 - stdDev * 2));
+  return Math.max(0, Math.min(1, 1 - sd * 2));
 }
 
 function computeTrend(
@@ -396,8 +394,8 @@ function computeTrend(
   if (combined.length < 10) return "stable";
 
   const mid = Math.floor(combined.length / 2);
-  const recentAvg = avg(combined.slice(0, mid));
-  const olderAvg = avg(combined.slice(mid));
+  const recentAvg = mean(combined.slice(0, mid));
+  const olderAvg = mean(combined.slice(mid));
   const delta = recentAvg - olderAvg;
 
   if (delta > 0.05) return "improving";

@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { normalize, countWords, splitSentences } from "../lib/math-utils.ts";
+import { normalize, countWords, mean, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -656,11 +656,11 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
   ) / 100;
 
   const avgScores: PeerReviewScores = {
-    logicQuality: avg(reviews.map((r) => r.scores.logicQuality)),
-    evidenceUsage: avg(reviews.map((r) => r.scores.evidenceUsage)),
-    riskAwareness: avg(reviews.map((r) => r.scores.riskAwareness)),
-    originality: avg(reviews.map((r) => r.scores.originality)),
-    conclusionValidity: avg(reviews.map((r) => r.scores.conclusionValidity)),
+    logicQuality: mean(reviews.map((r) => r.scores.logicQuality)),
+    evidenceUsage: mean(reviews.map((r) => r.scores.evidenceUsage)),
+    riskAwareness: mean(reviews.map((r) => r.scores.riskAwareness)),
+    originality: mean(reviews.map((r) => r.scores.originality)),
+    conclusionValidity: mean(reviews.map((r) => r.scores.conclusionValidity)),
   };
 
   const agreements = reviews.filter((r) => r.wouldAgree).length;
@@ -688,8 +688,8 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
 
   // Review consistency: stddev of scores (lower = more consistent)
   const scores = reviews.map((r) => r.overallScore);
-  const mean = avgPeerScore;
-  const variance = scores.reduce((s, v) => s + (v - mean) ** 2, 0) / scores.length;
+  const m = avgPeerScore;
+  const variance = scores.reduce((s, v) => s + (v - m) ** 2, 0) / scores.length;
   const stddev = Math.sqrt(variance);
   const reviewConsistency = Math.round(Math.max(0, 1 - stddev * 2) * 100) / 100;
 
@@ -703,11 +703,6 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
     topWeakness,
     reviewConsistency,
   };
-}
-
-function avg(values: number[]): number {
-  if (values.length === 0) return 0;
-  return Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 100) / 100;
 }
 
 /**

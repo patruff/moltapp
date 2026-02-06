@@ -17,7 +17,7 @@
  * Uses sliding window analysis with configurable window sizes.
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { mean, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -184,9 +184,9 @@ export function analyzeDrift(
   // Compute per-window averages
   const windowAverages = windows.map((w) => ({
     windowStart: w[0].timestamp,
-    avgCoherence: avg(w.map((s) => s.coherenceScore)),
-    avgConfidence: avg(w.map((s) => s.confidence)),
-    avgWordCount: avg(w.map((s) => s.wordCount)),
+    avgCoherence: mean(w.map((s) => s.coherenceScore)),
+    avgConfidence: mean(w.map((s) => s.confidence)),
+    avgWordCount: mean(w.map((s) => s.wordCount)),
     hallucinationRate:
       w.filter((s) => s.hallucinationCount > 0).length / w.length,
     dominantIntent: mode(w.map((s) => s.intent)),
@@ -218,16 +218,16 @@ export function analyzeDrift(
     };
   }
 
-  const earlyAvgCoherence = avg(earlyWindows.map((w) => w.avgCoherence));
-  const recentAvgCoherence = avg(recentWindows.map((w) => w.avgCoherence));
+  const earlyAvgCoherence = mean(earlyWindows.map((w) => w.avgCoherence));
+  const recentAvgCoherence = mean(recentWindows.map((w) => w.avgCoherence));
   const qualityDrift = recentAvgCoherence - earlyAvgCoherence;
 
-  const earlyAvgConfidence = avg(earlyWindows.map((w) => w.avgConfidence));
-  const recentAvgConfidence = avg(recentWindows.map((w) => w.avgConfidence));
+  const earlyAvgConfidence = mean(earlyWindows.map((w) => w.avgConfidence));
+  const recentAvgConfidence = mean(recentWindows.map((w) => w.avgConfidence));
   const confidenceDrift = recentAvgConfidence - earlyAvgConfidence;
 
-  const earlyAvgWordCount = avg(earlyWindows.map((w) => w.avgWordCount));
-  const recentAvgWordCount = avg(recentWindows.map((w) => w.avgWordCount));
+  const earlyAvgWordCount = mean(earlyWindows.map((w) => w.avgWordCount));
+  const recentAvgWordCount = mean(recentWindows.map((w) => w.avgWordCount));
   const vocabularyDrift = Math.abs(recentAvgWordCount - earlyAvgWordCount) /
     Math.max(earlyAvgWordCount, 1);
 
@@ -243,8 +243,8 @@ export function analyzeDrift(
   const strategyDrift =
     union.size > 0 ? 1 - intersection.size / union.size : 0;
 
-  const earlyHallRate = avg(earlyWindows.map((w) => w.hallucinationRate));
-  const recentHallRate = avg(recentWindows.map((w) => w.hallucinationRate));
+  const earlyHallRate = mean(earlyWindows.map((w) => w.hallucinationRate));
+  const recentHallRate = mean(recentWindows.map((w) => w.hallucinationRate));
   const hallucinationDrift = recentHallRate - earlyHallRate;
 
   // Overall drift magnitude
@@ -400,10 +400,6 @@ export function getDriftAlerts(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function avg(arr: number[]): number {
-  return arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
-}
 
 function mode(arr: string[]): string {
   const counts: Record<string, number> = {};

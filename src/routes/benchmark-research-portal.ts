@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { mean, round4, stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
@@ -220,18 +221,18 @@ benchmarkResearchPortalRoutes.get("/compare", async (c) => {
         agent_id: agentId,
         trade_count: total,
         coherence: {
-          mean: r4(mean(cohValues)),
-          std: r4(std(cohValues)),
+          mean: round4(mean(cohValues)),
+          std: round4(stdDev(cohValues)),
         },
         confidence: {
-          mean: r4(mean(confValues)),
-          std: r4(std(confValues)),
+          mean: round4(mean(confValues)),
+          std: round4(stdDev(confValues)),
         },
-        hallucination_rate: total > 0 ? r4(halCount / total) : 0,
-        discipline_rate: total > 0 ? r4(discCount / total) : 1,
+        hallucination_rate: total > 0 ? round4(halCount / total) : 0,
+        discipline_rate: total > 0 ? round4(discCount / total) : 1,
         action_distribution: countBy(agentRecords, (r) => r.action),
         intent_distribution: countBy(agentRecords, (r) => r.intent),
-        avg_reasoning_length: r4(mean(agentRecords.map((r) => r.reasoning_word_count))),
+        avg_reasoning_length: round4(mean(agentRecords.map((r) => r.reasoning_word_count))),
       };
     }
 
@@ -247,7 +248,7 @@ benchmarkResearchPortalRoutes.get("/compare", async (c) => {
         pairwiseEffects.push({
           agent_a: agentIds[i],
           agent_b: agentIds[j],
-          cohens_d: r4(d),
+          cohens_d: round4(d),
           metric: "coherence",
         });
       }
@@ -300,9 +301,9 @@ benchmarkResearchPortalRoutes.get("/hypothesis", async (c) => {
       const sorted = [...values].sort((a, b) => a - b);
       groupStats[key] = {
         n: values.length,
-        mean: r4(mean(values)),
-        std: r4(std(values)),
-        median: r4(sorted[Math.floor(sorted.length / 2)] ?? 0),
+        mean: round4(mean(values)),
+        std: round4(stdDev(values)),
+        median: round4(sorted[Math.floor(sorted.length / 2)] ?? 0),
       };
     }
 
@@ -335,7 +336,7 @@ benchmarkResearchPortalRoutes.get("/hypothesis", async (c) => {
       group_by: groupBy,
       groups: groupStats,
       anova: {
-        f_statistic: r4(fStatistic),
+        f_statistic: round4(fStatistic),
         df_between: dfBetween,
         df_within: dfWithin,
         significant: fStatistic > 3.0, // Rough threshold for p<0.05
@@ -376,7 +377,7 @@ benchmarkResearchPortalRoutes.get("/correlation", async (c) => {
     for (const a of metrics) {
       matrix[a] = {};
       for (const b of metrics) {
-        matrix[a][b] = r4(pearsonCorrelation(vectors[a], vectors[b]));
+        matrix[a][b] = round4(pearsonCorrelation(vectors[a], vectors[b]));
       }
     }
 
@@ -452,20 +453,6 @@ benchmarkResearchPortalRoutes.get("/schema", (c) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function mean(values: number[]): number {
-  return values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0;
-}
-
-function std(values: number[]): number {
-  if (values.length < 2) return 0;
-  const m = mean(values);
-  const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
-
-function r4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
 
 function countBy<T>(items: T[], keyFn: (item: T) => string): Record<string, number> {
   const counts: Record<string, number> = {};

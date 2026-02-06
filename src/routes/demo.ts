@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -113,7 +114,7 @@ function tickPrice(symbol: string): number {
   if (current === undefined) return 0;
   // Random change between -0.5% and +0.5%
   const pctChange = (Math.random() - 0.5) * 0.01;
-  const newPrice = Math.round(current * (1 + pctChange) * 100) / 100;
+  const newPrice = round2(current * (1 + pctChange));
   simulatedPrices[symbol] = Math.max(0.01, newPrice);
   return simulatedPrices[symbol];
 }
@@ -146,9 +147,9 @@ function computePortfolio(session: DemoSession): {
       quantity: Math.round(pos.quantity * 1e6) / 1e6,
       avgCostBasis: pos.avgCostBasis,
       currentPrice,
-      marketValue: Math.round(marketValue * 100) / 100,
-      unrealizedPnl: Math.round(unrealizedPnl * 100) / 100,
-      unrealizedPnlPercent: Math.round(unrealizedPnlPercent * 100) / 100,
+      marketValue: round2(marketValue),
+      unrealizedPnl: round2(unrealizedPnl),
+      unrealizedPnlPercent: round2(unrealizedPnlPercent),
     });
 
     totalHoldingsValue += marketValue;
@@ -160,10 +161,10 @@ function computePortfolio(session: DemoSession): {
 
   return {
     holdings: holdings.sort((a, b) => b.marketValue - a.marketValue),
-    totalHoldingsValue: Math.round(totalHoldingsValue * 100) / 100,
-    totalValue: Math.round(totalValue * 100) / 100,
-    pnl: Math.round(pnl * 100) / 100,
-    pnlPercent: Math.round(pnlPercent * 100) / 100,
+    totalHoldingsValue: round2(totalHoldingsValue),
+    totalValue: round2(totalValue),
+    pnl: round2(pnl),
+    pnlPercent: round2(pnlPercent),
   };
 }
 
@@ -286,7 +287,7 @@ demoRoutes.get("/portfolio/:sessionId", (c) => {
     sessionId: session.id,
     displayName: session.displayName,
     createdAt: session.createdAt,
-    cash: Math.round(session.cash * 100) / 100,
+    cash: round2(session.cash),
     holdings: portfolio.holdings,
     totalHoldingsValue: portfolio.totalHoldingsValue,
     totalValue: portfolio.totalValue,

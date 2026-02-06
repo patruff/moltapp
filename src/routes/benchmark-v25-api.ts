@@ -12,6 +12,7 @@
  */
 
 import { Hono } from "hono";
+import { mean } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq } from "drizzle-orm";
@@ -174,9 +175,6 @@ export function recordV25Metrics(
   agentCache.set(agentData.agentId, existing);
 }
 
-function avg(arr: number[]): number {
-  return arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : 0;
-}
 
 function buildLeaderboard(): Array<V25CompositeScore & { agentId: string; rank: number; tradeCount: number }> {
   const entries: Array<V25CompositeScore & { agentId: string; rank: number; tradeCount: number }> = [];
@@ -184,15 +182,15 @@ function buildLeaderboard(): Array<V25CompositeScore & { agentId: string; rank: 
   for (const [agentId, data] of agentCache.entries()) {
     const score = computeV25CompositeScore({
       pnl: 0,
-      coherence: avg(data.coherence),
-      hallucinationFree: avg(data.hallucinationFreeRates),
-      discipline: avg(data.disciplineRates),
+      coherence: mean(data.coherence),
+      hallucinationFree: mean(data.hallucinationFreeRates),
+      discipline: mean(data.disciplineRates),
       calibration: 0.5,
       prediction: 0.5,
-      reasoningDepth: avg(data.depthScores),
-      sourceQuality: avg(data.sourceQualityScores),
-      outcomePrediction: avg(data.predictionScores),
-      consensusIntelligence: avg(data.consensusScores),
+      reasoningDepth: mean(data.depthScores),
+      sourceQuality: mean(data.sourceQualityScores),
+      outcomePrediction: mean(data.predictionScores),
+      consensusIntelligence: mean(data.consensusScores),
     });
     entries.push({ ...score, agentId, rank: 0, tradeCount: data.trades });
   }
@@ -375,15 +373,15 @@ benchmarkV25ApiRoutes.get("/agent/:id", async (c) => {
 
   const score = computeV25CompositeScore({
     pnl: 0,
-    coherence: avg(cached.coherence),
-    hallucinationFree: avg(cached.hallucinationFreeRates),
-    discipline: avg(cached.disciplineRates),
+    coherence: mean(cached.coherence),
+    hallucinationFree: mean(cached.hallucinationFreeRates),
+    discipline: mean(cached.disciplineRates),
     calibration: 0.5,
     prediction: 0.5,
-    reasoningDepth: avg(cached.depthScores),
-    sourceQuality: avg(cached.sourceQualityScores),
-    outcomePrediction: avg(cached.predictionScores),
-    consensusIntelligence: avg(cached.consensusScores),
+    reasoningDepth: mean(cached.depthScores),
+    sourceQuality: mean(cached.sourceQualityScores),
+    outcomePrediction: mean(cached.predictionScores),
+    consensusIntelligence: mean(cached.consensusScores),
   });
 
   return c.json({
