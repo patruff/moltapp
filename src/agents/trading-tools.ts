@@ -15,6 +15,7 @@ import {
   closeThesis,
 } from "../services/agent-theses.ts";
 import { computeIndicators } from "../services/market-aggregator.ts";
+import { computeAgentPerformance } from "../services/performance-tracker.ts";
 import type { agentTheses } from "../db/schema/agent-theses.ts";
 import type { InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG, USDC_MINT_MAINNET } from "../config/constants.ts";
@@ -316,8 +317,31 @@ export async function executeTool(
 // Tool Implementations
 // ---------------------------------------------------------------------------
 
-function executeGetPortfolio(ctx: ToolContext): string {
-  const { portfolio } = ctx;
+async function executeGetPortfolio(ctx: ToolContext): Promise<string> {
+  const { portfolio, agentId } = ctx;
+
+  // Fetch performance feedback so agents can self-correct
+  let performance: Record<string, unknown> = {};
+  try {
+    const perf = await computeAgentPerformance(agentId);
+    const confidenceGap =
+      perf.decisions.avgConfidence - perf.trading.winRate * 100;
+    performance = {
+      win_rate: perf.trading.winRate,
+      avg_win: perf.trading.avgWin,
+      avg_loss: perf.trading.avgLoss,
+      profit_factor: perf.trading.profitFactor,
+      current_streak: perf.trading.currentStreak,
+      total_trades: perf.trading.totalTrades,
+      avg_confidence: perf.decisions.avgConfidence,
+      overconfidence_warning:
+        perf.trading.totalTrades >= 5 && confidenceGap > 15,
+      confidence_gap: perf.trading.totalTrades >= 5 ? confidenceGap : null,
+    };
+  } catch {
+    // Graceful degradation - portfolio still works without performance data
+  }
+
   return JSON.stringify({
     cash_usdc: portfolio.cashBalance,
     total_portfolio_value: portfolio.totalValue,
@@ -332,6 +356,7 @@ function executeGetPortfolio(ctx: ToolContext): string {
       unrealized_pnl: p.unrealizedPnl,
       unrealized_pnl_percent: p.unrealizedPnlPercent,
     })),
+    performance,
   });
 }
 
