@@ -25,6 +25,236 @@ import type { AgentStats } from "../agents/base-agent.ts";
 import { round2, sumByKey, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Consensus Detection Thresholds
+ *
+ * These constants control when agents' collective decisions are classified
+ * as consensus signals worthy of attention.
+ */
+
+/**
+ * Minimum number of agents that must agree for a consensus signal to be valid.
+ * Set to 2 to ensure at least a pair of agents independently arrived at same conclusion.
+ * Higher values (3+) would require stronger consensus but reduce signal frequency.
+ */
+const CONSENSUS_MIN_AGENTS = 2;
+
+/**
+ * Maximum number of consensus signals to retain in history buffer.
+ * Prevents memory bloat while keeping recent patterns for analysis.
+ */
+const CONSENSUS_HISTORY_LIMIT = 200;
+
+/**
+ * Maximum number of contrarian alerts to retain in history buffer.
+ * Contrarian alerts are rarer than consensus, so smaller buffer is sufficient.
+ */
+const CONTRARIAN_HISTORY_LIMIT = 100;
+
+/**
+ * Default Accuracy Baselines
+ *
+ * These constants provide baseline accuracy estimates when historical data
+ * is unavailable or insufficient. Based on typical agent performance patterns.
+ */
+
+/**
+ * Baseline symbol-specific accuracy (%) when no historical data exists.
+ * Set to 50% (random) as starting point, with ±30% variance for simulation.
+ */
+const DEFAULT_SYMBOL_ACCURACY_BASE = 50;
+
+/**
+ * Variance range (%) for simulated symbol accuracy.
+ * Adds realistic spread: 50 ± 30 = [20%, 80%] accuracy range.
+ */
+const DEFAULT_SYMBOL_ACCURACY_RANGE = 30;
+
+/**
+ * Baseline overall win rate (%) across all agent decisions.
+ * Set to 40% as conservative estimate (better than random due to market trends).
+ */
+const DEFAULT_OVERALL_WIN_RATE_BASE = 40;
+
+/**
+ * Variance range (%) for simulated overall win rate.
+ * Adds realistic spread: 40 ± 30 = [10%, 70%] win rate range.
+ */
+const DEFAULT_OVERALL_WIN_RATE_RANGE = 30;
+
+/**
+ * Baseline historical accuracy (%) for new consensus signals.
+ * Set to 50% as starting point, with +25% variance for simulation.
+ */
+const DEFAULT_HISTORICAL_ACCURACY_BASE = 50;
+
+/**
+ * Variance range (%) for simulated consensus historical accuracy.
+ * Adds realistic spread: 50 + [0, 25] = [50%, 75%] accuracy range.
+ */
+const DEFAULT_HISTORICAL_ACCURACY_RANGE = 25;
+
+/**
+ * Baseline contrarian prediction accuracy (%) when agent bucks majority.
+ * Set to 35% as contrarians are often wrong (but valuable when right).
+ */
+const DEFAULT_CONTRARIAN_ACCURACY_BASE = 35;
+
+/**
+ * Variance range (%) for simulated contrarian accuracy.
+ * Adds realistic spread: 35 ± 30 = [5%, 65%] contrarian accuracy range.
+ */
+const DEFAULT_CONTRARIAN_ACCURACY_RANGE = 30;
+
+/**
+ * Platform-wide contrarian success rate baseline (%) for comparison.
+ * Set to 38% base with +15% variance = [38%, 53%] platform rate.
+ */
+const DEFAULT_PLATFORM_CONTRARIAN_BASE = 38;
+const DEFAULT_PLATFORM_CONTRARIAN_RANGE = 15;
+
+/**
+ * Swarm Scoring Multipliers
+ *
+ * These constants control how consensus confidence is adjusted to produce
+ * swarm intelligence scores (0-100).
+ */
+
+/**
+ * Minimum multiplier applied to swarm score calculation.
+ * Set to 0.7 to establish conservative lower bound for swarm confidence.
+ * Example: Strong consensus (90%) * 0.7 = 63 minimum swarm score.
+ */
+const SWARM_SCORE_MIN_MULTIPLIER = 0.7;
+
+/**
+ * Maximum random variance added to swarm score.
+ * Set to 0.3 to add realistic noise: final multiplier in [0.7, 1.0] range.
+ * Prevents artificially perfect scores and models real-world uncertainty.
+ */
+const SWARM_SCORE_MAX_VARIANCE = 0.3;
+
+/**
+ * Weight boost factor for weighted confidence calculation.
+ * Applied as: weightedConfidence = avgConfidence * (1 + agreementRatio * 0.2)
+ * Set to 0.2 so perfect agreement (100%) adds 20% confidence boost.
+ */
+const WEIGHTED_CONFIDENCE_BOOST_FACTOR = 0.2;
+
+/**
+ * Fallback multiplier for sample consensus swarm score calculation.
+ * Set to 0.85 to reduce simulated consensus scores slightly below real data.
+ * Models lower confidence when data is simulated vs actual agent decisions.
+ */
+const SAMPLE_CONSENSUS_ACCURACY_FALLBACK = 0.85;
+
+/**
+ * Boost multiplier for sample consensus weighted confidence.
+ * Set to 1.1 to add 10% boost when generating simulated consensus signals.
+ */
+const SAMPLE_CONSENSUS_WEIGHTED_BOOST = 1.1;
+
+/**
+ * Time Window Parameters
+ *
+ * These constants define lookback periods for various intelligence analyses.
+ */
+
+/**
+ * Hours to look back when fetching recent decisions for consensus detection.
+ * Set to 24 (1 day) to capture latest agent thinking without stale data.
+ */
+const RECENT_DECISIONS_HOURS = 24;
+
+/**
+ * Hours to look back when calculating agreement matrix between agents.
+ * Set to 168 (7 days) to get sufficient data for reliable agreement patterns.
+ */
+const AGREEMENT_MATRIX_HOURS = 168;
+
+/**
+ * Hours to look back when calculating collective momentum.
+ * Set to 48 (2 days) to balance recency with sufficient sample size.
+ */
+const COLLECTIVE_MOMENTUM_HOURS = 48;
+
+/**
+ * Maximum number of decisions to fetch per query.
+ * Prevents excessive memory usage while ensuring adequate data coverage.
+ */
+const MAX_DECISIONS_FETCH_LIMIT = 200;
+
+/**
+ * Agreement Matrix Simulation Parameters
+ *
+ * Constants for generating realistic agreement data when insufficient real data exists.
+ */
+
+/**
+ * Minimum simulated comparison count between agent pairs.
+ * Set to 15 as baseline for agreement rate calculations.
+ */
+const SIMULATED_COMPARISON_MIN = 15;
+
+/**
+ * Variance range for simulated comparison count.
+ * Adds realistic spread: 15 + [0, 20] = [15, 35] comparisons.
+ */
+const SIMULATED_COMPARISON_RANGE = 20;
+
+/**
+ * Base agreement rate (fraction) for simulated agent pairs.
+ * Set to 0.3 (30%) as starting point with +40% variance = [30%, 70%] range.
+ */
+const SIMULATED_AGREEMENT_BASE = 0.3;
+const SIMULATED_AGREEMENT_RANGE = 0.4;
+
+/**
+ * Base joint accuracy (fraction) when agents agree.
+ * Set to 0.5 (50%) with +30% variance = [50%, 80%] joint accuracy.
+ */
+const SIMULATED_JOINT_ACCURACY_BASE = 0.5;
+const SIMULATED_JOINT_ACCURACY_RANGE = 0.3;
+
+/**
+ * Threshold for detecting bullish vs neutral vs bearish agent mood.
+ * Set to 0.1 (10%) so buy/sell ratio must differ by >10% to classify mood.
+ * Example: If buyRatio - sellRatio > 0.1, agent is bullish.
+ */
+const AGENT_MOOD_THRESHOLD = 0.1;
+
+/**
+ * Momentum Score Classification Thresholds
+ *
+ * These constants define ranges for classifying overall swarm momentum.
+ * Score ranges from -100 (extreme bearish) to +100 (extreme bullish).
+ */
+
+/** Minimum score for "very_bullish" classification (60% bullish agents) */
+const MOMENTUM_VERY_BULLISH_THRESHOLD = 60;
+
+/** Minimum score for "bullish" classification (20% net bullish) */
+const MOMENTUM_BULLISH_THRESHOLD = 20;
+
+/** Range for "neutral" classification (±20% from zero) */
+const MOMENTUM_NEUTRAL_THRESHOLD = 20;
+
+/** Maximum score for "bearish" classification (-20% to -60%) */
+const MOMENTUM_BEARISH_THRESHOLD = -20;
+
+/** Below -60% is "very_bearish" (implied by thresholds above) */
+const MOMENTUM_VERY_BEARISH_THRESHOLD = -60;
+
+/**
+ * Threshold for "turning_bullish" or "turning_bearish" mood shift detection.
+ * Set to 50 so abs(momentumScore) > 50 indicates strong directional shift.
+ */
+const MOMENTUM_SHIFT_THRESHOLD = 50;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -193,7 +423,7 @@ const contrarianHistory: ContrarianAlert[] = [];
 // ---------------------------------------------------------------------------
 
 /** Fetch recent decisions from DB for all agents */
-async function fetchRecentDecisions(hours = 24) {
+async function fetchRecentDecisions(hours = RECENT_DECISIONS_HOURS) {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const decisions = await db
@@ -201,7 +431,7 @@ async function fetchRecentDecisions(hours = 24) {
     .from(agentDecisions)
     .where(gte(agentDecisions.createdAt, since))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(200);
+    .limit(MAX_DECISIONS_FETCH_LIMIT);
 
   return decisions;
 }
@@ -228,7 +458,7 @@ async function fetchSymbolDecisions(symbol: string, limit = 50) {
  */
 export async function detectConsensus(): Promise<ConsensusSignal[]> {
   const configs = getAgentConfigs();
-  const decisions = await fetchRecentDecisions(24);
+  const decisions = await fetchRecentDecisions(RECENT_DECISIONS_HOURS);
 
   if (decisions.length === 0) {
     // Generate sample consensus from agent configs when no real data
@@ -254,7 +484,7 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
       }
     }
 
-    if (latestByAgent.size < 2) continue;
+    if (latestByAgent.size < CONSENSUS_MIN_AGENTS) continue;
 
     // Count directions
     let bullish = 0;
@@ -277,8 +507,8 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
         action: decision.action as "buy" | "sell" | "hold",
         confidence: decision.confidence,
         reasoning: decision.reasoning,
-        symbolAccuracy: 50 + Math.random() * 30,
-        overallWinRate: 40 + Math.random() * 30,
+        symbolAccuracy: DEFAULT_SYMBOL_ACCURACY_BASE + Math.random() * DEFAULT_SYMBOL_ACCURACY_RANGE,
+        overallWinRate: DEFAULT_OVERALL_WIN_RATE_BASE + Math.random() * DEFAULT_OVERALL_WIN_RATE_RANGE,
         weight: 1 / latestByAgent.size,
       });
     }
@@ -287,10 +517,10 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
     let direction: ConsensusSignal["direction"];
     let agentsAgreeing: number;
 
-    if (bullish >= 2 && bullish >= bearish) {
+    if (bullish >= CONSENSUS_MIN_AGENTS && bullish >= bearish) {
       direction = "bullish";
       agentsAgreeing = bullish;
-    } else if (bearish >= 2 && bearish > bullish) {
+    } else if (bearish >= CONSENSUS_MIN_AGENTS && bearish > bullish) {
       direction = "bearish";
       agentsAgreeing = bearish;
     } else if (bullish === bearish && bullish > 0) {
@@ -316,7 +546,7 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
     // Swarm score = agreement * confidence * accuracy factor
     const agreementRatio = agentsAgreeing / totalAgents;
     const swarmScore = Math.round(
-      agreementRatio * avgConfidence * (0.7 + Math.random() * 0.3),
+      agreementRatio * avgConfidence * (SWARM_SCORE_MIN_MULTIPLIER + Math.random() * SWARM_SCORE_MAX_VARIANCE),
     );
 
     const signal: ConsensusSignal = {
@@ -326,11 +556,11 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
       agentsAgreeing,
       totalAgents,
       averageConfidence: Math.round(avgConfidence),
-      weightedConfidence: Math.round(avgConfidence * (1 + agreementRatio * 0.2)),
+      weightedConfidence: Math.round(avgConfidence * (1 + agreementRatio * WEIGHTED_CONFIDENCE_BOOST_FACTOR)),
       swarmScore,
       agentViews,
       timestamp: new Date().toISOString(),
-      historicalAccuracy: 50 + Math.random() * 25,
+      historicalAccuracy: DEFAULT_HISTORICAL_ACCURACY_BASE + Math.random() * DEFAULT_HISTORICAL_ACCURACY_RANGE,
     };
 
     signals.push(signal);
@@ -338,8 +568,8 @@ export async function detectConsensus(): Promise<ConsensusSignal[]> {
 
   // Store in history
   consensusHistory.push(...signals);
-  if (consensusHistory.length > 200) {
-    consensusHistory.splice(0, consensusHistory.length - 200);
+  if (consensusHistory.length > CONSENSUS_HISTORY_LIMIT) {
+    consensusHistory.splice(0, consensusHistory.length - CONSENSUS_HISTORY_LIMIT);
   }
 
   return signals.sort((a, b) => b.swarmScore - a.swarmScore);
@@ -372,8 +602,8 @@ function generateSampleConsensus(
         action,
         confidence: 40 + Math.floor(Math.random() * 50),
         reasoning: `${config.name} analysis of ${symbol} based on ${config.tradingStyle} methodology`,
-        symbolAccuracy: 45 + Math.floor(Math.random() * 30),
-        overallWinRate: 40 + Math.floor(Math.random() * 30),
+        symbolAccuracy: (DEFAULT_SYMBOL_ACCURACY_BASE - 5) + Math.floor(Math.random() * DEFAULT_SYMBOL_ACCURACY_RANGE),
+        overallWinRate: DEFAULT_OVERALL_WIN_RATE_BASE + Math.floor(Math.random() * DEFAULT_OVERALL_WIN_RATE_RANGE),
         weight: 1 / configs.length,
       };
     });
@@ -383,10 +613,10 @@ function generateSampleConsensus(
 
     let direction: ConsensusSignal["direction"];
     let agentsAgreeing: number;
-    if (bullish >= 2) {
+    if (bullish >= CONSENSUS_MIN_AGENTS) {
       direction = "bullish";
       agentsAgreeing = bullish;
-    } else if (bearish >= 2) {
+    } else if (bearish >= CONSENSUS_MIN_AGENTS) {
       direction = "bearish";
       agentsAgreeing = bearish;
     } else {
@@ -397,7 +627,7 @@ function generateSampleConsensus(
     const avgConf =
       agentViews.reduce((s, v) => s + v.confidence, 0) / agentViews.length;
     const swarmScore = Math.round(
-      (agentsAgreeing / configs.length) * avgConf * 0.85,
+      (agentsAgreeing / configs.length) * avgConf * SAMPLE_CONSENSUS_ACCURACY_FALLBACK,
     );
 
     signals.push({
@@ -407,11 +637,11 @@ function generateSampleConsensus(
       agentsAgreeing,
       totalAgents: configs.length,
       averageConfidence: Math.round(avgConf),
-      weightedConfidence: Math.round(avgConf * 1.1),
+      weightedConfidence: Math.round(avgConf * SAMPLE_CONSENSUS_WEIGHTED_BOOST),
       swarmScore,
       agentViews,
       timestamp: new Date().toISOString(),
-      historicalAccuracy: 50 + Math.floor(Math.random() * 25),
+      historicalAccuracy: DEFAULT_HISTORICAL_ACCURACY_BASE + Math.floor(Math.random() * DEFAULT_HISTORICAL_ACCURACY_RANGE),
     });
   }
 
@@ -448,8 +678,8 @@ export async function detectContrarians(): Promise<ContrarianAlert[]> {
           symbol: signal.symbol,
           reasoning: view.reasoning,
           confidence: view.confidence,
-          contrarianAccuracy: 35 + Math.floor(Math.random() * 30),
-          platformContrarianRate: 38 + Math.floor(Math.random() * 15),
+          contrarianAccuracy: DEFAULT_CONTRARIAN_ACCURACY_BASE + Math.floor(Math.random() * DEFAULT_CONTRARIAN_ACCURACY_RANGE),
+          platformContrarianRate: DEFAULT_PLATFORM_CONTRARIAN_BASE + Math.floor(Math.random() * DEFAULT_PLATFORM_CONTRARIAN_RANGE),
           timestamp: new Date().toISOString(),
         };
         alerts.push(alert);
@@ -458,8 +688,8 @@ export async function detectContrarians(): Promise<ContrarianAlert[]> {
   }
 
   contrarianHistory.push(...alerts);
-  if (contrarianHistory.length > 100) {
-    contrarianHistory.splice(0, contrarianHistory.length - 100);
+  if (contrarianHistory.length > CONTRARIAN_HISTORY_LIMIT) {
+    contrarianHistory.splice(0, contrarianHistory.length - CONTRARIAN_HISTORY_LIMIT);
   }
 
   return alerts;
@@ -474,7 +704,7 @@ export async function detectContrarians(): Promise<ContrarianAlert[]> {
  */
 export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> {
   const configs = getAgentConfigs();
-  const decisions = await fetchRecentDecisions(168); // Last 7 days
+  const decisions = await fetchRecentDecisions(AGREEMENT_MATRIX_HOURS); // Last 7 days
   const pairs: AgentAgreementPair[] = [];
 
   for (let i = 0; i < configs.length; i++) {
@@ -515,9 +745,9 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
 
       // If no real comparisons, generate reasonable defaults
       if (comparisons === 0) {
-        comparisons = 15 + Math.floor(Math.random() * 20);
-        agreements = Math.floor(comparisons * (0.3 + Math.random() * 0.4));
-        jointCorrect = Math.floor(agreements * (0.5 + Math.random() * 0.3));
+        comparisons = SIMULATED_COMPARISON_MIN + Math.floor(Math.random() * SIMULATED_COMPARISON_RANGE);
+        agreements = Math.floor(comparisons * (SIMULATED_AGREEMENT_BASE + Math.random() * SIMULATED_AGREEMENT_RANGE));
+        jointCorrect = Math.floor(agreements * (SIMULATED_JOINT_ACCURACY_BASE + Math.random() * SIMULATED_JOINT_ACCURACY_RANGE));
         currentAgreeing = Math.random() > 0.5;
         currentTopic = ["NVDAx", "TSLAx", "AAPLx", "SPYx"][
           Math.floor(Math.random() * 4)
@@ -563,7 +793,7 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
  */
 export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum> {
   const configs = getAgentConfigs();
-  const decisions = await fetchRecentDecisions(48); // Last 2 days
+  const decisions = await fetchRecentDecisions(COLLECTIVE_MOMENTUM_HOURS); // Last 2 days
 
   const agentMoods: CollectiveMomentum["agentMoods"] = [];
   let totalBullish = 0;
@@ -606,10 +836,10 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
     const holdRatio = holds / total;
 
     let mood: "bullish" | "neutral" | "bearish";
-    if (buyRatio > sellRatio + 0.1) {
+    if (buyRatio > sellRatio + AGENT_MOOD_THRESHOLD) {
       mood = "bullish";
       totalBullish++;
-    } else if (sellRatio > buyRatio + 0.1) {
+    } else if (sellRatio > buyRatio + AGENT_MOOD_THRESHOLD) {
       mood = "bearish";
       totalBearish++;
     } else {
@@ -675,15 +905,15 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
       : 0;
 
   let overallMood: CollectiveMomentum["overallMood"];
-  if (momentumScore > 60) overallMood = "very_bullish";
-  else if (momentumScore > 20) overallMood = "bullish";
-  else if (momentumScore > -20) overallMood = "neutral";
-  else if (momentumScore > -60) overallMood = "bearish";
+  if (momentumScore > MOMENTUM_VERY_BULLISH_THRESHOLD) overallMood = "very_bullish";
+  else if (momentumScore > MOMENTUM_BULLISH_THRESHOLD) overallMood = "bullish";
+  else if (momentumScore > MOMENTUM_BEARISH_THRESHOLD) overallMood = "neutral";
+  else if (momentumScore > MOMENTUM_VERY_BEARISH_THRESHOLD) overallMood = "bearish";
   else overallMood = "very_bearish";
 
   // Determine mood shift
   const moodShift: CollectiveMomentum["moodShift"] =
-    Math.abs(momentumScore) > 50
+    Math.abs(momentumScore) > MOMENTUM_SHIFT_THRESHOLD
       ? momentumScore > 0
         ? "turning_bullish"
         : "turning_bearish"
