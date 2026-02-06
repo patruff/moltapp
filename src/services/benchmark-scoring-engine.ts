@@ -20,6 +20,8 @@
  * - Statistical significance flags
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -309,36 +311,36 @@ function computeFactors(input: AgentFactorInputs): BenchmarkFactorScore[] {
     {
       name: "reasoning_coherence",
       raw: input.avgCoherence,
-      normalized: clamp(input.avgCoherence),
+      normalized: clamp(input.avgCoherence, 0, 1),
       weight: FACTOR_WEIGHTS.reasoning_coherence,
-      contribution: clamp(input.avgCoherence) * FACTOR_WEIGHTS.reasoning_coherence,
+      contribution: clamp(input.avgCoherence, 0, 1) * FACTOR_WEIGHTS.reasoning_coherence,
       percentile: 0,
       description: "Does the agent's logic match its trading action?",
     },
     {
       name: "hallucination_rate",
       raw: input.hallucinationRate,
-      normalized: clamp(1 - input.hallucinationRate), // Invert: lower rate = higher score
+      normalized: clamp(1 - input.hallucinationRate, 0, 1), // Invert: lower rate = higher score
       weight: FACTOR_WEIGHTS.hallucination_rate,
-      contribution: clamp(1 - input.hallucinationRate) * FACTOR_WEIGHTS.hallucination_rate,
+      contribution: clamp(1 - input.hallucinationRate, 0, 1) * FACTOR_WEIGHTS.hallucination_rate,
       percentile: 0,
       description: "Factual accuracy — lower hallucination rate is better",
     },
     {
       name: "instruction_discipline",
       raw: input.disciplineRate,
-      normalized: clamp(input.disciplineRate),
+      normalized: clamp(input.disciplineRate, 0, 1),
       weight: FACTOR_WEIGHTS.instruction_discipline,
-      contribution: clamp(input.disciplineRate) * FACTOR_WEIGHTS.instruction_discipline,
+      contribution: clamp(input.disciplineRate, 0, 1) * FACTOR_WEIGHTS.instruction_discipline,
       percentile: 0,
       description: "Compliance with position limits and trading rules",
     },
     {
       name: "confidence_calibration",
       raw: input.calibrationScore,
-      normalized: clamp(input.calibrationScore),
+      normalized: clamp(input.calibrationScore, 0, 1),
       weight: FACTOR_WEIGHTS.confidence_calibration,
-      contribution: clamp(input.calibrationScore) * FACTOR_WEIGHTS.confidence_calibration,
+      contribution: clamp(input.calibrationScore, 0, 1) * FACTOR_WEIGHTS.confidence_calibration,
       percentile: 0,
       description: "Self-awareness: is high confidence correlated with good outcomes?",
     },
@@ -351,16 +353,12 @@ function computeFactors(input: AgentFactorInputs): BenchmarkFactorScore[] {
 
 /** Normalize P&L: -50% maps to 0, +50% maps to 1, linear in between */
 function normalizePnl(pnl: number): number {
-  return clamp((pnl + 50) / 100);
+  return clamp((pnl + 50) / 100, 0, 1);
 }
 
 /** Normalize Sharpe: -2 maps to 0, +3 maps to 1 */
 function normalizeSharpe(sharpe: number): number {
-  return clamp((sharpe + 2) / 5);
-}
-
-function clamp(v: number): number {
-  return Math.max(0, Math.min(1, v));
+  return clamp((sharpe + 2) / 5, 0, 1);
 }
 
 function round(v: number): number {

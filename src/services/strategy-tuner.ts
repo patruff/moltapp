@@ -16,6 +16,8 @@
  * violate hard limits. This is optimization within safety constraints.
  */
 
+import { clamp } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -504,10 +506,6 @@ export function resetAgentAdjustments(agentId: string): void {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
 
 function buildAdjustment(
   agentId: string,
