@@ -22,6 +22,203 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { getTopEntry } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Conviction Spike Detection Thresholds
+ *
+ * Controls when high-confidence trades trigger whale alerts based on conviction level.
+ */
+
+/**
+ * Minimum confidence threshold to trigger conviction spike alert.
+ * Trades at or above this level show exceptionally high agent conviction.
+ */
+const CONVICTION_SPIKE_THRESHOLD = 85;
+
+/**
+ * Critical conviction threshold for maximum severity alerts.
+ * Trades at or above this level represent extreme conviction (top 1-2% of decisions).
+ */
+const CONVICTION_CRITICAL_THRESHOLD = 95;
+
+/**
+ * Position Size Multipliers
+ *
+ * Thresholds for detecting abnormally large position sizes relative to agent's baseline.
+ */
+
+/**
+ * Position size multiplier threshold for "large position" alerts.
+ * Triggers when trade size exceeds agent's average position size by this factor.
+ * Example: 2× means trade is double the typical size for this agent.
+ */
+const POSITION_SIZE_LARGE_MULTIPLIER = 2;
+
+/**
+ * Position size multiplier threshold for "critical" large position severity.
+ * Trades 5× larger than baseline represent outsized bets requiring maximum attention.
+ */
+const POSITION_SIZE_CRITICAL_MULTIPLIER = 5;
+
+/**
+ * Cross-Agent Convergence Thresholds
+ *
+ * Detects when multiple agents independently agree on the same action for a stock.
+ */
+
+/**
+ * Minimum number of agents required to trigger convergence alert.
+ * When 2+ agents agree on same stock + action, it signals potential consensus trade.
+ */
+const CONVERGENCE_MIN_AGENTS = 2;
+
+/**
+ * Number of agents for critical convergence severity.
+ * When 3+ agents converge, it represents strong cross-strategy alignment.
+ */
+const CONVERGENCE_CRITICAL_AGENTS = 3;
+
+/**
+ * Accumulation/Distribution Pattern Detection
+ *
+ * Identifies systematic buying or selling patterns over time for a single agent+symbol.
+ */
+
+/**
+ * Minimum number of trades required to classify as accumulation/distribution pattern.
+ * Prevents false positives from single trades or temporary fluctuations.
+ */
+const ACCUMULATION_MIN_TRADES = 3;
+
+/**
+ * Threshold for classifying directional bias in trading pattern.
+ * When 75%+ of trades are buys → accumulation, 75%+ sells → distribution.
+ */
+const ACCUMULATION_DIRECTION_THRESHOLD = 0.75;
+
+/**
+ * Smart Money Flow Analysis
+ *
+ * Parameters for analyzing net capital flows into/out of stocks and sectors.
+ */
+
+/**
+ * Default time window for smart money flow analysis (hours).
+ * 168 hours = 7 days of trading activity.
+ */
+const SMART_MONEY_FLOW_DEFAULT_HOURS = 168;
+
+/**
+ * Default time window for whale alerts (hours).
+ * 24 hours = recent activity only.
+ */
+const WHALE_ALERTS_DEFAULT_HOURS = 24;
+
+/**
+ * Net flow threshold for classifying inflow/outflow direction.
+ * |netFlow| > 50 = meaningful flow, < 50 = neutral.
+ */
+const FLOW_DIRECTION_THRESHOLD = 50;
+
+/**
+ * Net flow threshold for aggregate flow classification.
+ * |netFlow| > 100 = strong directional flow, < 100 = balanced.
+ */
+const AGGREGATE_FLOW_THRESHOLD = 100;
+
+/**
+ * Maximum number of alerts to return in whale activity summary.
+ * Prevents overwhelming users with excessive alerts.
+ */
+const ALERTS_DISPLAY_LIMIT = 50;
+
+/**
+ * Maximum number of decisions to fetch for baseline calculations.
+ * Provides statistical significance for agent behavior baselines.
+ */
+const BASELINE_DECISIONS_LIMIT = 1000;
+
+/**
+ * Maximum number of recent decisions to fetch for alert scanning.
+ * Limits query size while capturing sufficient recent activity.
+ */
+const RECENT_DECISIONS_LIMIT = 500;
+
+/**
+ * Conviction Interpretation Thresholds
+ *
+ * Classifies overall market conviction levels based on average agent confidence.
+ */
+
+/**
+ * High conviction threshold (>75%).
+ * Markets showing strong agent confidence — watch for crowded trades.
+ */
+const CONVICTION_HIGH_THRESHOLD = 75;
+
+/**
+ * Moderate conviction threshold (>60%).
+ * Reasonable confidence but no extreme certainty.
+ */
+const CONVICTION_MODERATE_THRESHOLD = 60;
+
+/**
+ * Low conviction threshold (>45%).
+ * Agents uncertain — expect more holds and smaller sizes.
+ */
+const CONVICTION_LOW_THRESHOLD = 45;
+
+/**
+ * Conviction Trend Detection
+ *
+ * Parameters for detecting changes in agent conviction over time.
+ */
+
+/**
+ * Minimum confidence point change to classify conviction trend as increasing/decreasing.
+ * Changes < 3 points are considered stable (normal variation).
+ */
+const CONVICTION_TREND_THRESHOLD = 3;
+
+/**
+ * Activity Level Classification
+ *
+ * Thresholds for classifying overall whale alert activity intensity.
+ */
+
+/**
+ * Maximum alerts for "quiet" activity level.
+ * ≤2 alerts = minimal whale activity.
+ */
+const ACTIVITY_QUIET_MAX = 2;
+
+/**
+ * Maximum alerts for "moderate" activity level.
+ * 3-5 alerts = normal whale activity.
+ */
+const ACTIVITY_MODERATE_MAX = 5;
+
+/**
+ * Maximum alerts for "elevated" activity level.
+ * 6-10 alerts = heightened whale activity.
+ */
+const ACTIVITY_ELEVATED_MAX = 10;
+
+/**
+ * Smart Money Flow Direction Multiplier
+ *
+ * Determines when bullish/bearish flow is strong enough to classify vs neutral.
+ */
+
+/**
+ * Multiplier for classifying strong directional flow.
+ * Bullish if netBullish > netBearish × 1.2, bearish if netBearish > netBullish × 1.2.
+ */
+const FLOW_STRENGTH_MULTIPLIER = 1.2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -165,7 +362,7 @@ const SECTOR_MAP: Record<string, string> = {
 /**
  * Scan recent agent decisions for whale-level moves and generate alerts.
  */
-export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
+export async function getWhaleAlerts(hours = WHALE_ALERTS_DEFAULT_HOURS): Promise<WhaleActivity> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   // Get all recent decisions
@@ -174,14 +371,14 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     .from(agentDecisions)
     .where(gte(agentDecisions.createdAt, since))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(500);
+    .limit(RECENT_DECISIONS_LIMIT);
 
   // Also get older decisions for comparison
   const olderDecisions = await db
     .select()
     .from(agentDecisions)
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(1000);
+    .limit(BASELINE_DECISIONS_LIMIT);
 
   // Get market data for context
   let marketData: MarketData[];
@@ -222,11 +419,11 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     const baseline = agentBaselines[d.agentId];
     const quantity = parseFloat(d.quantity) || 0;
 
-    // Alert 1: High conviction spike (confidence >= 85)
-    if (d.confidence >= 85 && d.action !== "hold") {
+    // Alert 1: High conviction spike (confidence >= threshold)
+    if (d.confidence >= CONVICTION_SPIKE_THRESHOLD && d.action !== "hold") {
       alerts.push(createAlert({
         type: "conviction_spike",
-        severity: d.confidence >= 95 ? "critical" : "significant",
+        severity: d.confidence >= CONVICTION_CRITICAL_THRESHOLD ? "critical" : "significant",
         decision: d,
         config,
         market,
@@ -236,10 +433,10 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     }
 
     // Alert 2: Large position (quantity significantly above average)
-    if (baseline && quantity > 0 && baseline.avgQuantity > 0 && quantity > baseline.avgQuantity * 2) {
+    if (baseline && quantity > 0 && baseline.avgQuantity > 0 && quantity > baseline.avgQuantity * POSITION_SIZE_LARGE_MULTIPLIER) {
       alerts.push(createAlert({
         type: "large_position",
-        severity: quantity > baseline.avgQuantity * 5 ? "critical" : "notable",
+        severity: quantity > baseline.avgQuantity * POSITION_SIZE_CRITICAL_MULTIPLIER ? "critical" : "notable",
         decision: d,
         config,
         market,
@@ -284,7 +481,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
   }
 
   for (const [key, agents] of Object.entries(symbolActionMap)) {
-    if (agents.length >= 2) {
+    if (agents.length >= CONVERGENCE_MIN_AGENTS) {
       const [symbol, action] = key.split(":");
       const market = marketData.find((m) => m.symbol.toLowerCase() === symbol.toLowerCase());
       const avgConf = agents.reduce((s, a) => s + a.confidence, 0) / agents.length;
@@ -292,7 +489,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
       alerts.push({
         id: `whale_conv_${alertCounter++}`,
         type: "convergence",
-        severity: agents.length >= 3 ? "critical" : "significant",
+        severity: agents.length >= CONVERGENCE_CRITICAL_AGENTS ? "critical" : "significant",
         agentId: agents[0].agentId,
         agentName: agents.map((a) => a.agentName).join(", "),
         provider: "multiple",
@@ -325,7 +522,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     const market = marketData.find((m) => m.symbol.toLowerCase() === symbol.toLowerCase());
     const total = counts.buys + counts.sells;
 
-    if (total >= 3 && counts.buys >= total * 0.75) {
+    if (total >= ACCUMULATION_MIN_TRADES && counts.buys >= total * ACCUMULATION_DIRECTION_THRESHOLD) {
       alerts.push({
         id: `whale_acc_${alertCounter++}`,
         type: "accumulation",
@@ -342,7 +539,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
         details: `Accumulation pattern: ${config.name} has ${counts.buys} buys vs ${counts.sells} sells on ${symbol} in last ${hours}h.`,
         marketContext: market ? { currentPrice: market.price, change24h: market.change24h } : null,
       });
-    } else if (total >= 3 && counts.sells >= total * 0.75) {
+    } else if (total >= ACCUMULATION_MIN_TRADES && counts.sells >= total * ACCUMULATION_DIRECTION_THRESHOLD) {
       alerts.push({
         id: `whale_dist_${alertCounter++}`,
         type: "distribution",
@@ -407,15 +604,15 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
   const topBearish = getTopEntry(bearishSymbols);
 
   let overallActivity: WhaleActivity["overallActivity"];
-  if (alerts.length <= 2) overallActivity = "quiet";
-  else if (alerts.length <= 5) overallActivity = "moderate";
-  else if (alerts.length <= 10) overallActivity = "elevated";
+  if (alerts.length <= ACTIVITY_QUIET_MAX) overallActivity = "quiet";
+  else if (alerts.length <= ACTIVITY_MODERATE_MAX) overallActivity = "moderate";
+  else if (alerts.length <= ACTIVITY_ELEVATED_MAX) overallActivity = "elevated";
   else overallActivity = "intense";
 
   const criticalCount = alertsBySeverity["critical"] ?? 0;
 
   return {
-    alerts: alerts.slice(0, 50),
+    alerts: alerts.slice(0, ALERTS_DISPLAY_LIMIT),
     alertsByType,
     alertsBySeverity,
     mostActiveWhale: mostActiveWhale
@@ -428,7 +625,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
     smartMoneyFlow: {
       netBullish: Math.round(netBullish),
       netBearish: Math.round(netBearish),
-      flowDirection: netBullish > netBearish * 1.2 ? "bullish" : netBearish > netBullish * 1.2 ? "bearish" : "neutral",
+      flowDirection: netBullish > netBearish * FLOW_STRENGTH_MULTIPLIER ? "bullish" : netBearish > netBullish * FLOW_STRENGTH_MULTIPLIER ? "bearish" : "neutral",
       topBullishSymbol: topBullish?.[0] ?? null,
       topBearishSymbol: topBearish?.[0] ?? null,
     },
@@ -443,7 +640,7 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
 /**
  * Track high-conviction trades across all agents.
  */
-export async function getConvictionTracker(minConfidence = 75): Promise<ConvictionTracker> {
+export async function getConvictionTracker(minConfidence = CONVICTION_HIGH_THRESHOLD): Promise<ConvictionTracker> {
   const decisions = await db
     .select()
     .from(agentDecisions)
@@ -455,7 +652,7 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
     .select()
     .from(agentDecisions)
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(1000);
+    .limit(BASELINE_DECISIONS_LIMIT);
 
   let marketData: MarketData[];
   try {
@@ -509,7 +706,7 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
       highConvictionRate: agentAll.length > 0
         ? Math.round((agentHigh.length / agentAll.length) * 10000) / 100
         : 0,
-      trend: avgSecond > avgFirst + 3 ? "increasing" : avgFirst > avgSecond + 3 ? "decreasing" : "stable",
+      trend: avgSecond > avgFirst + CONVICTION_TREND_THRESHOLD ? "increasing" : avgFirst > avgSecond + CONVICTION_TREND_THRESHOLD ? "decreasing" : "stable",
     };
   });
 
@@ -537,13 +734,13 @@ export async function getConvictionTracker(minConfidence = 75): Promise<Convicti
     : 0;
 
   let interpretation: string;
-  if (overallConviction > 75) interpretation = "Markets showing high conviction — agents are confident in their positions. Watch for potential crowded trades.";
-  else if (overallConviction > 60) interpretation = "Moderate conviction levels — agents have reasonable confidence but no extreme certainty.";
-  else if (overallConviction > 45) interpretation = "Low conviction environment — agents are uncertain. Expect more hold decisions and smaller position sizes.";
+  if (overallConviction > CONVICTION_HIGH_THRESHOLD) interpretation = "Markets showing high conviction — agents are confident in their positions. Watch for potential crowded trades.";
+  else if (overallConviction > CONVICTION_MODERATE_THRESHOLD) interpretation = "Moderate conviction levels — agents have reasonable confidence but no extreme certainty.";
+  else if (overallConviction > CONVICTION_LOW_THRESHOLD) interpretation = "Low conviction environment — agents are uncertain. Expect more hold decisions and smaller position sizes.";
   else interpretation = "Very low conviction — agents are highly uncertain. Minimal trading activity expected.";
 
   return {
-    highConvictionTrades: highConvictionTrades.slice(0, 50),
+    highConvictionTrades: highConvictionTrades.slice(0, ALERTS_DISPLAY_LIMIT),
     avgConvictionByAgent,
     convictionBySymbol: convictionBySymbol.slice(0, 15),
     overallConviction,
@@ -563,7 +760,7 @@ export async function getPositionHeatmap(): Promise<PositionHeatmap> {
     .select()
     .from(agentDecisions)
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(500);
+    .limit(RECENT_DECISIONS_LIMIT);
 
   const configs = getAgentConfigs();
   const agents = configs.map((c) => c.agentId);
@@ -624,7 +821,7 @@ export async function getPositionHeatmap(): Promise<PositionHeatmap> {
 /**
  * Analyze net flows of "smart money" (agent capital) into/out of stocks.
  */
-export async function getSmartMoneyFlow(hours = 168): Promise<SmartMoneyFlow> {
+export async function getSmartMoneyFlow(hours = SMART_MONEY_FLOW_DEFAULT_HOURS): Promise<SmartMoneyFlow> {
   const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
   const decisions = await db
@@ -632,7 +829,7 @@ export async function getSmartMoneyFlow(hours = 168): Promise<SmartMoneyFlow> {
     .from(agentDecisions)
     .where(gte(agentDecisions.createdAt, since))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(500);
+    .limit(RECENT_DECISIONS_LIMIT);
 
   let marketData: MarketData[];
   try {
@@ -682,7 +879,7 @@ export async function getSmartMoneyFlow(hours = 168): Promise<SmartMoneyFlow> {
       netFlow: Math.round(netFlow),
       buyVolume: Math.round(buyVolume),
       sellVolume: Math.round(sellVolume),
-      flowDirection: (netFlow > 50 ? "inflow" : netFlow < -50 ? "outflow" : "neutral") as "inflow" | "outflow" | "neutral",
+      flowDirection: (netFlow > FLOW_DIRECTION_THRESHOLD ? "inflow" : netFlow < -FLOW_DIRECTION_THRESHOLD ? "outflow" : "neutral") as "inflow" | "outflow" | "neutral",
       agentBreakdown,
       conviction,
     };
@@ -706,7 +903,7 @@ export async function getSmartMoneyFlow(hours = 168): Promise<SmartMoneyFlow> {
     .map(([sector, data]) => ({
       sector,
       netFlow: data.netFlow,
-      direction: data.netFlow > 50 ? "inflow" : data.netFlow < -50 ? "outflow" : "neutral",
+      direction: data.netFlow > FLOW_DIRECTION_THRESHOLD ? "inflow" : data.netFlow < -FLOW_DIRECTION_THRESHOLD ? "outflow" : "neutral",
       topSymbol: data.topSymbol,
     }))
     .sort((a, b) => Math.abs(b.netFlow) - Math.abs(a.netFlow));
@@ -728,7 +925,7 @@ export async function getSmartMoneyFlow(hours = 168): Promise<SmartMoneyFlow> {
       totalInflow: Math.round(totalInflow),
       totalOutflow: Math.round(totalOutflow),
       netFlow: Math.round(netFlowTotal),
-      direction: netFlowTotal > 100 ? "net_inflow" : netFlowTotal < -100 ? "net_outflow" : "balanced",
+      direction: netFlowTotal > AGGREGATE_FLOW_THRESHOLD ? "net_inflow" : netFlowTotal < -AGGREGATE_FLOW_THRESHOLD ? "net_outflow" : "balanced",
       strength: Math.min(100, Math.round(Math.abs(netFlowTotal) / 10)),
     },
     narrative: `Smart money flow over ${period}: ${topInflow ? `Strongest inflow into ${topInflow.symbol}.` : "No significant inflows."} ${topOutflow ? `Largest outflow from ${topOutflow.symbol}.` : "No significant outflows."} Overall direction: ${netFlowTotal > 0 ? "NET BULLISH" : netFlowTotal < 0 ? "NET BEARISH" : "BALANCED"}.`,
