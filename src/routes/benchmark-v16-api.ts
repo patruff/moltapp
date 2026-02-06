@@ -19,7 +19,7 @@
  */
 
 import { Hono } from "hono";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import {
   getAllV16Scores,
   getV16Score,

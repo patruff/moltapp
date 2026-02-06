@@ -24,7 +24,7 @@ import {
 } from "../services/analytics.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { apiError } from "../lib/errors.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -346,7 +346,7 @@ insightsRoutes.get("/:agentId/activity", async (c) => {
       summary: {
         peakHour: peakHour ? { hour: peakHour.hour, decisions: peakHour.decisions } : null,
         quietHour: quietHour ? { hour: quietHour.hour, decisions: quietHour.decisions } : null,
-        totalActiveHours: analytics.hourlyActivity.filter((h) => h.decisions > 0).length,
+        totalActiveHours: countByCondition(analytics.hourlyActivity, (h) => h.decisions > 0),
       },
     });
   } catch (error) {

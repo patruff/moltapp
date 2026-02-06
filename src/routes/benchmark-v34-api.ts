@@ -28,7 +28,7 @@ import {
   getBenchmarkVersion,
   type V34TradeGrade,
 } from "../services/v34-benchmark-engine.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 export const benchmarkV34ApiRoutes = new Hono();
 
@@ -226,10 +226,10 @@ benchmarkV34ApiRoutes.get("/traceability/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    excellent: scores.filter((s) => s >= 80).length,
-    good: scores.filter((s) => s >= 60 && s < 80).length,
-    moderate: scores.filter((s) => s >= 40 && s < 60).length,
-    weak: scores.filter((s) => s < 40).length,
+    excellent: countByCondition(scores, (s) => s >= 80),
+    good: countByCondition(scores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.reasoningTraceabilityScore - a.reasoningTraceabilityScore);
@@ -294,9 +294,9 @@ benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    resilient: scores.filter((s) => s >= 70).length,
-    moderate: scores.filter((s) => s >= 40 && s < 70).length,
-    fragile: scores.filter((s) => s < 40).length,
+    resilient: countByCondition(scores, (s) => s >= 70),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 70),
+    fragile: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.adversarialCoherenceScore - a.adversarialCoherenceScore);

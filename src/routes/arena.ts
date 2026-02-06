@@ -28,6 +28,7 @@ import {
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { desc, eq, sql, and } from "drizzle-orm";
+import { countByCondition } from "../lib/math-utils.ts";
 import { clamp } from "../lib/math-utils.ts";
 import { apiError } from "../lib/errors.ts";
 
@@ -134,9 +135,9 @@ arenaRoutes.post("/simulate", async (c) => {
         errors: result.errors,
         summary: {
           totalAgents: result.results.length,
-          buyCount: result.results.filter((r) => r.decision.action === "buy").length,
-          sellCount: result.results.filter((r) => r.decision.action === "sell").length,
-          holdCount: result.results.filter((r) => r.decision.action === "hold").length,
+          buyCount: countByCondition(result.results, (r) => r.decision.action === "buy"),
+          sellCount: countByCondition(result.results, (r) => r.decision.action === "sell"),
+          holdCount: countByCondition(result.results, (r) => r.decision.action === "hold"),
           avgConfidence: result.results.length > 0
             ? Math.round(
                 (result.results.reduce((s, r) => s + r.decision.confidence, 0) /
