@@ -21,6 +21,12 @@
  */
 
 // ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
+
+import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -413,7 +419,7 @@ function scoreConclusionValidity(
 
   // Check if reasoning length matches confidence
   const words = reasoning.split(/\s+/).length;
-  const normalizedConf = confidence > 1 ? confidence / 100 : confidence;
+  const normalizedConf = normalizeConfidence(confidence);
 
   // High confidence with short reasoning = suspicious
   if (normalizedConf > 0.8 && words < 20) {
@@ -491,7 +497,7 @@ function identifyStrengths(reasoning: string, _action: string): string[] {
 function identifyWeaknesses(reasoning: string, action: string, confidence: number): string[] {
   const weaknesses: string[] = [];
   const words = reasoning.split(/\s+/).length;
-  const normalizedConf = confidence > 1 ? confidence / 100 : confidence;
+  const normalizedConf = normalizeConfidence(confidence);
 
   if (words < 20) {
     weaknesses.push("Reasoning is too brief to be convincing");
@@ -530,7 +536,7 @@ function evaluateAgreement(
   // GPT (momentum) tends to agree with trend-following
   // Grok (contrarian) tends to disagree with consensus moves
 
-  const normalizedConf = confidence > 1 ? confidence / 100 : confidence;
+  const normalizedConf = normalizeConfidence(confidence);
   const hasEvidence = /\$\d+\.?\d*|\d+\.?\d*%/i.test(reasoning);
   const hasRiskAwareness = /\brisk\b|\bdownside\b|\bcaution\b/i.test(reasoning);
   const wordCount = reasoning.split(/\s+/).length;

@@ -4,6 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { getLeaderboard } from "../services/leaderboard.ts";
 import type { LeaderboardEntry, PositionSummary } from "../services/leaderboard.ts";
 import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agents/orchestrator.ts";
+import { compareAgentTimelines, type EquityCurvePoint } from "../services/portfolio-snapshots.ts";
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
@@ -329,6 +330,12 @@ pages.get("/", async (c) => {
             <p class="text-gray-400 mt-1">AI agents trading real stocks on Solana</p>
           </div>
           <div class="flex gap-3">
+            <a
+              href="/performance"
+              class="bg-green-900 hover:bg-green-800 text-green-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Daily P&L &rarr;
+            </a>
             <a
               href="/decision-quality"
               class="bg-purple-900 hover:bg-purple-800 text-purple-200 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
@@ -1765,6 +1772,346 @@ pages.get("/decision-quality", async (c) => {
       </div>
     </div>,
     { title: "Decision Quality | MoltApp" }
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /performance -- Daily P&L Chart
+// ---------------------------------------------------------------------------
+
+// Helper: Aggregate equity curve points by day
+function aggregateByDay(points: EquityCurvePoint[]): Array<{
+  date: string;
+  pnl: number;
+  pnlPercent: number;
+  value: number;
+}> {
+  const byDay = new Map<string, { values: number[]; pnls: number[]; pnlPercents: number[] }>();
+
+  for (const point of points) {
+    const date = point.timestamp.split("T")[0]; // YYYY-MM-DD
+    if (!byDay.has(date)) {
+      byDay.set(date, { values: [], pnls: [], pnlPercents: [] });
+    }
+    const day = byDay.get(date)!;
+    day.values.push(point.totalValue);
+    day.pnls.push(point.totalPnl);
+    day.pnlPercents.push(point.totalPnlPercent);
+  }
+
+  // Get end-of-day values
+  return Array.from(byDay.entries())
+    .map(([date, data]) => ({
+      date,
+      value: data.values[data.values.length - 1],
+      pnl: data.pnls[data.pnls.length - 1],
+      pnlPercent: data.pnlPercents[data.pnlPercents.length - 1],
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Type for daily P&L change data
+type DailyChange = {
+  date: string;
+  dailyPnl: number;
+  dailyPnlPercent: number;
+  value: number;
+};
+
+// Helper: Calculate daily changes from cumulative data
+function calculateDailyChanges(dailyData: Array<{ date: string; pnl: number; pnlPercent: number; value: number }>): DailyChange[] {
+  const changes: DailyChange[] = [];
+
+  for (let i = 0; i < dailyData.length; i++) {
+    if (i === 0) {
+      changes.push({
+        date: dailyData[i].date,
+        dailyPnl: dailyData[i].pnl,
+        dailyPnlPercent: dailyData[i].pnlPercent,
+        value: dailyData[i].value,
+      });
+    } else {
+      const prevValue = dailyData[i - 1].value;
+      const currValue = dailyData[i].value;
+      const dailyPnl = currValue - prevValue;
+      const dailyPnlPercent = prevValue > 0 ? (dailyPnl / prevValue) * 100 : 0;
+      changes.push({
+        date: dailyData[i].date,
+        dailyPnl,
+        dailyPnlPercent,
+        value: currValue,
+      });
+    }
+  }
+
+  return changes;
+}
+
+pages.get("/performance", async (c) => {
+  // Get all active agent IDs
+  const activeAgents = await db
+    .select()
+    .from(agentsTable)
+    .where(eq(agentsTable.isActive, true));
+
+  const agentIds = activeAgents.map((a: Agent) => a.id);
+
+  // Get comparison data from portfolio snapshots
+  const comparison = await compareAgentTimelines(agentIds, { limit: 500 });
+
+  // Get full timelines for daily breakdown
+  const timelines = await Promise.all(
+    agentIds.map(async (id: string) => {
+      const timeline = await (await import("../services/portfolio-snapshots.ts")).getAgentTimeline(id, { limit: 500 });
+      const config = getAgentConfig(id);
+      return {
+        agentId: id,
+        agentName: config?.name ?? id,
+        model: config?.model ?? "unknown",
+        dailyData: calculateDailyChanges(aggregateByDay(timeline.equityCurve)),
+        summary: timeline.summary,
+      };
+    })
+  );
+
+  // Find all unique dates across all agents
+  const allDates = new Set<string>();
+  for (const t of timelines) {
+    for (const d of t.dailyData) {
+      allDates.add(d.date);
+    }
+  }
+  const sortedDates = Array.from(allDates).sort();
+
+  // Agent colors
+  const agentColors: Record<string, string> = {
+    "claude-value-investor": "#8B5CF6", // Purple (Opus 4.5)
+    "gpt-momentum-trader": "#10B981",   // Green (GPT 5.2)
+    "grok-contrarian": "#F59E0B",       // Orange (Grok 4)
+  };
+
+  // Calculate chart dimensions
+  const chartWidth = 800;
+  const chartHeight = 300;
+  const barWidth = Math.min(20, (chartWidth - 100) / sortedDates.length / timelines.length);
+  const groupWidth = barWidth * timelines.length + 10;
+
+  // Find max/min P&L for scaling
+  let maxPnl = 1;
+  let minPnl = -1;
+  for (const t of timelines) {
+    for (const d of t.dailyData) {
+      maxPnl = Math.max(maxPnl, d.dailyPnl);
+      minPnl = Math.min(minPnl, d.dailyPnl);
+    }
+  }
+  const range = maxPnl - minPnl;
+  const scale = (chartHeight - 60) / (range || 1);
+  const zeroY = chartHeight - 30 - (0 - minPnl) * scale;
+
+  return c.render(
+    <div class="max-w-6xl mx-auto px-4 py-8">
+      {/* Header */}
+      <header class="mb-8">
+        <a href="/" class="text-sm text-gray-500 hover:text-gray-300 mb-4 inline-block">
+          {"\u2190"} Back to leaderboard
+        </a>
+        <h1 class="text-3xl font-bold text-white tracking-tight">Daily P&L Performance</h1>
+        <p class="text-gray-400 mt-1">Track each agent's daily gains and losses over time</p>
+      </header>
+
+      {/* Summary Cards */}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {timelines.map((t) => {
+          const color = agentColors[t.agentId] || "#6B7280";
+          const totalReturn = t.summary.totalReturnPercent;
+          const bestDay = t.summary.bestDay;
+          const worstDay = t.summary.worstDay;
+
+          return (
+            <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+              <div class="flex items-center gap-2 mb-3">
+                <div
+                  class="w-3 h-3 rounded-full"
+                  style={`background-color: ${color}`}
+                ></div>
+                <a
+                  href={`/agent/${getAgentSlug(t.agentId)}`}
+                  class="font-semibold text-white hover:text-blue-400"
+                >
+                  {t.agentName}
+                </a>
+              </div>
+              <div class="text-xs text-gray-500 mb-2">{t.model}</div>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div>
+                  <div class="text-gray-500 text-xs">Total Return</div>
+                  <div class={totalReturn >= 0 ? "text-profit font-semibold" : "text-loss font-semibold"}>
+                    {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(2)}%
+                  </div>
+                </div>
+                <div>
+                  <div class="text-gray-500 text-xs">Best Day</div>
+                  <div class="text-profit">
+                    {bestDay ? `+${bestDay.return_.toFixed(2)}%` : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div class="text-gray-500 text-xs">Worst Day</div>
+                  <div class="text-loss">
+                    {worstDay ? `${worstDay.return_.toFixed(2)}%` : "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Daily P&L Chart */}
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
+        <h2 class="text-lg font-semibold text-white mb-4">Daily P&L (USD)</h2>
+
+        {sortedDates.length === 0 ? (
+          <div class="text-center py-12 text-gray-500">
+            No historical data available yet. Portfolio snapshots will appear after trading rounds complete.
+          </div>
+        ) : (
+          <div class="overflow-x-auto">
+            <svg width={chartWidth} height={chartHeight} class="mx-auto">
+              {/* Zero line */}
+              <line
+                x1="50"
+                y1={zeroY}
+                x2={chartWidth - 20}
+                y2={zeroY}
+                stroke="#4B5563"
+                stroke-width="1"
+                stroke-dasharray="4"
+              />
+
+              {/* Y-axis labels */}
+              <text x="45" y="25" fill="#9CA3AF" font-size="10" text-anchor="end">
+                ${maxPnl.toFixed(2)}
+              </text>
+              <text x="45" y={zeroY + 4} fill="#9CA3AF" font-size="10" text-anchor="end">
+                $0
+              </text>
+              <text x="45" y={chartHeight - 25} fill="#9CA3AF" font-size="10" text-anchor="end">
+                ${minPnl.toFixed(2)}
+              </text>
+
+              {/* Bars for each day */}
+              {sortedDates.slice(-14).map((date, dateIdx) => {
+                const xOffset = 60 + dateIdx * groupWidth;
+
+                return (
+                  <g>
+                    {/* Date label */}
+                    <text
+                      x={xOffset + groupWidth / 2 - 5}
+                      y={chartHeight - 5}
+                      fill="#6B7280"
+                      font-size="9"
+                      text-anchor="middle"
+                      transform={`rotate(-45, ${xOffset + groupWidth / 2 - 5}, ${chartHeight - 5})`}
+                    >
+                      {date.slice(5)} {/* MM-DD */}
+                    </text>
+
+                    {/* Agent bars */}
+                    {timelines.map((t, agentIdx) => {
+                      const dayData = t.dailyData.find((d: DailyChange) => d.date === date);
+                      if (!dayData) return null;
+
+                      const barX = xOffset + agentIdx * barWidth;
+                      const barHeight = Math.abs(dayData.dailyPnl) * scale;
+                      const barY = dayData.dailyPnl >= 0 ? zeroY - barHeight : zeroY;
+                      const color = agentColors[t.agentId] || "#6B7280";
+
+                      return (
+                        <rect
+                          x={barX}
+                          y={barY}
+                          width={barWidth - 2}
+                          height={Math.max(2, barHeight)}
+                          fill={color}
+                          opacity="0.8"
+                        >
+                          <title>
+                            {t.agentName}: ${dayData.dailyPnl.toFixed(2)} ({dayData.dailyPnlPercent.toFixed(2)}%)
+                          </title>
+                        </rect>
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
+
+        {/* Legend */}
+        <div class="flex justify-center gap-6 mt-4">
+          {timelines.map((t) => (
+            <div class="flex items-center gap-2">
+              <div
+                class="w-3 h-3 rounded"
+                style={`background-color: ${agentColors[t.agentId] || "#6B7280"}`}
+              ></div>
+              <span class="text-xs text-gray-400">{t.agentName}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Daily Breakdown Table */}
+      <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
+        <h2 class="text-lg font-semibold text-white mb-4">Daily Breakdown</h2>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-gray-500 text-xs uppercase">
+                <th class="text-left py-2 px-3">Date</th>
+                {timelines.map((t) => (
+                  <th class="text-right py-2 px-3">{t.agentName}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedDates.slice(-14).reverse().map((date) => (
+                <tr class="border-t border-gray-800">
+                  <td class="py-2 px-3 text-gray-400">{date}</td>
+                  {timelines.map((t) => {
+                    const dayData = t.dailyData.find((d: DailyChange) => d.date === date);
+                    if (!dayData) return <td class="text-right py-2 px-3 text-gray-600">—</td>;
+
+                    const pnlColor = dayData.dailyPnl >= 0 ? "text-profit" : "text-loss";
+                    const sign = dayData.dailyPnl >= 0 ? "+" : "";
+
+                    return (
+                      <td class={`text-right py-2 px-3 ${pnlColor}`}>
+                        {sign}${dayData.dailyPnl.toFixed(2)}
+                        <span class="text-xs text-gray-500 ml-1">
+                          ({sign}{dayData.dailyPnlPercent.toFixed(2)}%)
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div class="mt-6 text-xs text-gray-600 text-center">
+        Data from portfolio snapshots. Updated after each trading round.
+      </div>
+    </div>,
+    { title: "Daily Performance | MoltApp" }
   );
 });
 

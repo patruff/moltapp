@@ -22,6 +22,7 @@
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
 import { splitSentences } from "../lib/math-utils.ts";
+import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -327,7 +328,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
 
 function scoreEpistemicHonesty(reasoning: string, confidence: number): CertificationDimension {
   const indicators: string[] = [];
-  const conf01 = confidence > 1 ? confidence / 100 : confidence;
+  const conf01 = normalizeConfidence(confidence);
 
   UNCERTAINTY_MARKERS.lastIndex = 0;
   const uncertaintyCount = (reasoning.match(UNCERTAINTY_MARKERS) ?? []).length;
