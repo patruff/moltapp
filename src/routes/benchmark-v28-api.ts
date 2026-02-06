@@ -26,6 +26,7 @@ import {
 } from "../services/v28-benchmark-engine.ts";
 import { V28_DIMENSIONS } from "../schemas/benchmark-v28.ts";
 import { groupByKey, sumByKey } from "../lib/math-utils.ts";
+import { AGENT_LABELS } from "../config/agent-labels.ts";
 
 export const benchmarkV28ApiRoutes = new Hono();
 
@@ -77,12 +78,6 @@ benchmarkV28ApiRoutes.get("/", (c) => {
 
 benchmarkV28ApiRoutes.get("/leaderboard", (c) => {
   const cache = getV28Leaderboard();
-
-  const AGENT_LABELS: Record<string, string> = {
-    "claude-value-investor": "Claude ValueBot",
-    "gpt-momentum-trader": "GPT MomentumBot",
-    "grok-contrarian": "Grok ContrarianBot",
-  };
 
   const entries = Array.from(cache.entries())
     .map(([agentId, scores]) => ({

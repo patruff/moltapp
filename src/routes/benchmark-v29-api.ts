@@ -20,6 +20,7 @@ import {
   type V29BenchmarkScore,
 } from "../services/v29-benchmark-engine.ts";
 import { groupByKey, sumByKey } from "../lib/math-utils.ts";
+import { AGENT_LABELS } from "../config/agent-labels.ts";
 
 export const benchmarkV29ApiRoutes = new Hono();
 
@@ -49,12 +50,6 @@ const V29_DIMENSIONS = [
 ];
 
 const TOTAL_WEIGHT = sumByKey(V29_DIMENSIONS, 'weight');
-
-const AGENT_LABELS: Record<string, string> = {
-  "claude-value-investor": "Claude ValueBot",
-  "gpt-momentum-trader": "GPT MomentumBot",
-  "grok-contrarian": "Grok ContrarianBot",
-};
 
 // ---------------------------------------------------------------------------
 // GET / — v29 benchmark overview
