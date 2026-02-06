@@ -15,6 +15,8 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
+import { splitSentences } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -106,7 +108,7 @@ const MAX_DEBATES = 1500;
 // ---------------------------------------------------------------------------
 
 function extractThesis(reasoning: string): string {
-  const sentences = reasoning.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  const sentences = splitSentences(reasoning, 10);
   if (sentences.length === 0) return reasoning.slice(0, 100);
 
   // The thesis is usually the first actionable sentence
@@ -120,7 +122,7 @@ function extractThesis(reasoning: string): string {
 
 function extractSupportingPoints(reasoning: string): string[] {
   const points: string[] = [];
-  const sentences = reasoning.split(/[.!?]+/).filter(s => s.trim().length > 15);
+  const sentences = splitSentences(reasoning, 15);
 
   for (const s of sentences) {
     if (/because|due\s+to|driven\s+by|supported\s+by|evidence|data\s+shows/i.test(s)) {
@@ -299,8 +301,8 @@ function analyzeLogicalChain(
   reasoningA: string,
   reasoningB: string,
 ): LogicalChainResult {
-  const sentencesA = reasoningA.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  const sentencesB = reasoningB.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  const sentencesA = splitSentences(reasoningA, 10);
+  const sentencesB = splitSentences(reasoningB, 10);
 
   let connectorsA = 0;
   let connectorsB = 0;
