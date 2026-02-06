@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
-import { getTopKey, round2 } from "../lib/math-utils.ts";
+import { getTopKey, round2, groupByKey, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // Database query result types
 type DecisionRow = typeof agentDecisions.$inferSelect;
@@ -252,13 +252,12 @@ export async function replayRound(roundId: string): Promise<{
   }
 
   // Round summary
-  const actions = roundDecisions.map((d: DecisionRow) => d.action);
-  const actionCounts: Record<string, number> = {};
-  for (const a of actions) {
-    actionCounts[a] = (actionCounts[a] || 0) + 1;
-  }
+  const actionGroups = groupByKey(roundDecisions, 'action');
+  const actionCounts = Object.fromEntries(
+    Object.entries(actionGroups).map(([action, items]) => [action, items.length]),
+  );
   const dominantAction = getTopKey(actionCounts) ?? "hold";
-  const allSame = new Set(actions).size === 1;
+  const allSame = Object.keys(actionCounts).length === 1;
   const hasMajority = Object.values(actionCounts).some((c) => c >= 2);
 
   const avgConfidence = roundDecisions.length > 0
@@ -430,9 +429,11 @@ async function buildRoundContext(
   if (consensus === "unanimous") {
     agreementSummary = `All agents agreed to ${actions[0]}`;
   } else if (consensus === "majority") {
-    const majorityAction = Object.entries(
-      actions.reduce((acc: Record<string, number>, a: string) => { acc[a] = (acc[a] || 0) + 1; return acc; }, {}),
-    ).sort(([, a], [, b]) => (b as number) - (a as number))[0]?.[0] ?? "hold";
+    const actionGroups = groupByKey(allDecisions, 'action');
+    const actionCounts = Object.fromEntries(
+      Object.entries(actionGroups).map(([action, items]) => [action, items.length]),
+    );
+    const majorityAction = sortEntriesDescending(actionCounts)[0]?.[0] ?? "hold";
     agreementSummary = `Majority chose to ${majorityAction}, but agents diverged on approach`;
   } else {
     agreementSummary = "Complete disagreement — each agent took a different approach";

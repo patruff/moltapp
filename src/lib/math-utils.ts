@@ -461,3 +461,119 @@ export function sortDescending<T extends Record<string, any>>(
 ): T[] {
   return [...items].sort((a, b) => (b[key] as number) - (a[key] as number));
 }
+
+/**
+ * Sorts an array of objects in ascending order by a numeric property.
+ * Creates a shallow copy to avoid mutating the original array.
+ *
+ * Replaces verbose pattern: `array.sort((a, b) => a.property - b.property)`
+ *
+ * Complements sortDescending() for bidirectional sorting needs.
+ *
+ * @param items - Array of objects to sort
+ * @param key - Property name to sort by (must be numeric)
+ * @returns A new array sorted in ascending order
+ *
+ * @example
+ * const agents = [{name: 'A', risk: 0.15}, {name: 'B', risk: 0.08}, {name: 'C', risk: 0.22}];
+ * sortAscending(agents, 'risk')
+ * // returns [{name: 'B', risk: 0.08}, {name: 'A', risk: 0.15}, {name: 'C', risk: 0.22}]
+ *
+ * const trades = [{symbol: 'AAPL', entryPrice: 150}, {symbol: 'MSFT', entryPrice: 120}, {symbol: 'GOOGL', entryPrice: 180}];
+ * sortAscending(trades, 'entryPrice')
+ * // returns [{symbol: 'MSFT', entryPrice: 120}, {symbol: 'AAPL', entryPrice: 150}, {symbol: 'GOOGL', entryPrice: 180}]
+ */
+export function sortAscending<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+): T[] {
+  return [...items].sort((a, b) => (a[key] as number) - (b[key] as number));
+}
+
+/**
+ * Groups an array of objects by a property value.
+ * Creates a record where keys are property values and values are arrays of matching objects.
+ *
+ * Replaces verbose pattern: `items.reduce((acc, item) => { ... }, {} as Record<string, T[]>)`
+ *
+ * Common use cases:
+ * - Group trades by symbol
+ * - Group agents by strategy
+ * - Group decisions by action type (buy/sell/hold)
+ * - Group rounds by date
+ *
+ * @param items - Array of objects to group
+ * @param key - Property name to group by
+ * @returns Record mapping property values to arrays of matching objects
+ *
+ * @example
+ * const trades = [
+ *   {symbol: 'AAPL', action: 'buy'},
+ *   {symbol: 'MSFT', action: 'sell'},
+ *   {symbol: 'AAPL', action: 'hold'}
+ * ];
+ * groupByKey(trades, 'symbol')
+ * // returns {
+ * //   AAPL: [{symbol: 'AAPL', action: 'buy'}, {symbol: 'AAPL', action: 'hold'}],
+ * //   MSFT: [{symbol: 'MSFT', action: 'sell'}]
+ * // }
+ *
+ * const decisions = [{action: 'buy', conf: 75}, {action: 'hold', conf: 60}, {action: 'buy', conf: 82}];
+ * groupByKey(decisions, 'action')
+ * // returns {
+ * //   buy: [{action: 'buy', conf: 75}, {action: 'buy', conf: 82}],
+ * //   hold: [{action: 'hold', conf: 60}]
+ * // }
+ *
+ * groupByKey([], 'symbol') // returns {}
+ */
+export function groupByKey<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+): Record<string, T[]> {
+  return items.reduce(
+    (acc, item) => {
+      const groupKey = String(item[key]);
+      if (!acc[groupKey]) {
+        acc[groupKey] = [];
+      }
+      acc[groupKey].push(item);
+      return acc;
+    },
+    {} as Record<string, T[]>,
+  );
+}
+
+/**
+ * Sorts a record's entries by numeric value using a custom comparison function.
+ * Enables sorting by absolute value, nested properties, or complex criteria.
+ *
+ * Complements sortEntriesDescending():
+ * - sortEntriesDescending() → simple descending sort (b - a)
+ * - sortEntriesByValue() → custom comparator for complex sorting logic
+ *
+ * @param record - A record mapping string keys to numeric values
+ * @param compareFn - Comparison function (a, b) => number (defaults to ascending: a - b)
+ * @returns Array of [key, value] tuples sorted by the comparison function
+ *
+ * @example
+ * const pnl = { AAPL: -50, MSFT: 120, GOOGL: -30 };
+ *
+ * // Sort by absolute value (descending):
+ * sortEntriesByValue(pnl, (a, b) => Math.abs(b) - Math.abs(a))
+ * // returns [["MSFT", 120], ["AAPL", -50], ["GOOGL", -30]]
+ *
+ * // Sort ascending (smallest first):
+ * sortEntriesByValue(pnl, (a, b) => a - b)
+ * // returns [["AAPL", -50], ["GOOGL", -30], ["MSFT", 120]]
+ *
+ * // Default ascending sort:
+ * sortEntriesByValue(pnl)
+ * // returns [["AAPL", -50], ["GOOGL", -30], ["MSFT", 120]]
+ */
+export function sortEntriesByValue(
+  record: Record<string, number>,
+  compareFn: (a: number, b: number) => number = (a, b) => a - b,
+): [string, number][] {
+  return Object.entries(record).sort(([, a], [, b]) => compareFn(a, b));
+}
