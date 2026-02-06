@@ -17,7 +17,7 @@
  */
 
 import { eventBus } from "./event-stream.ts";
-import { round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -338,8 +338,7 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
   );
 
   if (highConfWrong.length >= 3) {
-    const avgLoss =
-      highConfWrong.reduce((s, o) => s + o.pnlPercent, 0) / highConfWrong.length;
+    const avgLoss = averageByKey(highConfWrong, 'pnlPercent');
     patterns.push(createPattern(agentId, "overconfident",
       `Overconfidence detected: ${highConfWrong.length} high-confidence (80%+) trades were wrong, avg loss ${avgLoss.toFixed(2)}%. Consider lowering confidence or reducing position size on high-conviction calls.`,
       highConfWrong.length, avgLoss, 80,
@@ -348,8 +347,7 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
   }
 
   if (lowConfRight.length >= 3) {
-    const avgGain =
-      lowConfRight.reduce((s, o) => s + o.pnlPercent, 0) / lowConfRight.length;
+    const avgGain = averageByKey(lowConfRight, 'pnlPercent');
     patterns.push(createPattern(agentId, "underconfident",
       `Underconfidence detected: ${lowConfRight.length} low-confidence (≤40%) trades were correct, avg gain +${avgGain.toFixed(2)}%. You may be underestimating edge on some setups.`,
       lowConfRight.length, avgGain, 75,
@@ -481,9 +479,7 @@ export function getCalibration(agentId: string): CalibrationData {
   const brierScore = tradingOutcomes.length > 0 ? brierSum / tradingOutcomes.length : 0;
 
   // Overconfidence bias
-  const avgConfidence =
-    tradingOutcomes.reduce((s, o) => s + o.confidenceAtDecision, 0) /
-    tradingOutcomes.length;
+  const avgConfidence = averageByKey(tradingOutcomes, 'confidenceAtDecision');
   const actualAccuracy = (correct.length / tradingOutcomes.length) * 100;
   const overconfidenceBias = avgConfidence - actualAccuracy;
 
@@ -495,15 +491,11 @@ export function getCalibration(agentId: string): CalibrationData {
     calibrationBuckets: buckets,
     avgConfidenceWhenCorrect:
       correct.length > 0
-        ? Math.round(
-            (correct.reduce((s, o) => s + o.confidenceAtDecision, 0) / correct.length) * 10,
-          ) / 10
+        ? Math.round(averageByKey(correct, 'confidenceAtDecision') * 10) / 10
         : 0,
     avgConfidenceWhenIncorrect:
       incorrect.length > 0
-        ? Math.round(
-            (incorrect.reduce((s, o) => s + o.confidenceAtDecision, 0) / incorrect.length) * 10,
-          ) / 10
+        ? Math.round(averageByKey(incorrect, 'confidenceAtDecision') * 10) / 10
         : 0,
     brierScore: round3(brierScore),
     overconfidenceBias: Math.round(overconfidenceBias * 10) / 10,
