@@ -528,7 +528,7 @@ export function sortAscending<T extends Record<string, any>>(
  * groupByKey([], 'symbol') // returns {}
  */
 export function groupByKey<T extends Record<string, any>>(
-  items: T[],
+  items: readonly T[],
   key: keyof T & string,
 ): Record<string, T[]> {
   return items.reduce(

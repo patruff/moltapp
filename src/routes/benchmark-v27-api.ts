@@ -25,7 +25,7 @@ import {
   type V27CompositeScore,
 } from "../services/v27-benchmark-engine.ts";
 import { V27_DIMENSIONS } from "../schemas/benchmark-v27.ts";
-import { mean, round2, sumByKey } from "../lib/math-utils.ts";
+import { groupByKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV27ApiRoutes = new Hono();
 
@@ -303,14 +303,8 @@ benchmarkV27ApiRoutes.get("/learning/:agentId", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV27ApiRoutes.get("/dimensions", (c) => {
-  // Group dimensions by category
-  const categories: Record<string, typeof V27_DIMENSIONS[number][]> = {};
-  for (const dim of V27_DIMENSIONS) {
-    if (!categories[dim.category]) {
-      categories[dim.category] = [];
-    }
-    (categories[dim.category] as typeof V27_DIMENSIONS[number][]).push(dim);
-  }
+  // Group dimensions by category using groupByKey() helper
+  const categories = groupByKey(V27_DIMENSIONS, 'category');
 
   return c.json({
     ok: true,
