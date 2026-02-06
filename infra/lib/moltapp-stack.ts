@@ -125,7 +125,7 @@ export class MoltappStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_22_X,
       architecture: lambda.Architecture.ARM_64,
       memorySize: 1024, // LLM calls are I/O-bound not CPU-bound — 1GB is enough
-      timeout: cdk.Duration.minutes(5),
+      timeout: cdk.Duration.minutes(15),
       environment: {
         NODE_ENV: "production",
         SECRET_ARN: secret.secretArn,

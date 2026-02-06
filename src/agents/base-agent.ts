@@ -191,10 +191,10 @@ export function loadSkillPrompt(overrides?: Record<string, string>): string {
 // ---------------------------------------------------------------------------
 
 /** Max tool-calling turns before forcing a decision */
-const MAX_TURNS = 15;
+const MAX_TURNS = 10;
 
 /** Max total tool calls before forcing a decision */
-const MAX_TOOL_CALLS = 50;
+const MAX_TOOL_CALLS = 25;
 
 /**
  * Abstract base class for all AI trading agents.

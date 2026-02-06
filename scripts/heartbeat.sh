@@ -263,9 +263,7 @@ push_changes() {
     if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
         log "Pushing git changes..."
         git add -A
-        git commit -m "heartbeat: code improvement cycle #$(get_state 'heartbeat_count')
-
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>" 2>/dev/null || true
+        git commit -m "heartbeat: code improvement cycle #$(get_state 'heartbeat_count')" 2>/dev/null || true
         git push origin main 2>/dev/null && log "Pushed to GitHub" || log_error "Failed to push"
     fi
 }
