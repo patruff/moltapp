@@ -3188,6 +3188,8 @@ export async function getAgentPortfolio(agentId: string) {
     const onChainPortfolio = await getOnChainPortfolio(agentId);
     return {
       cashBalance: onChainPortfolio.cashBalance,
+      solBalance: onChainPortfolio.solBalance,
+      solValueUsd: onChainPortfolio.solValueUsd,
       positions: onChainPortfolio.positions.map((p) => ({
         symbol: p.symbol,
         quantity: p.quantity,
@@ -3209,10 +3211,13 @@ export async function getAgentPortfolio(agentId: string) {
     try {
       const marketData = await getMarketData();
       const portfolio = await getPortfolioContext(agentId, marketData);
-      return portfolio;
+      // Add SOL fields (not available in DB fallback)
+      return { ...portfolio, solBalance: 0, solValueUsd: 0 };
     } catch {
       return {
         cashBalance: 0,
+        solBalance: 0,
+        solValueUsd: 0,
         positions: [],
         totalValue: 0,
         totalPnl: 0,
