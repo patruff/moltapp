@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize, countWords, round2 } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords, round2, weightedSum } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -156,7 +156,7 @@ export function certifyReasoning(
 
   // Compute composite score (weights imported from scoring-weights.ts)
   const compositeScore = round2(
-    dimensions.reduce((sum, d, i) => sum + d.score * CERTIFICATION_WEIGHTS_ARRAY[i], 0),
+    weightedSum(dimensions, (d, i) => d.score, (d, i) => CERTIFICATION_WEIGHTS_ARRAY[i]),
   );
 
   // Determine certification level

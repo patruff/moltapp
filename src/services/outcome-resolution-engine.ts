@@ -28,6 +28,7 @@ import {
   computeGrade,
   normalizeMetric,
 } from "../schemas/benchmark-v23.ts";
+import { weightedSum } from "../lib/math-utils.ts";
 import { round2 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
@@ -326,7 +327,7 @@ export function computeCalibration(
     : 0;
 
   const overallEce = buckets.length > 0
-    ? buckets.reduce((sum, b) => sum + b.ece * b.tradeCount, 0) / resolutions.length
+    ? weightedSum(buckets, 'ece', 'tradeCount') / resolutions.length
     : 0;
 
   return {
