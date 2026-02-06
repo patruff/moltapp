@@ -122,6 +122,23 @@ export function splitSentences(text: string, minLength: number = 0): string[] {
 }
 
 /**
+ * Extracts filtered words from text, lowercased, with optional minimum length.
+ * Standardizes the common pattern of `.toLowerCase().split(/\s+/).filter(w => w.length > N)`.
+ *
+ * @param text - The input text to extract words from
+ * @param minLength - Minimum word length to include (default: 0 includes all)
+ * @returns Array of lowercase words meeting the minimum length requirement
+ *
+ * @example
+ * getFilteredWords("Hello World FOO", 3) // ["hello", "world", "foo"]
+ * getFilteredWords("A big cat", 2)       // ["big", "cat"]
+ * getFilteredWords("Hello World")        // ["hello", "world"]
+ */
+export function getFilteredWords(text: string, minLength: number = 0): string[] {
+  return text.toLowerCase().split(/\s+/).filter((w) => w.length > minLength);
+}
+
+/**
  * Calculates the average of a numeric property across an array of objects.
  * Returns 0 for empty arrays (safe division-by-zero handling).
  *

@@ -22,7 +22,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
-import { countWords, splitSentences } from "../lib/math-utils.ts";
+import { countWords, getFilteredWords, splitSentences } from "../lib/math-utils.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -52,7 +52,7 @@ const MAX_INDEX_SIZE = 1000;
  * Called by the orchestrator after each trade.
  */
 export function indexReasoning(entry: Omit<IndexedReasoning, "terms" | "wordCount">): void {
-  const words = entry.reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  const words = getFilteredWords(entry.reasoning, 2);
   const terms = new Set(words);
   const indexed: IndexedReasoning = {
     ...entry,
@@ -79,7 +79,7 @@ reasoningExplorerRoutes.get("/search", async (c) => {
     return apiError(c, "VALIDATION_FAILED", "Query must be at least 2 characters");
   }
 
-  const queryTerms = query.toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+  const queryTerms = getFilteredWords(query, 1);
 
   // Search in-memory index
   const scored = reasoningIndex
@@ -351,7 +351,7 @@ reasoningExplorerRoutes.get("/vocabulary", (c) => {
     const allTerms = new Set<string>();
     let totalWords = 0;
     for (const entry of entries) {
-      const words = entry.reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+      const words = getFilteredWords(entry.reasoning, 3);
       totalWords += words.length;
       for (const w of words) allTerms.add(w);
     }

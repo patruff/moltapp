@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp, countWords, splitSentences } from "../lib/math-utils.ts";
+import { clamp, countWords, getFilteredWords, splitSentences } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -262,12 +262,12 @@ function analyzeDepth(reasoning: string): DepthAnalysis {
 
 function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnalysis {
   const history = agentHistory.get(agentId) ?? [];
-  const words = new Set(reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
+  const words = new Set(getFilteredWords(reasoning, 3));
 
   // Jaccard similarity to most recent previous reasoning
   let jaccardSimilarityToPrevious = 0;
   if (history.length > 0) {
-    const prevWords = new Set(history[0].reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
+    const prevWords = new Set(getFilteredWords(history[0].reasoning, 3));
     const intersection = new Set([...words].filter((w) => prevWords.has(w)));
     const union = new Set([...words, ...prevWords]);
     jaccardSimilarityToPrevious = union.size > 0 ? intersection.size / union.size : 0;
@@ -374,8 +374,8 @@ function analyzeCrossTrade(
     }
 
     // Copypasta detection: very similar reasoning to previous trade
-    const prevWords = new Set(prev.reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
-    const currWords = new Set(reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
+    const prevWords = new Set(getFilteredWords(prev.reasoning, 3));
+    const currWords = new Set(getFilteredWords(reasoning, 3));
     const intersection = [...currWords].filter((w) => prevWords.has(w)).length;
     const union = new Set([...prevWords, ...currWords]).size;
     const jaccard = union > 0 ? intersection / union : 0;
@@ -407,7 +407,7 @@ function analyzeCrossTrade(
 // ---------------------------------------------------------------------------
 
 function extractNGrams(text: string, n: number): Set<string> {
-  const words = text.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+  const words = getFilteredWords(text, 2);
   const ngrams = new Set<string>();
   for (let i = 0; i <= words.length - n; i++) {
     ngrams.add(words.slice(i, i + n).join(" "));

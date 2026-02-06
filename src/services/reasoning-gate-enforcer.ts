@@ -29,6 +29,7 @@ import {
 } from "../schemas/trade-reasoning.ts";
 import { analyzeCoherence } from "./coherence-analyzer.ts";
 import type { TradingDecision } from "../agents/base-agent.ts";
+import { getFilteredWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,12 +154,12 @@ function recordReasoning(reasoning: string): void {
  * Uses Jaccard similarity on word sets.
  */
 function checkOriginality(reasoning: string): { isOriginal: boolean; maxSimilarity: number } {
-  const words = new Set(reasoning.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
+  const words = new Set(getFilteredWords(reasoning, 3));
   if (words.size < 5) return { isOriginal: true, maxSimilarity: 0 };
 
   let maxSimilarity = 0;
   for (const prev of recentReasonings) {
-    const prevWords = new Set(prev.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
+    const prevWords = new Set(getFilteredWords(prev, 3));
     if (prevWords.size < 5) continue;
 
     // Jaccard similarity
