@@ -24,6 +24,238 @@ import type { MarketData } from "../agents/base-agent.ts";
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * REGIME SCORING THRESHOLDS
+ *
+ * Control when market conditions trigger specific regime classifications.
+ * Higher thresholds = stricter classification (fewer false positives).
+ */
+
+// Bull Run Thresholds
+/** Minimum trend strength for moderate bull signal (weak bull detection) */
+const BULL_TREND_MODERATE = 30;
+/** Minimum trend strength for strong bull signal (clear uptrend) */
+const BULL_TREND_STRONG = 60;
+/** Minimum momentum score for bull confirmation (positive acceleration) */
+const BULL_MOMENTUM_MIN = 1;
+/** Minimum breadth score for bull confirmation (broad participation) */
+const BULL_BREADTH_MIN = 30;
+
+// Bear Market Thresholds
+/** Maximum trend strength for moderate bear signal (weak bear detection) */
+const BEAR_TREND_MODERATE = -30;
+/** Maximum trend strength for strong bear signal (clear downtrend) */
+const BEAR_TREND_STRONG = -60;
+/** Maximum momentum score for bear confirmation (negative acceleration) */
+const BEAR_MOMENTUM_MAX = -1;
+/** Maximum breadth score for bear confirmation (broad decline) */
+const BEAR_BREADTH_MAX = -30;
+
+// Sideways Market Thresholds
+/** Maximum absolute trend strength for sideways classification (range-bound) */
+const SIDEWAYS_TREND_MAX = 20;
+/** Maximum absolute momentum for sideways (minimal directional bias) */
+const SIDEWAYS_MOMENTUM_MAX = 0.5;
+/** Maximum volatility level for sideways (calm conditions) */
+const SIDEWAYS_VOL_MAX = 20;
+/** Maximum absolute breadth for sideways (balanced advances/declines) */
+const SIDEWAYS_BREADTH_MAX = 20;
+
+// High Volatility Thresholds
+/** Minimum volatility level for moderate high-vol signal */
+const HIGH_VOL_MODERATE = 30;
+/** Minimum volatility level for extreme high-vol signal */
+const HIGH_VOL_EXTREME = 50;
+/** Minimum average absolute change for high-vol confirmation (large swings) */
+const HIGH_VOL_AVG_CHANGE_MIN = 2;
+
+// Low Volatility Thresholds
+/** Maximum volatility level for moderate low-vol signal */
+const LOW_VOL_MODERATE = 15;
+/** Maximum volatility level for extreme low-vol signal (suppressed) */
+const LOW_VOL_EXTREME = 10;
+/** Maximum average absolute change for low-vol confirmation (small moves) */
+const LOW_VOL_AVG_CHANGE_MAX = 0.5;
+
+// Sector Rotation Thresholds
+/** Minimum sector dispersion for moderate rotation signal */
+const SECTOR_ROTATION_DISPERSION_MODERATE = 2;
+/** Minimum sector dispersion for strong rotation signal */
+const SECTOR_ROTATION_DISPERSION_STRONG = 4;
+/** Maximum absolute momentum for rotation (not dominated by single direction) */
+const SECTOR_ROTATION_MOMENTUM_MAX = 1.5;
+/** Minimum volatility for rotation environment */
+const SECTOR_ROTATION_VOL_MIN = 15;
+/** Maximum volatility for rotation environment (moderate conditions) */
+const SECTOR_ROTATION_VOL_MAX = 40;
+
+// Momentum Thresholds
+/** Minimum absolute momentum for strong directional move */
+const MOMENTUM_SCORE_MIN = 2;
+/** Minimum absolute trend strength for momentum confirmation */
+const MOMENTUM_TREND_MIN = 40;
+/** Minimum absolute breadth for momentum confirmation */
+const MOMENTUM_BREADTH_MIN = 40;
+/** Minimum volatility for momentum environment (elevated activity) */
+const MOMENTUM_VOL_MIN = 20;
+
+// Mean Reversion Thresholds
+/** Minimum absolute momentum to classify as over-extended */
+const MEAN_REVERSION_OVEREXTENDED_THRESHOLD = 3;
+/** Minimum fraction of stocks over-extended to trigger mean reversion */
+const MEAN_REVERSION_OVEREXTENDED_FRACTION = 0.3;
+/** Minimum volatility for mean reversion setup */
+const MEAN_REVERSION_VOL_MIN = 25;
+/** Maximum absolute trend for mean reversion (no strong trend) */
+const MEAN_REVERSION_TREND_MAX = 30;
+/** Minimum dispersion for mean reversion (divergent stock moves) */
+const MEAN_REVERSION_DISPERSION_MIN = 3;
+/** Minimum average absolute change for mean reversion */
+const MEAN_REVERSION_AVG_CHANGE_MIN = 2;
+/** Maximum absolute momentum for mean reversion (conflicting signals) */
+const MEAN_REVERSION_MOMENTUM_MAX = 1;
+
+/**
+ * REGIME SCORING WEIGHTS
+ *
+ * Point values assigned when thresholds are met. Higher weights = stronger
+ * influence on regime classification. Sum of weights determines winning regime.
+ */
+
+// Bull Run Weights
+const BULL_WEIGHT_TREND_MODERATE = 30;
+const BULL_WEIGHT_TREND_STRONG = 20;
+const BULL_WEIGHT_MOMENTUM = 25;
+const BULL_WEIGHT_BREADTH = 25;
+
+// Bear Market Weights
+const BEAR_WEIGHT_TREND_MODERATE = 30;
+const BEAR_WEIGHT_TREND_STRONG = 20;
+const BEAR_WEIGHT_MOMENTUM = 25;
+const BEAR_WEIGHT_BREADTH = 25;
+
+// Sideways Weights
+const SIDEWAYS_WEIGHT_TREND = 30;
+const SIDEWAYS_WEIGHT_MOMENTUM = 25;
+const SIDEWAYS_WEIGHT_VOL = 20;
+const SIDEWAYS_WEIGHT_BREADTH = 25;
+
+// High Volatility Weights
+const HIGH_VOL_WEIGHT_MODERATE = 40;
+const HIGH_VOL_WEIGHT_EXTREME = 30;
+const HIGH_VOL_WEIGHT_AVG_CHANGE = 30;
+
+// Low Volatility Weights
+const LOW_VOL_WEIGHT_MODERATE = 40;
+const LOW_VOL_WEIGHT_EXTREME = 30;
+const LOW_VOL_WEIGHT_AVG_CHANGE = 30;
+
+// Sector Rotation Weights
+const SECTOR_ROTATION_WEIGHT_DISPERSION_MODERATE = 35;
+const SECTOR_ROTATION_WEIGHT_DISPERSION_STRONG = 25;
+const SECTOR_ROTATION_WEIGHT_MOMENTUM = 20;
+const SECTOR_ROTATION_WEIGHT_VOL = 20;
+
+// Momentum Weights
+const MOMENTUM_WEIGHT_SCORE = 35;
+const MOMENTUM_WEIGHT_TREND = 25;
+const MOMENTUM_WEIGHT_BREADTH = 20;
+const MOMENTUM_WEIGHT_VOL = 20;
+
+// Mean Reversion Weights
+const MEAN_REVERSION_WEIGHT_OVEREXTENDED = 30;
+const MEAN_REVERSION_WEIGHT_VOL_TREND = 25;
+const MEAN_REVERSION_WEIGHT_DISPERSION = 20;
+const MEAN_REVERSION_WEIGHT_CHANGE_MOMENTUM = 25;
+
+/**
+ * CONFIDENCE CALCULATION PARAMETERS
+ */
+
+/** Base confidence when data availability is minimal */
+const CONFIDENCE_BASE = 40;
+/** Bonus confidence per available data point */
+const CONFIDENCE_PER_DATA_POINT = 3;
+/** Maximum confidence level (caps at this value) */
+const CONFIDENCE_MAX = 90;
+/** Minimum confidence when very few data points (fallback calculation) */
+const CONFIDENCE_MIN_FALLBACK = 20;
+/** Multiplier for data count in fallback confidence calculation */
+const CONFIDENCE_FALLBACK_MULTIPLIER = 15;
+
+/**
+ * VOLATILITY ANALYSIS PARAMETERS
+ */
+
+/** Vol trend increase factor (recent vol > older vol * factor = "increasing") */
+const VOL_TREND_INCREASE_FACTOR = 1.3;
+/** Vol trend decrease factor (recent vol < older vol * factor = "decreasing") */
+const VOL_TREND_DECREASE_FACTOR = 0.7;
+
+/**
+ * FEAR & GREED INDEX PARAMETERS
+ */
+
+/** Weight for volatility component in fear/greed calculation */
+const FEAR_GREED_VOL_WEIGHT = 0.4;
+/** Weight for price change component in fear/greed calculation */
+const FEAR_GREED_CHANGE_WEIGHT = 0.35;
+/** Weight for breadth component in fear/greed calculation */
+const FEAR_GREED_BREADTH_WEIGHT = 0.25;
+/** Multiplier for volatility in fear component (higher vol = more fear) */
+const FEAR_GREED_VOL_MULTIPLIER = 3;
+/** Multiplier for price change in greed component */
+const FEAR_GREED_CHANGE_MULTIPLIER = 10;
+
+/**
+ * VOLATILITY REGIME CLASSIFICATION
+ */
+
+/** Minimum volatility index for "extreme" regime */
+const VOL_REGIME_EXTREME_MIN = 4;
+/** Minimum volatility index for "high" regime */
+const VOL_REGIME_HIGH_MIN = 2.5;
+/** Minimum volatility index for "moderate" regime */
+const VOL_REGIME_MODERATE_MIN = 1.5;
+/** Minimum volatility index for "low" regime */
+const VOL_REGIME_LOW_MIN = 0.5;
+// Below VOL_REGIME_LOW_MIN = "suppressed"
+
+/**
+ * DAY REGIME CLASSIFICATION THRESHOLDS
+ *
+ * Used by classifyDayRegime() to classify individual trading days.
+ */
+
+/** Minimum average change for bull day classification */
+const DAY_BULL_AVG_CHANGE_MIN = 2;
+/** Minimum advancing percentage for bull day classification */
+const DAY_BULL_ADV_PCT_MIN = 65;
+/** Maximum average change for bear day classification */
+const DAY_BEAR_AVG_CHANGE_MAX = -2;
+/** Maximum advancing percentage for bear day classification */
+const DAY_BEAR_ADV_PCT_MAX = 35;
+/** Minimum average absolute change for high volatility day */
+const DAY_HIGH_VOL_ABS_AVG_MIN = 3;
+/** Maximum average absolute change for low volatility day */
+const DAY_LOW_VOL_ABS_AVG_MAX = 0.5;
+/** Minimum dispersion for sector rotation day */
+const DAY_SECTOR_ROTATION_DISPERSION_MIN = 3;
+/** Minimum absolute average change for momentum day */
+const DAY_MOMENTUM_ABS_AVG_MIN = 1.5;
+/** Minimum advancing percentage for bullish momentum day */
+const DAY_MOMENTUM_ADV_PCT_MIN = 55;
+/** Maximum advancing percentage for bearish momentum day */
+const DAY_MOMENTUM_ADV_PCT_MAX = 45;
+/** Minimum average absolute change for mean reversion day */
+const DAY_MEAN_REVERSION_ABS_AVG_MIN = 2;
+/** Maximum absolute average change for mean reversion day (conflicting signals) */
+const DAY_MEAN_REVERSION_ABS_AVG_MAX = 0.5;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -364,54 +596,54 @@ export async function detectCurrentRegime(): Promise<MarketRegime> {
   };
 
   // Bull run: strong trend, positive momentum, good breadth
-  if (trendStrength > 30) scores.bull_run += 30;
-  if (trendStrength > 60) scores.bull_run += 20;
-  if (momentumScore > 1) scores.bull_run += 25;
-  if (breadthScore > 30) scores.bull_run += 25;
+  if (trendStrength > BULL_TREND_MODERATE) scores.bull_run += BULL_WEIGHT_TREND_MODERATE;
+  if (trendStrength > BULL_TREND_STRONG) scores.bull_run += BULL_WEIGHT_TREND_STRONG;
+  if (momentumScore > BULL_MOMENTUM_MIN) scores.bull_run += BULL_WEIGHT_MOMENTUM;
+  if (breadthScore > BULL_BREADTH_MIN) scores.bull_run += BULL_WEIGHT_BREADTH;
 
   // Bear market: weak trend, negative momentum, poor breadth
-  if (trendStrength < -30) scores.bear_market += 30;
-  if (trendStrength < -60) scores.bear_market += 20;
-  if (momentumScore < -1) scores.bear_market += 25;
-  if (breadthScore < -30) scores.bear_market += 25;
+  if (trendStrength < BEAR_TREND_MODERATE) scores.bear_market += BEAR_WEIGHT_TREND_MODERATE;
+  if (trendStrength < BEAR_TREND_STRONG) scores.bear_market += BEAR_WEIGHT_TREND_STRONG;
+  if (momentumScore < BEAR_MOMENTUM_MAX) scores.bear_market += BEAR_WEIGHT_MOMENTUM;
+  if (breadthScore < BEAR_BREADTH_MAX) scores.bear_market += BEAR_WEIGHT_BREADTH;
 
   // Sideways: weak trend, low volatility, neutral breadth
-  if (Math.abs(trendStrength) < 20) scores.sideways += 30;
-  if (Math.abs(momentumScore) < 0.5) scores.sideways += 25;
-  if (volatilityLevel < 20) scores.sideways += 20;
-  if (Math.abs(breadthScore) < 20) scores.sideways += 25;
+  if (Math.abs(trendStrength) < SIDEWAYS_TREND_MAX) scores.sideways += SIDEWAYS_WEIGHT_TREND;
+  if (Math.abs(momentumScore) < SIDEWAYS_MOMENTUM_MAX) scores.sideways += SIDEWAYS_WEIGHT_MOMENTUM;
+  if (volatilityLevel < SIDEWAYS_VOL_MAX) scores.sideways += SIDEWAYS_WEIGHT_VOL;
+  if (Math.abs(breadthScore) < SIDEWAYS_BREADTH_MAX) scores.sideways += SIDEWAYS_WEIGHT_BREADTH;
 
   // High volatility: elevated vol, large absolute moves
-  if (volatilityLevel > 30) scores.high_volatility += 40;
-  if (volatilityLevel > 50) scores.high_volatility += 30;
+  if (volatilityLevel > HIGH_VOL_MODERATE) scores.high_volatility += HIGH_VOL_WEIGHT_MODERATE;
+  if (volatilityLevel > HIGH_VOL_EXTREME) scores.high_volatility += HIGH_VOL_WEIGHT_EXTREME;
   const avgAbsChange = momentumValues.length > 0
     ? momentumValues.reduce((s, v) => s + Math.abs(v), 0) / momentumValues.length
     : 0;
-  if (avgAbsChange > 2) scores.high_volatility += 30;
+  if (avgAbsChange > HIGH_VOL_AVG_CHANGE_MIN) scores.high_volatility += HIGH_VOL_WEIGHT_AVG_CHANGE;
 
   // Low volatility: suppressed vol, small moves
-  if (volatilityLevel < 15) scores.low_volatility += 40;
-  if (volatilityLevel < 10) scores.low_volatility += 30;
-  if (avgAbsChange < 0.5) scores.low_volatility += 30;
+  if (volatilityLevel < LOW_VOL_MODERATE) scores.low_volatility += LOW_VOL_WEIGHT_MODERATE;
+  if (volatilityLevel < LOW_VOL_EXTREME) scores.low_volatility += LOW_VOL_WEIGHT_EXTREME;
+  if (avgAbsChange < LOW_VOL_AVG_CHANGE_MAX) scores.low_volatility += LOW_VOL_WEIGHT_AVG_CHANGE;
 
   // Sector rotation: high sector dispersion, moderate overall vol
-  if (sectorDispersion > 2) scores.sector_rotation += 35;
-  if (sectorDispersion > 4) scores.sector_rotation += 25;
-  if (Math.abs(momentumScore) < 1.5) scores.sector_rotation += 20;
-  if (volatilityLevel > 15 && volatilityLevel < 40) scores.sector_rotation += 20;
+  if (sectorDispersion > SECTOR_ROTATION_DISPERSION_MODERATE) scores.sector_rotation += SECTOR_ROTATION_WEIGHT_DISPERSION_MODERATE;
+  if (sectorDispersion > SECTOR_ROTATION_DISPERSION_STRONG) scores.sector_rotation += SECTOR_ROTATION_WEIGHT_DISPERSION_STRONG;
+  if (Math.abs(momentumScore) < SECTOR_ROTATION_MOMENTUM_MAX) scores.sector_rotation += SECTOR_ROTATION_WEIGHT_MOMENTUM;
+  if (volatilityLevel > SECTOR_ROTATION_VOL_MIN && volatilityLevel < SECTOR_ROTATION_VOL_MAX) scores.sector_rotation += SECTOR_ROTATION_WEIGHT_VOL;
 
   // Momentum: strong directional moves with high trend strength
-  if (Math.abs(momentumScore) > 2) scores.momentum += 35;
-  if (Math.abs(trendStrength) > 40) scores.momentum += 25;
-  if (Math.abs(breadthScore) > 40) scores.momentum += 20;
-  if (volatilityLevel > 20) scores.momentum += 20;
+  if (Math.abs(momentumScore) > MOMENTUM_SCORE_MIN) scores.momentum += MOMENTUM_WEIGHT_SCORE;
+  if (Math.abs(trendStrength) > MOMENTUM_TREND_MIN) scores.momentum += MOMENTUM_WEIGHT_TREND;
+  if (Math.abs(breadthScore) > MOMENTUM_BREADTH_MIN) scores.momentum += MOMENTUM_WEIGHT_BREADTH;
+  if (volatilityLevel > MOMENTUM_VOL_MIN) scores.momentum += MOMENTUM_WEIGHT_VOL;
 
   // Mean reversion: over-extended moves likely to revert
-  const overExtendedCount = momentumValues.filter((v) => Math.abs(v) > 3).length;
-  if (overExtendedCount > total * 0.3) scores.mean_reversion += 30;
-  if (volatilityLevel > 25 && Math.abs(trendStrength) < 30) scores.mean_reversion += 25;
-  if (sectorDispersion > 3) scores.mean_reversion += 20;
-  if (avgAbsChange > 2 && Math.abs(momentumScore) < 1) scores.mean_reversion += 25;
+  const overExtendedCount = momentumValues.filter((v) => Math.abs(v) > MEAN_REVERSION_OVEREXTENDED_THRESHOLD).length;
+  if (overExtendedCount > total * MEAN_REVERSION_OVEREXTENDED_FRACTION) scores.mean_reversion += MEAN_REVERSION_WEIGHT_OVEREXTENDED;
+  if (volatilityLevel > MEAN_REVERSION_VOL_MIN && Math.abs(trendStrength) < MEAN_REVERSION_TREND_MAX) scores.mean_reversion += MEAN_REVERSION_WEIGHT_VOL_TREND;
+  if (sectorDispersion > MEAN_REVERSION_DISPERSION_MIN) scores.mean_reversion += MEAN_REVERSION_WEIGHT_DISPERSION;
+  if (avgAbsChange > MEAN_REVERSION_AVG_CHANGE_MIN && Math.abs(momentumScore) < MEAN_REVERSION_MOMENTUM_MAX) scores.mean_reversion += MEAN_REVERSION_WEIGHT_CHANGE_MOMENTUM;
 
   // Select regime with highest score
   let bestRegime: RegimeType = "sideways";
@@ -530,8 +762,8 @@ export async function getRegimeHistory(days: number = 30): Promise<RegimeHistory
     // Classify day's regime from available data
     const dayRegime = classifyDayRegime(changes, bucket);
     const confidence = changes.length > 3
-      ? Math.min(90, 40 + changes.length * 3)
-      : Math.max(20, changes.length * 15);
+      ? Math.min(CONFIDENCE_MAX, CONFIDENCE_BASE + changes.length * CONFIDENCE_PER_DATA_POINT)
+      : Math.max(CONFIDENCE_MIN_FALLBACK, changes.length * CONFIDENCE_FALLBACK_MULTIPLIER);
 
     if (dayRegime === prevRegime) {
       regimeDuration++;
@@ -724,9 +956,9 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     const olderReturns = returns.slice(0, Math.min(5, returns.length));
     const recentVol = stdDev(recentReturns) * 100;
     const olderVol = stdDev(olderReturns) * 100;
-    const volTrend = recentVol > olderVol * 1.3
+    const volTrend = recentVol > olderVol * VOL_TREND_INCREASE_FACTOR
       ? "increasing"
-      : recentVol < olderVol * 0.7
+      : recentVol < olderVol * VOL_TREND_DECREASE_FACTOR
         ? "decreasing"
         : "stable";
 
@@ -771,10 +1003,10 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
 
   // Scale: 0 = extreme fear, 50 = neutral, 100 = extreme greed
   // Inputs: vol (inverse), avg change (direct), declining pct (inverse)
-  const volComponent = Math.max(0, 100 - marketVolatilityIndex * 3);
-  const changeComponent = Math.min(100, Math.max(0, 50 + avgChange * 10));
+  const volComponent = Math.max(0, 100 - marketVolatilityIndex * FEAR_GREED_VOL_MULTIPLIER);
+  const changeComponent = Math.min(100, Math.max(0, 50 + avgChange * FEAR_GREED_CHANGE_MULTIPLIER));
   const breadthComponent = Math.max(0, 100 - decliningPct);
-  const fearGreedValue = round2((volComponent * 0.4 + changeComponent * 0.35 + breadthComponent * 0.25));
+  const fearGreedValue = round2((volComponent * FEAR_GREED_VOL_WEIGHT + changeComponent * FEAR_GREED_CHANGE_WEIGHT + breadthComponent * FEAR_GREED_BREADTH_WEIGHT));
 
   const fearGreedLabel =
     fearGreedValue < 20 ? "Extreme Fear"
@@ -796,10 +1028,10 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
 
   // Volatility regime classification
   const volatilityRegime =
-    marketVolatilityIndex > 4 ? "extreme"
-      : marketVolatilityIndex > 2.5 ? "high"
-        : marketVolatilityIndex > 1.5 ? "moderate"
-          : marketVolatilityIndex > 0.5 ? "low"
+    marketVolatilityIndex > VOL_REGIME_EXTREME_MIN ? "extreme"
+      : marketVolatilityIndex > VOL_REGIME_HIGH_MIN ? "high"
+        : marketVolatilityIndex > VOL_REGIME_MODERATE_MIN ? "moderate"
+          : marketVolatilityIndex > VOL_REGIME_LOW_MIN ? "low"
             : "suppressed";
 
   // Volatility clustering detection
@@ -1163,14 +1395,14 @@ function classifyDayRegime(
   const advPct = (advancing / total) * 100;
   const dispersion = stdDev(changes);
 
-  if (avgChange > 2 && advPct > 65) return "bull_run";
-  if (avgChange < -2 && advPct < 35) return "bear_market";
-  if (absAvg > 3) return "high_volatility";
-  if (absAvg < 0.5) return "low_volatility";
-  if (dispersion > 3) return "sector_rotation";
-  if (Math.abs(avgChange) > 1.5 && advPct > 55) return "momentum";
-  if (Math.abs(avgChange) > 1.5 && advPct < 45) return "momentum";
-  if (absAvg > 2 && Math.abs(avgChange) < 0.5) return "mean_reversion";
+  if (avgChange > DAY_BULL_AVG_CHANGE_MIN && advPct > DAY_BULL_ADV_PCT_MIN) return "bull_run";
+  if (avgChange < DAY_BEAR_AVG_CHANGE_MAX && advPct < DAY_BEAR_ADV_PCT_MAX) return "bear_market";
+  if (absAvg > DAY_HIGH_VOL_ABS_AVG_MIN) return "high_volatility";
+  if (absAvg < DAY_LOW_VOL_ABS_AVG_MAX) return "low_volatility";
+  if (dispersion > DAY_SECTOR_ROTATION_DISPERSION_MIN) return "sector_rotation";
+  if (Math.abs(avgChange) > DAY_MOMENTUM_ABS_AVG_MIN && advPct > DAY_MOMENTUM_ADV_PCT_MIN) return "momentum";
+  if (Math.abs(avgChange) > DAY_MOMENTUM_ABS_AVG_MIN && advPct < DAY_MOMENTUM_ADV_PCT_MAX) return "momentum";
+  if (absAvg > DAY_MEAN_REVERSION_ABS_AVG_MIN && Math.abs(avgChange) < DAY_MEAN_REVERSION_ABS_AVG_MAX) return "mean_reversion";
 
   return "sideways";
 }

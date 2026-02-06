@@ -421,7 +421,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "965af1aa055eb86aa730ae30c706451c66a9ddccbc77b4c2040e620e29109213.zip"
+     "S3Key": "2ae542f48adc536f26627608f756fed9bff41e8bad11e72bfb9c5f57b2ef1ccc.zip"
     },
     "Environment": {
      "Variables": {
@@ -457,7 +457,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/ApiFunction/Resource",
-    "aws:asset:path": "asset.965af1aa055eb86aa730ae30c706451c66a9ddccbc77b4c2040e620e29109213",
+    "aws:asset:path": "asset.2ae542f48adc536f26627608f756fed9bff41e8bad11e72bfb9c5f57b2ef1ccc",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
