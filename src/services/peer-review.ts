@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { normalize, countWords } from "../lib/math-utils.ts";
+import { normalize, countWords, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -382,7 +382,7 @@ function scoreOriginality(reasoning: string): number {
   let score = 0.3;
 
   const words = countWords(reasoning);
-  const sentences = reasoning.split(/[.!?]+/).filter(Boolean).length;
+  const sentences = splitSentences(reasoning).length;
 
   // Unique word ratio (vocabulary diversity)
   const uniqueWords = new Set(reasoning.toLowerCase().split(/\s+/));

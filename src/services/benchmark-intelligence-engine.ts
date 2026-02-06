@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -353,7 +353,7 @@ function computeEfficiency(reasoning: string): EfficiencyProfile {
 
   // 4. Quantitative ratio
   const quantClaims = countQuantitativeClaims(reasoning);
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0).length;
+  const sentences = splitSentences(reasoning).length;
   const quantitativeRatio = Math.min(1, quantClaims / Math.max(1, sentences) * 0.5);
 
   const composite = (

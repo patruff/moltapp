@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp, countWords } from "../lib/math-utils.ts";
+import { clamp, countWords, splitSentences } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -182,7 +182,7 @@ export function analyzeForensics(
 }
 
 function analyzeStructure(reasoning: string): StructuralAnalysis {
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 5);
+  const sentences = splitSentences(reasoning, 5);
   const sentenceCount = sentences.length;
   const avgSentenceLength = sentenceCount > 0
     ? sentences.reduce((sum, s) => sum + countWords(s), 0) / sentenceCount

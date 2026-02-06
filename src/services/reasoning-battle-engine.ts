@@ -15,6 +15,8 @@
  *  7. Uniqueness: Is the reasoning original or templated?
  */
 
+import { splitSentences } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -136,7 +138,7 @@ const QUANTITATIVE_PATTERNS = [
 
 function buildReasoningProfile(agentId: string, reasoning: string): ReasoningProfile {
   const words = reasoning.split(/\s+/);
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const sentences = splitSentences(reasoning);
 
   // Detect analytical angles
   const analyticalAngles: string[] = [];

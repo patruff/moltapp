@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -286,7 +286,7 @@ function validateStructure(decision: TradingDecision, issues: ValidationIssue[])
 function validateReasoningDepth(reasoning: string, issues: ValidationIssue[], suggestions: string[]): number {
   const words = reasoning.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 0);
+  const sentences = splitSentences(reasoning);
   const sentenceCount = sentences.length;
 
   let score = 0;

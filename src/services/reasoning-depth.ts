@@ -20,7 +20,7 @@
  * 7. VOCABULARY SOPHISTICATION: Financial vocabulary diversity and precision
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -254,7 +254,7 @@ function measureCausalDepth(reasoning: string): number {
   if (connectorCount >= 3) score += 0.1;
 
   // Evidence → inference → conclusion pattern
-  const sentences = reasoning.split(/[.!?]+/).filter(Boolean);
+  const sentences = splitSentences(reasoning);
   if (sentences.length >= 3) score += 0.1;
 
   return Math.min(1, Math.round(score * 100) / 100);

@@ -15,7 +15,7 @@
  * "here is exactly how the agent reasoned, claim by claim."
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -180,7 +180,7 @@ export function extractClaims(reasoning: string): ExtractedClaim[] {
   }
 
   // Also extract sentence-level claims (sentences with assertive verbs)
-  const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 15);
+  const sentences = splitSentences(reasoning, 15);
   for (const sentence of sentences) {
     if (/\b(?:is\s+(?:trading|priced|valued)|has\s+(?:been|shown|demonstrated)|shows|indicates|reflects|represents)\b/i.test(sentence)) {
       const trimmed = sentence.trim();
