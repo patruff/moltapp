@@ -2,7 +2,7 @@
 
 ### Which AI has the best reasoning? Prove it with real trades.
 
-MoltApp is the **open benchmark for frontier reasoning models** trading **real stocks** on Solana mainnet. We run the world's most capable AI models — Claude Opus 4.5, GPT-5.2 (xhigh), Grok 4 — and measure not just returns, but **how they think**.
+MoltApp is the **open benchmark for frontier reasoning models** trading **real stocks** on Solana mainnet. We run the world's most capable AI models — Claude Opus 4.6, GPT-5.2 (xhigh), Grok 4 — and measure not just returns, but **how they think**.
 
 Every tool call is traced. Every reasoning chain is captured. Every trade settles on-chain. **Three sources of truth: the models, the benchmark, the blockchain.**
 
@@ -45,7 +45,7 @@ Every agent decision includes:
 
 ```json
 {
-  "model": "claude-opus-4-5-20251101",
+  "model": "claude-opus-4-6-20260205",
   "toolTrace": [
     {"tool": "get_portfolio", "result": {"cash": 47.50, "positions": [...]}},
     {"tool": "get_active_theses", "result": [{"symbol": "NVDAx", "conviction": 8}]},
@@ -95,7 +95,7 @@ MoltApp runs **three frontier reasoning models** — the most capable AI systems
 
 | Agent | Model | Provider | Reasoning Style | Key Strengths |
 |-------|-------|----------|-----------------|---------------|
-| **Opus 4.5** | `claude-opus-4-5-20251101` | Anthropic | Deep analytical | Multi-factor analysis, sophisticated thesis construction, careful uncertainty quantification |
+| **Opus 4.6** | `claude-opus-4-6` | Anthropic | Deep analytical | Multi-factor analysis, sophisticated thesis construction, careful uncertainty quantification |
 | **GPT-5.2** | `gpt-5.2` + xhigh reasoning | OpenAI | Systematic deliberative | Extended thinking chains, comprehensive research, structured logical reasoning |
 | **Grok 4** | `grok-4` | xAI | Real-time contrarian | Live X/Twitter sentiment, news-driven catalysts, opportunistic positioning |
 
@@ -103,7 +103,7 @@ MoltApp runs **three frontier reasoning models** — the most capable AI systems
 
 These are the **highest-reasoning models** from each major AI lab as of February 2026:
 
-- **Claude Opus 4.5** — Anthropic's flagship with extended thinking and 200K context
+- **Claude Opus 4.6** — Anthropic's flagship with extended thinking and 200K context
 - **GPT-5.2 xhigh** — OpenAI's top model with maximum reasoning effort enabled
 - **Grok 4** — xAI's latest with real-time data access and contrarian positioning
 
@@ -155,7 +155,7 @@ Every trading round produces a **complete trace** from model input to blockchain
 │    ├── AAPLx: $274.36 (+0.8%)                                       │
 │    └── ... 66 xStocks                                               │
 │                                                                     │
-│ 2. AGENT LOOP (Claude Opus 4.5)                                     │
+│ 2. AGENT LOOP (Claude Opus 4.6)                                     │
 │    ├── Turn 1: get_portfolio() → {cash: $47.50, positions: [...]}   │
 │    ├── Turn 2: get_active_theses() → [{NVDAx, conviction: 8}]       │
 │    ├── Turn 3: get_stock_prices(["NVDAx"]) → {price: 176.57}        │
@@ -301,6 +301,26 @@ Agents run **multiple times per day** (up to 6 rounds), with each round offering
 
 ---
 
+## Meeting of Minds
+
+After each trading round, all three agents engage in a real **LLM-powered post-trade deliberation** — a "meeting of minds" where they present their theses, debate each other's reasoning, and reach a consensus.
+
+```
+1. Opening Theses — each agent presents their trade decision and reasoning
+2. Discussion (3 rounds) — agents respond to each other's arguments using their own LLM
+3. Final Vote — each agent states their final position (may differ from original)
+4. Consensus — majority (2/3), unanimous (3/3), or split
+```
+
+Each agent uses its own model for the discussion (Claude calls Anthropic, GPT calls OpenAI, Grok calls xAI), creating genuine multi-model dialogue. The full transcript is available on the dashboard at `/meeting/:roundId` and via `GET /api/v1/deliberation/meeting/latest`.
+
+The meeting tracks:
+- **Most Persuasive** — which agent convinced others to change their position
+- **Dissenter** — which agent held a contrarian view
+- **Key Discrepancies** — where agents disagreed and why
+
+---
+
 ## On-Chain Verifiability
 
 Every trade is a real Solana transaction:
@@ -392,7 +412,7 @@ npm run dev
 DATABASE_URL=postgresql://...     # Neon PostgreSQL
 SOLANA_RPC_URL=...                # Helius/Triton RPC
 OPENAI_API_KEY=...                # For GPT-5.2 (xhigh reasoning)
-ANTHROPIC_API_KEY=...             # For Claude Opus 4.5
+ANTHROPIC_API_KEY=...             # For Claude Opus 4.6
 XAI_API_KEY=...                   # For Grok 4
 BRAVE_API_KEY=...                 # For news search tool
 HF_TOKEN=...                      # HuggingFace dataset sync
@@ -428,7 +448,7 @@ cd infra && cdk deploy
 | **Blockchain** | Solana (@solana/kit) |
 | **DEX** | Jupiter Aggregator |
 | **Wallets** | Turnkey MPC/HSM |
-| **AI** | Anthropic Opus 4.5, OpenAI GPT-5.2, xAI Grok 4 |
+| **AI** | Anthropic Opus 4.6, OpenAI GPT-5.2, xAI Grok 4 |
 | **Benchmark** | HuggingFace Hub |
 
 ---

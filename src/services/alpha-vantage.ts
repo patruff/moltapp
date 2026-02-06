@@ -226,10 +226,3 @@ export async function alphaVantageSearchProvider(
   return allItems;
 }
 
-/**
- * Clear news cache (useful for testing or manual refresh).
- */
-export function clearAlphaVantageCache(): void {
-  NEWS_CACHE.clear();
-  console.log("[AlphaVantage] Cache cleared");
-}

@@ -468,20 +468,6 @@ export function cancelAllAgentOrders(agentId: string): number {
 }
 
 /**
- * Cancel all orders for a specific symbol.
- */
-export function cancelSymbolOrders(symbol: string): number {
-  let count = 0;
-  for (const [orderId, order] of orders) {
-    if (order.symbol === symbol && (order.status === "active" || order.status === "pending")) {
-      cancelOrder(orderId);
-      count++;
-    }
-  }
-  return count;
-}
-
-/**
  * Get an order by ID.
  */
 export function getOrder(orderId: string): Order | null {
@@ -766,48 +752,6 @@ function processTriggeredOrder(trigger: OrderTriggerResult): void {
   archiveOrder(order);
 }
 
-/**
- * Mark an order as filled (called after successful execution).
- */
-export function markOrderFilled(
-  orderId: string,
-  fillPrice: number,
-  txSignature?: string,
-): void {
-  const order = orders.get(orderId);
-  if (!order) return;
-
-  order.status = "filled";
-  order.updatedAt = new Date().toISOString();
-
-  logTradeEvent(
-    "order_filled",
-    `${order.type} order ${orderId} filled at $${fillPrice.toFixed(4)} — tx: ${txSignature ?? "paper"}`,
-    order.agentId,
-    order.roundId ?? undefined,
-    { orderId, fillPrice, txSignature },
-  );
-}
-
-/**
- * Mark an order as failed (called after execution failure).
- */
-export function markOrderFailed(orderId: string, error: string): void {
-  const order = orders.get(orderId);
-  if (!order) return;
-
-  order.status = "failed";
-  order.updatedAt = new Date().toISOString();
-
-  logTradeEvent(
-    "order_failed",
-    `${order.type} order ${orderId} execution failed: ${error}`,
-    order.agentId,
-    order.roundId ?? undefined,
-    { orderId, error },
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Internal Helpers
 // ---------------------------------------------------------------------------
@@ -907,12 +851,3 @@ export function getOrderManagerMetrics(): OrderManagerMetrics {
   };
 }
 
-/**
- * Clear all orders (admin use).
- */
-export function clearAllOrders(): void {
-  orders.clear();
-  activeOrdersBySymbol.clear();
-  orderHistory.length = 0;
-  console.log("[OrderManager] All orders cleared");
-}

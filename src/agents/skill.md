@@ -1543,6 +1543,243 @@ NVDAx at $487: Datacenter GPU shortage announced, Azure/AWS confirmed multi-bill
 **Anti-Pattern to Avoid:**
 ❌ "I'll trim AAPLx, hold cash, wait for 'something better'" → This is **lazy trimming**. Cash earns 0%. Only trim if you have SPECIFIC destination for proceeds (new ≥75 conf trade identified THIS round). Otherwise, let winner run.
 
+## Mid-Position Risk Management: When Thesis Weakens But Isn't Broken
+
+**THE PROBLEM:** Current guidance treats theses as binary (valid = hold 100%, broken = exit 100%). But most thesis degradation happens gradually over multiple rounds, creating a gray zone where agents make inconsistent decisions.
+
+**THE GAP:** Between "thesis intact, hold 100%" and "thesis broken, exit 100%", there's a critical middle state: **"thesis weakening"** — where fundamentals are deteriorating but not yet definitively invalidated.
+
+**Common Scenario:**
+- Position is down 8-12% from entry
+- No new catalyst has emerged to support recovery
+- Thesis hasn't completely broken, but conviction has dropped from 75 → 62 over 3 rounds
+- Should you: HOLD 100% (thesis not broken), TRIM 50% (reduce exposure), or EXIT 100% (cut losses)?
+
+### The 4-State Thesis Framework
+
+Every round when evaluating an existing position, classify its thesis into ONE of these states:
+
+| Thesis State | Definition | Signal Count Trend | Action |
+|--------------|-----------|-------------------|--------|
+| **STRENGTHENING** | New catalysts emerged, conviction RISING | 75 → 80 → 82 over rounds | HOLD 100% or ADD (if <20% allocation) |
+| **INTACT** | No material changes, conviction STABLE | 75 → 73 → 76 (±3 variation) | HOLD 100% toward target |
+| **WEAKENING** | Some deterioration, conviction FALLING | 75 → 68 → 62 (losing signals) | TRIM 40-60% to reduce exposure |
+| **BROKEN** | Fundamental invalidation, confidence <60 | 75 → 55 → 50 (thesis failed) | EXIT 100% immediately |
+
+**Key Insight:** The difference between INTACT and WEAKENING is the TREND, not a single data point. One bad quarter ≠ weakening. Three consecutive rounds of deteriorating fundamentals = weakening.
+
+### Decision Tree: Position Down 8-12%, What Now?
+
+**STEP 1: Re-evaluate thesis with CURRENT data (ignore entry price)**
+
+Call `get_active_theses()` → retrieve original thesis. Then re-score confidence TODAY:
+- Baseline: 50
+- Count CURRENT signals (not entry signals): fundamental catalyst still valid? Technical setup still supportive? Timing edge still present?
+- Subtract CURRENT risks: has anything gotten worse since entry?
+
+**STEP 2: Compare current confidence to entry confidence**
+
+| Confidence Change | Interpretation | Thesis State |
+|------------------|----------------|--------------|
+| +5 to +10 points | Thesis validated by new data | STRENGTHENING |
+| -3 to +3 points | Normal variation, thesis intact | INTACT |
+| -4 to -8 points | Losing conviction, edge eroding | WEAKENING |
+| -9+ points | Thesis failing, major invalidation | BROKEN |
+
+**STEP 3: Apply decision matrix**
+
+### WORKED EXAMPLE - Position Down 10%, Thesis Weakening
+
+**Portfolio State:**
+- TSLAx: Entry $245 (Round 47), Current $220.50 (-10.0%), Position Value: $4.32 (10.5% allocation)
+- Original Thesis (Round 47): "EV market share gains + FSD monetization driving margin recovery. Entry $245, PT $270 (+10.2%) in 8-10 weeks. Confidence: 75"
+- Original Signal Breakdown:
+  - Baseline: 50
+  - FSD beta rollout announced: +15 (catalyst)
+  - Q2 delivery beat estimates: +10 (fundamental)
+  - RSI 32 (oversold): +10 (technical)
+  - Strategic fit (value on dip): +5
+  - Subtotal: 50 + 40 = 90, minus -15 (execution risk) = **75 confidence**
+
+**Round 50 Re-Evaluation (3 weeks later, down 10%):**
+
+*Step 1: Call tools and re-score thesis TODAY*
+
+```
+Called get_active_theses() → Retrieved original TSLAx thesis
+Called get_stock_prices({"symbol": "TSLAx"}) → Current $220.50 (-10% from $245 entry)
+Called search_news("Tesla FSD rollout delays") → FSD beta delayed 4 weeks due to regulatory review
+Called search_news("Tesla delivery numbers Q2") → Q3 deliveries missed street by 8%, margin pressure cited
+Called get_technical_indicators({"symbol": "TSLAx"}) → RSI 45 (neutral, no longer oversold), volume declining
+```
+
+*Step 2: Re-score confidence with CURRENT data*
+
+**Current Signal Breakdown:**
+- Baseline: 50
+- FSD catalyst: +5 (delayed, not dead — reduced from +15)
+- Delivery performance: -5 (Q3 miss contradicts original thesis — was +10, now negative)
+- Technical: 0 (RSI 45 neutral — was +10, now zero)
+- Strategic fit: +5 (still value strategy, unchanged)
+- Execution risk: -20 (worse now — regulatory + margin pressure)
+- **Current confidence: 50 + 10 - 20 = 40 points** (down 35 points from entry 75)
+
+*Step 3: Classify thesis state*
+
+- **Confidence change: 75 → 40 = -35 points** → **BROKEN** (not just weakening, thesis invalidated)
+- FSD catalyst delayed (timing broken)
+- Delivery deterioration (fundamental broken)
+- Technical setup reversed (no longer oversold)
+
+**Decision: ✅ EXIT 100% IMMEDIATELY**
+
+**Rationale:**
+```
+Thesis BROKEN — exit despite -10% loss to prevent further deterioration. Original thesis based on:
+(1) FSD monetization → now delayed 4+ weeks, timing invalidated
+(2) Delivery strength → Q3 miss by 8%, contradicts margin recovery assumption
+(3) Oversold entry → RSI now 45 (neutral), technical edge gone
+
+Current confidence 40 (down from 75 entry). Signals lost:
+  - FSD catalyst: +15 → +5 (delayed)
+  - Deliveries: +10 → -5 (deteriorated)
+  - Technical: +10 → 0 (no longer oversold)
+  - Risk increased: -15 → -20 (regulatory + margin)
+
+Position down 10% but cutting loss NOW prevents likely -15% to -20% if thesis continues failing.
+Forward edge gone — exit at $220.50, redeploy capital to higher-conviction setup.
+
+Closing thesis: "FSD delay + delivery miss invalidated margin recovery thesis. Exiting at -10%
+to preserve capital. Learning: Don't enter on single catalyst (FSD) — need multiple independent drivers."
+```
+
+**Loss Categorization (for learning):**
+- **Category: CATALYST FAILED** — FSD rollout delayed, removing primary driver
+- **Symbol Knowledge Impact:** TSLAx added to watchlist — require 2+ catalysts (not 1) for future entries
+- **Systemic Learning:** Regulatory-dependent catalysts (FSD, drug approvals) need wider margin of safety
+
+### Scenario Comparison Table
+
+| Scenario | Entry Conf | Current Conf | Change | Thesis State | Action | Why? |
+|----------|-----------|--------------|--------|--------------|--------|------|
+| **A: New Catalyst** | 75 | 80 | +5 | STRENGTHENING | HOLD 100% or ADD | Thesis validated, consider raising target |
+| **B: Stable** | 75 | 73 | -2 | INTACT | HOLD 100% | Normal variation, thesis playing out |
+| **C: Minor Deterioration** | 75 | 68 | -7 | WEAKENING | TRIM 50% | Edge eroding, reduce exposure while monitoring |
+| **D: Major Invalidation** | 75 | 40-55 | -20+ | BROKEN | EXIT 100% | Thesis failed, cut loss immediately |
+
+### Position Trimming Mechanics (Scenario C: WEAKENING)
+
+**When to trim 40-60% instead of exit 100%:**
+- Confidence dropped 4-8 points (not catastrophic)
+- 1-2 signals weakened but core thesis still plausible
+- Position down 5-12% (meaningful but not severe)
+- No clear invalidation, just less conviction
+
+**Example: Thesis WEAKENING (trim 50%)**
+```
+GOOGx: Entry $142 (conf 75), Current $136 (-4.2%), Current conf 68 (-7 points)
+
+Signal change:
+  - AI search leadership: +15 → +10 (Bing gaining share, still lead but margin shrinking)
+  - Cloud growth: +10 → +10 (unchanged)
+  - Technical: +10 → +5 (RSI 58, was 35 oversold at entry)
+  - Strategic fit: +5 → +5 (unchanged)
+
+Thesis WEAKENING (not broken): Search leadership edge narrowing but not lost. Current conf 68 suggests
+position worth keeping but at reduced size.
+
+Action: TRIM 50% ($2.91 of $5.82 position)
+  - Lock in -4.2% on trimmed portion (small loss accepted to reduce exposure)
+  - Keep $2.91 exposure in case thesis stabilizes
+  - Free up capital for new 75+ conf setup if one appears
+
+NOT exiting 100% because:
+  - Cloud thesis still intact (+10 signal unchanged)
+  - AI lead shrinking but not lost (still +10 signal, just reduced from +15)
+  - Only 1 of 4 signals materially degraded
+  - Thesis WEAKENING, not BROKEN — could stabilize
+```
+
+### Anti-Pattern: Thesis Misclassification
+
+❌ **MISTAKE: Classifying WEAKENING as INTACT**
+```
+"Position down 8%, confidence dropped 75 → 68, but thesis isn't broken so I'll hold 100%"
+
+Why it's wrong: Losing 7 confidence points IS material degradation. Signals are eroding. This is
+WEAKENING state → should trim 40-60%, not hold 100%. Ignoring deterioration = larger future loss.
+```
+
+❌ **MISTAKE: Classifying INTACT as BROKEN**
+```
+"Position down 6% in one day on macro news, exiting immediately to cut losses"
+
+Why it's wrong: Single-day volatility ≠ thesis invalidation. If confidence still 73-76 (stable) and
+catalyst remains valid, this is INTACT → HOLD 100%. Overreacting to noise = locking in preventable loss.
+```
+
+✅ **CORRECT: Recognize WEAKENING early and act**
+```
+Round 47: Entry GOOGx $142, conf 75
+Round 48: GOOGx $140 (-1.4%), conf 73 (-2 points) → INTACT, HOLD
+Round 49: GOOGx $138 (-2.8%), conf 70 (-5 points total) → WEAKENING trend emerging, MONITOR
+Round 50: GOOGx $136 (-4.2%), conf 68 (-7 points total) → WEAKENING confirmed, TRIM 50%
+
+Caught deterioration at -7 points. Trimmed at -4.2% loss instead of waiting for -10% to -15%.
+Reduced exposure while preserving optionality if thesis stabilizes.
+```
+
+### Key Rules for Mid-Position Risk Management
+
+1. **Re-evaluate thesis EVERY round for positions down >5%**
+   - Don't assume "thesis unchanged" — actively verify with current tool calls
+   - Count signals fresh, don't rely on entry reasoning
+
+2. **Track confidence TREND, not single data points**
+   - One bad data point: 75 → 72 = noise, INTACT
+   - Three rounds of deterioration: 75 → 70 → 65 = pattern, WEAKENING
+
+3. **TRIM is a legitimate action (not just HOLD or EXIT)**
+   - Reduces exposure during uncertainty
+   - Locks partial loss while preserving optionality
+   - Frees capital for better opportunities
+
+4. **Don't anchor to entry price — focus on FORWARD edge**
+   - "Down 10% so I need to wait for breakeven" = anchoring bias
+   - Correct question: "If I were evaluating this fresh TODAY with current confidence 65, would I buy it?"
+   - If NO → exit or trim, don't hold just to avoid realizing loss
+
+5. **Thesis BROKEN → exit IMMEDIATELY (no "give it one more round")**
+   - Broken = confidence <60 or primary catalyst invalidated
+   - Waiting only deepens loss when edge is gone
+   - Accept -8% to -12% loss to prevent -15% to -25%
+
+### Quick Reference Checklist
+
+**Before deciding on existing position down >5%, answer:**
+
+```
+[ ] Called get_active_theses() and retrieved original entry thesis
+[ ] Called get_stock_prices() for current price
+[ ] Called search_news() for material developments since entry
+[ ] Called get_technical_indicators() for current setup
+[ ] Re-scored confidence with CURRENT data (not entry data)
+[ ] Calculated confidence change: Entry [X] → Current [Y] = [Z] point change
+[ ] Classified thesis state: STRENGTHENING / INTACT / WEAKENING / BROKEN
+[ ] If WEAKENING: calculated trim size (40-60% of position)
+[ ] If BROKEN: prepared to exit 100% immediately
+[ ] Updated or closed thesis with current assessment
+```
+
+**Decision shortcuts:**
+
+- **Confidence +5 or more** → STRENGTHENING → HOLD 100% or ADD
+- **Confidence -3 to +3** → INTACT → HOLD 100%
+- **Confidence -4 to -8** → WEAKENING → TRIM 40-60%
+- **Confidence -9 or worse** → BROKEN → EXIT 100%
+
+**Remember:** Thesis states are about FORWARD-LOOKING edge, not past performance. A position up 8% with weakening thesis (conf 75 → 67) should be trimmed. A position down 6% with strengthening thesis (conf 75 → 82) should be held or added to.
+
 - **HOLD** when (this should be ~70% of rounds — **MANDATORY HOLD RATE CHECK: If your last 10 rounds include <7 HOLDs, you're overtrading and likely inflating confidence**):
   - ✔️ Existing theses remain valid after checking news + prices
   - ✔️ No new high-conviction opportunities (≥70 confidence with 3+ confirming signals)

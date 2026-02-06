@@ -1,17 +1,12 @@
 /**
  * Structured Logging & Metrics Pipeline
  *
- * CloudWatch-ready JSON logging with context propagation.
- * Replaces ad-hoc console.log calls with structured events
+ * CloudWatch-ready JSON logging with structured events
  * that can be queried, filtered, and alarmed on.
  *
  * Features:
  * - JSON structured logs (CloudWatch Insights compatible)
  * - Log levels: DEBUG, INFO, WARN, ERROR, FATAL
- * - Automatic context propagation (roundId, agentId, traceId)
- * - Trading round lifecycle logging
- * - Performance metrics collection
- * - CloudWatch EMF (Embedded Metric Format) for custom metrics
  * - Log sampling for high-frequency events
  * - Ring buffer for recent logs (in-memory access)
  */
@@ -70,22 +65,6 @@ export type MetricUnit =
   | "Bytes"
   | "None";
 
-export interface RoundMetrics {
-  roundId: string;
-  startedAt: string;
-  completedAt: string;
-  durationMs: number;
-  agentsExecuted: number;
-  agentsTimedOut: number;
-  tradesExecuted: number;
-  tradesFailed: number;
-  circuitBreakerActivations: number;
-  tradingMode: string;
-  jupiterCallCount: number;
-  jupiterFailCount: number;
-  totalVolumeUsdc: number;
-}
-
 export interface LoggerConfig {
   /** Minimum log level to output (default: INFO, DEBUG in dev) */
   minLevel: LogLevel;
@@ -137,7 +116,6 @@ const config: LoggerConfig = {
 
 const ringBuffer: StructuredLogEntry[] = [];
 const metricBuffer: MetricEntry[] = [];
-const MAX_METRIC_BUFFER = 200;
 
 let stats: LoggerStats = {
   totalLogs: 0,
@@ -147,52 +125,6 @@ let stats: LoggerStats = {
   sampledOut: 0,
   errorsLogged: 0,
 };
-
-/** Current context (propagated to all logs) */
-let currentContext: {
-  roundId?: string;
-  agentId?: string;
-  traceId?: string;
-} = {};
-
-// ---------------------------------------------------------------------------
-// Context Management
-// ---------------------------------------------------------------------------
-
-/**
- * Set the current logging context. All subsequent logs will include these fields.
- */
-export function setContext(ctx: {
-  roundId?: string;
-  agentId?: string;
-  traceId?: string;
-}): void {
-  currentContext = { ...currentContext, ...ctx };
-}
-
-/**
- * Clear the current logging context.
- */
-export function clearContext(): void {
-  currentContext = {};
-}
-
-/**
- * Execute a function with a specific logging context.
- * Context is automatically restored after the function completes.
- */
-export async function withContext<T>(
-  ctx: { roundId?: string; agentId?: string; traceId?: string },
-  fn: () => Promise<T>,
-): Promise<T> {
-  const previousContext = { ...currentContext };
-  setContext(ctx);
-  try {
-    return await fn();
-  } finally {
-    currentContext = previousContext;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Core Logging
@@ -226,7 +158,6 @@ function log(
     level,
     service,
     message,
-    ...currentContext,
     data,
   };
 
@@ -263,18 +194,15 @@ function log(
   } else {
     // Pretty output for development
     const prefix = `[${level}][${service}]`;
-    const contextStr = currentContext.roundId
-      ? ` (round:${currentContext.roundId?.slice(0, 12)})`
-      : "";
     const dataStr = data ? ` ${JSON.stringify(data)}` : "";
     const errorStr = error ? ` ERROR: ${error.message}` : "";
 
     if (level === "ERROR" || level === "FATAL") {
-      console.error(`${prefix}${contextStr} ${message}${dataStr}${errorStr}`);
+      console.error(`${prefix} ${message}${dataStr}${errorStr}`);
     } else if (level === "WARN") {
-      console.warn(`${prefix}${contextStr} ${message}${dataStr}${errorStr}`);
+      console.warn(`${prefix} ${message}${dataStr}${errorStr}`);
     } else {
-      console.log(`${prefix}${contextStr} ${message}${dataStr}${errorStr}`);
+      console.log(`${prefix} ${message}${dataStr}${errorStr}`);
     }
   }
 }
@@ -304,204 +232,6 @@ export const logger = {
     log("FATAL", service, message, data, error);
   },
 };
-
-// ---------------------------------------------------------------------------
-// Trading Round Lifecycle Logging
-// ---------------------------------------------------------------------------
-
-/**
- * Log the start of a trading round with full context.
- */
-export function logRoundStart(roundId: string, agentCount: number, tradingMode: string): void {
-  setContext({ roundId, traceId: `trace_${roundId}` });
-  logger.info("orchestrator", "Trading round started", {
-    roundId,
-    agentCount,
-    tradingMode,
-    timestamp: new Date().toISOString(),
-  });
-}
-
-/**
- * Log when an agent starts its analysis.
- */
-export function logAgentStart(agentId: string, agentName: string, model: string): void {
-  setContext({ agentId });
-  logger.info("orchestrator", `Agent starting analysis: ${agentName}`, {
-    agentId,
-    agentName,
-    model,
-  });
-}
-
-/**
- * Log an agent's decision.
- */
-export function logAgentDecision(
-  agentId: string,
-  agentName: string,
-  decision: { action: string; symbol: string; quantity: number; confidence: number },
-  durationMs: number,
-): void {
-  logger.info("orchestrator", `Agent decision: ${agentName} ${decision.action} ${decision.symbol}`, {
-    agentId,
-    agentName,
-    action: decision.action,
-    symbol: decision.symbol,
-    quantity: decision.quantity,
-    confidence: decision.confidence,
-    durationMs,
-  });
-
-  emitMetric("AgentDecision", 1, "Count", { agentId, action: decision.action });
-  emitMetric("AgentDecisionLatency", durationMs, "Milliseconds", { agentId });
-}
-
-/**
- * Log trade execution result.
- */
-export function logTradeExecution(
-  agentId: string,
-  symbol: string,
-  action: string,
-  success: boolean,
-  durationMs: number,
-  details?: Record<string, unknown>,
-): void {
-  const level = success ? "INFO" : "WARN";
-  log(level, "trade-executor", `Trade ${success ? "executed" : "failed"}: ${action} ${symbol}`, {
-    agentId,
-    symbol,
-    action,
-    success,
-    durationMs,
-    ...details,
-  });
-
-  emitMetric("TradeExecution", 1, "Count", { agentId, action, success: String(success) });
-  emitMetric("TradeExecutionLatency", durationMs, "Milliseconds", { agentId });
-}
-
-/**
- * Log and record round completion metrics.
- */
-export function logRoundComplete(metrics: RoundMetrics): void {
-  logger.info("orchestrator", "Trading round completed", {
-    roundId: metrics.roundId,
-    durationMs: metrics.durationMs,
-    agentsExecuted: metrics.agentsExecuted,
-    agentsTimedOut: metrics.agentsTimedOut,
-    tradesExecuted: metrics.tradesExecuted,
-    tradesFailed: metrics.tradesFailed,
-    circuitBreakerActivations: metrics.circuitBreakerActivations,
-    tradingMode: metrics.tradingMode,
-    jupiterCallCount: metrics.jupiterCallCount,
-    jupiterFailCount: metrics.jupiterFailCount,
-    totalVolumeUsdc: metrics.totalVolumeUsdc,
-  });
-
-  // Emit CloudWatch metrics
-  emitMetric("RoundDuration", metrics.durationMs, "Milliseconds", {});
-  emitMetric("AgentsExecuted", metrics.agentsExecuted, "Count", {});
-  emitMetric("AgentsTimedOut", metrics.agentsTimedOut, "Count", {});
-  emitMetric("TradesExecuted", metrics.tradesExecuted, "Count", {});
-  emitMetric("TradesFailed", metrics.tradesFailed, "Count", {});
-  emitMetric("CircuitBreakerActivations", metrics.circuitBreakerActivations, "Count", {});
-  emitMetric("TradingVolume", metrics.totalVolumeUsdc, "None", {});
-
-  stats.roundMetricsEmitted++;
-  clearContext();
-}
-
-// ---------------------------------------------------------------------------
-// CloudWatch EMF (Embedded Metric Format)
-// ---------------------------------------------------------------------------
-
-/**
- * Emit a CloudWatch-compatible metric.
- *
- * In Lambda/production, outputs in EMF format.
- * In development, stores in metric buffer for debugging.
- */
-export function emitMetric(
-  name: string,
-  value: number,
-  unit: MetricUnit,
-  dimensions: Record<string, string>,
-): void {
-  const entry: MetricEntry = {
-    name,
-    value,
-    unit,
-    dimensions,
-    timestamp: new Date().toISOString(),
-  };
-
-  stats.metricsEmitted++;
-
-  metricBuffer.push(entry);
-  if (metricBuffer.length > MAX_METRIC_BUFFER) {
-    metricBuffer.splice(0, metricBuffer.length - MAX_METRIC_BUFFER);
-  }
-
-  // In production/Lambda, emit EMF format
-  if (isLambda) {
-    const emf = {
-      _aws: {
-        Timestamp: Date.now(),
-        CloudWatchMetrics: [
-          {
-            Namespace: "MoltApp/Trading",
-            Dimensions: [Object.keys(dimensions)],
-            Metrics: [{ Name: name, Unit: unit }],
-          },
-        ],
-      },
-      [name]: value,
-      ...dimensions,
-    };
-    console.log(JSON.stringify(emf));
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Performance Timing
-// ---------------------------------------------------------------------------
-
-/**
- * Time an async operation and log the result.
- */
-export async function timeOperation<T>(
-  service: string,
-  operationName: string,
-  fn: () => Promise<T>,
-  logResult = true,
-): Promise<{ result: T; durationMs: number }> {
-  const startMs = Date.now();
-
-  try {
-    const result = await fn();
-    const durationMs = Date.now() - startMs;
-
-    if (logResult) {
-      logger.debug(service, `${operationName} completed in ${durationMs}ms`, {
-        operation: operationName,
-        durationMs,
-      });
-    }
-
-    return { result, durationMs };
-  } catch (err) {
-    const durationMs = Date.now() - startMs;
-    logger.error(
-      service,
-      `${operationName} failed after ${durationMs}ms`,
-      err instanceof Error ? err : new Error(String(err)),
-      { operation: operationName, durationMs },
-    );
-    throw err;
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Log Access & Querying

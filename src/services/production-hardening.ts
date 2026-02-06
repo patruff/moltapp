@@ -3,19 +3,15 @@
  *
  * Critical safety infrastructure for live trading:
  *
- * 1. Agent Timeout Protection — 30s hard limit on LLM calls
- * 2. Emergency Kill Switch — halt all trading instantly
- * 3. Market Data Staleness Detection — reject stale prices
- * 4. Agent Execution Order Randomization — prevent first-mover bias
- * 5. Round Timeout — abort entire round if it takes too long
- * 6. Health Monitoring — detect degraded service state
+ * 1. Emergency Kill Switch — halt all trading instantly
+ * 2. Market Data Staleness Detection — reject stale prices
+ * 3. Health Monitoring — detect degraded service state
+ * 4. Configuration Management — timeout configuration
+ * 5. Metrics — hardening metrics tracking
  *
  * This module wraps the orchestrator's trading pipeline with production
  * safety guarantees that the base system doesn't provide.
  */
-
-import type { TradingDecision, MarketData, PortfolioContext } from "../agents/base-agent.ts";
-import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -134,150 +130,6 @@ let metrics: HardeningMetrics = {
 let jupiterConsecutiveFailures = 0;
 
 // ---------------------------------------------------------------------------
-// Agent Timeout Protection
-// ---------------------------------------------------------------------------
-
-/**
- * Wrap an agent's analyze() call with a hard timeout.
- *
- * If the agent doesn't respond within the configured timeout,
- * returns a fallback "hold" decision and logs the timeout.
- */
-export async function withAgentTimeout(
-  agentId: string,
-  agentName: string,
-  analyzeFn: () => Promise<TradingDecision>,
-  overrideTimeoutMs?: number,
-): Promise<{ decision: TradingDecision; timedOut: boolean }> {
-  const timeout = overrideTimeoutMs ?? timeoutConfig.analyzeTimeoutMs;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
-      () => reject(new Error(`AGENT_TIMEOUT: ${agentName} did not respond within ${timeout}ms`)),
-      timeout,
-    );
-  });
-
-  try {
-    const decision = await Promise.race([analyzeFn(), timeoutPromise]);
-    return { decision, timedOut: false };
-  } catch (err) {
-    const errMsg = errorMessage(err);
-
-    if (errMsg.startsWith("AGENT_TIMEOUT:")) {
-      metrics.agentTimeouts++;
-      metrics.agentTimeoutsByAgent[agentId] =
-        (metrics.agentTimeoutsByAgent[agentId] ?? 0) + 1;
-
-      console.error(
-        `[Hardening] AGENT TIMEOUT: ${agentName} (${agentId}) failed to respond in ${timeout}ms. Defaulting to hold.`,
-      );
-
-      return {
-        decision: {
-          action: "hold",
-          symbol: "SPYx",
-          quantity: 0,
-          reasoning: `[Production Hardening: Agent Timeout] ${agentName} did not respond within ${timeout}ms. Defaulting to safe hold position.`,
-          confidence: 0,
-          timestamp: new Date().toISOString(),
-        },
-        timedOut: true,
-      };
-    }
-
-    // Non-timeout error — rethrow
-    throw err;
-  }
-}
-
-/**
- * Wrap a trade execution with a hard timeout.
- */
-export async function withExecutionTimeout<T>(
-  label: string,
-  executeFn: () => Promise<T>,
-  overrideTimeoutMs?: number,
-): Promise<{ result: T | null; timedOut: boolean; error?: string }> {
-  const timeout = overrideTimeoutMs ?? timeoutConfig.executionTimeoutMs;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
-      () => reject(new Error(`EXECUTION_TIMEOUT: ${label} did not complete within ${timeout}ms`)),
-      timeout,
-    );
-  });
-
-  try {
-    const result = await Promise.race([executeFn(), timeoutPromise]);
-    return { result, timedOut: false };
-  } catch (err) {
-    const errMsg = errorMessage(err);
-
-    if (errMsg.startsWith("EXECUTION_TIMEOUT:")) {
-      metrics.executionTimeouts++;
-      console.error(
-        `[Hardening] EXECUTION TIMEOUT: ${label} did not complete in ${timeout}ms`,
-      );
-      return { result: null, timedOut: true, error: errMsg };
-    }
-
-    return { result: null, timedOut: false, error: errMsg };
-  }
-}
-
-/**
- * Wrap an entire trading round with a hard timeout.
- */
-export async function withRoundTimeout<T>(
-  roundId: string,
-  roundFn: () => Promise<T>,
-  overrideTimeoutMs?: number,
-): Promise<{ result: T | null; timedOut: boolean }> {
-  const timeout = overrideTimeoutMs ?? timeoutConfig.roundTimeoutMs;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(
-      () => reject(new Error(`ROUND_TIMEOUT: Round ${roundId} did not complete within ${timeout}ms`)),
-      timeout,
-    );
-  });
-
-  metrics.totalRoundsProtected++;
-
-  try {
-    const result = await Promise.race([roundFn(), timeoutPromise]);
-    metrics.consecutiveFailures = 0;
-    metrics.lastSuccessfulRound = new Date().toISOString();
-    return { result, timedOut: false };
-  } catch (err) {
-    const errMsg = errorMessage(err);
-
-    if (errMsg.startsWith("ROUND_TIMEOUT:")) {
-      metrics.roundTimeouts++;
-      metrics.consecutiveFailures++;
-      console.error(
-        `[Hardening] ROUND TIMEOUT: Round ${roundId} exceeded ${timeout}ms limit`,
-      );
-
-      // Auto-halt after too many consecutive failures
-      if (metrics.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        emergencyHalt(
-          "system",
-          `Auto-halted after ${MAX_CONSECUTIVE_FAILURES} consecutive round failures`,
-          60 * 15, // 15 minute auto-resume
-        );
-      }
-
-      return { result: null, timedOut: true };
-    }
-
-    metrics.consecutiveFailures++;
-    throw err;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Emergency Kill Switch
 // ---------------------------------------------------------------------------
 
@@ -388,18 +240,6 @@ let lastRealPriceCount: number = 0;
 let lastTotalStockCount: number = 0;
 
 /**
- * Record a market data fetch and its quality.
- */
-export function recordMarketDataFetch(
-  realPriceCount: number,
-  totalStocks: number,
-): void {
-  lastMarketDataFetch = Date.now();
-  lastRealPriceCount = realPriceCount;
-  lastTotalStockCount = totalStocks;
-}
-
-/**
  * Check if market data is fresh enough for trading.
  */
 export function checkMarketDataFreshness(): MarketDataFreshness {
@@ -436,50 +276,10 @@ export function checkMarketDataFreshness(): MarketDataFreshness {
 // ---------------------------------------------------------------------------
 
 /**
- * Record a Jupiter API failure. Auto-halts after threshold consecutive failures.
- */
-export function recordJupiterFailure(): void {
-  jupiterConsecutiveFailures++;
-
-  if (jupiterConsecutiveFailures >= JUPITER_FAILURE_THRESHOLD) {
-    emergencyHalt(
-      "jupiter-monitor",
-      `Jupiter API has failed ${jupiterConsecutiveFailures} consecutive times. Auto-halting to prevent mock-price trading.`,
-      60 * 5, // 5 minute auto-resume
-    );
-  }
-}
-
-/**
- * Record a successful Jupiter API call. Resets the failure counter.
- */
-export function recordJupiterSuccess(): void {
-  jupiterConsecutiveFailures = 0;
-}
-
-/**
  * Get Jupiter failure count.
  */
 export function getJupiterFailureCount(): number {
   return jupiterConsecutiveFailures;
-}
-
-// ---------------------------------------------------------------------------
-// Agent Execution Order Randomization
-// ---------------------------------------------------------------------------
-
-/**
- * Shuffle an array of agents to randomize execution order.
- * Prevents first-mover advantage in sequential execution.
- * Uses Fisher-Yates shuffle for uniform distribution.
- */
-export function shuffleAgentOrder<T>(agents: T[]): T[] {
-  const shuffled = [...agents];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
 }
 
 // ---------------------------------------------------------------------------
