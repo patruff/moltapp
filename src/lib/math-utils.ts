@@ -313,7 +313,7 @@ export function findMin<T extends Record<string, any>>(
  * sumByKey([], 'pnl') // returns 0
  */
 export function sumByKey<T extends Record<string, any>>(
-  items: T[],
+  items: readonly T[],
   key: keyof T & string,
   getterFn?: (val: number) => number,
 ): number {
@@ -345,7 +345,7 @@ export function sumByKey<T extends Record<string, any>>(
  * averageByKey([], 'winRate') // returns 0
  */
 export function averageByKey<T extends Record<string, any>>(
-  items: T[],
+  items: readonly T[],
   key: keyof T & string,
   getterFn?: (val: number) => number,
 ): number {
