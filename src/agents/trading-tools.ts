@@ -490,8 +490,25 @@ interface BraveSearchResponse {
   };
 }
 
+interface AlphaVantageArticle {
+  title?: string;
+  url?: string;
+  time_published?: string;
+  summary?: string;
+  source?: string;
+  overall_sentiment_score?: number;
+  overall_sentiment_label?: string;
+}
+
+interface AlphaVantageResponse {
+  feed?: AlphaVantageArticle[];
+  Note?: string;
+  Information?: string;
+}
+
 /**
- * Enhanced news search with freshness filters, source targeting, and timestamp context.
+ * Enhanced news search with sentiment scoring via Alpha Vantage (free tier).
+ * Falls back to Brave Search if Alpha Vantage unavailable.
  *
  * Freshness options:
  * - "ph" = past hour (breaking news)
@@ -526,14 +543,156 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
     });
   }
 
-  const apiKey = process.env.BRAVE_API_KEY;
-  if (!apiKey) {
-    return JSON.stringify({
-      results: [],
-      note: "News search unavailable (no BRAVE_API_KEY)",
-    });
+  const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+  const braveKey = process.env.BRAVE_API_KEY;
+
+  // Try Alpha Vantage first (free tier with sentiment data)
+  if (alphaVantageKey) {
+    const alphaResult = await executeSearchNewsAlphaVantage(args, alphaVantageKey);
+    if (alphaResult) return alphaResult;
   }
 
+  // Fallback to Brave Search
+  if (braveKey) {
+    return executeSearchNewsBrave(args, braveKey);
+  }
+
+  return JSON.stringify({
+    results: [],
+    note: "News search unavailable (no ALPHA_VANTAGE_API_KEY or BRAVE_API_KEY)",
+  });
+}
+
+/**
+ * Search news via Alpha Vantage (primary, free with sentiment).
+ */
+async function executeSearchNewsAlphaVantage(
+  args: SearchNewsArgs,
+  apiKey: string,
+): Promise<string | null> {
+  try {
+    // Extract ticker symbol from query if present
+    // Look for patterns like "AAPLx", "AAPL", "Apple stock"
+    const query = args.query.toLowerCase();
+    let ticker: string | null = null;
+
+    // Try to find xStock symbol
+    for (const stock of XSTOCKS_CATALOG) {
+      const sym = stock.symbol.toLowerCase();
+      const name = stock.name.toLowerCase();
+      const rawTicker = stock.symbol.replace(/x$/i, "");
+
+      if (query.includes(sym) || query.includes(name.toLowerCase()) || query.includes(rawTicker.toLowerCase())) {
+        ticker = rawTicker;
+        break;
+      }
+    }
+
+    if (!ticker) {
+      // Can't map to ticker, return null to fallback to Brave
+      return null;
+    }
+
+    const url = new URL("https://www.alphavantage.co/query");
+    url.searchParams.set("function", "NEWS_SENTIMENT");
+    url.searchParams.set("tickers", ticker);
+    url.searchParams.set("limit", "10");
+    url.searchParams.set("apikey", apiKey);
+
+    // Map freshness to time_from/time_to if needed
+    // Alpha Vantage doesn't have direct freshness param, so we'll filter client-side
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = (await res.json()) as AlphaVantageResponse;
+
+    // Check for API limit
+    if (data.Note || data.Information) {
+      console.warn("[AlphaVantage] API limit or error");
+      return null;
+    }
+
+    const feed = data.feed ?? [];
+    if (feed.length === 0) {
+      return null;
+    }
+
+    // Filter by freshness client-side
+    const freshness = args.freshness ?? "pd";
+    const now = Date.now();
+    const freshnessMs = {
+      ph: 60 * 60 * 1000, // 1 hour
+      pd: 24 * 60 * 60 * 1000, // 1 day
+      pw: 7 * 24 * 60 * 60 * 1000, // 1 week
+      pm: 30 * 24 * 60 * 60 * 1000, // 1 month
+    }[freshness];
+
+    const filteredFeed = feed.filter((article) => {
+      if (!article.time_published) return true;
+      try {
+        const timeStr = article.time_published;
+        const year = timeStr.slice(0, 4);
+        const month = timeStr.slice(4, 6);
+        const day = timeStr.slice(6, 8);
+        const hour = timeStr.slice(9, 11);
+        const minute = timeStr.slice(11, 13);
+        const second = timeStr.slice(13, 15);
+        const publishedDate = new Date(
+          `${year}-${month}-${day}T${hour}:${minute}:${second}Z`,
+        );
+        const age = now - publishedDate.getTime();
+        return age <= freshnessMs;
+      } catch {
+        return true;
+      }
+    });
+
+    const results = filteredFeed.slice(0, 10).map((article) => ({
+      title: article.title ?? "",
+      description: (article.summary ?? "").slice(0, 400),
+      url: article.url ?? "",
+      source: article.source ?? "Alpha Vantage",
+      sentiment_score: article.overall_sentiment_score ?? 0,
+      sentiment_label: article.overall_sentiment_label ?? "Neutral",
+    }));
+
+    const currentTime = new Date().toISOString();
+    const freshnessLabel = {
+      ph: "past hour",
+      pd: "past 24 hours",
+      pw: "past week",
+      pm: "past month",
+    }[freshness];
+
+    return JSON.stringify({
+      results,
+      context: {
+        query: args.query,
+        ticker,
+        freshness: freshnessLabel,
+        currentTimestamp: currentTime,
+        source: "Alpha Vantage (free tier with sentiment)",
+        note: `Results include sentiment scores (-1 to +1). Use sentiment_score for conviction adjustments.`,
+      },
+    });
+  } catch (err) {
+    console.warn(`[AlphaVantage] Search failed: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Search news via Brave Search (fallback).
+ */
+async function executeSearchNewsBrave(
+  args: SearchNewsArgs,
+  apiKey: string,
+): Promise<string> {
   // Build query with optional site targeting
   let query = args.query;
   const sources = args.sources ?? "all";
@@ -552,7 +711,7 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
   try {
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.set("q", query);
-    url.searchParams.set("count", "15"); // Get more results for better coverage
+    url.searchParams.set("count", "15");
     url.searchParams.set("freshness", freshness);
     url.searchParams.set("text_decorations", "false");
 
@@ -582,7 +741,6 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
       age: r.age ?? r.page_age ?? "unknown",
     }));
 
-    // Add timestamp context to help prevent LLM hallucination
     const currentTime = new Date().toISOString();
     const freshnessLabel = {
       ph: "past hour",
@@ -598,6 +756,7 @@ async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
         sources,
         freshness: freshnessLabel,
         currentTimestamp: currentTime,
+        source: "Brave Search (fallback)",
         note: `Results are from ${freshnessLabel}. Discard any information that contradicts current date: ${currentTime.slice(0, 10)}.`,
       },
     });

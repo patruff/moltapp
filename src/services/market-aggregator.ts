@@ -37,8 +37,12 @@ export interface AggregatedPrice {
   vwap: number;
   /** Bid/ask spread estimate */
   spreadBps: number;
+  /** Market capitalization in USD (if available) */
+  marketCapUsd?: number;
+  /** Liquidity in USD (if available from DexScreener) */
+  liquidityUsd?: number;
   /** Data freshness */
-  source: "jupiter" | "cached" | "mock";
+  source: "jupiter" | "coingecko" | "cached" | "mock";
   updatedAt: string;
 }
 
@@ -146,6 +150,12 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
   // Batch fetch from Jupiter Price API
   const jupiterPrices = await fetchJupiterPrices();
 
+  // Fetch liquidity data in parallel (non-blocking)
+  const liquidityPromises = new Map<string, Promise<DexScreenerLiquidity | null>>();
+  for (const stock of XSTOCKS_CATALOG) {
+    liquidityPromises.set(stock.symbol, fetchDexScreenerLiquidity(stock.mintAddress));
+  }
+
   for (const stock of XSTOCKS_CATALOG) {
     const jupPrice = jupiterPrices.get(stock.mintAddress);
     const prevPrice = lastPrices.get(stock.symbol);
@@ -155,6 +165,8 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
     let source: AggregatedPrice["source"];
     let change24h: number;
     let volume24h: number;
+    let marketCapUsd: number | undefined;
+    let liquidityUsd: number | undefined;
 
     if (jupPrice) {
       price = jupPrice.price;
@@ -167,12 +179,26 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
       source = "cached";
       change24h = prevPrice.change24h;
       volume24h = prevPrice.volume24h;
+      marketCapUsd = prevPrice.marketCapUsd;
+      // Don't re-fetch liquidity for cached prices, use previous value
+      const liquidityData = await liquidityPromises.get(stock.symbol);
+      liquidityUsd = prevPrice.liquidityUsd ?? liquidityData?.liquidityUsd;
     } else {
-      // Mock fallback
-      price = generateMockPrice(stock.symbol, prevPrice?.price);
-      source = "mock";
-      change24h = prevPrice ? ((price - prevPrice.price) / prevPrice.price) * 100 : (Math.random() - 0.5) * 5;
-      volume24h = 10_000_000 + Math.random() * 490_000_000;
+      // Try CoinGecko fallback before mock
+      const coinGeckoPrice = await fetchCoinGeckoPrice(stock.symbol);
+      if (coinGeckoPrice) {
+        price = coinGeckoPrice.price;
+        source = "coingecko";
+        change24h = coinGeckoPrice.change24h;
+        volume24h = coinGeckoPrice.volume24h;
+        marketCapUsd = coinGeckoPrice.marketCap;
+      } else {
+        // Mock fallback (last resort)
+        price = generateMockPrice(stock.symbol, prevPrice?.price);
+        source = "mock";
+        change24h = prevPrice ? ((price - prevPrice.price) / prevPrice.price) * 100 : (Math.random() - 0.5) * 5;
+        volume24h = 10_000_000 + Math.random() * 490_000_000;
+      }
     }
 
     // Calculate VWAP from history
@@ -181,6 +207,12 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
 
     // Estimate spread (tighter for higher volume)
     const spreadBps = Math.max(5, Math.round(100 / Math.log2(Math.max(volume24h, 1_000_000))));
+
+    // Get liquidity data (await the promise for this stock) if not already set from cache
+    if (liquidityUsd === undefined) {
+      const liquidityData = await liquidityPromises.get(stock.symbol);
+      liquidityUsd = liquidityData?.liquidityUsd;
+    }
 
     const aggregated: AggregatedPrice = {
       symbol: stock.symbol,
@@ -191,6 +223,8 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
       volume24h: Math.round(volume24h),
       vwap: round4(vwap || price),
       spreadBps,
+      marketCapUsd: marketCapUsd ? Math.round(marketCapUsd) : undefined,
+      liquidityUsd: liquidityUsd ? Math.round(liquidityUsd) : undefined,
       source,
       updatedAt: new Date().toISOString(),
     };
@@ -268,6 +302,116 @@ async function fetchJupiterPrices(): Promise<Map<string, JupiterPriceEntry>> {
   }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// CoinGecko Price Fetching (Fallback)
+// ---------------------------------------------------------------------------
+
+/**
+ * Map xStock symbols to CoinGecko IDs.
+ * CoinGecko doesn't have direct tokenized stock listings, so we map to
+ * the underlying company's token/coin representation where available.
+ */
+const COINGECKO_ID_MAP: Record<string, string> = {
+  // Crypto-adjacent companies with native tokens
+  COINx: "coinbase-wrapped-staked-eth", // Coinbase represented via cbETH
+  MSTRx: "microstrategy-tokenized-stock-defichain", // MicroStrategy token
+  // Note: Most traditional stocks don't have CoinGecko IDs.
+  // We'll use this for crypto-adjacent stocks only.
+  // For others, we'll skip CoinGecko and go straight to mock.
+};
+
+interface CoinGeckoPrice {
+  price: number;
+  change24h: number;
+  volume24h: number;
+  marketCap?: number;
+}
+
+/**
+ * Fetch price from CoinGecko for a single symbol.
+ * Returns null if symbol not supported or API fails.
+ */
+async function fetchCoinGeckoPrice(symbol: string): Promise<CoinGeckoPrice | null> {
+  const coinId = COINGECKO_ID_MAP[symbol];
+  if (!coinId) return null;
+
+  try {
+    const resp = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    if (!resp.ok) return null;
+
+    const data = (await resp.json()) as Record<string, {
+      usd?: number;
+      usd_market_cap?: number;
+      usd_24h_vol?: number;
+      usd_24h_change?: number;
+    }>;
+
+    const entry = data[coinId];
+    if (!entry?.usd) return null;
+
+    return {
+      price: entry.usd,
+      change24h: entry.usd_24h_change ?? 0,
+      volume24h: entry.usd_24h_vol ?? 0,
+      marketCap: entry.usd_market_cap,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DexScreener Liquidity Data (Free API)
+// ---------------------------------------------------------------------------
+
+interface DexScreenerLiquidity {
+  liquidityUsd: number;
+}
+
+/**
+ * Fetch liquidity data from DexScreener for a token.
+ * Returns null if API fails or token not found.
+ * Free API - no key required.
+ */
+async function fetchDexScreenerLiquidity(mintAddress: string): Promise<DexScreenerLiquidity | null> {
+  try {
+    const resp = await fetch(
+      `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    if (!resp.ok) return null;
+
+    const data = (await resp.json()) as {
+      pairs?: Array<{
+        liquidity?: { usd?: number };
+        chainId?: string;
+      }>;
+    };
+
+    // Find the Solana pair with highest liquidity
+    const solanaPairs = data.pairs?.filter((p) => p.chainId === "solana") ?? [];
+    if (solanaPairs.length === 0) return null;
+
+    // Get max liquidity across all Solana pairs
+    const liquidities = solanaPairs
+      .map((p) => p.liquidity?.usd ?? 0)
+      .filter((l) => l > 0);
+
+    if (liquidities.length === 0) return null;
+
+    return {
+      liquidityUsd: Math.max(...liquidities),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +672,7 @@ export interface AggregatorStats {
   lastFetchAt: string | null;
   dataQuality: {
     jupiterHits: number;
+    coingeckoHits: number;
     cachedHits: number;
     mockFallbacks: number;
   };
@@ -550,6 +695,7 @@ export function getAggregatorStats(): AggregatorStats {
     lastFetchAt: prices.length > 0 ? prices[0].updatedAt : null,
     dataQuality: {
       jupiterHits: prices.filter((p) => p.source === "jupiter").length,
+      coingeckoHits: prices.filter((p) => p.source === "coingecko").length,
       cachedHits: prices.filter((p) => p.source === "cached").length,
       mockFallbacks: prices.filter((p) => p.source === "mock").length,
     },

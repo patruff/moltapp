@@ -398,7 +398,22 @@ function getAgentConfigById(agentId: string) {
  * Fetch current market data for all xStocks tokens.
  * Uses Jupiter Price API V3 for real prices, with fallback to mock data.
  */
+// ---------------------------------------------------------------------------
+// Market Data Cache (10-second TTL)
+// ---------------------------------------------------------------------------
+
+let cachedMarketData: MarketData[] | null = null;
+let cachedMarketDataTimestamp = 0;
+const MARKET_DATA_CACHE_TTL_MS = 10_000; // 10 seconds
+
 export async function getMarketData(): Promise<MarketData[]> {
+  // Check cache first
+  const now = Date.now();
+  if (cachedMarketData && now - cachedMarketDataTimestamp < MARKET_DATA_CACHE_TTL_MS) {
+    console.log("[Orchestrator] Using cached market data");
+    return cachedMarketData;
+  }
+
   const results: MarketData[] = [];
 
   try {
@@ -467,6 +482,10 @@ export async function getMarketData(): Promise<MarketData[]> {
       });
     }
   }
+
+  // Cache results
+  cachedMarketData = results;
+  cachedMarketDataTimestamp = Date.now();
 
   return results;
 }
@@ -800,6 +819,37 @@ async function executeTradingRound(
       md.news = md.news ?? [];
       md.news.push(newsContext);
     }
+  }
+
+  // Step 3.5: Pre-compute movers list (stocks with >3% absolute change)
+  const movers = marketData
+    .filter((d) => d.change24h !== null && Math.abs(d.change24h) > 3)
+    .sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0))
+    .slice(0, 10)
+    .map((d) => ({
+      symbol: d.symbol,
+      name: d.name,
+      change24h: d.change24h,
+      price: d.price,
+    }));
+
+  // Inject movers context into market data
+  if (movers.length > 0) {
+    const moversContext = `\n\n**Market Movers (>3% change today)**:\n${movers
+      .map(
+        (m) =>
+          `- ${m.symbol} (${m.name}): ${m.change24h! > 0 ? "+" : ""}${m.change24h!.toFixed(2)}% at $${m.price.toFixed(2)}`,
+      )
+      .join("\n")}`;
+
+    for (const md of marketData) {
+      md.news = md.news ?? [];
+      md.news.push(moversContext);
+    }
+
+    console.log(
+      `[Orchestrator] Pre-computed ${movers.length} movers (>${Math.abs(movers[movers.length - 1].change24h!).toFixed(2)}% change)`,
+    );
   }
 
   // Step 4: Run all agents sequentially with jitter and circuit breakers
