@@ -5,6 +5,10 @@ import { agentTheses } from "../db/schema/agent-theses.ts";
 import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { getOnChainPortfolio } from "./onchain-portfolio.ts";
+
+/** Initial capital per agent ($50 USDC) - used for P&L calculation */
+const AGENT_INITIAL_CAPITAL = 50;
 
 // Mock base prices for when Jupiter API doesn't return data
 // These approximate real stock prices in USD
@@ -201,62 +205,76 @@ async function refreshLeaderboard(): Promise<void> {
     thesesByAgent.set(thesis.agentId, existing);
   }
 
-  // Step 7: Compute per-agent metrics using Decimal.js
+  // Step 7: Fetch on-chain portfolios for all agents (for accurate cash + position values)
+  const onChainPortfolios = await Promise.all(
+    allAgents.map(async (agent: AgentRow) => {
+      try {
+        return await getOnChainPortfolio(agent.id);
+      } catch {
+        return null;
+      }
+    })
+  );
+  const onChainMap = new Map(
+    onChainPortfolios
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .map((p) => [p.agentId, p])
+  );
+
+  // Step 8: Compute per-agent metrics using on-chain data
   let totalVolumeDecimal = new Decimal(0);
 
   const entries: LeaderboardEntry[] = allAgents.map((agent: AgentRow) => {
-    const agentPositions = allPositions.filter(
-      (p: PositionRow) => p.agentId === agent.id
-    );
     const agentTradeStats = tradeStatsMap.get(agent.id);
-    const agentDepositStats = depositStatsMap.get(agent.id);
+    const onChainPortfolio = onChainMap.get(agent.id);
 
-    const totalBuyUsdc = new Decimal(
-      agentTradeStats?.totalBuyUsdc ?? "0"
-    );
-    const totalSellUsdc = new Decimal(
-      agentTradeStats?.totalSellUsdc ?? "0"
-    );
-    const totalDeposited = new Decimal(
-      agentDepositStats?.totalDeposited ?? "0"
-    );
-    const totalWithdrawn = new Decimal(
-      agentDepositStats?.totalWithdrawn ?? "0"
-    );
+    const totalBuyUsdc = new Decimal(agentTradeStats?.totalBuyUsdc ?? "0");
+    const totalSellUsdc = new Decimal(agentTradeStats?.totalSellUsdc ?? "0");
 
-    // USDC cash balance = totalDeposited - totalWithdrawn - totalBuyUsdc + totalSellUsdc
-    const usdcCashBalance = totalDeposited
-      .minus(totalWithdrawn)
-      .minus(totalBuyUsdc)
-      .plus(totalSellUsdc);
-
-    // Market value of positions + build position summaries
+    // Use on-chain data for accurate cash balance and position values
+    const usdcCashBalance = new Decimal(onChainPortfolio?.cashBalance ?? 0);
     let marketValue = new Decimal(0);
     const positionSummaries: PositionSummary[] = [];
 
-    for (const pos of agentPositions) {
-      const priceInfo = priceMap[pos.mintAddress];
-      if (priceInfo) {
-        const quantity = new Decimal(pos.quantity).toNumber();
-        const currentPrice = new Decimal(priceInfo.usdPrice).toNumber();
-        const value = quantity * currentPrice;
-        const costBasis = new Decimal(pos.averageCostBasis).toNumber();
-        const totalCost = quantity * costBasis;
-        const unrealizedPnl = value - totalCost;
-        const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
-
-        marketValue = marketValue.plus(value);
-
+    if (onChainPortfolio) {
+      for (const pos of onChainPortfolio.positions) {
+        marketValue = marketValue.plus(pos.value);
         positionSummaries.push({
           symbol: pos.symbol,
-          quantity,
-          currentPrice,
-          value,
-          unrealizedPnl,
-          unrealizedPnlPercent,
+          quantity: pos.quantity,
+          currentPrice: pos.currentPrice,
+          value: pos.value,
+          unrealizedPnl: pos.unrealizedPnl,
+          unrealizedPnlPercent: pos.unrealizedPnlPercent,
         });
       }
-      // If no price available, position valued at 0 (conservative)
+    } else {
+      // Fallback to database positions with mock prices if on-chain unavailable
+      const agentPositions = allPositions.filter(
+        (p: PositionRow) => p.agentId === agent.id
+      );
+      for (const pos of agentPositions) {
+        const priceInfo = priceMap[pos.mintAddress];
+        if (priceInfo) {
+          const quantity = new Decimal(pos.quantity).toNumber();
+          const currentPrice = new Decimal(priceInfo.usdPrice).toNumber();
+          const value = quantity * currentPrice;
+          const costBasis = new Decimal(pos.averageCostBasis).toNumber();
+          const totalCost = quantity * costBasis;
+          const unrealizedPnl = value - totalCost;
+          const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
+
+          marketValue = marketValue.plus(value);
+          positionSummaries.push({
+            symbol: pos.symbol,
+            quantity,
+            currentPrice,
+            value,
+            unrealizedPnl,
+            unrealizedPnlPercent,
+          });
+        }
+      }
     }
 
     // Sort positions by value descending, get top 3
@@ -277,13 +295,11 @@ async function refreshLeaderboard(): Promise<void> {
     // Current Portfolio Value = USDC cash balance + market value of positions
     const currentPortfolioValue = usdcCashBalance.plus(marketValue);
 
-    // Total P&L (absolute) = Current Portfolio Value - Total Capital Deposited
-    const totalPnlAbsolute = currentPortfolioValue.minus(totalDeposited);
-
-    // Total P&L (%) = (Total P&L / Total Capital Deposited) * 100
-    const totalPnlPercent = totalDeposited.isZero()
+    // Total P&L uses initial capital as baseline (since deposits aren't tracked)
+    const totalPnlAbsolute = currentPortfolioValue.minus(AGENT_INITIAL_CAPITAL);
+    const totalPnlPercent = new Decimal(AGENT_INITIAL_CAPITAL).isZero()
       ? new Decimal(0)
-      : totalPnlAbsolute.div(totalDeposited).times(100);
+      : totalPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(100);
 
     // Accumulate total volume (buys + sells)
     totalVolumeDecimal = totalVolumeDecimal
@@ -311,7 +327,7 @@ async function refreshLeaderboard(): Promise<void> {
     };
   });
 
-  // Step 8: Sort by P&L percentage descending, assign ranks
+  // Step 9: Sort by P&L percentage descending, assign ranks
   entries.sort((a, b) => {
     const aPnl = new Decimal(a.totalPnlPercent);
     const bPnl = new Decimal(b.totalPnlPercent);
@@ -322,13 +338,13 @@ async function refreshLeaderboard(): Promise<void> {
     entries[i].rank = i + 1;
   }
 
-  // Step 9: Compute aggregate stats
+  // Step 10: Compute aggregate stats
   const aggregateStats = {
     totalAgents: allAgents.length,
     totalVolume: totalVolumeDecimal.toFixed(2),
   };
 
-  // Step 10: Update cache
+  // Step 11: Update cache
   cache = {
     entries,
     aggregateStats,
