@@ -142,3 +142,21 @@ export function calculateAverage<T extends Record<string, any>>(
     ? items.reduce((sum, item) => sum + (item[key] as number), 0) / items.length
     : 0;
 }
+
+/**
+ * Normalizes a value to the 0-1 range by clamping.
+ * Values below 0 become 0, values above 1 become 1, values in between stay unchanged.
+ * Common for score normalization, confidence levels, and percentage calculations.
+ *
+ * @param value - The value to normalize
+ * @returns The normalized value in range [0, 1]
+ *
+ * @example
+ * normalize(0.5) // returns 0.5
+ * normalize(-0.3) // returns 0 (clamped)
+ * normalize(1.8) // returns 1 (clamped)
+ * normalize(0.999) // returns 0.999
+ */
+export function normalize(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}

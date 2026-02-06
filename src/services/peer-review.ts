@@ -25,6 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
+import { normalize } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -451,7 +452,7 @@ function scoreConclusionValidity(
   if (action === "buy" && bearishWeight > bullishWeight + 1) score -= 0.15;
   if (action === "sell" && bullishWeight > bearishWeight + 1) score -= 0.15;
 
-  return Math.max(0, Math.min(1, score));
+  return normalize(score);
 }
 
 function countPatternWeight(text: string, patterns: RegExp[]): number {

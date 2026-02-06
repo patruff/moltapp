@@ -14,6 +14,8 @@
  * trade exists in a vacuum.
  */
 
+import { normalize, round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -245,9 +247,9 @@ function analyzeStanceConsistency(
 
   // Score: fewer reversals = higher score
   const reversalRate = totalTransitions > 0 ? totalReversals / totalTransitions : 0;
-  const score = Math.max(0, Math.min(1, 1 - reversalRate * 2));
+  const score = normalize(1 - reversalRate * 2);
 
-  return { score: Math.round(score * 100) / 100, stanceHistory };
+  return { score: round2(score), stanceHistory };
 }
 
 // ---------------------------------------------------------------------------
@@ -284,9 +286,9 @@ function analyzeConvictionStability(
 
   // Low stddev = stable conviction = good score
   // stdDev of 0.1 = very stable, 0.3+ = unstable
-  const score = Math.max(0, Math.min(1, 1 - stdDev * 2.5));
+  const score = normalize(1 - stdDev * 2.5);
 
-  return { score: Math.round(score * 100) / 100 };
+  return { score: round2(score) };
 }
 
 // ---------------------------------------------------------------------------
