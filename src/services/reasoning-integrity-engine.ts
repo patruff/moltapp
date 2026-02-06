@@ -19,6 +19,84 @@
 import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Integrity Detection Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Time window thresholds for flip-flop detection.
+ * Flip-flopping is considered problematic when stance changes happen too quickly
+ * without sufficient new information or market changes.
+ */
+const FLIPFLOP_MAX_HOURS = 24; // Only flag reversals within 24 hours
+const FLIPFLOP_HIGH_SEVERITY_HOURS = 2; // High severity if flip within 2 hours
+
+/**
+ * Similarity thresholds for copypasta detection.
+ * Uses Jaccard similarity on word sets to detect duplicate reasoning.
+ */
+const COPYPASTA_SIMILARITY_THRESHOLD = 0.80; // 80%+ similarity = copypasta
+const COPYPASTA_HIGH_SEVERITY_THRESHOLD = 0.95; // 95%+ similarity = high severity
+const COPYPASTA_MIN_WORD_LENGTH = 3; // Filter words shorter than 3 chars
+const COPYPASTA_RECENT_WINDOW = 20; // Compare last 20 trades for copypasta
+
+/**
+ * Confidence drift detection thresholds.
+ * Detects systematic over/under confidence by comparing confidence scores
+ * to coherence scores across recent trades.
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 0.7; // Confidence >70% considered "high"
+const LOW_COHERENCE_THRESHOLD = 0.4; // Coherence <40% considered "low"
+const LOW_CONFIDENCE_THRESHOLD = 0.3; // Confidence <30% considered "low"
+const HIGH_COHERENCE_THRESHOLD = 0.7; // Coherence >70% considered "high"
+const DRIFT_VIOLATION_MIN_COUNT = 3; // Min violations to flag drift issue
+const DRIFT_VIOLATION_HIGH_SEVERITY_COUNT = 5; // High severity threshold
+const CONFIDENCE_DRIFT_MIN_HISTORY = 10; // Need 10+ trades to detect drift
+
+/**
+ * Reasoning regression detection thresholds.
+ * Compares first half vs second half of history to detect quality decline.
+ */
+const REGRESSION_THRESHOLD = 0.15; // 15% coherence drop = regression
+const REGRESSION_HIGH_SEVERITY_THRESHOLD = 0.25; // 25% drop = high severity
+const REGRESSION_MIN_HISTORY = 10; // Need 10+ trades to detect regression
+
+/**
+ * Quality trend detection thresholds.
+ * Used in overall integrity report to determine if quality is improving/declining.
+ */
+const QUALITY_TREND_THRESHOLD = 0.1; // 10% change = trend detected
+
+/**
+ * Source fabrication detection.
+ * Recent window size for checking source validity.
+ */
+const SOURCE_FABRICATION_RECENT_WINDOW = 20; // Check last 20 trades
+
+/**
+ * Severity penalty weights for integrity score calculation.
+ * Each violation deducts from 1.0 integrity score based on severity.
+ */
+const SEVERITY_WEIGHTS = {
+  low: 0.02,      // 2% deduction per low severity violation
+  medium: 0.05,   // 5% deduction per medium severity violation
+  high: 0.10,     // 10% deduction per high severity violation
+  critical: 0.20, // 20% deduction per critical violation
+};
+
+/**
+ * Confidence accuracy calculation.
+ * Penalty multiplier for each confidence drift violation.
+ */
+const CONFIDENCE_DRIFT_PENALTY = 0.15; // 15% reduction per drift violation
+
+/**
+ * Cross-agent integrity thresholds.
+ * Used for herding and collusion detection.
+ */
+const COLLUSION_SIMILARITY_THRESHOLD = 0.6; // Avg similarity >60% = suspected collusion
+const CROSS_AGENT_RECENT_WINDOW = 20; // Compare last 20 trades between agents
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -144,11 +222,11 @@ function detectFlipFlops(agentId: string, history: ReasoningRecord[]): Integrity
           const timeDiff = new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime();
           const hours = timeDiff / (1000 * 60 * 60);
 
-          // Only flag if within 24 hours
-          if (hours < 24) {
+          // Only flag if within FLIPFLOP_MAX_HOURS
+          if (hours < FLIPFLOP_MAX_HOURS) {
             result.push({
               type: "flip_flop",
-              severity: hours < 2 ? "high" : "medium",
+              severity: hours < FLIPFLOP_HIGH_SEVERITY_HOURS ? "high" : "medium",
               agentId,
               description: `Reversed ${symbol} from ${prev.action} to ${curr.action} within ${hours.toFixed(1)} hours`,
               evidence: {
@@ -176,7 +254,7 @@ function detectCopypasta(agentId: string, history: ReasoningRecord[]): Integrity
 
   function wordSet(text: string): Set<string> {
     return new Set(
-      text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3),
+      text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > COPYPASTA_MIN_WORD_LENGTH),
     );
   }
 
@@ -187,8 +265,8 @@ function detectCopypasta(agentId: string, history: ReasoningRecord[]): Integrity
     return union.size > 0 ? intersection.size / union.size : 0;
   }
 
-  // Compare recent trades (last 20) pairwise
-  const recent = history.slice(-20);
+  // Compare recent trades pairwise
+  const recent = history.slice(-COPYPASTA_RECENT_WINDOW);
   for (let i = 0; i < recent.length; i++) {
     for (let j = i + 1; j < recent.length; j++) {
       const a = recent[i];
@@ -198,10 +276,10 @@ function detectCopypasta(agentId: string, history: ReasoningRecord[]): Integrity
       if (a.symbol === b.symbol && a.action === b.action) continue;
 
       const similarity = jaccardSimilarity(wordSet(a.reasoning), wordSet(b.reasoning));
-      if (similarity > 0.80) {
+      if (similarity > COPYPASTA_SIMILARITY_THRESHOLD) {
         result.push({
           type: "copypasta",
-          severity: similarity > 0.95 ? "high" : "medium",
+          severity: similarity > COPYPASTA_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
           agentId,
           description: `${(similarity * 100).toFixed(0)}% reasoning similarity between ${a.symbol} ${a.action} and ${b.symbol} ${b.action}`,
           evidence: {
@@ -222,18 +300,18 @@ function detectCopypasta(agentId: string, history: ReasoningRecord[]): Integrity
  */
 function detectConfidenceDrift(agentId: string, history: ReasoningRecord[]): IntegrityViolation[] {
   const result: IntegrityViolation[] = [];
-  if (history.length < 10) return result;
+  if (history.length < CONFIDENCE_DRIFT_MIN_HISTORY) return result;
 
   // Check if confidence is consistently high but coherence is low
-  const recent = history.slice(-20);
+  const recent = history.slice(-COPYPASTA_RECENT_WINDOW);
   const highConfLowCoherence = recent.filter(
-    (r) => r.confidence > 0.7 && r.coherenceScore < 0.4,
+    (r) => r.confidence > HIGH_CONFIDENCE_THRESHOLD && r.coherenceScore < LOW_COHERENCE_THRESHOLD,
   );
 
-  if (highConfLowCoherence.length >= 3) {
+  if (highConfLowCoherence.length >= DRIFT_VIOLATION_MIN_COUNT) {
     result.push({
       type: "confidence_drift",
-      severity: highConfLowCoherence.length >= 5 ? "high" : "medium",
+      severity: highConfLowCoherence.length >= DRIFT_VIOLATION_HIGH_SEVERITY_COUNT ? "high" : "medium",
       agentId,
       description: `${highConfLowCoherence.length} of ${recent.length} recent trades show high confidence (>0.7) with low coherence (<0.4)`,
       evidence: {},
@@ -243,10 +321,10 @@ function detectConfidenceDrift(agentId: string, history: ReasoningRecord[]): Int
 
   // Check for consistently low confidence on good coherence
   const lowConfHighCoherence = recent.filter(
-    (r) => r.confidence < 0.3 && r.coherenceScore > 0.7,
+    (r) => r.confidence < LOW_CONFIDENCE_THRESHOLD && r.coherenceScore > HIGH_COHERENCE_THRESHOLD,
   );
 
-  if (lowConfHighCoherence.length >= 3) {
+  if (lowConfHighCoherence.length >= DRIFT_VIOLATION_MIN_COUNT) {
     result.push({
       type: "confidence_drift",
       severity: "low",
@@ -272,7 +350,7 @@ function detectSourceFabrication(agentId: string, history: ReasoningRecord[]): I
     "sector_analysis", "jupiter_price_api", "market_data",
   ]);
 
-  for (const record of history.slice(-20)) {
+  for (const record of history.slice(-SOURCE_FABRICATION_RECENT_WINDOW)) {
     const fabricated = record.sources.filter((s) => !VALID_SOURCES.has(s));
     if (fabricated.length > 0) {
       // Check if the fabricated source is mentioned in the reasoning
@@ -300,7 +378,7 @@ function detectSourceFabrication(agentId: string, history: ReasoningRecord[]): I
  */
 function detectReasoningRegression(agentId: string, history: ReasoningRecord[]): IntegrityViolation[] {
   const result: IntegrityViolation[] = [];
-  if (history.length < 10) return result;
+  if (history.length < REGRESSION_MIN_HISTORY) return result;
 
   // Compare first half vs second half coherence
   const midpoint = Math.floor(history.length / 2);
@@ -310,10 +388,10 @@ function detectReasoningRegression(agentId: string, history: ReasoningRecord[]):
   const avgFirst = firstHalf.reduce((s, r) => s + r.coherenceScore, 0) / firstHalf.length;
   const avgSecond = secondHalf.reduce((s, r) => s + r.coherenceScore, 0) / secondHalf.length;
 
-  if (avgFirst - avgSecond > 0.15) {
+  if (avgFirst - avgSecond > REGRESSION_THRESHOLD) {
     result.push({
       type: "reasoning_regression",
-      severity: avgFirst - avgSecond > 0.25 ? "high" : "medium",
+      severity: avgFirst - avgSecond > REGRESSION_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       agentId,
       description: `Coherence dropped from ${avgFirst.toFixed(2)} (first ${firstHalf.length} trades) to ${avgSecond.toFixed(2)} (last ${secondHalf.length} trades)`,
       evidence: {},
@@ -350,28 +428,21 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
   while (violations.length > 500) violations.shift();
 
   // Compute integrity score: start at 1.0, deduct per violation
-  const severityWeights: Record<string, number> = {
-    low: 0.02,
-    medium: 0.05,
-    high: 0.10,
-    critical: 0.20,
-  };
-
   let deduction = 0;
   for (const v of allViolations) {
-    deduction += severityWeights[v.severity] ?? 0.05;
+    deduction += SEVERITY_WEIGHTS[v.severity] ?? SEVERITY_WEIGHTS.medium;
   }
   const integrityScore = Math.max(0, round3(1 - deduction));
 
   // Copypasta rate
-  const recentCount = Math.min(20, history.length);
+  const recentCount = Math.min(COPYPASTA_RECENT_WINDOW, history.length);
   const copypastaRate = recentCount > 0
     ? round3(copypasta.length / recentCount)
     : 0;
 
   // Confidence accuracy
   const confidenceAccuracy = confidenceDrift.length === 0 ? 1.0
-    : Math.max(0, 1 - confidenceDrift.length * 0.15);
+    : Math.max(0, 1 - confidenceDrift.length * CONFIDENCE_DRIFT_PENALTY);
 
   // Source fabrication rate
   const sourceFabRate = recentCount > 0
@@ -380,12 +451,12 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
 
   // Quality trend
   let qualityTrend: "improving" | "stable" | "declining" = "stable";
-  if (history.length >= 10) {
+  if (history.length >= REGRESSION_MIN_HISTORY) {
     const midpoint = Math.floor(history.length / 2);
     const firstAvg = history.slice(0, midpoint).reduce((s, r) => s + r.coherenceScore, 0) / midpoint;
     const secondAvg = history.slice(midpoint).reduce((s, r) => s + r.coherenceScore, 0) / (history.length - midpoint);
-    if (secondAvg - firstAvg > 0.1) qualityTrend = "improving";
-    else if (firstAvg - secondAvg > 0.1) qualityTrend = "declining";
+    if (secondAvg - firstAvg > QUALITY_TREND_THRESHOLD) qualityTrend = "improving";
+    else if (firstAvg - secondAvg > QUALITY_TREND_THRESHOLD) qualityTrend = "declining";
   }
 
   return {
@@ -457,7 +528,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
 
       // Compare reasoning across same rounds
       let similarities: number[] = [];
-      for (const aRecord of aHistory.slice(-20)) {
+      for (const aRecord of aHistory.slice(-CROSS_AGENT_RECENT_WINDOW)) {
         const bMatch = bHistory.find((b) => b.roundId === aRecord.roundId);
         if (bMatch) {
           const aWords = wordSet(aRecord.reasoning);

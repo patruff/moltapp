@@ -23,6 +23,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, gte } from "drizzle-orm";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -362,8 +363,8 @@ function computeSentimentBias(
       : 0;
 
   return {
-    overallBias: Math.round(overallBias * 1000) / 1000,
-    recentBias: Math.round(recentBias * 1000) / 1000,
+    overallBias: round3(overallBias),
+    recentBias: round3(recentBias),
     biasVolatility,
     contrarian: biasVolatility > 0.6, // More than 60% of decisions flip
   };
@@ -441,7 +442,7 @@ export async function computeSimilarity(
   }
   const cosineSimilarity =
     normA > 0 && normB > 0
-      ? Math.round((dotProduct / (Math.sqrt(normA) * Math.sqrt(normB))) * 1000) / 1000
+      ? round3(dotProduct / (Math.sqrt(normA) * Math.sqrt(normB)))
       : 0;
 
   // Euclidean distance
@@ -449,7 +450,7 @@ export async function computeSimilarity(
   for (let i = 0; i < vecA.length; i++) {
     sumSquaredDiff += Math.pow(vecA[i] - vecB[i], 2);
   }
-  const euclideanDistance = Math.round(Math.sqrt(sumSquaredDiff) * 1000) / 1000;
+  const euclideanDistance = round3(Math.sqrt(sumSquaredDiff));
 
   // Per-dimension comparison
   const dimensionNames = [
@@ -463,9 +464,9 @@ export async function computeSimilarity(
 
   const dimensionComparison = dimensionNames.map((name, i) => ({
     dimension: name,
-    valueA: Math.round(vecA[i] * 1000) / 1000,
-    valueB: Math.round(vecB[i] * 1000) / 1000,
-    difference: Math.round(Math.abs(vecA[i] - vecB[i]) * 1000) / 1000,
+    valueA: round3(vecA[i]),
+    valueB: round3(vecB[i]),
+    difference: round3(Math.abs(vecA[i] - vecB[i])),
   }));
 
   // Generate divergence notes
@@ -527,7 +528,7 @@ export async function buildCorrelationMatrix(
 
       const seqJ = agentSequences.get(agentIds[j]) ?? [];
       const corr = pearsonCorrelation(seqI, seqJ);
-      matrix[i][j] = Math.round(corr * 1000) / 1000;
+      matrix[i][j] = round3(corr);
 
       // Track strong correlations
       if (i < j && Math.abs(corr) > 0.5) {
@@ -719,12 +720,12 @@ export async function detectBehaviorDrift(
     sumSquaredDiff += diff * diff;
     return {
       dimension: name,
-      recentValue: Math.round(recent.featureVector[i] * 1000) / 1000,
-      historicalValue: Math.round(overall.featureVector[i] * 1000) / 1000,
+      recentValue: round3(recent.featureVector[i]),
+      historicalValue: round3(overall.featureVector[i]),
     };
   });
 
-  const driftScore = Math.round(Math.sqrt(sumSquaredDiff) * 1000) / 1000;
+  const driftScore = round3(Math.sqrt(sumSquaredDiff));
   const hasDrift = driftScore > 0.5; // Threshold for significant drift
 
   return { hasDrift, driftScore, dimensions };

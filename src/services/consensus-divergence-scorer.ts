@@ -15,6 +15,8 @@
  * - Symbol-level disagreement patterns
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -197,15 +199,15 @@ export function recordRoundConsensus(
     timestamp: new Date().toISOString(),
     agents,
     consensusType,
-    agreementScore: Math.round(agreementScore * 1000) / 1000,
+    agreementScore: round3(agreementScore),
     consensusAction,
     consensusSymbol,
     contrarians,
     majorityAvgConfidence: majorityConfs.length > 0
-      ? Math.round((majorityConfs.reduce((s, v) => s + v, 0) / majorityConfs.length) * 1000) / 1000
+      ? round3(majorityConfs.reduce((s, v) => s + v, 0) / majorityConfs.length)
       : 0,
     contrarianAvgConfidence: contrarianConfs.length > 0
-      ? Math.round((contrarianConfs.reduce((s, v) => s + v, 0) / contrarianConfs.length) * 1000) / 1000
+      ? round3(contrarianConfs.reduce((s, v) => s + v, 0) / contrarianConfs.length)
       : 0,
   };
 
@@ -305,13 +307,13 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
 
     byAgent[agentId] = {
       agentId,
-      agreementRate: Math.round(agreementRate * 1000) / 1000,
+      agreementRate: round3(agreementRate),
       loneContrarianCount,
       avgConfidenceWhenAgreeing: confWhenAgreeing.length > 0
-        ? Math.round((confWhenAgreeing.reduce((s, v) => s + v, 0) / confWhenAgreeing.length) * 1000) / 1000
+        ? round3(confWhenAgreeing.reduce((s, v) => s + v, 0) / confWhenAgreeing.length)
         : 0,
       avgConfidenceWhenDisagreeing: confWhenDisagreeing.length > 0
-        ? Math.round((confWhenDisagreeing.reduce((s, v) => s + v, 0) / confWhenDisagreeing.length) * 1000) / 1000
+        ? round3(confWhenDisagreeing.reduce((s, v) => s + v, 0) / confWhenDisagreeing.length)
         : 0,
       contrarianWinRate: 0, // Needs P&L data
       stance: agreementRate >= 0.8 ? "conformist" : agreementRate >= 0.5 ? "independent" : "contrarian",
@@ -356,13 +358,13 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
       symbol: sym,
       roundsDebated: roundsWithActions,
       agreementRate: roundsWithActions > 0
-        ? Math.round((agreeRounds / roundsWithActions) * 1000) / 1000
+        ? round3(agreeRounds / roundsWithActions)
         : 1,
       avgBullish: roundsWithActions > 0
-        ? Math.round((totalBullish / roundsWithActions) * 1000) / 1000
+        ? round3(totalBullish / roundsWithActions)
         : 0,
       avgBearish: roundsWithActions > 0
-        ? Math.round((totalBearish / roundsWithActions) * 1000) / 1000
+        ? round3(totalBearish / roundsWithActions)
         : 0,
       typicalConflict: totalBullish > totalBearish
         ? "Mostly bullish with bear dissenters"
@@ -382,10 +384,10 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
 
   return {
     totalRounds: n,
-    avgAgreementScore: Math.round(avgAgreementScore * 1000) / 1000,
-    unanimousRate: Math.round((unanimousCount / n) * 1000) / 1000,
-    splitRate: Math.round((splitCount / n) * 1000) / 1000,
-    consensusAccuracy: Math.round(consensusAccuracy * 1000) / 1000,
+    avgAgreementScore: round3(avgAgreementScore),
+    unanimousRate: round3(unanimousCount / n),
+    splitRate: round3(splitCount / n),
+    consensusAccuracy: round3(consensusAccuracy),
     contrarianAlpha,
     byAgent,
     bySymbol,

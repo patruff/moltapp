@@ -15,6 +15,8 @@
  * 7. Historical trend detection (improving or degrading performance?)
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -470,7 +472,7 @@ function analyzeMarketContext(
   return {
     topMover,
     worstPerformer,
-    marketBreadth: Math.round(marketBreadth * 1000) / 1000,
+    marketBreadth: round3(marketBreadth),
     avgVolatility: Math.round(avgVolatility * 100) / 100,
     sector,
   };
@@ -570,7 +572,7 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
       agentName: agentNames.get(agentId) ?? agentId,
       recentRounds: recentRoundsData,
       trend,
-      trendScore: Math.round(trendScore * 1000) / 1000,
+      trendScore: round3(trendScore),
       movingAvgConfidence: Math.round(movingAvgConfidence * 10) / 10,
       movingAvgQuality: Math.round(movingAvgQuality * 10) / 10,
       currentExecutionStreak: execStreak,
@@ -693,14 +695,12 @@ export function generateAnalyticsSummary(
     periodStartDate: cutoffStr,
     periodEndDate: new Date().toISOString(),
     system: {
-      avgParticipationRate: Math.round(avgParticipation * 1000) / 1000,
-      avgExecutionRate: Math.round(avgExecution * 1000) / 1000,
+      avgParticipationRate: round3(avgParticipation),
+      avgExecutionRate: round3(avgExecution),
       avgRoundQuality: Math.round(avgQuality * 10) / 10,
       totalUsdcTraded: Math.round(totalUsdc * 100) / 100,
-      unanimousRoundRate:
-        Math.round((unanimousCount / periodRounds.length) * 1000) / 1000,
-      splitRoundRate:
-        Math.round((splitCount / periodRounds.length) * 1000) / 1000,
+      unanimousRoundRate: round3(unanimousCount / periodRounds.length),
+      splitRoundRate: round3(splitCount / periodRounds.length),
     },
     agentTrends,
     patterns,

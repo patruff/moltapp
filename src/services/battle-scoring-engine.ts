@@ -20,6 +20,8 @@
  *  5. Safety: Who had fewer hallucinations/discipline violations?
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -288,9 +290,9 @@ export function runBattle(
     agentB,
     dimensions,
     overallWinner,
-    marginOfVictory: Math.round(margin * 1000) / 1000,
-    compositeScoreA: Math.round(compositeA * 1000) / 1000,
-    compositeScoreB: Math.round(compositeB * 1000) / 1000,
+    marginOfVictory: round3(margin),
+    compositeScoreA: round3(compositeA),
+    compositeScoreB: round3(compositeB),
     narrative,
     highlight: isHighlight,
   };
@@ -470,8 +472,8 @@ export function getAgentBattleRecord(agentId: string): BattleRecord {
     losses,
     ties,
     eloRating: getElo(agentId),
-    winRate: total > 0 ? Math.round((wins / total) * 1000) / 1000 : 0,
-    avgMargin: total > 0 ? Math.round((totalMargin / total) * 1000) / 1000 : 0,
+    winRate: total > 0 ? round3(wins / total) : 0,
+    avgMargin: total > 0 ? round3(totalMargin / total) : 0,
     strongestDimension,
     weakestDimension,
     streakType,
@@ -514,7 +516,7 @@ export function getHeadToHeadMatrix(): HeadToHeadMatrix {
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       if (matchups[i][j] > 0) {
-        avgMargins[i][j] = Math.round((marginAccum[i][j] / matchups[i][j]) * 1000) / 1000;
+        avgMargins[i][j] = round3(marginAccum[i][j] / matchups[i][j]);
       }
     }
   }
@@ -694,7 +696,7 @@ export function getBattleStats(): {
           smallestMargin = totalMargin;
           closestRivalry = {
             agents: [matrix.agents[i], matrix.agents[j]],
-            avgMargin: Math.round(totalMargin * 1000) / 1000,
+            avgMargin: round3(totalMargin),
           };
         }
       }
@@ -704,8 +706,8 @@ export function getBattleStats(): {
   return {
     totalBattles,
     totalRounds: uniqueRounds.size,
-    avgMarginOfVictory: Math.round(avgMargin * 1000) / 1000,
-    tieRate: Math.round((ties / totalBattles) * 1000) / 1000,
+    avgMarginOfVictory: round3(avgMargin),
+    tieRate: round3(ties / totalBattles),
     mostDominantAgent,
     closestRivalry,
   };
