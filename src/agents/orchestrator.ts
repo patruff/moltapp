@@ -478,6 +478,33 @@ const V18_AGENT_SCORE_COHERENCE_WEIGHT = 0.3;
 /** v18 agent score: adversarial robustness component weight in 3-part aggregate */
 const V18_AGENT_SCORE_ADVERSARIAL_WEIGHT = 0.3;
 
+// ---------------------------------------------------------------------------
+// Reasoning Depth & Efficiency Thresholds
+// ---------------------------------------------------------------------------
+// Word count thresholds for computing depth and efficiency scores.
+// depthScore = min(1, wordCount / REASONING_DEPTH_WORD_THRESHOLD)
+// efficiencyScore = min(1, wordCount / REASONING_EFFICIENCY_WORD_THRESHOLD)
+
+/** Word count threshold for depthScore: 100 words = 1.0 depth */
+const REASONING_DEPTH_WORD_THRESHOLD = 100;
+
+/** Word count threshold for reasoning_efficiency: 150 words = 1.0 efficiency */
+const REASONING_EFFICIENCY_WORD_THRESHOLD = 150;
+
+// ---------------------------------------------------------------------------
+// Coherence Grading Thresholds
+// ---------------------------------------------------------------------------
+
+/** Coherence score threshold for grade A (>= 0.8) */
+const COHERENCE_GRADE_A_THRESHOLD = 0.8;
+
+/** Coherence score threshold for grade B (>= 0.6) */
+const COHERENCE_GRADE_B_THRESHOLD_AUDIT = 0.6;
+
+/** Assign a letter grade based on coherence score for audit trail */
+const gradeFromCoherence = (score: number): string =>
+  score >= COHERENCE_GRADE_A_THRESHOLD ? "A" : score >= COHERENCE_GRADE_B_THRESHOLD_AUDIT ? "B" : "C";
+
 export async function getMarketData(): Promise<MarketData[]> {
   // Check cache first
   const now = Date.now();
@@ -1169,7 +1196,7 @@ async function executeTradingRound(
           auditScoring(
             agent.agentId,
             { composite: coherence.score, coherence: coherence.score, hallucinationRate: hallucinations.severity },
-            coherence.score >= 0.8 ? "A" : coherence.score >= 0.6 ? "B" : "C",
+            gradeFromCoherence(coherence.score),
             roundId,
           );
 
@@ -1846,7 +1873,7 @@ async function executeTradingRound(
         hallucinationCount: 0, // Will be enriched
         disciplinePass: true, // Will be enriched
         pnlPercent: 0, // Will be enriched by financial tracker
-        depthScore: Math.min(1, countWords(r.decision.reasoning) / 100),
+        depthScore: Math.min(1, countWords(r.decision.reasoning) / REASONING_DEPTH_WORD_THRESHOLD),
         originalityScore: 0.5, // Will be enriched
       };
     });
@@ -2320,7 +2347,7 @@ async function executeTradingRound(
         coherenceScore: proxyCoherenceFromConf(normConf),
         hallucinationFlags: [],
         disciplinePass: true,
-        depthScore: Math.min(1, countWords(r.decision.reasoning) / 100),
+        depthScore: Math.min(1, countWords(r.decision.reasoning) / REASONING_DEPTH_WORD_THRESHOLD),
         forensicScore: 0.5,
         efficiencyScore: 0.5,
         witnesses: allAgentIds.filter((id) => id !== r.agentId),
@@ -2367,7 +2394,7 @@ async function executeTradingRound(
           provenance_integrity: 0.8,
           model_comparison: 0.5,
           metacognition: normConf * V17_METACOGNITION_CONFIDENCE_WEIGHT + V17_METACOGNITION_BASELINE,
-          reasoning_efficiency: Math.min(1, countWords(r.decision.reasoning) / 150),
+          reasoning_efficiency: Math.min(1, countWords(r.decision.reasoning) / REASONING_EFFICIENCY_WORD_THRESHOLD),
           forensic_ledger: ledgerEntry ? 0.9 : 0.3,
           strategy_genome: genomePillarScore,
         },
