@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countWords, splitSentences } from "../lib/math-utils.ts";
+import { countWords, round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -274,11 +274,11 @@ function computeMetacognition(w: AgentMetricWindow): MetacognitionProfile {
   );
 
   return {
-    uncertaintyCalibration: Math.round(uncertaintyCalibration * 1000) / 1000,
-    confidenceAccuracy: Math.round(confidenceAccuracy * 1000) / 1000,
-    hedgingAppropriacy: Math.round(hedgingAppropriacy * 1000) / 1000,
-    regimeAdaptation: Math.round(regimeAdaptation * 1000) / 1000,
-    composite: Math.round(composite * 1000) / 1000,
+    uncertaintyCalibration: round3(uncertaintyCalibration),
+    confidenceAccuracy: round3(confidenceAccuracy),
+    hedgingAppropriacy: round3(hedgingAppropriacy),
+    regimeAdaptation: round3(regimeAdaptation),
+    composite: round3(composite),
   };
 }
 
@@ -364,11 +364,11 @@ function computeEfficiency(reasoning: string): EfficiencyProfile {
   );
 
   return {
-    informationDensity: Math.round(informationDensity * 1000) / 1000,
-    claimDensity: Math.round(claimDensity * 1000) / 1000,
-    originalityPerWord: Math.round(originalityPerWord * 1000) / 1000,
-    quantitativeRatio: Math.round(quantitativeRatio * 1000) / 1000,
-    composite: Math.round(composite * 1000) / 1000,
+    informationDensity: round3(informationDensity),
+    claimDensity: round3(claimDensity),
+    originalityPerWord: round3(originalityPerWord),
+    quantitativeRatio: round3(quantitativeRatio),
+    composite: round3(composite),
   };
 }
 
@@ -643,7 +643,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
 
   // Compute weighted composite
   const composite = pillars.reduce((sum, p) => sum + p.score * p.weight, 0);
-  const normalizedComposite = Math.round(composite * 1000) / 1000;
+  const normalizedComposite = round3(composite);
 
   // Rank
   const prevRank = previousRanks.get(agentId) ?? 0;

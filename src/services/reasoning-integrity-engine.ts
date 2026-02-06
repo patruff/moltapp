@@ -16,6 +16,8 @@
  * pillar of MoltApp's claim as an industry-standard benchmark.
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -359,12 +361,12 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
   for (const v of allViolations) {
     deduction += severityWeights[v.severity] ?? 0.05;
   }
-  const integrityScore = Math.max(0, Math.round((1 - deduction) * 1000) / 1000);
+  const integrityScore = Math.max(0, round3(1 - deduction));
 
   // Copypasta rate
   const recentCount = Math.min(20, history.length);
   const copypastaRate = recentCount > 0
-    ? Math.round((copypasta.length / recentCount) * 1000) / 1000
+    ? round3(copypasta.length / recentCount)
     : 0;
 
   // Confidence accuracy
@@ -373,7 +375,7 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
 
   // Source fabrication rate
   const sourceFabRate = recentCount > 0
-    ? Math.round((sourceFabrication.length / recentCount) * 1000) / 1000
+    ? round3(sourceFabrication.length / recentCount)
     : 0;
 
   // Quality trend
@@ -393,7 +395,7 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
     summary: {
       flipFlops: flipFlops.length,
       copypastaRate,
-      confidenceAccuracy: Math.round(confidenceAccuracy * 1000) / 1000,
+      confidenceAccuracy: round3(confidenceAccuracy),
       sourceFabricationRate: sourceFabRate,
       qualityTrend,
       contradictions: 0,
@@ -440,7 +442,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
     }
   }
 
-  const herdingRate = totalRounds > 0 ? Math.round((herdingCount / totalRounds) * 1000) / 1000 : 0;
+  const herdingRate = totalRounds > 0 ? round3(herdingCount / totalRounds) : 0;
 
   // Reasoning similarity between agents (collusion detection)
   function wordSet(text: string): Set<string> {
@@ -468,7 +470,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
       }
 
       const avgSim = similarities.length > 0
-        ? Math.round((similarities.reduce((s, v) => s + v, 0) / similarities.length) * 1000) / 1000
+        ? round3(similarities.reduce((s, v) => s + v, 0) / similarities.length)
         : 0;
 
       if (!similarityScores[agents[i]]) similarityScores[agents[i]] = {};
@@ -515,7 +517,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
   }
 
   const diversityScore = diversityPairs > 0
-    ? Math.min(1, Math.round((diversitySum / diversityPairs) * 1000) / 1000)
+    ? Math.min(1, round3(diversitySum / diversityPairs))
     : 0.5;
 
   // Collusion: suspected if avg similarity > 0.6

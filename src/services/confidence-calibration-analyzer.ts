@@ -13,6 +13,8 @@
  * - Reliability diagram data for visualization
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -144,10 +146,10 @@ export function analyzeCalibration(agentId: string): CalibrationAnalysis {
 
     reliabilityDiagram.push({
       binCenter: Math.round(((lower + upper) / 2) * 100) / 100,
-      avgConfidence: Math.round(avgConf * 1000) / 1000,
-      avgOutcome: Math.round(avgOut * 1000) / 1000,
+      avgConfidence: round3(avgConf),
+      avgOutcome: round3(avgOut),
       count: binData.length,
-      gap: Math.round((avgConf - avgOut) * 1000) / 1000,
+      gap: round3(avgConf - avgOut),
     });
   }
 
@@ -201,12 +203,12 @@ export function analyzeCalibration(agentId: string): CalibrationAnalysis {
   return {
     agentId,
     totalDataPoints: n,
-    ece: Math.round(ece * 1000) / 1000,
-    mce: Math.round(mce * 1000) / 1000,
-    brierScore: Math.round(brierScore * 1000) / 1000,
+    ece: round3(ece),
+    mce: round3(mce),
+    brierScore: round3(brierScore),
     monotonicCalibration,
-    overconfidenceRatio: Math.round(overconfidenceRatio * 1000) / 1000,
-    underconfidenceRatio: Math.round(underconfidenceRatio * 1000) / 1000,
+    overconfidenceRatio: round3(overconfidenceRatio),
+    underconfidenceRatio: round3(underconfidenceRatio),
     reliabilityDiagram,
     grade,
     assessment,

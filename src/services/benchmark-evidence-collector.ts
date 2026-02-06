@@ -26,7 +26,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -378,14 +378,14 @@ function createEmptyProfile(agentId: string): AgentBenchmarkProfile {
 
 function mean(values: number[]): number {
   if (values.length === 0) return 0;
-  return Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 1000) / 1000;
+  return round3(values.reduce((s, v) => s + v, 0) / values.length);
 }
 
 function stddev(values: number[]): number {
   if (values.length < 2) return 0;
   const avg = values.reduce((s, v) => s + v, 0) / values.length;
   const variance = values.reduce((s, v) => s + (v - avg) ** 2, 0) / (values.length - 1);
-  return Math.round(Math.sqrt(variance) * 1000) / 1000;
+  return round3(Math.sqrt(variance));
 }
 
 function computeSharpe(returns: number[]): number {
@@ -393,7 +393,7 @@ function computeSharpe(returns: number[]): number {
   const avg = returns.reduce((s, v) => s + v, 0) / returns.length;
   const std = stddev(returns);
   if (std === 0) return 0;
-  return Math.round((avg / std) * 1000) / 1000;
+  return round3(avg / std);
 }
 
 function computeMaxDrawdown(returns: number[]): number {
@@ -439,7 +439,7 @@ function computeCalibration(evidence: TradeEvidence[]): number {
   }
 
   // Convert ECE to a score (1 - ECE = perfectly calibrated at 1.0)
-  return Math.round((1 - ece) * 1000) / 1000;
+  return round3(1 - ece);
 }
 
 function computeConfidenceBias(evidence: TradeEvidence[]): {
@@ -458,7 +458,7 @@ function computeConfidenceBias(evidence: TradeEvidence[]): {
   }
 
   return {
-    overconfidenceRate: Math.round((overconfident / withOutcomes.length) * 1000) / 1000,
-    underconfidenceRate: Math.round((underconfident / withOutcomes.length) * 1000) / 1000,
+    overconfidenceRate: round3(overconfident / withOutcomes.length),
+    underconfidenceRate: round3(underconfident / withOutcomes.length),
   };
 }

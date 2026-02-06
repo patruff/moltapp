@@ -13,7 +13,7 @@
  * 5. CONFIDENCE RECALIBRATION: Does confidence adjust after feedback?
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,7 +167,7 @@ function analyzeMistakeRepetition(entries: MemoryEntry[]): {
     ? Math.max(0, 1 - totalRepeats / (entries.length * 0.3))
     : 0.5;
 
-  return { score: Math.round(score * 1000) / 1000, patterns };
+  return { score: round3(score), patterns };
 }
 
 // ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ function analyzeLessonRetention(entries: MemoryEntry[]): { score: number } {
   }
 
   const score = postLossTotal > 0 ? postLossChanges / postLossTotal : 0.5;
-  return { score: Math.round(score * 1000) / 1000 };
+  return { score: round3(score) };
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ function analyzeStrategyEvolution(entries: MemoryEntry[]): { score: number } {
   if (coherenceImprovement > 0.05) score += 0.15; // Reasoning quality improved
   if (coherenceImprovement > 0.1) score += 0.1;
 
-  return { score: Math.round(Math.min(1, Math.max(0, score)) * 1000) / 1000 };
+  return { score: round3(Math.min(1, Math.max(0, score))) };
 }
 
 // ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ function analyzeSymbolKnowledge(entries: MemoryEntry[]): { score: number } {
   }
 
   const score = totalTrackedSymbols > 0 ? improvingSymbols / totalTrackedSymbols : 0.5;
-  return { score: Math.round(normalize(score * 0.8 + 0.2) * 1000) / 1000 };
+  return { score: round3(normalize(score * 0.8 + 0.2)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -333,7 +333,7 @@ function analyzeConfidenceRecalibration(entries: MemoryEntry[]): { score: number
   }
 
   const score = postMissTotal > 0 ? postMissAdjustments / postMissTotal : 0.5;
-  return { score: Math.round(normalize(score) * 1000) / 1000 };
+  return { score: round3(normalize(score)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -396,7 +396,7 @@ export function getAgentMemoryProfile(agentId: string): AgentMemoryProfile {
   for (let i = windowSize; i <= entries.length; i += windowSize) {
     const window = entries.slice(i - windowSize, i);
     const avgCoherence = window.reduce((s, e) => s + e.coherenceScore, 0) / window.length;
-    learningCurve.push({ round: i, score: Math.round(avgCoherence * 1000) / 1000 });
+    learningCurve.push({ round: i, score: round3(avgCoherence) });
   }
 
   // Strengths and weaknesses

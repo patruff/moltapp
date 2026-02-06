@@ -18,6 +18,7 @@
  */
 
 import { computeGrade } from "../lib/grade-calculator.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,8 +264,8 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
 
   const humilityEvidence: HumilityBreakdown = {
     avgHedgeCount: Math.round(avgHedge * 100) / 100,
-    uncertaintyRate: Math.round(uncertaintyRate * 1000) / 1000,
-    conditionalRate: Math.round(conditionalRate * 1000) / 1000,
+    uncertaintyRate: round3(uncertaintyRate),
+    conditionalRate: round3(conditionalRate),
     examples: events
       .flatMap((e) => e.uncertaintyExpressions)
       .slice(0, 5),
@@ -291,10 +292,10 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     : Math.max(0, 0.5 - calibrationGap);
 
   const calibrationEvidence: CalibrationBreakdown = {
-    highConfidenceAccuracy: Math.round(highConfAcc * 1000) / 1000,
-    lowConfidenceAccuracy: Math.round(lowConfAcc * 1000) / 1000,
-    calibrationGap: Math.round(calibrationGap * 1000) / 1000,
-    overconfidenceRate: Math.round(overconfidenceRate * 1000) / 1000,
+    highConfidenceAccuracy: round3(highConfAcc),
+    lowConfidenceAccuracy: round3(lowConfAcc),
+    calibrationGap: round3(calibrationGap),
+    overconfidenceRate: round3(overconfidenceRate),
   };
 
   // 3. ERROR RECOGNITION
@@ -324,9 +325,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     : 0.5;
 
   const errorEvidence: ErrorBreakdown = {
-    afterErrorActionChange: errorCount > 0 ? Math.round((afterErrorActionChange / errorCount) * 1000) / 1000 : 0,
-    afterErrorConfidenceAdjust: errorCount > 0 ? Math.round((afterErrorConfidenceAdjust / errorCount) * 1000) / 1000 : 0,
-    repeatMistakeRate: errorCount > 0 ? Math.round((repeatMistakes / errorCount) * 1000) / 1000 : 0,
+    afterErrorActionChange: errorCount > 0 ? round3(afterErrorActionChange / errorCount) : 0,
+    afterErrorConfidenceAdjust: errorCount > 0 ? round3(afterErrorConfidenceAdjust / errorCount) : 0,
+    repeatMistakeRate: errorCount > 0 ? round3(repeatMistakes / errorCount) : 0,
   };
 
   // 4. SCOPE LIMITATION
@@ -353,9 +354,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   );
 
   const scopeEvidence: ScopeBreakdown = {
-    limitationMentionRate: Math.round(limitMentionRate * 1000) / 1000,
+    limitationMentionRate: round3(limitMentionRate),
     topSymbols,
-    symbolConcentration: Math.round(symbolConcentration * 1000) / 1000,
+    symbolConcentration: round3(symbolConcentration),
   };
 
   // 5. ADAPTIVE STRATEGY
@@ -387,9 +388,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   );
 
   const adaptationEvidence: AdaptationBreakdown = {
-    intentChangeAfterLoss: lossCount > 0 ? Math.round((intentChangeAfterLoss / lossCount) * 1000) / 1000 : 0,
-    confidenceAdaptation: Math.round(Math.max(0, confAdaptation) * 1000) / 1000,
-    strategyDiversity: Math.round(strategyDiversity * 1000) / 1000,
+    intentChangeAfterLoss: lossCount > 0 ? round3(intentChangeAfterLoss / lossCount) : 0,
+    confidenceAdaptation: round3(Math.max(0, confAdaptation)),
+    strategyDiversity: round3(strategyDiversity),
   };
 
   // Composite
@@ -414,13 +415,13 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     agentId,
     tradeCount,
     lastUpdated: new Date().toISOString(),
-    overallScore: Math.round(overallScore * 1000) / 1000,
+    overallScore: round3(overallScore),
     grade: computeGrade(overallScore),
-    epistemicHumility: Math.round(humilityScore * 1000) / 1000,
-    calibrationAwareness: Math.round(calibrationScore * 1000) / 1000,
-    errorRecognition: Math.round(errorRecognition * 1000) / 1000,
-    scopeLimitation: Math.round(scopeScore * 1000) / 1000,
-    adaptiveStrategy: Math.round(adaptiveStrategy * 1000) / 1000,
+    epistemicHumility: round3(humilityScore),
+    calibrationAwareness: round3(calibrationScore),
+    errorRecognition: round3(errorRecognition),
+    scopeLimitation: round3(scopeScore),
+    adaptiveStrategy: round3(adaptiveStrategy),
     humilityEvidence,
     calibrationEvidence,
     errorEvidence,

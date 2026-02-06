@@ -21,6 +21,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -249,16 +250,16 @@ export function welchTTest(
   // 95% confidence interval for the difference
   const tCrit = approximateTCritical(df);
   const ci: [number, number] = [
-    Math.round((meanA - meanB - tCrit * se) * 1000) / 1000,
-    Math.round((meanA - meanB + tCrit * se) * 1000) / 1000,
+    round3(meanA - meanB - tCrit * se),
+    round3(meanA - meanB + tCrit * se),
   ];
 
   return {
     testName: "Welch's t-test",
-    statistic: Math.round(t * 1000) / 1000,
+    statistic: round3(t),
     pValue: Math.round(pValue * 10000) / 10000,
     significant: pValue < 0.05,
-    effectSize: Math.round(effectSize * 1000) / 1000,
+    effectSize: round3(effectSize),
     effectInterpretation,
     confidenceInterval: ci,
     sampleSizes: [nA, nB],
@@ -425,10 +426,10 @@ export function bootstrapCI(
   const ci99Upper = bootstrapMeans[Math.floor(iterations * 0.995)];
 
   return {
-    mean: Math.round(mean * 1000) / 1000,
-    standardError: Math.round(standardError * 1000) / 1000,
-    ci95: [Math.round(ci95Lower * 1000) / 1000, Math.round(ci95Upper * 1000) / 1000],
-    ci99: [Math.round(ci99Lower * 1000) / 1000, Math.round(ci99Upper * 1000) / 1000],
+    mean: round3(mean),
+    standardError: round3(standardError),
+    ci95: [round3(ci95Lower), round3(ci95Upper)],
+    ci99: [round3(ci99Lower), round3(ci99Upper)],
     iterations,
     sampleSize: samples.length,
   };
@@ -486,8 +487,8 @@ export function compareAgents(agentA: string, agentB: string): AgentComparison {
     verdict: {
       winner,
       metric: winMetric,
-      confidence: Math.round(winConfidence * 1000) / 1000,
-      margin: Math.round(winMargin * 1000) / 1000,
+      confidence: round3(winConfidence),
+      margin: round3(winMargin),
     },
   };
 }

@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp, countWords, getFilteredWords, splitSentences } from "../lib/math-utils.ts";
+import { clamp, countWords, getFilteredWords, round3, splitSentences } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -298,10 +298,10 @@ function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnal
   );
 
   return {
-    jaccardSimilarityToPrevious: Math.round(jaccardSimilarityToPrevious * 1000) / 1000,
-    uniqueNGramRatio: Math.round(uniqueNGramRatio * 1000) / 1000,
-    templateProbability: Math.round(templateProbability * 1000) / 1000,
-    originalityScore: Math.round(originalityScore * 1000) / 1000,
+    jaccardSimilarityToPrevious: round3(jaccardSimilarityToPrevious),
+    uniqueNGramRatio: round3(uniqueNGramRatio),
+    templateProbability: round3(templateProbability),
+    originalityScore: round3(originalityScore),
   };
 }
 
@@ -333,7 +333,7 @@ function analyzeClarity(reasoning: string): ClarityAnalysis {
   return {
     readabilityScore: Math.round(readabilityScore * 100) / 100,
     avgWordLength: Math.round(avgWordLength * 10) / 10,
-    jargonRatio: Math.round(jargonRatio * 1000) / 1000,
+    jargonRatio: round3(jargonRatio),
     clarityScore: Math.round(clarityScore * 100) / 100,
   };
 }
@@ -397,7 +397,7 @@ function analyzeCrossTrade(
     stanceShift,
     previousTradeAction,
     previousSymbol,
-    confidenceDelta: Math.round(confidenceDelta * 1000) / 1000,
+    confidenceDelta: round3(confidenceDelta),
     flags,
   };
 }
