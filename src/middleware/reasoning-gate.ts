@@ -26,6 +26,101 @@ import { splitSentences } from "../lib/math-utils.ts";
 
 export type ReasoningEnforcementLevel = "strict" | "warn" | "off";
 
+// ---------------------------------------------------------------------------
+// Reasoning Validation Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum character length for reasoning text.
+ * Prevents trivial reasoning like "good trade" or "bullish".
+ */
+const REASONING_MIN_LENGTH = 20;
+
+/**
+ * Reasoning length scoring tiers (character counts).
+ * Longer reasoning generally indicates more thorough analysis.
+ */
+const REASONING_LENGTH_TIER_EXCELLENT = 200; // 0.30 score
+const REASONING_LENGTH_TIER_GOOD = 100;      // 0.25 score
+const REASONING_LENGTH_TIER_ACCEPTABLE = 50; // 0.20 score
+const REASONING_LENGTH_TIER_MINIMAL = 20;    // 0.15 score
+
+/**
+ * Minimum character length per sentence.
+ * Filters out trivial sentences like "Buy." or "Good."
+ */
+const REASONING_MIN_SENTENCE_LENGTH = 5;
+
+/**
+ * Minimum number of sentences for multi-sentence bonus.
+ * Encourages structured multi-point reasoning.
+ */
+const REASONING_MIN_SENTENCES_FOR_BONUS = 3;
+
+/**
+ * Minimum number of sources for multiple sources bonus.
+ * Rewards diverse data gathering.
+ */
+const REASONING_MIN_SOURCES_FOR_BONUS = 3;
+
+/**
+ * Minimum character length for predicted outcome field.
+ * Ensures outcome predictions are substantive.
+ */
+const REASONING_MIN_OUTCOME_LENGTH = 10;
+
+// ---------------------------------------------------------------------------
+// Reasoning Validation Scoring Weights
+// ---------------------------------------------------------------------------
+
+/**
+ * Score penalty for reasoning that is too short.
+ * Applied when reasoning exists but is below minimum length.
+ */
+const REASONING_SCORE_SHORT_PENALTY = 0.1;
+
+/**
+ * Score contributions for reasoning length tiers.
+ * Higher scores reward more detailed analysis.
+ */
+const REASONING_SCORE_LENGTH_EXCELLENT = 0.30;
+const REASONING_SCORE_LENGTH_GOOD = 0.25;
+const REASONING_SCORE_LENGTH_ACCEPTABLE = 0.20;
+const REASONING_SCORE_LENGTH_MINIMAL = 0.15;
+
+/**
+ * Bonus score for multi-sentence reasoning.
+ * Rewards structured thought process.
+ */
+const REASONING_SCORE_MULTISENTENCE_BONUS = 0.1;
+
+/**
+ * Score for providing valid confidence value (0-1).
+ */
+const REASONING_SCORE_CONFIDENCE_FIELD = 0.2;
+
+/**
+ * Score for providing sources array.
+ */
+const REASONING_SCORE_SOURCES_FIELD = 0.15;
+
+/**
+ * Bonus score for multiple sources (3+).
+ * Rewards diverse data gathering.
+ */
+const REASONING_SCORE_SOURCES_BONUS = 0.05;
+
+/**
+ * Score for providing valid intent classification.
+ */
+const REASONING_SCORE_INTENT_FIELD = 0.15;
+
+/**
+ * Bonus score for providing predicted outcome.
+ * Optional field that rewards forward-looking analysis.
+ */
+const REASONING_SCORE_OUTCOME_BONUS = 0.05;
+
 let enforcementLevel: ReasoningEnforcementLevel = "warn";
 
 /** Set the global reasoning enforcement level */
@@ -105,19 +200,19 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
   const reasoning = body.reasoning as string | undefined;
   if (!reasoning || typeof reasoning !== "string") {
     issues.push("Missing reasoning field");
-  } else if (reasoning.length < 20) {
-    issues.push(`Reasoning too short (${reasoning.length} chars, min 20)`);
-    score += 0.1;
+  } else if (reasoning.length < REASONING_MIN_LENGTH) {
+    issues.push(`Reasoning too short (${reasoning.length} chars, min ${REASONING_MIN_LENGTH})`);
+    score += REASONING_SCORE_SHORT_PENALTY;
   } else {
     // Score by length tiers
-    if (reasoning.length >= 200) score += 0.3;
-    else if (reasoning.length >= 100) score += 0.25;
-    else if (reasoning.length >= 50) score += 0.2;
-    else score += 0.15;
+    if (reasoning.length >= REASONING_LENGTH_TIER_EXCELLENT) score += REASONING_SCORE_LENGTH_EXCELLENT;
+    else if (reasoning.length >= REASONING_LENGTH_TIER_GOOD) score += REASONING_SCORE_LENGTH_GOOD;
+    else if (reasoning.length >= REASONING_LENGTH_TIER_ACCEPTABLE) score += REASONING_SCORE_LENGTH_ACCEPTABLE;
+    else score += REASONING_SCORE_LENGTH_MINIMAL;
 
     // Bonus for multi-sentence reasoning
-    const sentences = splitSentences(reasoning, 5);
-    if (sentences.length >= 3) score += 0.1;
+    const sentences = splitSentences(reasoning, REASONING_MIN_SENTENCE_LENGTH);
+    if (sentences.length >= REASONING_MIN_SENTENCES_FOR_BONUS) score += REASONING_SCORE_MULTISENTENCE_BONUS;
   }
 
   // Check 2: Confidence provided and valid
@@ -127,7 +222,7 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
   } else if (typeof confidence !== "number" || confidence < 0 || confidence > 1) {
     issues.push(`Invalid confidence: ${confidence} (must be 0-1)`);
   } else {
-    score += 0.2;
+    score += REASONING_SCORE_CONFIDENCE_FIELD;
   }
 
   // Check 3: Sources array provided
@@ -135,9 +230,9 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
   if (!sources || !Array.isArray(sources) || sources.length === 0) {
     issues.push("Missing or empty sources array");
   } else {
-    score += 0.15;
+    score += REASONING_SCORE_SOURCES_FIELD;
     // Bonus for multiple sources
-    if (sources.length >= 3) score += 0.05;
+    if (sources.length >= REASONING_MIN_SOURCES_FOR_BONUS) score += REASONING_SCORE_SOURCES_BONUS;
   }
 
   // Check 4: Intent classification provided
@@ -148,12 +243,12 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
   } else if (!validIntents.includes(intent)) {
     issues.push(`Invalid intent: ${intent}. Must be one of: ${validIntents.join(", ")}`);
   } else {
-    score += 0.15;
+    score += REASONING_SCORE_INTENT_FIELD;
   }
 
   // Check 5: Predicted outcome (bonus, not required)
-  if (body.predictedOutcome && typeof body.predictedOutcome === "string" && body.predictedOutcome.length > 10) {
-    score += 0.05;
+  if (body.predictedOutcome && typeof body.predictedOutcome === "string" && body.predictedOutcome.length > REASONING_MIN_OUTCOME_LENGTH) {
+    score += REASONING_SCORE_OUTCOME_BONUS;
   }
 
   // Clamp score to [0, 1]
