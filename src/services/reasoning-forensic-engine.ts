@@ -288,11 +288,13 @@ function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnal
   const templateProbability = jaccardSimilarityToPrevious > 0.7 ? jaccardSimilarityToPrevious : 0;
 
   // Originality score: reward uniqueness, penalize templates
-  const originalityScore = Math.max(0, Math.min(1,
+  const originalityScore = clamp(
     (1 - jaccardSimilarityToPrevious) * 0.4 +
     uniqueNGramRatio * 0.4 +
     (1 - templateProbability) * 0.2,
-  ));
+    0,
+    1,
+  );
 
   return {
     jaccardSimilarityToPrevious: Math.round(jaccardSimilarityToPrevious * 1000) / 1000,
@@ -325,7 +327,7 @@ function analyzeClarity(reasoning: string): ClarityAnalysis {
   if (jargonRatio > 0 && jargonRatio <= 0.08) readabilityScore += 0.1;
   else if (jargonRatio > 0.15) readabilityScore -= 0.1;
 
-  const clarityScore = Math.max(0, Math.min(1, readabilityScore));
+  const clarityScore = clamp(readabilityScore, 0, 1);
 
   return {
     readabilityScore: Math.round(readabilityScore * 100) / 100,
