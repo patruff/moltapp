@@ -509,6 +509,8 @@ pages.get("/agent/:id", async (c) => {
     Promise.resolve(getAgentConfig(agentId)),
     getAgentPortfolio(agentId).catch(() => ({
       cashBalance: 0,
+      solBalance: 0,
+      solValueUsd: 0,
       positions: [] as AgentPosition[],
       totalValue: 0,
       totalPnl: 0,
@@ -594,7 +596,7 @@ pages.get("/agent/:id", async (c) => {
         </div>
 
         {/* Stats grid */}
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-6">
           <div class="bg-gray-950 rounded p-3">
             <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Portfolio Value</div>
             <div class="text-lg font-bold text-gray-200">${formatCurrency(entry.totalPortfolioValue)}</div>
@@ -611,6 +613,11 @@ pages.get("/agent/:id", async (c) => {
           <div class="bg-gray-950 rounded p-3">
             <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Cash (USDC)</div>
             <div class="text-lg font-bold text-gray-200">${formatCurrency(portfolio.cashBalance)}</div>
+          </div>
+          <div class="bg-gray-950 rounded p-3">
+            <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">SOL Balance</div>
+            <div class="text-lg font-bold text-purple-400">{portfolio.solBalance?.toFixed(3) || "0.000"} SOL</div>
+            <div class="text-xs text-gray-500 mt-1">~${formatCurrency(portfolio.solValueUsd || 0)}</div>
           </div>
           <div class="bg-gray-950 rounded p-3">
             <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Trades</div>

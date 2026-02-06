@@ -28,6 +28,10 @@ export interface OnChainPortfolio {
   walletAddress: string;
   /** USDC balance from on-chain */
   cashBalance: number;
+  /** SOL balance from on-chain */
+  solBalance: number;
+  /** SOL value in USD */
+  solValueUsd: number;
   /** xStock positions from on-chain */
   positions: Array<{
     symbol: string;
@@ -40,7 +44,7 @@ export interface OnChainPortfolio {
     unrealizedPnl: number;
     unrealizedPnlPercent: number;
   }>;
-  /** Total portfolio value (cash + positions) */
+  /** Total portfolio value (cash + positions + SOL) */
   totalValue: number;
   /** Total P&L from all trades */
   totalPnl: number;
@@ -62,6 +66,9 @@ const AGENT_INITIAL_CAPITAL = 50; // $50 USDC per agent
 
 /** USDC decimals */
 const USDC_DECIMALS = 6;
+
+/** Approximate SOL price in USD (for portfolio valuation) */
+const SOL_PRICE_USD = 200; // Conservative estimate, update as needed
 
 // ---------------------------------------------------------------------------
 // Mock Prices (fallback when Jupiter API doesn't return xStocks prices)
@@ -172,9 +179,13 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
     };
   });
 
-  // Calculate totals
+  // Calculate SOL value
+  const solBalance = walletStatus.solBalance;
+  const solValueUsd = solBalance * SOL_PRICE_USD;
+
+  // Calculate totals (including SOL value)
   const positionsValue = positionList.reduce((sum, p) => sum + p.value, 0);
-  const totalValue = cashBalance + positionsValue;
+  const totalValue = cashBalance + positionsValue + solValueUsd;
   const totalPnl = totalValue - AGENT_INITIAL_CAPITAL;
   const totalPnlPercent = AGENT_INITIAL_CAPITAL > 0 ? (totalPnl / AGENT_INITIAL_CAPITAL) * 100 : 0;
 
@@ -183,6 +194,8 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
     agentName: wallet.agentName,
     walletAddress: wallet.publicKey,
     cashBalance,
+    solBalance,
+    solValueUsd,
     positions: positionList,
     totalValue,
     totalPnl,
