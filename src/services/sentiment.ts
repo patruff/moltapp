@@ -237,6 +237,10 @@ const SENTIMENT_THRESHOLDS = {
 
   // Signal strength classification (description text)
   SENTIMENT_STRONG: 20,               // |score| > 20 = strong/positive/negative
+
+  // Agent bias classification thresholds (getAgentSnapshot)
+  BIAS_STRONG_THRESHOLD: 40,          // |overallBias| > 40 = Strongly Bullish/Bearish
+  BIAS_MODERATE_THRESHOLD: 15,        // |overallBias| > 15 = Bullish/Bearish
 } as const;
 
 /** The 3 AI agent IDs */
@@ -588,10 +592,10 @@ function classifySignal(score: number): "strong_buy" | "buy" | "neutral" | "sell
  * Classify a mood value into a fear/greed label.
  */
 function classifyMood(value: number): "extreme_fear" | "fear" | "neutral" | "greed" | "extreme_greed" {
-  if (value <= -60) return "extreme_fear";
-  if (value <= -20) return "fear";
-  if (value >= 60) return "extreme_greed";
-  if (value >= 20) return "greed";
+  if (value <= SENTIMENT_THRESHOLDS.STRONG_SELL_THRESHOLD) return "extreme_fear";
+  if (value <= SENTIMENT_THRESHOLDS.SELL_THRESHOLD) return "fear";
+  if (value >= SENTIMENT_THRESHOLDS.STRONG_BUY_THRESHOLD) return "extreme_greed";
+  if (value >= SENTIMENT_THRESHOLDS.BUY_THRESHOLD) return "greed";
   return "neutral";
 }
 
@@ -850,10 +854,10 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
       : 0;
 
     const biasLabel =
-      overallBias > 40 ? "Strongly Bullish" :
-      overallBias > 15 ? "Bullish" :
-      overallBias < -40 ? "Strongly Bearish" :
-      overallBias < -15 ? "Bearish" :
+      overallBias > SENTIMENT_THRESHOLDS.BIAS_STRONG_THRESHOLD ? "Strongly Bullish" :
+      overallBias > SENTIMENT_THRESHOLDS.BIAS_MODERATE_THRESHOLD ? "Bullish" :
+      overallBias < -SENTIMENT_THRESHOLDS.BIAS_STRONG_THRESHOLD ? "Strongly Bearish" :
+      overallBias < -SENTIMENT_THRESHOLDS.BIAS_MODERATE_THRESHOLD ? "Bearish" :
       "Neutral";
 
     // Per-symbol sentiment
