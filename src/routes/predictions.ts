@@ -35,6 +35,7 @@ import {
   getPredictionHistory,
 } from "../services/predictions.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const predictionRoutes = new Hono();
 
@@ -69,10 +70,7 @@ predictionRoutes.get("/", async (c) => {
       {
         error: "prediction_error",
         code: "list_predictions_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch active predictions",
+        details: errorMessage(error),
       },
       500,
     );
@@ -100,10 +98,7 @@ predictionRoutes.get("/hot", async (c) => {
       {
         error: "prediction_error",
         code: "hot_predictions_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch hot predictions",
+        details: errorMessage(error),
       },
       500,
     );
@@ -153,10 +148,7 @@ predictionRoutes.get("/leaderboard", async (c) => {
       {
         error: "prediction_error",
         code: "leaderboard_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate leaderboard",
+        details: errorMessage(error),
       },
       500,
     );
@@ -195,10 +187,7 @@ predictionRoutes.get("/agent/:agentId/stats", async (c) => {
       {
         error: "prediction_error",
         code: "agent_stats_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute agent stats",
+        details: errorMessage(error),
       },
       500,
     );
@@ -229,10 +218,7 @@ predictionRoutes.get("/agent/:agentId", async (c) => {
       {
         error: "prediction_error",
         code: "agent_history_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch agent prediction history",
+        details: errorMessage(error),
       },
       500,
     );
@@ -267,10 +253,7 @@ predictionRoutes.get("/symbol/:symbol", async (c) => {
       {
         error: "prediction_error",
         code: "symbol_predictions_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch symbol predictions",
+        details: errorMessage(error),
       },
       500,
     );
@@ -325,10 +308,7 @@ predictionRoutes.get("/:id", async (c) => {
       {
         error: "prediction_error",
         code: "prediction_detail_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch prediction details",
+        details: errorMessage(error),
       },
       500,
     );
@@ -367,10 +347,7 @@ predictionRoutes.get("/:id/market", async (c) => {
       {
         error: "prediction_error",
         code: "market_odds_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch market odds",
+        details: errorMessage(error),
       },
       500,
     );
@@ -500,10 +477,7 @@ predictionRoutes.post("/", async (c) => {
       {
         error: "prediction_error",
         code: "create_prediction_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to create prediction",
+        details: errorMessage(error),
       },
       500,
     );
@@ -640,8 +614,7 @@ predictionRoutes.post("/:id/bet", async (c) => {
       {
         error: "prediction_error",
         code: "place_bet_failed",
-        details:
-          error instanceof Error ? error.message : "Failed to place bet",
+        details: errorMessage(error),
       },
       500,
     );
@@ -674,10 +647,7 @@ predictionRoutes.post("/resolve", async (c) => {
       {
         error: "prediction_error",
         code: "resolve_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to resolve predictions",
+        details: errorMessage(error),
       },
       500,
     );

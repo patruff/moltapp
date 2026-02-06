@@ -44,6 +44,7 @@ import type {
   StreamEvent,
 } from "../services/event-stream.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -254,7 +255,7 @@ streamRoutes.get("/events", (c) => {
       {
         error: "stream_error",
         code: "events_query_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch events",
+        details: errorMessage(error),
       },
       500,
     );
@@ -350,7 +351,7 @@ streamRoutes.get("/stats", (c) => {
       {
         error: "stream_error",
         code: "stats_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch stats",
+        details: errorMessage(error),
       },
       500,
     );

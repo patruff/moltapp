@@ -19,6 +19,7 @@ import {
   getReputationLeaderboard,
 } from "../services/reputation.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const reputationRoutes = new Hono();
 
@@ -53,10 +54,7 @@ reputationRoutes.get("/", async (c) => {
       {
         error: "reputation_error",
         code: "leaderboard_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute leaderboard",
+        details: errorMessage(error),
       },
       500,
     );
@@ -94,10 +92,7 @@ reputationRoutes.get("/:agentId", async (c) => {
       {
         error: "reputation_error",
         code: "profile_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute reputation",
+        details: errorMessage(error),
       },
       500,
     );
@@ -133,7 +128,7 @@ reputationRoutes.get("/:agentId/accuracy", async (c) => {
       {
         error: "reputation_error",
         code: "accuracy_failed",
-        details: error instanceof Error ? error.message : "Failed to compute accuracy",
+        details: errorMessage(error),
       },
       500,
     );
@@ -173,7 +168,7 @@ reputationRoutes.get("/:agentId/calibration", async (c) => {
       {
         error: "reputation_error",
         code: "calibration_failed",
-        details: error instanceof Error ? error.message : "Failed to compute calibration",
+        details: errorMessage(error),
       },
       500,
     );
@@ -218,7 +213,7 @@ reputationRoutes.get("/:agentId/badges", async (c) => {
       {
         error: "reputation_error",
         code: "badges_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch badges",
+        details: errorMessage(error),
       },
       500,
     );
@@ -300,7 +295,7 @@ reputationRoutes.get("/compare/:agent1/:agent2", async (c) => {
       {
         error: "reputation_error",
         code: "comparison_failed",
-        details: error instanceof Error ? error.message : "Failed to compare agents",
+        details: errorMessage(error),
       },
       500,
     );

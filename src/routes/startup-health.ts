@@ -12,6 +12,7 @@ import {
   startHealthTicker,
   stopHealthTicker,
 } from "../services/startup-validator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const app = new Hono();
 
@@ -31,7 +32,7 @@ app.get("/", async (c) => {
       {
         overall: "unhealthy",
         ready: false,
-        error: err instanceof Error ? err.message : "Health check failed",
+        error: errorMessage(err),
       },
       503,
     );
@@ -80,7 +81,7 @@ app.post("/ticker/start", async (c) => {
     return c.json({ started: true, intervalMs });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to start ticker" },
+      { error: errorMessage(err) },
       500,
     );
   }

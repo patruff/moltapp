@@ -21,6 +21,7 @@ import {
   getSmartMoneyFlow,
 } from "../services/whale-tracker.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const whaleRoutes = new Hono();
 
@@ -61,7 +62,7 @@ whaleRoutes.get("/", async (c) => {
       {
         error: "whale_error",
         code: "dashboard_failed",
-        details: error instanceof Error ? error.message : "Failed to load whale tracker",
+        details: errorMessage(error),
       },
       500,
     );
@@ -109,7 +110,7 @@ whaleRoutes.get("/alerts", async (c) => {
       {
         error: "whale_error",
         code: "alerts_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch alerts",
+        details: errorMessage(error),
       },
       500,
     );
@@ -136,7 +137,7 @@ whaleRoutes.get("/conviction", async (c) => {
       {
         error: "whale_error",
         code: "conviction_failed",
-        details: error instanceof Error ? error.message : "Failed to track conviction",
+        details: errorMessage(error),
       },
       500,
     );
@@ -161,7 +162,7 @@ whaleRoutes.get("/heatmap", async (c) => {
       {
         error: "whale_error",
         code: "heatmap_failed",
-        details: error instanceof Error ? error.message : "Failed to generate heatmap",
+        details: errorMessage(error),
       },
       500,
     );
@@ -188,7 +189,7 @@ whaleRoutes.get("/flow", async (c) => {
       {
         error: "whale_error",
         code: "flow_failed",
-        details: error instanceof Error ? error.message : "Failed to analyze money flow",
+        details: errorMessage(error),
       },
       500,
     );
@@ -217,7 +218,7 @@ whaleRoutes.get("/flow/sectors", async (c) => {
       {
         error: "whale_error",
         code: "sector_flow_failed",
-        details: error instanceof Error ? error.message : "Failed to compute sector flows",
+        details: errorMessage(error),
       },
       500,
     );

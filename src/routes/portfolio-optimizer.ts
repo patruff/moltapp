@@ -26,6 +26,7 @@ import {
   compareAgentPortfolios,
 } from "../services/portfolio-optimizer.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const optimizerRoutes = new Hono();
 
@@ -47,7 +48,7 @@ optimizerRoutes.get("/frontier", async (c) => {
       {
         error: "optimizer_error",
         code: "frontier_failed",
-        details: error instanceof Error ? error.message : "Failed to compute frontier",
+        details: errorMessage(error),
       },
       500,
     );
@@ -72,7 +73,7 @@ optimizerRoutes.get("/risk-parity", async (c) => {
       {
         error: "optimizer_error",
         code: "risk_parity_failed",
-        details: error instanceof Error ? error.message : "Failed to compute risk parity",
+        details: errorMessage(error),
       },
       500,
     );
@@ -97,7 +98,7 @@ optimizerRoutes.get("/correlations", async (c) => {
       {
         error: "optimizer_error",
         code: "correlations_failed",
-        details: error instanceof Error ? error.message : "Failed to compute correlations",
+        details: errorMessage(error),
       },
       500,
     );
@@ -122,7 +123,7 @@ optimizerRoutes.get("/compare", async (c) => {
       {
         error: "optimizer_error",
         code: "comparison_failed",
-        details: error instanceof Error ? error.message : "Failed to compare portfolios",
+        details: errorMessage(error),
       },
       500,
     );
@@ -172,7 +173,7 @@ optimizerRoutes.get("/:agentId", async (c) => {
       {
         error: "optimizer_error",
         code: "optimization_failed",
-        details: error instanceof Error ? error.message : "Failed to optimize portfolio",
+        details: errorMessage(error),
       },
       500,
     );
@@ -214,7 +215,7 @@ optimizerRoutes.get("/:agentId/kelly", async (c) => {
       {
         error: "optimizer_error",
         code: "kelly_failed",
-        details: error instanceof Error ? error.message : "Failed to compute Kelly criterion",
+        details: errorMessage(error),
       },
       500,
     );
@@ -256,7 +257,7 @@ optimizerRoutes.get("/:agentId/rebalance", async (c) => {
       {
         error: "optimizer_error",
         code: "rebalance_failed",
-        details: error instanceof Error ? error.message : "Failed to compute rebalancing",
+        details: errorMessage(error),
       },
       500,
     );

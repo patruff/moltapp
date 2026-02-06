@@ -44,6 +44,7 @@ import {
 import type { StrategyCategory, RiskLevel, StrategySortBy } from "../services/strategies.ts";
 import type { StrategyParameters } from "../db/schema/strategies.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const strategyRoutes = new Hono();
 
@@ -81,7 +82,7 @@ strategyRoutes.get("/", async (c) => {
         error: "strategy_error",
         code: "catalog_failed",
         details:
-          error instanceof Error ? error.message : "Failed to load strategy catalog",
+          errorMessage(error),
       },
       500,
     );
@@ -109,7 +110,7 @@ strategyRoutes.get("/trending", async (c) => {
         error: "strategy_error",
         code: "trending_failed",
         details:
-          error instanceof Error ? error.message : "Failed to compute trending strategies",
+          errorMessage(error),
       },
       500,
     );
@@ -137,7 +138,7 @@ strategyRoutes.get("/leaderboard", async (c) => {
         error: "strategy_error",
         code: "leaderboard_failed",
         details:
-          error instanceof Error ? error.message : "Failed to compute strategy leaderboard",
+          errorMessage(error),
       },
       500,
     );
@@ -164,7 +165,7 @@ strategyRoutes.get("/stats", async (c) => {
         error: "strategy_error",
         code: "stats_failed",
         details:
-          error instanceof Error ? error.message : "Failed to compute marketplace stats",
+          errorMessage(error),
       },
       500,
     );
@@ -194,7 +195,7 @@ strategyRoutes.get("/agent/:agentId", async (c) => {
         error: "strategy_error",
         code: "agent_strategies_failed",
         details:
-          error instanceof Error ? error.message : "Failed to fetch agent strategies",
+          errorMessage(error),
       },
       500,
     );
@@ -231,7 +232,7 @@ strategyRoutes.get("/agent/:agentId/adoptions", async (c) => {
         error: "strategy_error",
         code: "agent_adoptions_failed",
         details:
-          error instanceof Error ? error.message : "Failed to fetch agent adoptions",
+          errorMessage(error),
       },
       500,
     );
@@ -270,7 +271,7 @@ strategyRoutes.get("/:id", async (c) => {
         error: "strategy_error",
         code: "details_failed",
         details:
-          error instanceof Error ? error.message : "Failed to fetch strategy details",
+          errorMessage(error),
       },
       500,
     );
@@ -309,7 +310,7 @@ strategyRoutes.get("/:id/performance", async (c) => {
         error: "strategy_error",
         code: "performance_failed",
         details:
-          error instanceof Error ? error.message : "Failed to compute strategy performance",
+          errorMessage(error),
       },
       500,
     );
@@ -367,7 +368,7 @@ strategyRoutes.get("/:id/signals", async (c) => {
         error: "strategy_error",
         code: "signals_failed",
         details:
-          error instanceof Error ? error.message : "Failed to fetch strategy signals",
+          errorMessage(error),
       },
       500,
     );
@@ -425,7 +426,7 @@ strategyRoutes.get("/:id/compare", async (c) => {
         error: "strategy_error",
         code: "comparison_failed",
         details:
-          error instanceof Error ? error.message : "Failed to compare strategies",
+          errorMessage(error),
       },
       500,
     );
@@ -555,7 +556,7 @@ strategyRoutes.post("/", async (c) => {
       {
         error: isValidation ? "validation_error" : "strategy_error",
         code: "create_failed",
-        details: error instanceof Error ? error.message : "Failed to create strategy",
+        details: errorMessage(error),
       },
       isValidation ? 400 : 500,
     );
@@ -610,7 +611,7 @@ strategyRoutes.post("/:id/fork", async (c) => {
       {
         error: isNotFound ? "not_found" : "strategy_error",
         code: "fork_failed",
-        details: error instanceof Error ? error.message : "Failed to fork strategy",
+        details: errorMessage(error),
       },
       isNotFound ? 404 : 500,
     );
@@ -671,7 +672,7 @@ strategyRoutes.post("/:id/adopt", async (c) => {
                 ? "inactive"
                 : "strategy_error",
         code: "adopt_failed",
-        details: error instanceof Error ? error.message : "Failed to adopt strategy",
+        details: errorMessage(error),
       },
       statusCode,
     );
@@ -747,7 +748,7 @@ strategyRoutes.post("/:id/rate", async (c) => {
       {
         error: isNotFound ? "not_found" : "strategy_error",
         code: "rate_failed",
-        details: error instanceof Error ? error.message : "Failed to rate strategy",
+        details: errorMessage(error),
       },
       isNotFound ? 404 : 500,
     );

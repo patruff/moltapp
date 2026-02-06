@@ -21,6 +21,7 @@ import {
 } from "../services/payments.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { errorMessage } from "../lib/errors.ts";
 
 export const paymentRoutes = new Hono();
 
@@ -115,8 +116,7 @@ paymentRoutes.post("/tip", async (c) => {
     );
   } catch (error) {
     console.error("[Payments] Tip error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to send tip";
+    const message = errorMessage(error);
 
     if (
       message.includes("not found") ||
@@ -166,10 +166,7 @@ paymentRoutes.get("/earnings/:agentId", async (c) => {
       {
         error: "payment_error",
         code: "earnings_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch earnings",
+        details: errorMessage(error),
       },
       500,
     );
@@ -196,10 +193,7 @@ paymentRoutes.get("/leaderboard", async (c) => {
       {
         error: "payment_error",
         code: "leaderboard_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute leaderboard",
+        details: errorMessage(error),
       },
       500,
     );
@@ -245,10 +239,7 @@ paymentRoutes.get("/history/:agentId", async (c) => {
       {
         error: "payment_error",
         code: "history_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch payment history",
+        details: errorMessage(error),
       },
       500,
     );
@@ -275,10 +266,7 @@ paymentRoutes.get("/stats", async (c) => {
       {
         error: "payment_error",
         code: "stats_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute payment stats",
+        details: errorMessage(error),
       },
       500,
     );

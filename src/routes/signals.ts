@@ -22,6 +22,7 @@ import {
   getAgentConsensusData,
 } from "../services/signals.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { errorMessage } from "../lib/errors.ts";
 
 export const signalRoutes = new Hono();
 
@@ -45,8 +46,7 @@ signalRoutes.get("/", async (c) => {
       {
         error: "signal_error",
         code: "signal_dashboard_failed",
-        details:
-          error instanceof Error ? error.message : "Failed to generate signals",
+        details: errorMessage(error),
       },
       500,
     );
@@ -100,10 +100,7 @@ signalRoutes.get("/active", async (c) => {
       {
         error: "signal_error",
         code: "active_signals_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch active signals",
+        details: errorMessage(error),
       },
       500,
     );
@@ -149,10 +146,7 @@ signalRoutes.get("/stock/:symbol", async (c) => {
       {
         error: "signal_error",
         code: "stock_indicators_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute indicators",
+        details: errorMessage(error),
       },
       500,
     );
@@ -211,10 +205,7 @@ signalRoutes.get("/consensus", async (c) => {
       {
         error: "signal_error",
         code: "consensus_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute consensus",
+        details: errorMessage(error),
       },
       500,
     );
@@ -241,10 +232,7 @@ signalRoutes.get("/trending", async (c) => {
       {
         error: "signal_error",
         code: "trending_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to compute trending stocks",
+        details: errorMessage(error),
       },
       500,
     );
@@ -273,10 +261,7 @@ signalRoutes.get("/alerts", async (c) => {
       {
         error: "signal_error",
         code: "alerts_failed",
-        details:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch alerts",
+        details: errorMessage(error),
       },
       500,
     );

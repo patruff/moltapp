@@ -114,7 +114,7 @@ benchmarkExportRoutes.get("/export/jsonl", async (c) => {
   } catch (err) {
     // Fallback: return empty JSONL with error metadata
     c.header("Content-Type", "application/x-ndjson");
-    c.header("X-Error", err instanceof Error ? err.message : "unknown");
+    c.header("X-Error", errorMessage(err));
     return c.body("");
   }
 });
@@ -182,7 +182,7 @@ benchmarkExportRoutes.get("/export/csv", async (c) => {
   } catch (err) {
     // Fallback: return headers-only CSV
     c.header("Content-Type", "text/csv; charset=utf-8");
-    c.header("X-Error", err instanceof Error ? err.message : "unknown");
+    c.header("X-Error", errorMessage(err));
     return c.body(headers.join(",") + "\n");
   }
 });

@@ -25,6 +25,7 @@ import {
   getSectorRotation,
 } from "../services/market-regime.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { errorMessage } from "../lib/errors.ts";
 
 export const marketRegimeRoutes = new Hono();
 
@@ -70,7 +71,7 @@ marketRegimeRoutes.get("/dashboard", async (c) => {
       {
         error: "market_error",
         code: "dashboard_failed",
-        details: error instanceof Error ? error.message : "Failed to generate dashboard",
+        details: errorMessage(error),
       },
       500,
     );
@@ -95,7 +96,7 @@ marketRegimeRoutes.get("/regime", async (c) => {
       {
         error: "market_error",
         code: "regime_failed",
-        details: error instanceof Error ? error.message : "Failed to detect regime",
+        details: errorMessage(error),
       },
       500,
     );
@@ -125,7 +126,7 @@ marketRegimeRoutes.get("/regime/history", async (c) => {
       {
         error: "market_error",
         code: "history_failed",
-        details: error instanceof Error ? error.message : "Failed to compute regime history",
+        details: errorMessage(error),
       },
       500,
     );
@@ -150,7 +151,7 @@ marketRegimeRoutes.get("/regime/correlation", async (c) => {
       {
         error: "market_error",
         code: "correlation_failed",
-        details: error instanceof Error ? error.message : "Failed to compute correlation",
+        details: errorMessage(error),
       },
       500,
     );
@@ -175,7 +176,7 @@ marketRegimeRoutes.get("/volatility", async (c) => {
       {
         error: "market_error",
         code: "volatility_failed",
-        details: error instanceof Error ? error.message : "Failed to compute volatility",
+        details: errorMessage(error),
       },
       500,
     );
@@ -200,7 +201,7 @@ marketRegimeRoutes.get("/breadth", async (c) => {
       {
         error: "market_error",
         code: "breadth_failed",
-        details: error instanceof Error ? error.message : "Failed to compute breadth",
+        details: errorMessage(error),
       },
       500,
     );
@@ -225,7 +226,7 @@ marketRegimeRoutes.get("/sectors", async (c) => {
       {
         error: "market_error",
         code: "sectors_failed",
-        details: error instanceof Error ? error.message : "Failed to compute sector rotation",
+        details: errorMessage(error),
       },
       500,
     );
