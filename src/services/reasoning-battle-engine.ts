@@ -18,6 +18,95 @@
 import { round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Sophistication Level Thresholds
+ *
+ * Sophistication score = analyticalAngles * 1.5 + causalClaims * 1.0 + quantitativeClaims * 0.5 + riskMentions * 0.5 + actionableStatements * 1.0
+ *
+ * These thresholds classify reasoning quality from basic (1) to expert (5).
+ */
+
+/** Score ≥ 20 = Level 5 (expert reasoning with deep analytical coverage) */
+const SOPHISTICATION_LEVEL_5_THRESHOLD = 20;
+
+/** Score ≥ 14 = Level 4 (strong reasoning with good breadth) */
+const SOPHISTICATION_LEVEL_4_THRESHOLD = 14;
+
+/** Score ≥ 8 = Level 3 (competent reasoning with multiple dimensions) */
+const SOPHISTICATION_LEVEL_3_THRESHOLD = 8;
+
+/** Score ≥ 4 = Level 2 (basic reasoning with some structure) */
+const SOPHISTICATION_LEVEL_2_THRESHOLD = 4;
+
+/**
+ * Dimension Weights for Reasoning Comparison
+ *
+ * These weights determine how much each dimension contributes to the overall reasoning battle score.
+ * Total must sum to 1.0 for normalized scoring.
+ */
+
+/** Analytical Breadth weight (20% of total score) - How many factors did the agent consider? */
+const DIMENSION_WEIGHT_ANALYTICAL_BREADTH = 0.20;
+
+/** Evidence Quality weight (20% of total score) - Did the agent cite real data vs vague claims? */
+const DIMENSION_WEIGHT_EVIDENCE_QUALITY = 0.20;
+
+/** Causal Reasoning weight (15% of total score) - Did the agent explain WHY, not just WHAT? */
+const DIMENSION_WEIGHT_CAUSAL_REASONING = 0.15;
+
+/** Risk Awareness weight (15% of total score) - Did the agent acknowledge downside scenarios? */
+const DIMENSION_WEIGHT_RISK_AWARENESS = 0.15;
+
+/** Intellectual Honesty weight (10% of total score) - Did the agent acknowledge uncertainty? */
+const DIMENSION_WEIGHT_INTELLECTUAL_HONESTY = 0.10;
+
+/** Actionability weight (10% of total score) - Is the reasoning precise enough to verify? */
+const DIMENSION_WEIGHT_ACTIONABILITY = 0.10;
+
+/** Uniqueness weight (10% of total score) - Is the reasoning original or templated? */
+const DIMENSION_WEIGHT_UNIQUENESS = 0.10;
+
+/**
+ * Normalization Factors
+ *
+ * These divisors normalize raw counts to 0-1 scores for fair comparison.
+ */
+
+/** Analytical Breadth: Normalize by 6 dimensions (10 analytical angles available, 6 = strong coverage) */
+const ANALYTICAL_BREADTH_NORMALIZATION = 6;
+
+/** Evidence Quality: Citations multiplier (each citation type = 20% contribution) */
+const EVIDENCE_CITATION_MULTIPLIER = 0.2;
+
+/** Evidence Quality: Quantitative claims multiplier (each claim = 10% contribution) */
+const EVIDENCE_QUANTITATIVE_MULTIPLIER = 0.1;
+
+/** Causal Reasoning: Normalize by 5 causal claims (5 = strong causal explanation) */
+const CAUSAL_REASONING_NORMALIZATION = 5;
+
+/** Risk Awareness: Normalize by 3 risk mentions (3 = sufficient risk acknowledgement) */
+const RISK_AWARENESS_NORMALIZATION = 3;
+
+/** Intellectual Honesty: Normalize by 3 uncertainty acknowledgements (3 = honest about limitations) */
+const INTELLECTUAL_HONESTY_NORMALIZATION = 3;
+
+/** Actionability: Normalize by 3 actionable statements (3 = clear, verifiable recommendations) */
+const ACTIONABILITY_NORMALIZATION = 3;
+
+/**
+ * Comparison Thresholds
+ */
+
+/** Dimension tie threshold (within 3% = tie, no clear winner) */
+const DIMENSION_TIE_THRESHOLD = 0.03;
+
+/** Overall winner tie threshold (within 2% = dead heat) */
+const OVERALL_TIE_THRESHOLD = 0.02;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -215,10 +304,10 @@ function buildReasoningProfile(agentId: string, reasoning: string): ReasoningPro
     riskMentions * 0.5 +
     actionableStatements * 1.0;
 
-  if (score >= 20) sophistication = 5;
-  else if (score >= 14) sophistication = 4;
-  else if (score >= 8) sophistication = 3;
-  else if (score >= 4) sophistication = 2;
+  if (score >= SOPHISTICATION_LEVEL_5_THRESHOLD) sophistication = 5;
+  else if (score >= SOPHISTICATION_LEVEL_4_THRESHOLD) sophistication = 4;
+  else if (score >= SOPHISTICATION_LEVEL_3_THRESHOLD) sophistication = 3;
+  else if (score >= SOPHISTICATION_LEVEL_2_THRESHOLD) sophistication = 2;
 
   return {
     agentId,
@@ -251,7 +340,7 @@ function scoreDimension(
   const normA = Math.min(1, Math.max(0, valueA));
   const normB = Math.min(1, Math.max(0, valueB));
   const diff = normA - normB;
-  const threshold = 0.03;
+  const threshold = DIMENSION_TIE_THRESHOLD;
 
   return {
     name,
@@ -276,28 +365,28 @@ export function compareReasoning(
   const profileB = buildReasoningProfile(agentBId, reasoningB);
 
   // 1. Analytical Breadth
-  const breadthA = Math.min(1, profileA.analyticalAngles.length / 6);
-  const breadthB = Math.min(1, profileB.analyticalAngles.length / 6);
+  const breadthA = Math.min(1, profileA.analyticalAngles.length / ANALYTICAL_BREADTH_NORMALIZATION);
+  const breadthB = Math.min(1, profileB.analyticalAngles.length / ANALYTICAL_BREADTH_NORMALIZATION);
 
   // 2. Evidence Quality
-  const evidenceA = Math.min(1, (profileA.evidenceCitations.length * 0.2 + profileA.quantitativeClaims * 0.1));
-  const evidenceB = Math.min(1, (profileB.evidenceCitations.length * 0.2 + profileB.quantitativeClaims * 0.1));
+  const evidenceA = Math.min(1, (profileA.evidenceCitations.length * EVIDENCE_CITATION_MULTIPLIER + profileA.quantitativeClaims * EVIDENCE_QUANTITATIVE_MULTIPLIER));
+  const evidenceB = Math.min(1, (profileB.evidenceCitations.length * EVIDENCE_CITATION_MULTIPLIER + profileB.quantitativeClaims * EVIDENCE_QUANTITATIVE_MULTIPLIER));
 
   // 3. Causal Reasoning
-  const causalA = Math.min(1, profileA.causalClaims / 5);
-  const causalB = Math.min(1, profileB.causalClaims / 5);
+  const causalA = Math.min(1, profileA.causalClaims / CAUSAL_REASONING_NORMALIZATION);
+  const causalB = Math.min(1, profileB.causalClaims / CAUSAL_REASONING_NORMALIZATION);
 
   // 4. Risk Awareness
-  const riskA = Math.min(1, profileA.riskMentions / 3);
-  const riskB = Math.min(1, profileB.riskMentions / 3);
+  const riskA = Math.min(1, profileA.riskMentions / RISK_AWARENESS_NORMALIZATION);
+  const riskB = Math.min(1, profileB.riskMentions / RISK_AWARENESS_NORMALIZATION);
 
   // 5. Intellectual Honesty
-  const honestyA = Math.min(1, profileA.uncertaintyAcknowledgements / 3);
-  const honestyB = Math.min(1, profileB.uncertaintyAcknowledgements / 3);
+  const honestyA = Math.min(1, profileA.uncertaintyAcknowledgements / INTELLECTUAL_HONESTY_NORMALIZATION);
+  const honestyB = Math.min(1, profileB.uncertaintyAcknowledgements / INTELLECTUAL_HONESTY_NORMALIZATION);
 
   // 6. Actionability
-  const actionA = Math.min(1, profileA.actionableStatements / 3);
-  const actionB = Math.min(1, profileB.actionableStatements / 3);
+  const actionA = Math.min(1, profileA.actionableStatements / ACTIONABILITY_NORMALIZATION);
+  const actionB = Math.min(1, profileB.actionableStatements / ACTIONABILITY_NORMALIZATION);
 
   // 7. Uniqueness (relative to each other)
   const allBigramsA = new Set(reasoningA.toLowerCase().split(/\s+/).map((w, i, arr) => i < arr.length - 1 ? `${w} ${arr[i + 1]}` : "").filter(Boolean));
@@ -309,19 +398,19 @@ export function compareReasoning(
   const uniquenessB = 1 - jaccardSimilarity; // Both penalized equally for overlap
 
   const dimensions: ReasoningDimensionResult[] = [
-    scoreDimension("analytical_breadth", 0.20, breadthA, breadthB,
+    scoreDimension("analytical_breadth", DIMENSION_WEIGHT_ANALYTICAL_BREADTH, breadthA, breadthB,
       (a, b) => `A covers ${profileA.analyticalAngles.length} angles vs B's ${profileB.analyticalAngles.length}`),
-    scoreDimension("evidence_quality", 0.20, evidenceA, evidenceB,
+    scoreDimension("evidence_quality", DIMENSION_WEIGHT_EVIDENCE_QUALITY, evidenceA, evidenceB,
       (a, b) => `A cites ${profileA.evidenceCitations.length} evidence types, B cites ${profileB.evidenceCitations.length}`),
-    scoreDimension("causal_reasoning", 0.15, causalA, causalB,
+    scoreDimension("causal_reasoning", DIMENSION_WEIGHT_CAUSAL_REASONING, causalA, causalB,
       (a, b) => `A has ${profileA.causalClaims} causal claims vs B's ${profileB.causalClaims}`),
-    scoreDimension("risk_awareness", 0.15, riskA, riskB,
+    scoreDimension("risk_awareness", DIMENSION_WEIGHT_RISK_AWARENESS, riskA, riskB,
       (a, b) => `A mentions risk ${profileA.riskMentions} times vs B's ${profileB.riskMentions}`),
-    scoreDimension("intellectual_honesty", 0.10, honestyA, honestyB,
+    scoreDimension("intellectual_honesty", DIMENSION_WEIGHT_INTELLECTUAL_HONESTY, honestyA, honestyB,
       (a, b) => `A acknowledges uncertainty ${profileA.uncertaintyAcknowledgements} times vs B's ${profileB.uncertaintyAcknowledgements}`),
-    scoreDimension("actionability", 0.10, actionA, actionB,
+    scoreDimension("actionability", DIMENSION_WEIGHT_ACTIONABILITY, actionA, actionB,
       (a, b) => `A has ${profileA.actionableStatements} actionable statements vs B's ${profileB.actionableStatements}`),
-    scoreDimension("uniqueness", 0.10, uniquenessA, uniquenessB,
+    scoreDimension("uniqueness", DIMENSION_WEIGHT_UNIQUENESS, uniquenessA, uniquenessB,
       () => `Reasoning overlap: ${(jaccardSimilarity * 100).toFixed(1)}% Jaccard similarity`),
   ];
 
@@ -335,7 +424,7 @@ export function compareReasoning(
   const agentAScore = weightedSum(mappedDimensions, "agentAScore", "weight");
   const agentBScore = weightedSum(mappedDimensions, "agentBScore", "weight");
   const diff = agentAScore - agentBScore;
-  const winner = Math.abs(diff) < 0.02 ? null : diff > 0 ? agentAId : agentBId;
+  const winner = Math.abs(diff) < OVERALL_TIE_THRESHOLD ? null : diff > 0 ? agentAId : agentBId;
 
   // Generate summary
   const winnerName = winner ?? "Neither agent";
