@@ -18,7 +18,7 @@
  * 5. LEARNING VELOCITY — is prediction accuracy improving over time?
  */
 
-import { normalize, round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, normalize, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -286,7 +286,7 @@ function computeConfidenceBuckets(agentForecasts: TradeImpactForecast[]): Confid
 
   return buckets.map(b => {
     const inBucket = resolved.filter(f => f.confidence >= b.min && f.confidence < (b.max === 1.0 ? 1.01 : b.max));
-    const correct = inBucket.filter(f => f.directionCorrect).length;
+    const correct = countByCondition(inBucket, f => f.directionCorrect === true);
     const withMag = inBucket.filter(f => f.magnitudeError !== undefined);
     const magSum = withMag.reduce((s, f) => s + (f.magnitudeError ?? 0), 0);
 
@@ -307,8 +307,8 @@ function computeLearningVelocity(agentForecasts: TradeImpactForecast[]): number 
   const firstHalf = resolved.slice(mid);
   const secondHalf = resolved.slice(0, mid);
 
-  const firstAccuracy = firstHalf.filter(f => f.directionCorrect).length / firstHalf.length;
-  const secondAccuracy = secondHalf.filter(f => f.directionCorrect).length / secondHalf.length;
+  const firstAccuracy = countByCondition(firstHalf, f => f.directionCorrect === true) / firstHalf.length;
+  const secondAccuracy = countByCondition(secondHalf, f => f.directionCorrect === true) / secondHalf.length;
 
   const improvement = secondAccuracy - firstAccuracy;
   // Normalize to 0-1: -0.3 = 0, 0 = 0.5, +0.3 = 1
@@ -324,10 +324,10 @@ function computeConvictionCorrelation(agentForecasts: TradeImpactForecast[]): nu
   const lowConf = resolved.filter(f => f.confidence <= 0.4);
 
   const highAccuracy = highConf.length > 0
-    ? highConf.filter(f => f.directionCorrect).length / highConf.length
+    ? countByCondition(highConf, f => f.directionCorrect === true) / highConf.length
     : 0.5;
   const lowAccuracy = lowConf.length > 0
-    ? lowConf.filter(f => f.directionCorrect).length / lowConf.length
+    ? countByCondition(lowConf, f => f.directionCorrect === true) / lowConf.length
     : 0.5;
 
   // Positive correlation: high confidence → better accuracy
@@ -340,7 +340,7 @@ export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
   const agentForecasts = forecasts.filter(f => f.agentId === agentId);
   const resolved = agentForecasts.filter(f => f.status === "resolved");
 
-  const directionCorrect = resolved.filter(f => f.directionCorrect).length;
+  const directionCorrect = countByCondition(resolved, f => f.directionCorrect === true);
   const directionAccuracy = resolved.length > 0
     ? Math.round((directionCorrect / resolved.length) * 100) / 100
     : 0;
@@ -437,7 +437,7 @@ export function getImpactStats(): {
 } {
   const resolved = forecasts.filter(f => f.status === "resolved");
   const pending = forecasts.filter(f => f.status === "pending");
-  const correct = resolved.filter(f => f.directionCorrect).length;
+  const correct = countByCondition(resolved, f => f.directionCorrect === true);
   const withMag = resolved.filter(f => f.magnitudeError !== undefined);
   const magSum = withMag.reduce((s, f) => s + (f.magnitudeError ?? 0), 0);
   const withHorizon = forecasts.filter(f => f.predictedHorizon !== null);
