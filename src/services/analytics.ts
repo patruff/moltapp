@@ -20,6 +20,212 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { calculateAverage, getTopKey, round2, round3, sortDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Decision Quality Classification Thresholds
+ *
+ * Control how agent decisions are classified as "high quality" (wins) vs
+ * "low quality" (losses) based on confidence levels.
+ */
+
+/**
+ * High Confidence Threshold
+ *
+ * Decisions with confidence >= this value (50%) are classified as "wins"
+ * or "high quality" decisions in performance metrics.
+ *
+ * Example: Confidence 55 >= 50 → classified as win
+ *
+ * Tuning impact: Raise to 55 to require stronger conviction for win classification.
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 50;
+
+/**
+ * Confidence Distribution Boundaries
+ *
+ * Thresholds for bucketing decisions into low/medium/high confidence tiers
+ * for pattern analysis and agent profiling.
+ */
+
+/**
+ * Low Confidence Upper Bound
+ *
+ * Decisions with confidence < this value (33%) are classified as "low confidence".
+ *
+ * Example: Confidence 30 < 33 → low confidence bucket
+ *
+ * Tuning impact: Raise to 40 to expand low confidence bucket (catch more uncertain trades).
+ */
+const CONFIDENCE_LOW_THRESHOLD = 33;
+
+/**
+ * High Confidence Lower Bound
+ *
+ * Decisions with confidence >= this value (67%) are classified as "high confidence".
+ *
+ * Example: Confidence 70 >= 67 → high confidence bucket
+ *
+ * Tuning impact: Raise to 75 to require stronger conviction for high confidence classification.
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 67;
+
+/**
+ * Trade Frequency Classification
+ *
+ * Thresholds for classifying agent trading activity as high/medium/low frequency.
+ */
+
+/**
+ * High Frequency Threshold
+ *
+ * Agents with avgDecisionsPerDay > this value (10) are classified as "high frequency" traders.
+ *
+ * Example: 12 decisions/day > 10 → "high" frequency
+ *
+ * Tuning impact: Lower to 8 to classify more agents as high frequency.
+ */
+const TRADE_FREQUENCY_HIGH_THRESHOLD = 10;
+
+/**
+ * Medium Frequency Threshold
+ *
+ * Agents with avgDecisionsPerDay > this value (3) but <= HIGH_FREQUENCY_THRESHOLD
+ * are classified as "medium frequency" traders.
+ *
+ * Example: 5 decisions/day > 3 && <= 10 → "medium" frequency
+ *
+ * Tuning impact: Lower to 2 to expand medium frequency classification.
+ */
+const TRADE_FREQUENCY_MEDIUM_THRESHOLD = 3;
+
+/**
+ * Market Sentiment Classification
+ *
+ * Thresholds for determining overall market sentiment (bullish/bearish/neutral)
+ * based on aggregate price movements and agent positions.
+ */
+
+/**
+ * Bullish Sentiment Threshold
+ *
+ * When bullish percentage exceeds this value (60%), classify agent as
+ * having bullish overall sentiment.
+ *
+ * Example: 65% buys > 60% → "bullish" sentiment
+ *
+ * Tuning impact: Lower to 55% to trigger bullish classification earlier.
+ */
+const SENTIMENT_BULLISH_THRESHOLD = 60;
+
+/**
+ * Market Sentiment Price Change Thresholds
+ *
+ * Price change thresholds for classifying market as bullish/bearish/neutral.
+ */
+
+/**
+ * Bullish Market Threshold
+ *
+ * When avg 24h price change exceeds this value (1%), classify market as "bullish".
+ *
+ * Example: +1.5% avg change > 1% → "bullish" market
+ *
+ * Tuning impact: Raise to 2% to require stronger uptrend for bullish classification.
+ */
+const MARKET_BULLISH_THRESHOLD = 1;
+
+/**
+ * Bearish Market Threshold
+ *
+ * When avg 24h price change falls below this value (-1%), classify market as "bearish".
+ *
+ * Example: -1.5% avg change < -1% → "bearish" market
+ *
+ * Tuning impact: Lower to -2% to require stronger downtrend for bearish classification.
+ */
+const MARKET_BEARISH_THRESHOLD = -1;
+
+/**
+ * Market Volatility Classification
+ *
+ * Thresholds for classifying market volatility as high/medium/low based on
+ * average absolute price changes.
+ */
+
+/**
+ * High Volatility Threshold
+ *
+ * When avg absolute 24h change exceeds this value (3%), classify market as "high volatility".
+ *
+ * Example: 4% avg abs change > 3% → "high" volatility
+ *
+ * Tuning impact: Lower to 2.5% to trigger high volatility classification earlier.
+ */
+const VOLATILITY_HIGH_THRESHOLD = 3;
+
+/**
+ * Medium Volatility Threshold
+ *
+ * When avg absolute 24h change exceeds this value (1.5%) but <= HIGH_VOLATILITY_THRESHOLD,
+ * classify market as "medium volatility".
+ *
+ * Example: 2% avg abs change > 1.5% && <= 3% → "medium" volatility
+ *
+ * Tuning impact: Lower to 1.0% to expand medium volatility range.
+ */
+const VOLATILITY_MEDIUM_THRESHOLD = 1.5;
+
+/**
+ * Risk Metrics Calculation Parameters
+ *
+ * Parameters used in Sharpe ratio, Sortino ratio, and other risk-adjusted
+ * return calculations.
+ */
+
+/**
+ * Risk-Free Rate (Annual)
+ *
+ * Assumed annual risk-free rate (5%) for Sharpe/Sortino ratio calculations.
+ * Divided by trading days (252) to get daily rate.
+ *
+ * Example: 0.05 / 252 = 0.0001984 daily risk-free rate
+ *
+ * Tuning impact: Raise to 0.06 (6%) for higher interest rate environment.
+ */
+const RISK_FREE_RATE_ANNUAL = 0.05;
+
+/**
+ * Trading Days Per Year
+ *
+ * Number of trading days per year (252) for annualizing volatility and returns.
+ *
+ * Example: dailyVol * sqrt(252) = annualized volatility
+ *
+ * Tuning impact: Use 365 for crypto (24/7 trading) or 252 for traditional equities.
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * VaR Percentile Thresholds
+ *
+ * Percentile thresholds for Value at Risk calculations (95th, 98th, 99th percentiles).
+ */
+
+/**
+ * VaR 95th Percentile
+ *
+ * Percentile index (0.05) for 95% confidence VaR calculation.
+ * Represents 5% tail risk (worst 5% of outcomes).
+ *
+ * Example: sortedReturns[Math.floor(n * 0.05)] = VaR95
+ *
+ * Tuning impact: Use 0.02 for 98% confidence (2% tail) or 0.01 for 99% confidence (1% tail).
+ */
+const VAR_PERCENTILE_95 = 0.05;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -428,7 +634,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
 
     // Win rate
     const buysSells = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action !== "hold");
-    const highConfidence = buysSells.filter((d: typeof buysSells[0]) => d.confidence >= 50);
+    const highConfidence = buysSells.filter((d: typeof buysSells[0]) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
     const winRate = buysSells.length > 0 ? (highConfidence.length / buysSells.length) * 100 : 0;
 
     // Avg confidence
@@ -510,15 +716,15 @@ function computePerformance(
   const sells = decisions.filter((d) => d.action === "sell");
   const holds = decisions.filter((d) => d.action === "hold");
 
-  // Win rate: decisions with confidence >= 50 that are buy/sell are "wins"
+  // Win rate: decisions with confidence >= HIGH_CONFIDENCE_THRESHOLD that are buy/sell are "wins"
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
-  const highConfidence = actionDecisions.filter((d) => d.confidence >= 50);
+  const highConfidence = actionDecisions.filter((d) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
   const winRate = actionDecisions.length > 0 ? (highConfidence.length / actionDecisions.length) * 100 : 0;
 
   const avgConfidence = calculateAverage(decisions, 'confidence');
   const winsConf = calculateAverage(highConfidence, 'confidence');
 
-  const losses = actionDecisions.filter((d) => d.confidence < 50);
+  const losses = actionDecisions.filter((d) => d.confidence < HIGH_CONFIDENCE_THRESHOLD);
   const lossesConf = calculateAverage(losses, 'confidence');
 
   // Best and worst decisions by confidence
@@ -576,11 +782,11 @@ function computeRiskMetrics(
   const downsideDeviation = Math.sqrt(downsideVariance);
 
   // Sharpe ratio (annualized, assuming daily trading)
-  const riskFreeRate = 0.05 / 252; // 5% annual, daily
-  const sharpeRatio = volatility > 0 ? ((meanReturn - riskFreeRate) / volatility) * Math.sqrt(252) : 0;
+  const riskFreeRate = RISK_FREE_RATE_ANNUAL / TRADING_DAYS_PER_YEAR;
+  const sharpeRatio = volatility > 0 ? ((meanReturn - riskFreeRate) / volatility) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
   // Sortino ratio
-  const sortinoRatio = downsideDeviation > 0 ? ((meanReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(252) : 0;
+  const sortinoRatio = downsideDeviation > 0 ? ((meanReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
   // Max drawdown from confidence series
   let peak = 0;
@@ -594,12 +800,12 @@ function computeRiskMetrics(
   }
 
   // Calmar ratio
-  const annualizedReturn = meanReturn * 252;
+  const annualizedReturn = meanReturn * TRADING_DAYS_PER_YEAR;
   const calmarRatio = maxDrawdown > 0 ? annualizedReturn / maxDrawdown : 0;
 
   // Value at Risk (95th percentile)
   const sortedReturns = [...returns].sort((a, b) => a - b);
-  const varIndex = Math.floor(returns.length * 0.05);
+  const varIndex = Math.floor(returns.length * VAR_PERCENTILE_95);
   const valueAtRisk95 = sortedReturns[varIndex] ?? 0;
 
   // Position metrics
@@ -676,12 +882,12 @@ function computeTradingPatterns(
 
   // Trade frequency
   const tradeFrequency: "high" | "medium" | "low" =
-    avgDecisionsPerDay > 10 ? "high" : avgDecisionsPerDay > 3 ? "medium" : "low";
+    avgDecisionsPerDay > TRADE_FREQUENCY_HIGH_THRESHOLD ? "high" : avgDecisionsPerDay > TRADE_FREQUENCY_MEDIUM_THRESHOLD ? "medium" : "low";
 
   // Confidence distribution
-  const low = decisions.filter((d) => d.confidence < 33).length;
-  const medium = decisions.filter((d) => d.confidence >= 33 && d.confidence < 67).length;
-  const high = decisions.filter((d) => d.confidence >= 67).length;
+  const low = decisions.filter((d) => d.confidence < CONFIDENCE_LOW_THRESHOLD).length;
+  const medium = decisions.filter((d) => d.confidence >= CONFIDENCE_LOW_THRESHOLD && d.confidence < CONFIDENCE_HIGH_THRESHOLD).length;
+  const high = decisions.filter((d) => d.confidence >= CONFIDENCE_HIGH_THRESHOLD).length;
 
   // Symbol diversity (unique symbols / total decisions)
   const uniqueSymbols = new Set(actionDecisions.map((d) => d.symbol));
@@ -826,7 +1032,7 @@ function computeSentimentProfile(
   const bearishPct = (sellCount / total) * 100;
 
   const overallSentiment: "bullish" | "bearish" | "neutral" =
-    bullishPct > 60 ? "bullish" : bearishPct > 60 ? "bearish" : "neutral";
+    bullishPct > SENTIMENT_BULLISH_THRESHOLD ? "bullish" : bearishPct > SENTIMENT_BULLISH_THRESHOLD ? "bearish" : "neutral";
 
   // Sentiment consistency: how clustered are confidence values
   const avgConf = actionDecisions.length > 0
@@ -1195,11 +1401,11 @@ function computeMarketConditions(marketData: MarketData[]): MarketConditions {
   const topLoser = sorted[sorted.length - 1] ? { symbol: sorted[sorted.length - 1].symbol, change: sorted[sorted.length - 1].change24h ?? 0 } : null;
 
   const overallSentiment: "bullish" | "bearish" | "neutral" =
-    avgChange > 1 ? "bullish" : avgChange < -1 ? "bearish" : "neutral";
+    avgChange > MARKET_BULLISH_THRESHOLD ? "bullish" : avgChange < MARKET_BEARISH_THRESHOLD ? "bearish" : "neutral";
 
   const absChanges = withChange.map((m) => Math.abs(m.change24h ?? 0));
   const avgAbsChange = absChanges.length > 0 ? absChanges.reduce((s, c) => s + c, 0) / absChanges.length : 0;
-  const volatility: "high" | "medium" | "low" = avgAbsChange > 3 ? "high" : avgAbsChange > 1.5 ? "medium" : "low";
+  const volatility: "high" | "medium" | "low" = avgAbsChange > VOLATILITY_HIGH_THRESHOLD ? "high" : avgAbsChange > VOLATILITY_MEDIUM_THRESHOLD ? "medium" : "low";
 
   return {
     avgChange24h: round2(avgChange),
