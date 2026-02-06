@@ -23,6 +23,195 @@
 import { countWords, round2, sortEntriesDescending, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Dimension Scoring Weights
+ *
+ * These weights determine how much each dimension contributes to the overall
+ * depth score. The values reflect the relative importance of each analytical
+ * capability in evaluating reasoning sophistication.
+ */
+
+/** Weight for analytical breadth dimension (20%) - How many distinct analytical angles are used */
+const DIMENSION_WEIGHT_ANALYTICAL_BREADTH = 0.20;
+
+/** Weight for causal depth dimension (15%) - How many reasoning steps from observation to conclusion */
+const DIMENSION_WEIGHT_CAUSAL_DEPTH = 0.15;
+
+/** Weight for uncertainty modeling dimension (15%) - Does the agent quantify uncertainty */
+const DIMENSION_WEIGHT_UNCERTAINTY_MODELING = 0.15;
+
+/** Weight for temporal awareness dimension (10%) - Does reasoning consider past, present, AND future */
+const DIMENSION_WEIGHT_TEMPORAL_AWARENESS = 0.10;
+
+/** Weight for counterfactual reasoning dimension (15%) - Does the agent consider "what if I'm wrong" */
+const DIMENSION_WEIGHT_COUNTERFACTUAL_REASONING = 0.15;
+
+/** Weight for cross-asset awareness dimension (10%) - Does the agent consider portfolio/sector effects */
+const DIMENSION_WEIGHT_CROSS_ASSET_AWARENESS = 0.10;
+
+/** Weight for vocabulary sophistication dimension (15%) - Financial vocabulary diversity and precision */
+const DIMENSION_WEIGHT_VOCABULARY_SOPHISTICATION = 0.15;
+
+/**
+ * Classification Thresholds
+ *
+ * These thresholds classify overall depth scores into quality tiers.
+ * Lower thresholds make classification more lenient, higher thresholds make it stricter.
+ */
+
+/** Minimum overall score for "expert" classification (75th percentile) */
+const CLASSIFICATION_THRESHOLD_EXPERT = 0.75;
+
+/** Minimum overall score for "deep" classification (55th percentile) */
+const CLASSIFICATION_THRESHOLD_DEEP = 0.55;
+
+/** Minimum overall score for "moderate" classification (35th percentile) */
+const CLASSIFICATION_THRESHOLD_MODERATE = 0.35;
+
+// Below CLASSIFICATION_THRESHOLD_MODERATE = "shallow"
+
+/**
+ * Scoring Increment Patterns
+ *
+ * These constants control how much credit is given for detecting specific
+ * reasoning patterns. Values are calibrated to produce meaningful differentiation
+ * between shallow and sophisticated reasoning.
+ */
+
+// Analytical Breadth Parameters
+/** Number of analytical angles needed to achieve breadth score of 1.0 (out of 12 available) */
+const BREADTH_ANGLES_FOR_PERFECT_SCORE = 6;
+
+// Causal Depth Parameters
+/** Base score for any reasoning (even shallow) */
+const CAUSAL_DEPTH_BASE_SCORE = 0.2;
+
+/** Maximum additional score from causal connectors (diminishing returns after 5 connectors) */
+const CAUSAL_DEPTH_CONNECTOR_CAP = 0.5;
+
+/** Score increment per causal connector (because, therefore, thus, etc.) */
+const CAUSAL_DEPTH_CONNECTOR_INCREMENT = 0.1;
+
+/** Bonus for if-then conditional reasoning patterns */
+const CAUSAL_DEPTH_CONDITIONAL_BONUS = 0.1;
+
+/** Bonus for chain reasoning (3+ connectors showing multi-step logic) */
+const CAUSAL_DEPTH_CHAIN_BONUS = 0.1;
+
+/** Bonus for evidence→inference→conclusion structure (3+ sentences) */
+const CAUSAL_DEPTH_STRUCTURE_BONUS = 0.1;
+
+// Uncertainty Modeling Parameters
+/** Base score for any reasoning (even without uncertainty modeling) */
+const UNCERTAINTY_BASE_SCORE = 0.1;
+
+/** Increment per probability term (likely, unlikely, probably, etc.) */
+const UNCERTAINTY_PROBABILITY_INCREMENT = 0.06;
+
+/** Increment per hedging term (might, could, uncertain, etc.) */
+const UNCERTAINTY_HEDGE_INCREMENT = 0.05;
+
+/** Bonus for range estimates showing uncertainty bounds (between X and Y) */
+const UNCERTAINTY_RANGE_BONUS = 0.15;
+
+/** Bonus for "range" keyword */
+const UNCERTAINTY_RANGE_KEYWORD_BONUS = 0.05;
+
+/** Bonus for scenario analysis language */
+const UNCERTAINTY_SCENARIO_BONUS = 0.1;
+
+/** Bonus for explicit best/worst/base case scenarios */
+const UNCERTAINTY_CASE_ANALYSIS_BONUS = 0.15;
+
+// Temporal Awareness Parameters
+/** Base score for any reasoning (even without temporal awareness) */
+const TEMPORAL_BASE_SCORE = 0.1;
+
+/** Bonus for past references (historically, previously, last quarter, etc.) */
+const TEMPORAL_PAST_BONUS = 0.25;
+
+/** Bonus for present analysis (currently, right now, at present, etc.) */
+const TEMPORAL_PRESENT_BONUS = 0.15;
+
+/** Bonus for future projections (going forward, expect, forecast, will likely, etc.) */
+const TEMPORAL_FUTURE_BONUS = 0.25;
+
+/** Bonus for time-horizon awareness (short-term vs long-term) */
+const TEMPORAL_HORIZON_BONUS = 0.15;
+
+/** Bonus for covering all three temporal dimensions (past, present, future) */
+const TEMPORAL_ALL_DIMENSIONS_BONUS = 0.1;
+
+/** Minimum number of temporal dimensions needed for all-dimensions bonus */
+const TEMPORAL_ALL_DIMENSIONS_THRESHOLD = 3;
+
+// Counterfactual Reasoning Parameters
+/** Base score for any reasoning (even without counterfactual thinking) */
+const COUNTERFACTUAL_BASE_SCORE = 0.05;
+
+/** Increment per counterfactual term (what if, on the other hand, however, etc.) */
+const COUNTERFACTUAL_TERM_INCREMENT = 0.06;
+
+/** Bonus for risk scenario consideration (if price falls/drops/declines) */
+const COUNTERFACTUAL_RISK_SCENARIO_BONUS = 0.1;
+
+/** Bonus for explicit exit strategy (stop-loss, exit strategy, bail out) */
+const COUNTERFACTUAL_EXIT_STRATEGY_BONUS = 0.1;
+
+/** Bonus for alternative actions considered (could also, another option, instead) */
+const COUNTERFACTUAL_ALTERNATIVE_ACTION_BONUS = 0.1;
+
+/** Bonus for acknowledging thesis might be wrong (I could be wrong, downside scenario, bear case) */
+const COUNTERFACTUAL_THESIS_DOUBT_BONUS = 0.15;
+
+// Cross-Asset Awareness Parameters
+/** Base score for any reasoning (even without cross-asset thinking) */
+const CROSS_ASSET_BASE_SCORE = 0.1;
+
+/** Bonus for referencing multiple stocks (2+ unique stock tickers) */
+const CROSS_ASSET_MULTIPLE_STOCKS_BONUS = 0.15;
+
+/** Bonus for referencing many stocks (4+ unique stock tickers) */
+const CROSS_ASSET_MANY_STOCKS_BONUS = 0.1;
+
+/** Bonus for portfolio-level thinking (portfolio, overall position, allocation) */
+const CROSS_ASSET_PORTFOLIO_BONUS = 0.15;
+
+/** Bonus for sector/market-wide analysis (sector, market-wide, correlation, beta) */
+const CROSS_ASSET_SECTOR_BONUS = 0.15;
+
+/** Bonus for concentration risk awareness */
+const CROSS_ASSET_CONCENTRATION_BONUS = 0.1;
+
+/** Bonus for diversification awareness */
+const CROSS_ASSET_DIVERSIFICATION_BONUS = 0.1;
+
+/** Bonus for hedge discussion (hedge, offset, balance) */
+const CROSS_ASSET_HEDGE_BONUS = 0.1;
+
+// Vocabulary Sophistication Parameters
+/** Number of sophisticated terms needed to achieve vocab score of 1.0 (out of 60+ available) */
+const VOCAB_TERMS_FOR_PERFECT_SCORE = 5;
+
+/**
+ * Trend Detection Parameters
+ *
+ * These thresholds control how sensitive trend detection is when comparing
+ * recent vs historical performance.
+ */
+
+/** Minimum depth improvement to classify trend as "improving" (5 percentage points) */
+const TREND_IMPROVING_THRESHOLD = 0.05;
+
+/** Minimum depth decline to classify trend as "declining" (5 percentage points) */
+const TREND_DECLINING_THRESHOLD = 0.05;
+
+// Within ±TREND_*_THRESHOLD = "stable"
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -168,20 +357,20 @@ export function analyzeReasoningDepth(
 
   // Weighted overall score
   const overall = Math.round(
-    (breadth * 0.20 +
-      causalDepth * 0.15 +
-      uncertaintyModeling * 0.15 +
-      temporalAwareness * 0.10 +
-      counterfactualReasoning * 0.15 +
-      crossAssetAwareness * 0.10 +
-      vocabularySophistication * 0.15) * 100,
+    (breadth * DIMENSION_WEIGHT_ANALYTICAL_BREADTH +
+      causalDepth * DIMENSION_WEIGHT_CAUSAL_DEPTH +
+      uncertaintyModeling * DIMENSION_WEIGHT_UNCERTAINTY_MODELING +
+      temporalAwareness * DIMENSION_WEIGHT_TEMPORAL_AWARENESS +
+      counterfactualReasoning * DIMENSION_WEIGHT_COUNTERFACTUAL_REASONING +
+      crossAssetAwareness * DIMENSION_WEIGHT_CROSS_ASSET_AWARENESS +
+      vocabularySophistication * DIMENSION_WEIGHT_VOCABULARY_SOPHISTICATION) * 100,
   ) / 100;
 
   // Classification
   let classification: ReasoningDepthScore["classification"];
-  if (overall >= 0.75) classification = "expert";
-  else if (overall >= 0.55) classification = "deep";
-  else if (overall >= 0.35) classification = "moderate";
+  if (overall >= CLASSIFICATION_THRESHOLD_EXPERT) classification = "expert";
+  else if (overall >= CLASSIFICATION_THRESHOLD_DEEP) classification = "deep";
+  else if (overall >= CLASSIFICATION_THRESHOLD_MODERATE) classification = "moderate";
   else classification = "shallow";
 
   const score: ReasoningDepthScore = {
@@ -222,12 +411,12 @@ function measureAnalyticalBreadth(reasoning: string): { breadth: number; angleCo
     if (used) angleCount++;
   }
   // Normalize: using 6+ out of 12 angles = 1.0
-  const breadth = Math.min(1, angleCount / 6);
+  const breadth = Math.min(1, angleCount / BREADTH_ANGLES_FOR_PERFECT_SCORE);
   return { breadth: round2(breadth), angleCount };
 }
 
 function measureCausalDepth(reasoning: string): number {
-  let score = 0.2;
+  let score = CAUSAL_DEPTH_BASE_SCORE;
 
   // Count causal connectors (each one adds a step in the reasoning chain)
   const causalConnectors = [
@@ -245,23 +434,23 @@ function measureCausalDepth(reasoning: string): number {
   }
 
   // Each connector adds to depth (diminishing returns)
-  score += Math.min(0.5, connectorCount * 0.1);
+  score += Math.min(CAUSAL_DEPTH_CONNECTOR_CAP, connectorCount * CAUSAL_DEPTH_CONNECTOR_INCREMENT);
 
   // Multi-step reasoning (if...then...therefore)
-  if (/\bif\b.{10,}\bthen\b/i.test(reasoning)) score += 0.1;
+  if (/\bif\b.{10,}\bthen\b/i.test(reasoning)) score += CAUSAL_DEPTH_CONDITIONAL_BONUS;
 
   // Chain reasoning (A leads to B leads to C)
-  if (connectorCount >= 3) score += 0.1;
+  if (connectorCount >= 3) score += CAUSAL_DEPTH_CHAIN_BONUS;
 
   // Evidence → inference → conclusion pattern
   const sentences = splitSentences(reasoning);
-  if (sentences.length >= 3) score += 0.1;
+  if (sentences.length >= 3) score += CAUSAL_DEPTH_STRUCTURE_BONUS;
 
   return Math.min(1, round2(score));
 }
 
 function measureUncertaintyModeling(reasoning: string): number {
-  let score = 0.1;
+  let score = UNCERTAINTY_BASE_SCORE;
 
   // Probability language
   const probPatterns = [
@@ -270,7 +459,7 @@ function measureUncertaintyModeling(reasoning: string): number {
     /\bprobability\b/i, /\b\d+%\s+(?:chance|probability|likely)/i,
   ];
   for (const p of probPatterns) {
-    if (p.test(reasoning)) score += 0.06;
+    if (p.test(reasoning)) score += UNCERTAINTY_PROBABILITY_INCREMENT;
   }
 
   // Hedging language (acknowledging limitations)
@@ -280,55 +469,55 @@ function measureUncertaintyModeling(reasoning: string): number {
     /\bremains to be seen\b/i, /\bin my estimation\b/i,
   ];
   for (const p of hedgePatterns) {
-    if (p.test(reasoning)) score += 0.05;
+    if (p.test(reasoning)) score += UNCERTAINTY_HEDGE_INCREMENT;
   }
 
   // Range estimates (showing uncertainty bounds)
-  if (/\bbetween\s+\$?\d+\s+and\s+\$?\d+/i.test(reasoning)) score += 0.15;
-  if (/\brange\b/i.test(reasoning)) score += 0.05;
+  if (/\bbetween\s+\$?\d+\s+and\s+\$?\d+/i.test(reasoning)) score += UNCERTAINTY_RANGE_BONUS;
+  if (/\brange\b/i.test(reasoning)) score += UNCERTAINTY_RANGE_KEYWORD_BONUS;
 
   // Scenario analysis
-  if (/\bscenario\b/i.test(reasoning)) score += 0.1;
-  if (/\bbest case\b|\bworst case\b|\bbase case\b/i.test(reasoning)) score += 0.15;
+  if (/\bscenario\b/i.test(reasoning)) score += UNCERTAINTY_SCENARIO_BONUS;
+  if (/\bbest case\b|\bworst case\b|\bbase case\b/i.test(reasoning)) score += UNCERTAINTY_CASE_ANALYSIS_BONUS;
 
   return Math.min(1, round2(score));
 }
 
 function measureTemporalAwareness(reasoning: string): number {
-  let score = 0.1;
+  let score = TEMPORAL_BASE_SCORE;
   let dimensions = 0;
 
   // Past references
   if (/\bhistorically\b|\bpreviously\b|\blast\s+(?:week|month|quarter|year)\b|\bin the past\b/i.test(reasoning)) {
-    score += 0.25;
+    score += TEMPORAL_PAST_BONUS;
     dimensions++;
   }
 
   // Present analysis
   if (/\bcurrently\b|\bright now\b|\bat present\b|\btoday\b/i.test(reasoning)) {
-    score += 0.15;
+    score += TEMPORAL_PRESENT_BONUS;
     dimensions++;
   }
 
   // Future projection
   if (/\bgoing forward\b|\bnext\s+(?:week|month|quarter)\b|\bexpect\b|\bforecast\b|\bwill\s+likely\b/i.test(reasoning)) {
-    score += 0.25;
+    score += TEMPORAL_FUTURE_BONUS;
     dimensions++;
   }
 
   // Time-horizon awareness (short vs long term)
   if (/\bshort.?term\b|\blong.?term\b|\bmedium.?term\b/i.test(reasoning)) {
-    score += 0.15;
+    score += TEMPORAL_HORIZON_BONUS;
   }
 
   // Bonus for covering all three temporal dimensions
-  if (dimensions >= 3) score += 0.1;
+  if (dimensions >= TEMPORAL_ALL_DIMENSIONS_THRESHOLD) score += TEMPORAL_ALL_DIMENSIONS_BONUS;
 
   return Math.min(1, round2(score));
 }
 
 function measureCounterfactualReasoning(reasoning: string): number {
-  let score = 0.05;
+  let score = COUNTERFACTUAL_BASE_SCORE;
 
   // "What if" reasoning
   const counterfactualPatterns = [
@@ -338,53 +527,53 @@ function measureCounterfactualReasoning(reasoning: string): number {
     /\bnevertheless\b/i, /\bnonetheless\b/i,
   ];
   for (const p of counterfactualPatterns) {
-    if (p.test(reasoning)) score += 0.06;
+    if (p.test(reasoning)) score += COUNTERFACTUAL_TERM_INCREMENT;
   }
 
   // Risk scenario consideration
-  if (/\bif.+(?:falls|drops|declines|crashes)/i.test(reasoning)) score += 0.1;
-  if (/\bstop.?loss\b|\bexit strategy\b|\bbail out\b/i.test(reasoning)) score += 0.1;
+  if (/\bif.+(?:falls|drops|declines|crashes)/i.test(reasoning)) score += COUNTERFACTUAL_RISK_SCENARIO_BONUS;
+  if (/\bstop.?loss\b|\bexit strategy\b|\bbail out\b/i.test(reasoning)) score += COUNTERFACTUAL_EXIT_STRATEGY_BONUS;
 
   // Explicit alternative actions considered
   if (/\bcould\s+also\b|\banother option\b|\binstead\b|\brather than\b/i.test(reasoning)) {
-    score += 0.1;
+    score += COUNTERFACTUAL_ALTERNATIVE_ACTION_BONUS;
   }
 
   // Acknowledging that the thesis might be wrong
   if (/\bI could be wrong\b|\brisk is\b|\bdownside scenario\b|\bbear case\b/i.test(reasoning)) {
-    score += 0.15;
+    score += COUNTERFACTUAL_THESIS_DOUBT_BONUS;
   }
 
   return Math.min(1, round2(score));
 }
 
 function measureCrossAssetAwareness(reasoning: string): number {
-  let score = 0.1;
+  let score = CROSS_ASSET_BASE_SCORE;
 
   // Multiple stock references
   const stockMentions = reasoning.match(/\b[A-Z]{2,5}x\b/g) ?? [];
   const uniqueStocks = new Set(stockMentions);
-  if (uniqueStocks.size > 1) score += 0.15;
-  if (uniqueStocks.size > 3) score += 0.1;
+  if (uniqueStocks.size > 1) score += CROSS_ASSET_MULTIPLE_STOCKS_BONUS;
+  if (uniqueStocks.size > 3) score += CROSS_ASSET_MANY_STOCKS_BONUS;
 
   // Portfolio-level thinking
   if (/\bportfolio\b|\boverall\s+(?:position|exposure|allocation)\b/i.test(reasoning)) {
-    score += 0.15;
+    score += CROSS_ASSET_PORTFOLIO_BONUS;
   }
 
   // Sector/market-wide analysis
   if (/\bsector\b|\bmarket-wide\b|\bcorrelation\b|\bbeta\b/i.test(reasoning)) {
-    score += 0.15;
+    score += CROSS_ASSET_SECTOR_BONUS;
   }
 
   // Concentration risk
-  if (/\bconcentrat/i.test(reasoning)) score += 0.1;
+  if (/\bconcentrat/i.test(reasoning)) score += CROSS_ASSET_CONCENTRATION_BONUS;
 
   // Diversification
-  if (/\bdiversif/i.test(reasoning)) score += 0.1;
+  if (/\bdiversif/i.test(reasoning)) score += CROSS_ASSET_DIVERSIFICATION_BONUS;
 
   // Hedge discussion
-  if (/\bhedge\b|\boffset\b|\bbalance\b/i.test(reasoning)) score += 0.1;
+  if (/\bhedge\b|\boffset\b|\bbalance\b/i.test(reasoning)) score += CROSS_ASSET_HEDGE_BONUS;
 
   return Math.min(1, round2(score));
 }
@@ -400,7 +589,7 @@ function measureVocabularySophistication(reasoning: string): number {
   }
 
   // Normalize: using 5+ sophisticated terms = 1.0
-  const score = Math.min(1, sophisticatedTermCount / 5);
+  const score = Math.min(1, sophisticatedTermCount / VOCAB_TERMS_FOR_PERFECT_SCORE);
   return round2(score);
 }
 
@@ -439,8 +628,8 @@ export function getAgentDepthProfile(agentId: string): AgentDepthProfile {
       .reduce((s, v) => s + v.overall, 0) / Math.floor(scores.length / 2);
     const olderAvg = scores.slice(Math.floor(scores.length / 2))
       .reduce((s, v) => s + v.overall, 0) / (scores.length - Math.floor(scores.length / 2));
-    if (recentAvg > olderAvg + 0.05) depthTrend = "improving";
-    else if (recentAvg < olderAvg - 0.05) depthTrend = "declining";
+    if (recentAvg > olderAvg + TREND_IMPROVING_THRESHOLD) depthTrend = "improving";
+    else if (recentAvg < olderAvg - TREND_DECLINING_THRESHOLD) depthTrend = "declining";
   }
 
   // Strongest and weakest dimensions
@@ -460,9 +649,9 @@ export function getAgentDepthProfile(agentId: string): AgentDepthProfile {
 
   // Classification
   let classification: AgentDepthProfile["classification"];
-  if (avgDepth >= 0.75) classification = "expert";
-  else if (avgDepth >= 0.55) classification = "deep";
-  else if (avgDepth >= 0.35) classification = "moderate";
+  if (avgDepth >= CLASSIFICATION_THRESHOLD_EXPERT) classification = "expert";
+  else if (avgDepth >= CLASSIFICATION_THRESHOLD_DEEP) classification = "deep";
+  else if (avgDepth >= CLASSIFICATION_THRESHOLD_MODERATE) classification = "moderate";
   else classification = "shallow";
 
   return {
