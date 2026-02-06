@@ -23,6 +23,89 @@ import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round4, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Risk-Free Rate
+ * Annual risk-free rate used in Sharpe ratio calculations, capital market line,
+ * and excess return computations. Based on U.S. Treasury bill proxy.
+ */
+const RISK_FREE_RATE = 0.05; // 5% annual risk-free rate
+
+/**
+ * Default Return and Volatility Assumptions
+ * Fallback values used when stock-specific data is unavailable.
+ * Based on broad market historical averages.
+ */
+const DEFAULT_EXPECTED_RETURN = 0.10; // 10% default annual return
+const DEFAULT_VOLATILITY = 0.25; // 25% default annual volatility
+
+/**
+ * Position Sizing Constraints
+ * Enforces portfolio diversification and prevents over-concentration in single positions.
+ */
+const MAX_POSITION_WEIGHT = 0.20; // 20% maximum allocation per stock (default if not configured)
+const MIN_POSITION_WEIGHT = 0.02; // 2% minimum allocation to include stock in portfolio
+const MAX_PORTFOLIO_ALLOCATION = 0.80; // 80% maximum total allocation (maintains 20% cash reserve)
+const MIN_WEIGHT_FILTER = 0.01; // 1% minimum weight to include in recommendations
+
+/**
+ * Correlation Classification Thresholds
+ * Based on finance literature standards for identifying strong relationships between assets.
+ */
+const CORRELATION_STRONG_POSITIVE = 0.70; // r >= 0.70 indicates strong positive correlation
+const CORRELATION_STRONG_NEGATIVE = -0.30; // r <= -0.30 indicates strong negative correlation (diversification benefit)
+
+/**
+ * Kelly Criterion Parameters
+ * Controls position sizing based on expected edge and risk tolerance.
+ */
+const KELLY_HALF = 0.5; // Half-Kelly multiplier for safety margin
+const KELLY_QUARTER = 0.25; // Quarter-Kelly multiplier for conservative sizing
+const KELLY_OVEREXPOSED_MULTIPLIER = 1.5; // currentExposure > kelly * 1.5 = overexposed
+const KELLY_UNDEREXPOSED_MULTIPLIER = 0.5; // currentExposure < kelly * 0.5 = underexposed
+const KELLY_LEVERAGE_HIGH_THRESHOLD = 2; // Aggregate Kelly > 2 = high leverage
+const KELLY_LEVERAGE_MODERATE_THRESHOLD = 1; // Aggregate Kelly > 1 = moderate leverage
+const KELLY_LEVERAGE_MODEST_THRESHOLD = 0.3; // Aggregate Kelly > 0.3 = modest edge
+
+/**
+ * Portfolio Rebalancing Parameters
+ * Thresholds for determining when and how urgently portfolio rebalancing is needed.
+ */
+const REBALANCE_DRIFT_THRESHOLD = 0.01; // 1% minimum drift to include in drift calculation
+const REBALANCE_URGENCY_NONE = 0.05; // < 5% total drift = no rebalancing urgency
+const REBALANCE_URGENCY_LOW = 0.15; // 5-15% drift = low urgency
+const REBALANCE_URGENCY_MEDIUM = 0.30; // 15-30% drift = medium urgency
+const REBALANCE_URGENCY_HIGH = 0.50; // 30-50% drift = high urgency, > 50% = critical
+
+/**
+ * Transaction Cost Estimate
+ * Estimated transaction cost as percentage of trade value (includes slippage, fees, spreads).
+ */
+const TRANSACTION_COST_ESTIMATE = 0.001; // 0.1% estimated cost per trade
+
+/**
+ * Portfolio Composition Limits
+ * Controls size and granularity of portfolio recommendations.
+ */
+const TOP_STOCKS_LIMIT = 10; // Maximum number of stocks in optimal portfolio
+const EFFICIENT_FRONTIER_POINTS = 20; // Number of points to generate on efficient frontier
+const DIVERSIFICATION_OPPORTUNITIES_LIMIT = 5; // Top N low-correlation stocks to recommend
+
+/**
+ * Default Return Estimate for Sharpe Calculation
+ * Used when computing Sharpe ratio from volatility alone (before-rebalance metrics).
+ */
+const DEFAULT_SHARPE_RETURN_ESTIMATE = 0.10; // 10% return assumption for pre-rebalance Sharpe
+
+/**
+ * Drawdown Multiplier
+ * Estimates maximum drawdown as multiple of portfolio volatility.
+ */
+const MAX_DRAWDOWN_VOLATILITY_MULTIPLIER = 2.5; // Max drawdown ≈ 2.5× volatility
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -257,7 +340,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     (s) => BASE_RETURNS[s] !== undefined,
   );
 
-  const riskFreeRate = 0.05; // 5% risk-free rate
+  const riskFreeRate = RISK_FREE_RATE;
 
   // Calculate current allocation (based on trade frequency)
   const totalTrades = sumByKey(Object.values(symbolCounts), 'count') || 1;
@@ -265,8 +348,8 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     const stock = XSTOCKS_CATALOG.find((s) => s.symbol === sym);
     const entry = symbolCounts[sym];
     const weight = entry ? entry.count / totalTrades : 0;
-    const expectedReturn = BASE_RETURNS[sym] ?? 0.10;
-    const volatility = BASE_VOLATILITIES[sym] ?? 0.25;
+    const expectedReturn = BASE_RETURNS[sym] ?? DEFAULT_EXPECTED_RETURN;
+    const volatility = BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY;
     const excessReturn = expectedReturn - riskFreeRate;
     const sharpeContrib = volatility > 0 ? (excessReturn / volatility) * weight : 0;
 
@@ -282,23 +365,23 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
 
   // Calculate recommended allocation (max Sharpe ratio)
   const sharpeRatios = symbols.map((sym) => {
-    const ret = BASE_RETURNS[sym] ?? 0.10;
-    const vol = BASE_VOLATILITIES[sym] ?? 0.25;
+    const ret = BASE_RETURNS[sym] ?? DEFAULT_EXPECTED_RETURN;
+    const vol = BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY;
     return { symbol: sym, sharpe: (ret - riskFreeRate) / vol, ret, vol };
   });
 
   // Sort by Sharpe ratio, allocate proportionally to top stocks
   sharpeRatios.sort((a, b) => b.sharpe - a.sharpe);
 
-  // Diversification constraint: max 20% per stock, min 2% per included stock
-  const maxWeight = config.maxPositionSize / 100 || 0.20;
-  const topN = Math.min(10, symbols.length);
+  // Diversification constraint: max per stock, min per included stock
+  const maxWeight = config.maxPositionSize / 100 || MAX_POSITION_WEIGHT;
+  const topN = Math.min(TOP_STOCKS_LIMIT, symbols.length);
   const topStocks = sharpeRatios.slice(0, topN);
   const totalSharpe = topStocks.reduce((s, t) => s + Math.max(0, t.sharpe), 0) || 1;
 
   const recommendedAllocation: AllocationEntry[] = topStocks.map((stock) => {
     const rawWeight = Math.max(0, stock.sharpe) / totalSharpe;
-    const cappedWeight = Math.min(maxWeight, Math.max(0.02, rawWeight));
+    const cappedWeight = Math.min(maxWeight, Math.max(MIN_POSITION_WEIGHT, rawWeight));
     const stockInfo = XSTOCKS_CATALOG.find((s) => s.symbol === stock.symbol);
     const excessReturn = stock.ret - riskFreeRate;
     const sharpeContrib = stock.vol > 0 ? (excessReturn / stock.vol) * cappedWeight : 0;
@@ -314,7 +397,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   });
 
   // Normalize weights to sum to max allocation
-  const maxAllocation = config.maxPortfolioAllocation / 100 || 0.80;
+  const maxAllocation = config.maxPortfolioAllocation / 100 || MAX_PORTFOLIO_ALLOCATION;
   const totalWeight = sumByKey(recommendedAllocation, 'weight');
   if (totalWeight > 0) {
     const scale = maxAllocation / totalWeight;
@@ -337,7 +420,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     const delta = rec.weight - currentWeight;
     let action: ChangeAction;
     if (currentWeight === 0) action = "new";
-    else if (Math.abs(delta) < 0.01) action = "hold";
+    else if (Math.abs(delta) < MIN_WEIGHT_FILTER) action = "hold";
     else if (delta > 0) action = "increase";
     else action = "decrease";
 
@@ -389,7 +472,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
       sharpeRatio: round2(portSharpe),
       diversificationRatio: round2(diversificationRatio),
       herfindahlIndex: round4(hhi),
-      maxDrawdownEstimate: round4(portVol * 2.5),
+      maxDrawdownEstimate: round4(portVol * MAX_DRAWDOWN_VOLATILITY_MULTIPLIER),
     },
     methodology: "Simplified Markowitz mean-variance optimization with Sharpe-ratio weighting. Constraints: max position size, diversification minimum, and total allocation cap.",
   };
@@ -407,11 +490,11 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
   const symbols = XSTOCKS_CATALOG.map((s) => s.symbol).filter(
     (s) => BASE_RETURNS[s] !== undefined,
   );
-  const riskFreeRate = 0.05;
+  const riskFreeRate = RISK_FREE_RATE;
 
   // Generate points along the efficient frontier
   const points: EfficientFrontier["points"] = [];
-  const numPoints = 20;
+  const numPoints = EFFICIENT_FRONTIER_POINTS;
 
   // Strategy: vary risk tolerance from 0 (min variance) to 1 (max return)
   for (let i = 0; i <= numPoints; i++) {
@@ -419,8 +502,8 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
 
     // Weight stocks based on blend of inverse-variance and return
     const allocations = symbols.map((sym) => {
-      const ret = BASE_RETURNS[sym] ?? 0.10;
-      const vol = BASE_VOLATILITIES[sym] ?? 0.25;
+      const ret = BASE_RETURNS[sym] ?? DEFAULT_EXPECTED_RETURN;
+      const vol = BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY;
       const invVar = 1 / (vol * vol);
       const retScore = ret - riskFreeRate;
 
@@ -437,9 +520,9 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
 
     // Keep only top 10 and renormalize
     const topWeights = weights
-      .filter((w) => w.weight > 0.01)
+      .filter((w) => w.weight > MIN_WEIGHT_FILTER)
       .sort((a, b) => b.weight - a.weight)
-      .slice(0, 10);
+      .slice(0, TOP_STOCKS_LIMIT);
     const topTotal = sumByKey(topWeights, 'weight') || 1;
     for (const w of topWeights) {
       w.weight = round4(w.weight / topTotal);
@@ -451,7 +534,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
     }));
 
     const expectedReturn = allocation.reduce(
-      (s, a) => s + a.weight * (BASE_RETURNS[a.symbol] ?? 0.10),
+      (s, a) => s + a.weight * (BASE_RETURNS[a.symbol] ?? DEFAULT_EXPECTED_RETURN),
       0,
     );
 
@@ -518,10 +601,10 @@ export async function getCorrelationMatrix(): Promise<CorrelationMatrix> {
   for (let i = 0; i < symbols.length; i++) {
     for (let j = i + 1; j < symbols.length; j++) {
       const corr = matrix[i][j];
-      if (corr >= 0.70) {
+      if (corr >= CORRELATION_STRONG_POSITIVE) {
         strongPositive.push({ pair: [symbols[i], symbols[j]], correlation: corr });
       }
-      if (corr <= -0.30) {
+      if (corr <= CORRELATION_STRONG_NEGATIVE) {
         strongNegative.push({ pair: [symbols[i], symbols[j]], correlation: corr });
       }
     }
@@ -548,14 +631,14 @@ export async function getCorrelationMatrix(): Promise<CorrelationMatrix> {
   });
   avgCorrs.sort((a, b) => a.avgCorrelation - b.avgCorrelation);
   const diversificationOpportunities = avgCorrs
-    .slice(0, 5)
+    .slice(0, DIVERSIFICATION_OPPORTUNITIES_LIMIT)
     .map((a) => `${a.symbol} (avg correlation: ${a.avgCorrelation.toFixed(2)})`);
 
   return {
     symbols,
     matrix,
-    strongPositive: strongPositive.slice(0, 10),
-    strongNegative: strongNegative.slice(0, 10),
+    strongPositive: strongPositive.slice(0, TOP_STOCKS_LIMIT),
+    strongNegative: strongNegative.slice(0, TOP_STOCKS_LIMIT),
     avgCorrelation: pairCount > 0 ? round2(totalCorr / pairCount) : 0,
     diversificationOpportunities,
   };
@@ -623,8 +706,8 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
 
     let recommendation: string;
     if (kellyFraction <= 0) recommendation = "Avoid — negative expected value";
-    else if (currentExposure > kellyFraction * 1.5) recommendation = "Overexposed — reduce position size";
-    else if (currentExposure < kellyFraction * 0.5) recommendation = "Underexposed — can increase position size";
+    else if (currentExposure > kellyFraction * KELLY_OVEREXPOSED_MULTIPLIER) recommendation = "Overexposed — reduce position size";
+    else if (currentExposure < kellyFraction * KELLY_UNDEREXPOSED_MULTIPLIER) recommendation = "Underexposed — can increase position size";
     else recommendation = "Well-sized — near optimal Kelly fraction";
 
     return {
@@ -633,8 +716,8 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
       avgWin: round2(avgWin),
       avgLoss: round2(avgLoss),
       kellyFraction: round4(kellyFraction),
-      halfKelly: round4(kellyFraction * 0.5),
-      quarterKelly: round4(kellyFraction * 0.25),
+      halfKelly: round4(kellyFraction * KELLY_HALF),
+      quarterKelly: round4(kellyFraction * KELLY_QUARTER),
       recommendation,
       currentExposure: round4(currentExposure),
       optimalExposure: round4(optimalExposure),
@@ -647,11 +730,11 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
   const overallLeverage = totalKelly;
 
   let interpretation: string;
-  if (overallLeverage > 2) {
+  if (overallLeverage > KELLY_LEVERAGE_HIGH_THRESHOLD) {
     interpretation = `High aggregate Kelly (${overallLeverage.toFixed(2)}) suggests ${config.name} has edge across many symbols. Use half-Kelly for safety.`;
-  } else if (overallLeverage > 1) {
+  } else if (overallLeverage > KELLY_LEVERAGE_MODERATE_THRESHOLD) {
     interpretation = `Moderate aggregate Kelly (${overallLeverage.toFixed(2)}). ${config.name} has positive expectancy. Consider quarter-Kelly for conservative sizing.`;
-  } else if (overallLeverage > 0.3) {
+  } else if (overallLeverage > KELLY_LEVERAGE_MODEST_THRESHOLD) {
     interpretation = `Modest aggregate Kelly (${overallLeverage.toFixed(2)}). ${config.name} has slim edge. Small position sizes recommended.`;
   } else {
     interpretation = `Low aggregate Kelly (${overallLeverage.toFixed(2)}). Limited edge detected for ${config.name}. Focus on highest-conviction plays only.`;
@@ -684,8 +767,8 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
   const invVols = symbols.map((sym) => ({
     symbol: sym,
     name: XSTOCKS_CATALOG.find((s) => s.symbol === sym)?.name ?? sym,
-    volatility: BASE_VOLATILITIES[sym] ?? 0.25,
-    invVol: 1 / (BASE_VOLATILITIES[sym] ?? 0.25),
+    volatility: BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY,
+    invVol: 1 / (BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY),
   }));
 
   const totalInvVol = invVols.reduce((s, v) => s + v.invVol, 0);
@@ -740,14 +823,14 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
   if (!optimal) return null;
 
   // Calculate drift
-  const drifts = optimal.changes.filter((c) => Math.abs(c.delta) > 0.01);
+  const drifts = optimal.changes.filter((c) => Math.abs(c.delta) > REBALANCE_DRIFT_THRESHOLD);
   const driftScore = drifts.reduce((s, d) => s + Math.abs(d.delta), 0);
 
   let urgency: RebalanceRecommendation["urgency"];
-  if (driftScore < 0.05) urgency = "none";
-  else if (driftScore < 0.15) urgency = "low";
-  else if (driftScore < 0.30) urgency = "medium";
-  else if (driftScore < 0.50) urgency = "high";
+  if (driftScore < REBALANCE_URGENCY_NONE) urgency = "none";
+  else if (driftScore < REBALANCE_URGENCY_LOW) urgency = "low";
+  else if (driftScore < REBALANCE_URGENCY_MEDIUM) urgency = "medium";
+  else if (driftScore < REBALANCE_URGENCY_HIGH) urgency = "high";
   else urgency = "critical";
 
   // Get current market prices
@@ -782,11 +865,11 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
     });
 
   const estimatedTurnover = trades.reduce((s, t) => s + t.estimatedCost, 0);
-  const estimatedTransactionCosts = estimatedTurnover * 0.001; // 0.1% estimated cost
+  const estimatedTransactionCosts = estimatedTurnover * TRANSACTION_COST_ESTIMATE;
 
   const beforeVol = optimal.currentAllocation.length > 0
     ? calculatePortfolioVolatility(optimal.currentAllocation)
-    : 0.25;
+    : DEFAULT_VOLATILITY;
   const afterVol = optimal.portfolioMetrics.expectedVolatility;
 
   return {
@@ -798,9 +881,9 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
     estimatedTurnover: round2(estimatedTurnover),
     estimatedTransactionCosts: round2(estimatedTransactionCosts),
     beforeMetrics: {
-      sharpe: round2(beforeVol > 0 ? 0.10 / beforeVol : 0),
+      sharpe: round2(beforeVol > 0 ? DEFAULT_SHARPE_RETURN_ESTIMATE / beforeVol : 0),
       volatility: round4(beforeVol),
-      maxDrawdown: round4(beforeVol * 2.5),
+      maxDrawdown: round4(beforeVol * MAX_DRAWDOWN_VOLATILITY_MULTIPLIER),
     },
     afterMetrics: {
       sharpe: optimal.portfolioMetrics.sharpeRatio,
@@ -897,8 +980,8 @@ function calculatePortfolioVolFromWeights(
   let variance = 0;
   for (const a of allocations) {
     for (const b of allocations) {
-      const volA = BASE_VOLATILITIES[a.symbol] ?? 0.25;
-      const volB = BASE_VOLATILITIES[b.symbol] ?? 0.25;
+      const volA = BASE_VOLATILITIES[a.symbol] ?? DEFAULT_VOLATILITY;
+      const volB = BASE_VOLATILITIES[b.symbol] ?? DEFAULT_VOLATILITY;
       const corr = generateCorrelation(a.symbol, b.symbol);
       variance += a.weight * b.weight * volA * volB * corr;
     }
