@@ -13,6 +13,8 @@
  * 5. CALIBRATION DECAY: Is confidence calibration getting worse over time?
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -319,21 +321,21 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
   const calibrationQuality = computeAvgMetric(recent, (s) => s.calibrationAvg);
 
   const dimensions = {
-    scoringStability: Math.round(scoringStability * 1000) / 1000,
-    pillarBalance: Math.round(pillarBalance * 1000) / 1000,
-    agentDiversity: Math.round(agentDiversity * 1000) / 1000,
-    dataFreshness: Math.round(dataFreshness * 1000) / 1000,
-    calibrationQuality: Math.round(calibrationQuality * 1000) / 1000,
+    scoringStability: round3(scoringStability),
+    pillarBalance: round3(pillarBalance),
+    agentDiversity: round3(agentDiversity),
+    dataFreshness: round3(dataFreshness),
+    calibrationQuality: round3(calibrationQuality),
   };
 
   // Overall health: weighted average
-  const overallHealth = Math.round(
-    (dimensions.scoringStability * 0.25 +
+  const overallHealth = round3(
+    dimensions.scoringStability * 0.25 +
       dimensions.pillarBalance * 0.20 +
       dimensions.agentDiversity * 0.25 +
       dimensions.dataFreshness * 0.15 +
-      dimensions.calibrationQuality * 0.15) * 1000
-  ) / 1000;
+      dimensions.calibrationQuality * 0.15
+  );
 
   // Status
   const highAlerts = activeAlerts.filter((a) => a.severity === "high" || a.severity === "critical").length;

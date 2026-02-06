@@ -26,6 +26,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -600,7 +601,7 @@ export function validateGrounding(
 
   const groundingScore =
     totalWeight > 0
-      ? Math.round((weightedSum / totalWeight) * 1000) / 1000
+      ? round3(weightedSum / totalWeight)
       : claims.length === 0
         ? 0.8 // No factual claims = neutral (reasoning is opinion-based)
         : 1.0;
@@ -702,10 +703,10 @@ export function getAgentGroundingStats(): Record<
         : 0;
 
     result[agentId] = {
-      avgGroundingScore: Math.round(avgScore * 1000) / 1000,
+      avgGroundingScore: round3(avgScore),
       totalClaims: stats.totalClaims,
-      groundedRate: stats.totalClaims > 0 ? Math.round((stats.groundedClaims / stats.totalClaims) * 1000) / 1000 : 0,
-      hallucinationRate: stats.totalClaims > 0 ? Math.round((stats.hallucinatedClaims / stats.totalClaims) * 1000) / 1000 : 0,
+      groundedRate: stats.totalClaims > 0 ? round3(stats.groundedClaims / stats.totalClaims) : 0,
+      hallucinationRate: stats.totalClaims > 0 ? round3(stats.hallucinatedClaims / stats.totalClaims) : 0,
       checks: stats.checks,
     };
   }

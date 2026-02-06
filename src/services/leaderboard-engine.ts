@@ -18,6 +18,8 @@
  * Rankings are updated in real-time as trades are scored.
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -400,7 +402,7 @@ export function getLeaderboard(options?: {
       rank: 0, // Will be set after sorting
       previousRank: state.previousRank,
       rankChange: 0,
-      compositeScore: Math.round(avgComposite * 1000) / 1000,
+      compositeScore: round3(avgComposite),
       grade,
       metrics: {
         pnlPercent: Math.round(avgPnl * 100) / 100,
@@ -426,7 +428,7 @@ export function getLeaderboard(options?: {
       },
       trend: {
         direction,
-        compositeChange7d: Math.round(compositeChange7d * 1000) / 1000,
+        compositeChange7d: round3(compositeChange7d),
         eloChange7d: 0, // Would need historical ELO tracking
       },
       isExternal: state.isExternal,
@@ -458,7 +460,7 @@ export function getLeaderboard(options?: {
       totalAgents: entries.length,
       totalTrades: entries.reduce((s, e) => s + e.stats.totalTrades, 0),
       avgComposite: entries.length > 0
-        ? Math.round((entries.reduce((s, e) => s + e.compositeScore, 0) / entries.length) * 1000) / 1000
+        ? round3(entries.reduce((s, e) => s + e.compositeScore, 0) / entries.length)
         : 0,
       topAgent: entries[0]?.agentId ?? "none",
       methodologyVersion: "v3.0",

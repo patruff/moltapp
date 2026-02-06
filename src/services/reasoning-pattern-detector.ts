@@ -13,7 +13,7 @@
  * This feeds into the benchmark's qualitative scoring pillar.
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -281,7 +281,7 @@ export function analyzeReasoningPatterns(
 
   const vocabulary: VocabularyMetrics = {
     uniqueWords,
-    typeTokenRatio: Math.round(typeTokenRatio * 1000) / 1000,
+    typeTokenRatio: round3(typeTokenRatio),
     financeTerms,
     sophisticationScore: Math.round(sophisticationScore * 100) / 100,
   };
@@ -291,7 +291,7 @@ export function analyzeReasoningPatterns(
 
   // 5. Hedge word ratio
   const hedgeMatches = reasoning.match(HEDGE_WORDS) ?? [];
-  const hedgeRatio = wordCount > 0 ? Math.round((hedgeMatches.length / wordCount) * 1000) / 1000 : 0;
+  const hedgeRatio = wordCount > 0 ? round3(hedgeMatches.length / wordCount) : 0;
 
   // 6. Quantitative ratio
   const quantMatches = reasoning.match(QUANT_PATTERNS) ?? [];

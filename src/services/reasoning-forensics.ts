@@ -25,6 +25,8 @@
  *    concrete recommendations for agent improvement.
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -176,7 +178,7 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
     }
   }
   const vocabularyRichness = allWords.length > 0
-    ? Math.round((uniqueWords.size / allWords.length) * 1000) / 1000
+    ? round3(uniqueWords.size / allWords.length)
     : 0;
 
   // --- Top recurring phrases (bigrams and trigrams) ---
@@ -285,7 +287,7 @@ export function detectStrategyDrift(agentId: string): StrategyDriftReport {
     totalAbsDiff += Math.abs(currentPct - historicalPct);
   }
   // Normalize: max possible diff is 2.0 (100% in one category shifting to another)
-  const driftMagnitude = Math.round((totalAbsDiff / 2) * 1000) / 1000;
+  const driftMagnitude = round3(totalAbsDiff / 2);
 
   // Determine drift direction: which intent grew most vs shrank most
   let maxGrowth = { intent: "none", delta: 0 };
@@ -606,7 +608,7 @@ function buildIntentDistribution(
   return [...counts.entries()]
     .map(([intent, count]) => ({
       intent,
-      percentage: Math.round((count / total) * 1000) / 1000,
+      percentage: round3(count / total),
     }))
     .sort((a, b) => b.percentage - a.percentage);
 }

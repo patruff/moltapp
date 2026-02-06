@@ -14,6 +14,8 @@
  * 6. ADAPTATION: Does the agent learn from bad outcomes?
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -219,7 +221,7 @@ function buildTrajectory(
     points.push({
       windowStart: window[0].timestamp,
       windowEnd: window[window.length - 1].timestamp,
-      value: Math.round(avg * 1000) / 1000,
+      value: round3(avg),
       sampleSize: window.length,
     });
   }
@@ -301,7 +303,7 @@ function analyzeVocabulary(entries: ReasoningSnapshot[]): VocabularyMetrics {
 
   const avgWordCount = Math.round(totalWordCount / entries.length);
   const richness = totalWordCount > 0
-    ? Math.round((allWords.size / totalWordCount) * 1000) / 1000
+    ? round3(allWords.size / totalWordCount)
     : 0;
 
   // Vocabulary trend: compare first half vs second half unique words

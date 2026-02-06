@@ -20,6 +20,7 @@
  */
 
 import { runTradingRound } from "../agents/orchestrator.ts";
+import { round3 } from "../lib/math-utils.ts";
 import { analyzeRound, type RoundDecision } from "./round-analytics.ts";
 import { recordRoundDecisions, type AgentDecisionRecord } from "./cross-agent-analyzer.ts";
 import { isTradingHalted } from "./production-hardening.ts";
@@ -517,7 +518,7 @@ export function getRunnerStats(): {
   return {
     uptime,
     totalRoundsRun: state.totalRoundsRun,
-    successRate: Math.round(successRate * 1000) / 1000,
+    successRate: round3(successRate),
     avgRoundDurationMs: Math.round(avgDuration),
     avgAgentsPerRound: Math.round(avgAgents * 10) / 10,
     failedRoundsLast24h: failedLast24h,

@@ -33,7 +33,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -656,7 +656,7 @@ export function analyzeBiases(
     // Normalize: more biases = higher score, but cap at 1.0
     biasScore = Math.min(1.0, weightedSum / 3); // 3 = expected max for "very biased"
   }
-  biasScore = Math.round(biasScore * 1000) / 1000;
+  biasScore = round3(biasScore);
 
   // Find dominant bias
   const dominantBias =
@@ -757,7 +757,7 @@ export function getAgentBiasStats(): Record<
     const dominant = Object.entries(stats.byType).sort(([, a], [, b]) => b - a)[0];
 
     result[agentId] = {
-      avgBiasScore: stats.checks > 0 ? Math.round((stats.totalScore / stats.checks) * 1000) / 1000 : 0,
+      avgBiasScore: stats.checks > 0 ? round3(stats.totalScore / stats.checks) : 0,
       totalBiases: stats.totalBiases,
       dominantBias: dominant ? dominant[0] : null,
       biasDistribution: { ...stats.byType },

@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { normalize, splitSentences } from "../lib/math-utils.ts";
+import { normalize, round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,7 +220,7 @@ export function validateForBenchmark(
 
   // --- Compute composite score ---
   const qualityScore = dimensions.reduce((sum, d) => sum + d.score * d.weight, 0);
-  const roundedScore = Math.round(qualityScore * 1000) / 1000;
+  const roundedScore = round3(qualityScore);
 
   // Grade assignment
   const grade = assignGrade(roundedScore);
@@ -660,14 +660,14 @@ export function validateDatasetBatch(
   }
   const dimensionAverages: Record<string, number> = {};
   for (const [name, { sum, count }] of dimensionSums) {
-    dimensionAverages[name] = Math.round((sum / count) * 1000) / 1000;
+    dimensionAverages[name] = round3(sum / count);
   }
 
   return {
     totalTrades: decisions.length,
     validTrades: validCount,
-    validationRate: decisions.length > 0 ? Math.round((validCount / decisions.length) * 1000) / 1000 : 0,
-    avgQualityScore: Math.round(avgScore * 1000) / 1000,
+    validationRate: decisions.length > 0 ? round3(validCount / decisions.length) : 0,
+    avgQualityScore: round3(avgScore),
     gradeDistribution,
     commonIssues,
     dimensionAverages,

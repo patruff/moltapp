@@ -15,6 +15,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -337,7 +338,7 @@ function calculateBollingerBands(
     middle: Math.round(middle * 100) / 100,
     lower: Math.round(lower * 100) / 100,
     bandwidth: Math.round(bandwidth * 100) / 100,
-    percentB: Math.round(percentB * 1000) / 1000,
+    percentB: round3(percentB),
     squeeze,
   };
 }

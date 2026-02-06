@@ -18,7 +18,7 @@
  * 5. LEARNING VELOCITY — is prediction accuracy improving over time?
  */
 
-import { normalize, round2 } from "../lib/math-utils.ts";
+import { normalize, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -294,7 +294,7 @@ function computeConfidenceBuckets(agentForecasts: TradeImpactForecast[]): Confid
       range: b.range,
       count: inBucket.length,
       directionAccuracy: inBucket.length > 0 ? Math.round((correct / inBucket.length) * 100) / 100 : 0,
-      avgMagnitudeError: withMag.length > 0 ? Math.round((magSum / withMag.length) * 1000) / 1000 : 0,
+      avgMagnitudeError: withMag.length > 0 ? round3(magSum / withMag.length) : 0,
     };
   });
 }
@@ -347,7 +347,7 @@ export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
 
   const withMag = resolved.filter(f => f.magnitudeError !== undefined);
   const avgMagError = withMag.length > 0
-    ? Math.round((withMag.reduce((s, f) => s + (f.magnitudeError ?? 0), 0) / withMag.length) * 1000) / 1000
+    ? round3(withMag.reduce((s, f) => s + (f.magnitudeError ?? 0), 0) / withMag.length)
     : 0;
 
   const withHorizon = agentForecasts.filter(f => f.predictedHorizon !== null);
@@ -450,7 +450,7 @@ export function getImpactStats(): {
       ? Math.round((correct / resolved.length) * 100) / 100
       : 0,
     avgMagnitudeError: withMag.length > 0
-      ? Math.round((magSum / withMag.length) * 1000) / 1000
+      ? round3(magSum / withMag.length)
       : 0,
     horizonUsageRate: forecasts.length > 0
       ? Math.round((withHorizon.length / forecasts.length) * 100) / 100

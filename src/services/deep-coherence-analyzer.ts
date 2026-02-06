@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { splitSentences } from "../lib/math-utils.ts";
+import { round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -406,7 +406,7 @@ function computeTextMetrics(reasoning: string): TextMetrics {
     sentenceCount: sentences.length,
     avgWordsPerSentence: sentences.length > 0 ? Math.round((words.length / sentences.length) * 10) / 10 : 0,
     uniqueWordRatio: words.length > 0 ? Math.round((uniqueWords.size / words.length) * 100) / 100 : 0,
-    technicalTermDensity: words.length > 0 ? Math.round((technicalCount / words.length) * 1000) / 1000 : 0,
+    technicalTermDensity: words.length > 0 ? round3(technicalCount / words.length) : 0,
     quantitativeClaimCount: quantClaims?.length ?? 0,
   };
 }

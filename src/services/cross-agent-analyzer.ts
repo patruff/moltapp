@@ -12,6 +12,8 @@
  * the agents' collective behavior to surface insights for the dashboard.
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -610,11 +612,9 @@ export function computeCorrelationMatrix(): AgentCorrelation[] {
       correlations.push({
         agent1: a1,
         agent2: a2,
-        signalCorrelation: Math.round(correlation * 1000) / 1000,
-        agreementRate:
-          Math.round((agree / commonRounds.length) * 1000) / 1000,
-        disagreementRate:
-          Math.round((disagree / commonRounds.length) * 1000) / 1000,
+        signalCorrelation: round3(correlation),
+        agreementRate: round3(agree / commonRounds.length),
+        disagreementRate: round3(disagree / commonRounds.length),
         roundsAnalyzed: commonRounds.length,
       });
     }
@@ -744,7 +744,7 @@ export function generateReport(periodDays = 7): CrossAgentReport {
       herdingFrequency: Math.round(herdingFrequency * 10) / 10,
       contrarianAccuracy: Math.round(contrarianAccuracy * 10) / 10,
       unanimousAccuracy: Math.round(unanimousAccuracy * 10) / 10,
-      avgAgreementLevel: Math.round(avgAgreement * 1000) / 1000,
+      avgAgreementLevel: round3(avgAgreement),
       mostCorrelatedPair: mostCorrelated
         ? {
             agents: [mostCorrelated.agent1, mostCorrelated.agent2],

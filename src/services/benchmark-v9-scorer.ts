@@ -15,6 +15,8 @@
  * - Exportable snapshots for HuggingFace dataset
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -387,13 +389,13 @@ export function recordTradeScore(input: TradeScoreInput): {
   const adaptability = scoreAdaptability(input.marketRegime, window);
   record.pillarScores.adaptability = adaptability;
 
-  const composite = Math.round((
+  const composite = round3(
     financial * weights.financial +
     reasoning * weights.reasoning +
     safety * weights.safety +
     calibration * weights.calibration +
     adaptability * weights.adaptability
-  ) * 1000) / 1000;
+  );
 
   record.composite = composite;
 
@@ -415,7 +417,7 @@ export function getAgentScore(agentId: string): AgentBenchmarkScore | null {
 
   // Compute aggregate pillar scores from window
   const avg = (fn: (r: TradeRecord) => number) =>
-    Math.round((window.reduce((s, r) => s + fn(r), 0) / window.length) * 1000) / 1000;
+    round3(window.reduce((s, r) => s + fn(r), 0) / window.length);
 
   const pillars: PillarScores = {
     financial: avg((r) => r.pillarScores.financial),
@@ -444,7 +446,7 @@ export function getAgentScore(agentId: string): AgentBenchmarkScore | null {
   for (const regime of Object.keys(regimeBreakdown) as MarketRegime[]) {
     if (regimeBreakdown[regime].trades > 0) {
       regimeBreakdown[regime].avgComposite =
-        Math.round((regimeBreakdown[regime].avgComposite / regimeBreakdown[regime].trades) * 1000) / 1000;
+        round3(regimeBreakdown[regime].avgComposite / regimeBreakdown[regime].trades);
     }
   }
 
@@ -582,10 +584,10 @@ export function exportV9Snapshot(regime: MarketRegime): V9Snapshot {
     leaderboard,
     metrics: {
       totalTrades,
-      avgCoherence: totalTrades > 0 ? Math.round((coherenceSum / totalTrades) * 1000) / 1000 : 0,
-      avgHallucinationRate: totalTrades > 0 ? Math.round((halFlaggedCount / totalTrades) * 1000) / 1000 : 0,
-      avgDisciplineRate: totalTrades > 0 ? Math.round((disciplinePassCount / totalTrades) * 1000) / 1000 : 0,
-      avgCalibration: totalTrades > 0 ? Math.round((calibrationSum / totalTrades) * 1000) / 1000 : 0,
+      avgCoherence: totalTrades > 0 ? round3(coherenceSum / totalTrades) : 0,
+      avgHallucinationRate: totalTrades > 0 ? round3(halFlaggedCount / totalTrades) : 0,
+      avgDisciplineRate: totalTrades > 0 ? round3(disciplinePassCount / totalTrades) : 0,
+      avgCalibration: totalTrades > 0 ? round3(calibrationSum / totalTrades) : 0,
     },
   };
 }

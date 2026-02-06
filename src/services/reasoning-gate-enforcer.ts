@@ -29,7 +29,7 @@ import {
 } from "../schemas/trade-reasoning.ts";
 import { analyzeCoherence } from "./coherence-analyzer.ts";
 import type { TradingDecision } from "../agents/base-agent.ts";
-import { getFilteredWords } from "../lib/math-utils.ts";
+import { getFilteredWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -127,7 +127,7 @@ export function getGateMetrics(): GateMetrics {
     ...metrics,
     gateLevel: currentGateLevel,
     avgCoherenceAtGate: metrics.totalChecked > 0
-      ? Math.round((coherenceSum / metrics.totalChecked) * 1000) / 1000
+      ? round3(coherenceSum / metrics.totalChecked)
       : 0,
     avgReasoningLength: metrics.totalChecked > 0
       ? Math.round(lengthSum / metrics.totalChecked)

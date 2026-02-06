@@ -17,6 +17,7 @@
  */
 
 import { eventBus } from "./event-stream.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -504,7 +505,7 @@ export function getCalibration(agentId: string): CalibrationData {
             (incorrect.reduce((s, o) => s + o.confidenceAtDecision, 0) / incorrect.length) * 10,
           ) / 10
         : 0,
-    brierScore: Math.round(brierScore * 1000) / 1000,
+    brierScore: round3(brierScore),
     overconfidenceBias: Math.round(overconfidenceBias * 10) / 10,
   };
 }
@@ -819,7 +820,7 @@ export function getLearningMetrics(): LearningMetrics {
     avgWinRate: agentCount > 0 ? Math.round((totalWinRate / agentCount) * 10) / 10 : 0,
     avgDirectionAccuracy:
       agentCount > 0 ? Math.round((totalAccuracy / agentCount) * 10) / 10 : 0,
-    avgBrierScore: agentCount > 0 ? Math.round((totalBrier / agentCount) * 1000) / 1000 : 0,
+    avgBrierScore: agentCount > 0 ? round3(totalBrier / agentCount) : 0,
     bestPerformer,
     worstPerformer,
     lastAnalysisAt,

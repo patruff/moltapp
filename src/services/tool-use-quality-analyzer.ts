@@ -16,6 +16,7 @@ import { desc, eq, and, gte } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/index.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -299,9 +300,9 @@ export async function analyzeToolUseQuality(
   return {
     agentId,
     totalToolCalls: totalCalls,
-    correctnessScore: Math.round(correctnessScore * 1000) / 1000,
-    argumentQuality: Math.round(argumentQuality * 1000) / 1000,
-    sequenceAdherence: Math.round(sequenceAdherence * 1000) / 1000,
+    correctnessScore: round3(correctnessScore),
+    argumentQuality: round3(argumentQuality),
+    sequenceAdherence: round3(sequenceAdherence),
     redundantCalls,
     violations: uniqueViolations,
     grade,

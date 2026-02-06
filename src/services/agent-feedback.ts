@@ -15,6 +15,8 @@
  * - Cross-agent comparison signals
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -331,7 +333,7 @@ export function getPerformanceProfile(
     agentId,
     totalOutcomes: outcomes.length,
     resolvedOutcomes: resolved.length,
-    winRate: Math.round(winRate * 1000) / 1000,
+    winRate: round3(winRate),
     averagePnl: Math.round(averagePnl * 100) / 100,
     averageWin: Math.round(averageWin * 100) / 100,
     averageLoss: Math.round(averageLoss * 100) / 100,
@@ -377,7 +379,7 @@ function calculateConfidenceCalibration(
       ...b,
       totalTrades: trades.length,
       wins: wins.length,
-      winRate: Math.round(winRate * 1000) / 1000,
+      winRate: round3(winRate),
       calibrated,
     };
   });
@@ -428,7 +430,7 @@ function calculateSymbolPerformance(
       symbol,
       trades: trades.length,
       wins: wins.length,
-      winRate: trades.length > 0 ? Math.round((wins.length / trades.length) * 1000) / 1000 : 0,
+      winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
       totalPnl: Math.round(totalPnl * 100) / 100,
       averagePnl: trades.length > 0 ? Math.round((totalPnl / trades.length) * 100) / 100 : 0,
       bestTrade: pnls.length > 0 ? Math.round(Math.max(...pnls) * 100) / 100 : 0,
@@ -469,7 +471,7 @@ function calculateActionPerformance(
       action,
       trades: trades.length,
       wins: wins.length,
-      winRate: trades.length > 0 ? Math.round((wins.length / trades.length) * 1000) / 1000 : 0,
+      winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
       averagePnl: trades.length > 0 ? Math.round((totalPnl / trades.length) * 100) / 100 : 0,
       averageConfidence: Math.round(avgConfidence),
     };

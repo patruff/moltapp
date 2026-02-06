@@ -15,7 +15,7 @@
  *  7. Uniqueness: Is the reasoning original or templated?
  */
 
-import { splitSentences } from "../lib/math-utils.ts";
+import { round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -256,8 +256,8 @@ function scoreDimension(
   return {
     name,
     weight,
-    agentAScore: Math.round(normA * 1000) / 1000,
-    agentBScore: Math.round(normB * 1000) / 1000,
+    agentAScore: round3(normA),
+    agentBScore: round3(normB),
     winner: Math.abs(diff) <= threshold ? null : diff > 0 ? "A" : "B",
     explanation: explanationFn(normA, normB),
   };
@@ -351,8 +351,8 @@ export function compareReasoning(
   return {
     agentAId,
     agentBId,
-    agentAScore: Math.round(agentAScore * 1000) / 1000,
-    agentBScore: Math.round(agentBScore * 1000) / 1000,
+    agentAScore: round3(agentAScore),
+    agentBScore: round3(agentBScore),
     winner,
     dimensions: mappedDimensions,
     detailedAnalysis: { agentA: profileA, agentB: profileB },
