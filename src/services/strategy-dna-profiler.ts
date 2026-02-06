@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords, normalize, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopKey, normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -252,9 +252,7 @@ export function computeDNA(agentId: string): StrategyDNA {
   for (const t of trades) {
     intentCounts[t.intent] = (intentCounts[t.intent] ?? 0) + 1;
   }
-  const dominantStrategy =
-    Object.entries(intentCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ??
-    "unknown";
+  const dominantStrategy = getTopKey(intentCounts) ?? "unknown";
 
   // 10. Consistency: 1 - entropy of intent distribution
   const intentProbs = Object.values(intentCounts).map(

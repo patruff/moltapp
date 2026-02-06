@@ -21,6 +21,7 @@ import type {
   MarketData,
   PortfolioContext,
 } from "../agents/base-agent.ts";
+import { getTopKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -526,11 +527,9 @@ function computeConsensus(revisions: RevisedDecision[]): ConsensusResult {
   }
 
   const totalAgents = decisions.length;
-  const dominantAction = (
-    Object.entries(actionCounts).sort(([, a], [, b]) => b - a)[0][0]
-  ) as "buy" | "sell" | "hold";
+  const dominantAction = (getTopKey(actionCounts) ?? "hold") as "buy" | "sell" | "hold";
   const dominantSymbol =
-    Object.entries(symbolCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "N/A";
+    getTopKey(symbolCounts) ?? "N/A";
   const dominantCount = actionCounts[dominantAction];
 
   // Determine consensus type

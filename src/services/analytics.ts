@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, round2, round3, sortDescending } from "../lib/math-utils.ts";
+import { calculateAverage, getTopKey, round2, round3, sortDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -672,7 +672,7 @@ function computeTradingPatterns(
   for (const d of decisions) {
     actionCounts[d.action as keyof typeof actionCounts]++;
   }
-  const preferredAction = (Object.entries(actionCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "hold") as "buy" | "sell" | "hold";
+  const preferredAction = (getTopKey(actionCounts) ?? "hold") as "buy" | "sell" | "hold";
 
   // Trade frequency
   const tradeFrequency: "high" | "medium" | "low" =
@@ -1026,7 +1026,7 @@ function computeComparisonEntry(
   for (const d of actionDecisions) {
     symbolCounts[d.symbol] = (symbolCounts[d.symbol] || 0) + 1;
   }
-  const favoriteStock = Object.entries(symbolCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
+  const favoriteStock = getTopKey(symbolCounts) ?? null;
 
   return {
     agentId,

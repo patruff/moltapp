@@ -17,7 +17,7 @@
  * Uses sliding window analysis with configurable window sizes.
  */
 
-import { mean, round3 } from "../lib/math-utils.ts";
+import { getTopKey, mean, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -405,7 +405,7 @@ function mode(arr: string[]): string {
   const counts: Record<string, number> = {};
   for (const v of arr) counts[v] = (counts[v] ?? 0) + 1;
   return (
-    Object.entries(counts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "unknown"
+    getTopKey(counts) ?? "unknown"
   );
 }
 

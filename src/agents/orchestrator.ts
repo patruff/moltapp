@@ -45,7 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { countWords, round2, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 // Register Brave Search if API key is available
@@ -3286,9 +3286,7 @@ export async function getAgentStats(agentId: string) {
       }
     }
 
-    const favoriteStock =
-      Object.entries(symbolCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ??
-      null;
+    const favoriteStock = getTopKey(symbolCounts) ?? null;
 
     return {
       totalDecisions,

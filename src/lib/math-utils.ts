@@ -372,6 +372,62 @@ export function averageByKey<T extends Record<string, any>>(
  * sortDescending(trades, 'pnl')
  * // returns [{symbol: 'MSFT', pnl: 8.3}, {symbol: 'GOOGL', pnl: 3.1}, {symbol: 'AAPL', pnl: -5.2}]
  */
+/**
+ * Finds the key with the highest numeric value in a record.
+ *
+ * Replaces verbose pattern: `Object.entries(map).sort(([,a],[,b]) => b - a)[0]?.[0]`
+ *
+ * @param record - A record mapping string keys to numeric values
+ * @returns The key with the highest value, or undefined if record is empty
+ *
+ * @example
+ * const actionCounts = { buy: 2, sell: 1, hold: 5 };
+ * getTopKey(actionCounts) // returns "hold"
+ *
+ * getTopKey({}) // returns undefined
+ *
+ * // With nullish coalescing for default:
+ * getTopKey(symbolCounts) ?? "N/A" // returns "N/A" if empty
+ */
+export function getTopKey(record: Record<string, number>): string | undefined {
+  let topKey: string | undefined;
+  let topVal = -Infinity;
+  for (const [key, val] of Object.entries(record)) {
+    if (val > topVal) {
+      topVal = val;
+      topKey = key;
+    }
+  }
+  return topKey;
+}
+
+/**
+ * Finds the entry (key-value pair) with the highest numeric value in a record.
+ *
+ * Replaces verbose pattern: `Object.entries(map).sort(([,a],[,b]) => b - a)[0]`
+ *
+ * @param record - A record mapping string keys to numeric values
+ * @returns A [key, value] tuple for the highest entry, or undefined if record is empty
+ *
+ * @example
+ * const actionCounts = { buy: 2, sell: 1, hold: 5 };
+ * getTopEntry(actionCounts) // returns ["hold", 5]
+ *
+ * const [action, count] = getTopEntry(actionCounts)!;
+ * // action = "hold", count = 5
+ *
+ * getTopEntry({}) // returns undefined
+ */
+export function getTopEntry(record: Record<string, number>): [string, number] | undefined {
+  let topEntry: [string, number] | undefined;
+  for (const [key, val] of Object.entries(record)) {
+    if (!topEntry || val > topEntry[1]) {
+      topEntry = [key, val];
+    }
+  }
+  return topEntry;
+}
+
 export function sortDescending<T extends Record<string, any>>(
   items: T[],
   key: keyof T & string,

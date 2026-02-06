@@ -20,6 +20,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 import { errorMessage } from "../lib/errors.ts";
+import { getTopEntry, getTopKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -293,7 +294,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
   // Consensus: if majority agrees on action
   let consensusAction: string | null = null;
   const actionCounts = { buy: buyCount, sell: sellCount, hold: holdCount };
-  const maxAction = Object.entries(actionCounts).sort(([, a], [, b]) => b - a)[0];
+  const maxAction = getTopEntry(actionCounts);
   if (maxAction && maxAction[1] >= 2) {
     consensusAction = maxAction[0];
   }
@@ -446,7 +447,7 @@ export async function compareAgentSessions(
   for (const a of actions) {
     actionCounts[a] = (actionCounts[a] ?? 0) + 1;
   }
-  const mostCommonAction = Object.entries(actionCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "hold";
+  const mostCommonAction = getTopKey(actionCounts) ?? "hold";
 
   const avgConfidence =
     decisions.length > 0
@@ -470,7 +471,7 @@ export async function compareAgentSessions(
     }
   }
   const favoriteSymbol =
-    Object.entries(symbolCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
+    getTopKey(symbolCounts) ?? null;
 
   // Improving over time: compare avg confidence first half vs second half
   const mid = Math.floor(decisions.length / 2);

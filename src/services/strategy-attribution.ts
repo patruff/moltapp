@@ -14,7 +14,7 @@
  */
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { getTopKey, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,7 +206,7 @@ function computeIntentRankings(
     for (const t of intentTrades) {
       actionCounts[t.action] = (actionCounts[t.action] ?? 0) + 1;
     }
-    const dominantAction = Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "hold";
+    const dominantAction = getTopKey(actionCounts) ?? "hold";
 
     // Count symbols
     const symbolCounts = new Map<string, number>();

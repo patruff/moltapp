@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { round2, findMax, findMin } from "../lib/math-utils.ts";
+import { findMax, findMin, getTopKey, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -274,7 +274,7 @@ export function buildAgentSnapshot(
   for (const t of trades) {
     symbolCounts[t.symbol] = (symbolCounts[t.symbol] ?? 0) + 1;
   }
-  const favoriteStock = Object.entries(symbolCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? null;
+  const favoriteStock = getTopKey(symbolCounts) ?? null;
 
   // Symbol breakdown
   const symbolBreakdown: Record<string, SymbolStats> = {};

@@ -27,7 +27,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { getTopKey, round2 } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 
 // ---------------------------------------------------------------------------
@@ -1238,7 +1238,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
       },
       {} as Record<string, number>,
     );
-    const topAction = Object.entries(majorityAction).sort(([, a], [, b]) => b - a)[0]?.[0];
+    const topAction = getTopKey(majorityAction);
 
     if (topAction) {
       totalRoundsWithMajority++;

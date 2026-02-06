@@ -19,6 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { getTopEntry } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -402,8 +403,8 @@ export async function getWhaleAlerts(hours = 24): Promise<WhaleActivity> {
   for (const d of buyDecisions) bullishSymbols[d.symbol] = (bullishSymbols[d.symbol] || 0) + d.confidence;
   for (const d of sellDecisions) bearishSymbols[d.symbol] = (bearishSymbols[d.symbol] || 0) + d.confidence;
 
-  const topBullish = Object.entries(bullishSymbols).sort(([, a], [, b]) => (b as number) - (a as number))[0];
-  const topBearish = Object.entries(bearishSymbols).sort(([, a], [, b]) => (b as number) - (a as number))[0];
+  const topBullish = getTopEntry(bullishSymbols);
+  const topBearish = getTopEntry(bearishSymbols);
 
   let overallActivity: WhaleActivity["overallActivity"];
   if (alerts.length <= 2) overallActivity = "quiet";

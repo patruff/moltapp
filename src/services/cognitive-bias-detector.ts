@@ -33,7 +33,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopEntry, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -754,7 +754,7 @@ export function getAgentBiasStats(): Record<
   }> = {};
 
   for (const [agentId, stats] of agentBiasStats.entries()) {
-    const dominant = Object.entries(stats.byType).sort(([, a], [, b]) => b - a)[0];
+    const dominant = getTopEntry(stats.byType);
 
     result[agentId] = {
       avgBiasScore: stats.checks > 0 ? round3(stats.totalScore / stats.checks) : 0,

@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { getTopKey, round2 } from "../lib/math-utils.ts";
 
 // Database query result types
 type DecisionRow = typeof agentDecisions.$inferSelect;
@@ -257,7 +257,7 @@ export async function replayRound(roundId: string): Promise<{
   for (const a of actions) {
     actionCounts[a] = (actionCounts[a] || 0) + 1;
   }
-  const dominantAction = Object.entries(actionCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ?? "hold";
+  const dominantAction = getTopKey(actionCounts) ?? "hold";
   const allSame = new Set(actions).size === 1;
   const hasMajority = Object.values(actionCounts).some((c) => c >= 2);
 
