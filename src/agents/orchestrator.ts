@@ -381,6 +381,15 @@ export function getAgentConfig(agentId: string) {
     : null;
 }
 
+/**
+ * Find agent config by agentId from ALL_AGENTS array.
+ * @param agentId - The agent ID to search for
+ * @returns Agent config or undefined if not found
+ */
+function getAgentConfigById(agentId: string) {
+  return ALL_AGENTS.find((a) => a.config.agentId === agentId)?.config;
+}
+
 // ---------------------------------------------------------------------------
 // Market Data Fetching
 // ---------------------------------------------------------------------------
@@ -2217,7 +2226,7 @@ async function executeTradingRound(
       const genomePillarScore = getGenomePillarScore(r.agentId);
 
       // 4. Record unified v17 scores across all 16 pillars
-      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      const agentConfig = getAgentConfigById(r.agentId);
       recordV17Scores(
         r.agentId,
         agentConfig?.provider ?? "unknown",
@@ -2747,7 +2756,7 @@ async function executeTradingRound(
     // Score each agent across all their v33 trades
     const v33Scores = [];
     for (const r of results) {
-      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      const agentConfig = getAgentConfigById(r.agentId);
       if (!agentConfig) continue;
 
       const agentTrades = v33Trades.filter((t) => t.agentId === r.agentId);
@@ -2832,7 +2841,7 @@ async function executeTradingRound(
     // Score each agent across all their v35 trades
     const v35Scores = [];
     for (const r of results) {
-      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      const agentConfig = getAgentConfigById(r.agentId);
       if (!agentConfig) continue;
 
       const agentTrades = v35Trades.filter((t) => t.agentId === r.agentId);
@@ -2916,7 +2925,7 @@ async function executeTradingRound(
     // Score each agent across all their v36 trades
     const v36Scores = [];
     for (const r of results) {
-      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      const agentConfig = getAgentConfigById(r.agentId);
       if (!agentConfig) continue;
 
       const agentTrades = v36Trades.filter((t) => t.agentId === r.agentId);
@@ -3001,7 +3010,7 @@ async function executeTradingRound(
     // Score each agent across all their v37 trades
     const v37Scores = [];
     for (const r of results) {
-      const agentConfig = ALL_AGENTS.find((a) => a.config.agentId === r.agentId)?.config;
+      const agentConfig = getAgentConfigById(r.agentId);
       if (!agentConfig) continue;
 
       const agentTrades = v37Trades.filter((t) => t.agentId === r.agentId);
