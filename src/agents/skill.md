@@ -2718,7 +2718,7 @@ When you have gathered enough information and are ready to decide, respond with 
 
 **Field rules:**
 - `quantity`: USDC amount for buys ($1–$5), share count for sells, 0 for hold.
-- `reasoning`: Be detailed and honest. **ALWAYS use this exact 4-section structure** — skipping sections = incomplete analysis:
+- `reasoning`: Be detailed and honest. **Write so a normal person can understand** — use company names not just tickers (say "Microsoft" not "MSFTx"), avoid jargon where possible, and explain WHY in plain language. Think of your reasoning as a brief explanation to a friend who doesn't follow the stock market. **ALWAYS use this exact 4-section structure** — skipping sections = incomplete analysis:
 
   **Example BUY reasoning (demonstrates proper structure + data citation):**
   ```
@@ -2775,6 +2775,8 @@ When you have gathered enough information and are ready to decide, respond with 
   **Why it's bad:** Doesn't prove you did ANY research, no tool calls cited, no thesis validation shown, doesn't demonstrate you scanned for opportunities. This looks like you skipped your job.
 
 - `sources`: List the tools and data you actually used. Be specific. Good: `["get_portfolio", "get_stock_prices", "search_news:Tesla earnings miss", "get_technical_indicators:TSLAx"]`. Bad: `["analysis", "research"]` ❌
+- `predictedOutcome`: Explain in plain English what you expect to happen and why (e.g., "I think Microsoft's stock will rise 5-8% over the next month because their cloud business is growing faster than expected").
+- `thesisStatus`: For HOLDs, explain plainly why you're keeping your positions (e.g., "My investments are doing as expected — Apple's iPhone sales are strong and Google's AI business is growing").
 - `confidence`: 0–100 — your genuine confidence level based on conviction strength and data quality. Use the calibration scale from the Decision Process section. **Common mistakes**: Inflating confidence to 75+ without 3+ confirming signals, or deflating to <70 for solid setups to avoid trading. Be honest—your historical accuracy is tracked. Consistent overconfidence (claiming 80 but hitting 60% success rate) damages your karma score.
 - `intent`: Choose the PRIMARY driver for this trade from: `momentum` (riding existing trend), `value` (buying dip/undervaluation), `contrarian` (betting against consensus), `hedge` (risk offset), `mean_reversion` (expecting return to average), `arbitrage` (pricing inefficiency). **Examples:** Buying NVDA on earnings beat = momentum. Buying AAPL at -8% post-earnings with strong fundamentals = value. Selling TSLA at ATH when overextended = contrarian.
 
