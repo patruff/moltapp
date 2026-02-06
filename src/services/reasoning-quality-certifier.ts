@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize, countWords } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords, round2 } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -155,9 +155,9 @@ export function certifyReasoning(
   dimensions.push(actionabilityScore);
 
   // Compute composite score (weights imported from scoring-weights.ts)
-  const compositeScore = Math.round(
-    dimensions.reduce((sum, d, i) => sum + d.score * CERTIFICATION_WEIGHTS_ARRAY[i], 0) * 100,
-  ) / 100;
+  const compositeScore = round2(
+    dimensions.reduce((sum, d, i) => sum + d.score * CERTIFICATION_WEIGHTS_ARRAY[i], 0),
+  );
 
   // Determine certification level
   const minScore = Math.min(...dimensions.map((d) => d.score));
@@ -242,7 +242,7 @@ function scoreStructuralCompleteness(reasoning: string): CertificationDimension 
 
   return {
     name: "structural_completeness",
-    score: Math.min(1, Math.round(score * 100) / 100),
+    score: Math.min(1, round2(score)),
     indicators,
     grade: getGrade(score),
   };
@@ -275,7 +275,7 @@ function scoreDataGrounding(reasoning: string, sources: string[]): Certification
 
   return {
     name: "data_grounding",
-    score: Math.min(1, Math.round(score * 100) / 100),
+    score: Math.min(1, round2(score)),
     indicators,
     grade: getGrade(score),
   };
@@ -320,7 +320,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
 
   return {
     name: "logical_soundness",
-    score: normalize(Math.round(score * 100) / 100),
+    score: normalize(round2(score)),
     indicators,
     grade: getGrade(score),
   };
@@ -363,7 +363,7 @@ function scoreEpistemicHonesty(reasoning: string, confidence: number): Certifica
 
   return {
     name: "epistemic_honesty",
-    score: normalize(Math.round(score * 100) / 100),
+    score: normalize(round2(score)),
     indicators,
     grade: getGrade(score),
   };
@@ -400,7 +400,7 @@ function scoreActionability(reasoning: string, action: string): CertificationDim
 
   return {
     name: "actionability",
-    score: Math.min(1, Math.round(score * 100) / 100),
+    score: Math.min(1, round2(score)),
     indicators,
     grade: getGrade(score),
   };
@@ -433,7 +433,7 @@ export function getCertificationProfile(agentId: string): AgentCertificationProf
   const total = certs.length;
 
   const avgComposite = total > 0
-    ? Math.round((certs.reduce((s, c) => s + c.compositeScore, 0) / total) * 100) / 100
+    ? round2(certs.reduce((s, c) => s + c.compositeScore, 0) / total)
     : 0;
 
   // Find best/worst dimensions
@@ -464,7 +464,7 @@ export function getCertificationProfile(agentId: string): AgentCertificationProf
 
   // Pillar score: weighted blend of certification rate + composite quality
   const certRate = total > 0 ? certified / total : 0;
-  const pillarScore = Math.round((certRate * 0.4 + avgComposite * 0.6) * 100) / 100;
+  const pillarScore = round2(certRate * 0.4 + avgComposite * 0.6);
 
   return {
     agentId,
@@ -473,7 +473,7 @@ export function getCertificationProfile(agentId: string): AgentCertificationProf
     silverCount: silver,
     bronzeCount: bronze,
     uncertifiedCount: uncertified,
-    certificationRate: total > 0 ? Math.round(certRate * 100) / 100 : 0,
+    certificationRate: total > 0 ? round2(certRate) : 0,
     avgComposite,
     bestDimension,
     worstDimension,
@@ -550,7 +550,7 @@ export function getCertificationStats(): {
     silverTotal: silver,
     bronzeTotal: bronze,
     uncertifiedTotal: uncert,
-    overallCertRate: total > 0 ? Math.round(((gold + silver + bronze) / total) * 100) / 100 : 0,
-    avgComposite: total > 0 ? Math.round((compositeSum / total) * 100) / 100 : 0,
+    overallCertRate: total > 0 ? round2((gold + silver + bronze) / total) : 0,
+    avgComposite: total > 0 ? round2(compositeSum / total) : 0,
   };
 }

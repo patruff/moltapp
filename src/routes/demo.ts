@@ -384,7 +384,7 @@ demoRoutes.post("/trade/:sessionId", async (c) => {
       side: "buy",
       quantity,
       price,
-      total: Math.round(totalCost * 100) / 100,
+      total: round2(totalCost),
     };
     session.tradeHistory.push(trade);
 
@@ -394,7 +394,7 @@ demoRoutes.post("/trade/:sessionId", async (c) => {
     return c.json({
       trade,
       newPrice,
-      cashRemaining: Math.round(session.cash * 100) / 100,
+      cashRemaining: round2(session.cash),
       message: `Bought ${quantity} ${symbol} @ $${price.toFixed(2)} for $${totalCost.toFixed(2)}`,
     });
   } else {
@@ -427,7 +427,7 @@ demoRoutes.post("/trade/:sessionId", async (c) => {
       side: "sell",
       quantity,
       price,
-      total: Math.round(totalProceeds * 100) / 100,
+      total: round2(totalProceeds),
     };
     session.tradeHistory.push(trade);
 
@@ -437,7 +437,7 @@ demoRoutes.post("/trade/:sessionId", async (c) => {
     return c.json({
       trade,
       newPrice,
-      cashRemaining: Math.round(session.cash * 100) / 100,
+      cashRemaining: round2(session.cash),
       message: `Sold ${quantity} ${symbol} @ $${price.toFixed(2)} for $${totalProceeds.toFixed(2)}`,
     });
   }

@@ -33,6 +33,7 @@ import {
   getBenchmarkVersion,
   type V37TradeGrade,
 } from "../services/v37-benchmark-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV37ApiRoutes = new Hono();
 
@@ -257,7 +258,7 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgComposability: Math.round(avg * 100) / 100,
+    avgComposability: round2(avg),
     distribution,
     topTrades,
     worstTrades,
@@ -312,7 +313,7 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgForesight: Math.round(avg * 100) / 100,
+    avgForesight: round2(avg),
     distribution,
     noForesightCount: noForesight.length,
     strongForesightCount: strongForesight.length,
@@ -403,7 +404,7 @@ benchmarkV37ApiRoutes.get("/auditability/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgAuditability: Math.round(avg * 100) / 100,
+    avgAuditability: round2(avg),
     distribution,
     topTrades,
     worstTrades,
@@ -458,7 +459,7 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgReversibility: Math.round(avg * 100) / 100,
+    avgReversibility: round2(avg),
     distribution,
     noExitPlanCount: noExitPlan.length,
     strongExitPlanCount: strongExitPlan.length,

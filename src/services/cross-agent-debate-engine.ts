@@ -15,7 +15,7 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
-import { splitSentences, countWords, round3 } from "../lib/math-utils.ts";
+import { splitSentences, countWords, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -198,7 +198,7 @@ function computeRebuttalStrength(ownReasoning: string, opponentReasoning: string
   const connectors = (ownLower.match(/\bbecause|therefore|however|nevertheless|despite|although\b/g) ?? []).length;
   score += Math.min(0.2, connectors * 0.04);
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 // ---------------------------------------------------------------------------
@@ -391,20 +391,20 @@ function scoreDebateParticipant(
       ? Math.max(0.3, 0.7 - (hedgeRate - 0.06) * 10)
       : 0.3 + hedgeRate * 20;
 
-  const composite = Math.round((
+  const composite = round2(
     thesisClarity * 0.15 +
     evidenceQuality * 0.30 +
     logicalStrength * 0.25 +
     rebuttalPower * 0.15 +
-    intellectualHonesty * 0.15
-  ) * 100) / 100;
+    intellectualHonesty * 0.15,
+  );
 
   return {
-    thesisClarity: Math.round(thesisClarity * 100) / 100,
-    evidenceQuality: Math.round(evidenceQuality * 100) / 100,
-    logicalStrength: Math.round(logicalStrength * 100) / 100,
-    rebuttalPower: Math.round(rebuttalPower * 100) / 100,
-    intellectualHonesty: Math.round(Math.min(1, intellectualHonesty) * 100) / 100,
+    thesisClarity: round2(thesisClarity),
+    evidenceQuality: round2(evidenceQuality),
+    logicalStrength: round2(logicalStrength),
+    rebuttalPower: round2(rebuttalPower),
+    intellectualHonesty: round2(Math.min(1, intellectualHonesty)),
     composite,
   };
 }
@@ -493,11 +493,11 @@ export function conductDebate(
   }
 
   // Debate quality = how substantive was this debate?
-  const debateQualityScore = Math.round(Math.min(1, (
+  const debateQualityScore = round2(Math.min(1,
     (scoreA.composite + scoreB.composite) / 2 * 0.4 +
     Math.min(1, evidenceClashes.length * 0.2) * 0.3 +
-    (logicalChainAnalysis.agentACausalClaims + logicalChainAnalysis.agentBCausalClaims > 4 ? 0.3 : 0.15)
-  )) * 100) / 100;
+    (logicalChainAnalysis.agentACausalClaims + logicalChainAnalysis.agentBCausalClaims > 4 ? 0.3 : 0.15),
+  ));
 
   const debate: DebateRound = {
     debateId: `debate_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -510,7 +510,7 @@ export function conductDebate(
     verdict: {
       winner,
       scores: { [agentA]: scoreA, [agentB]: scoreB },
-      margin: Math.round(margin * 100) / 100,
+      margin: round2(margin),
       keyFactor,
       narrative,
     },
@@ -579,7 +579,7 @@ export function getAgentDebateProfile(agentId: string): AgentDebateProfile {
   const total = agentDebates.length || 1;
   const avgDims: Record<string, number> = {};
   for (const [dim, sum] of Object.entries(dimensionSums)) {
-    avgDims[dim] = Math.round((sum / total) * 100) / 100;
+    avgDims[dim] = round2(sum / total);
   }
 
   const sortedDims = Object.entries(avgDims).sort((a, b) => b[1] - a[1]);
@@ -590,13 +590,13 @@ export function getAgentDebateProfile(agentId: string): AgentDebateProfile {
     wins,
     losses,
     ties,
-    winRate: agentDebates.length > 0 ? Math.round((wins / agentDebates.length) * 100) / 100 : 0,
-    avgScore: Math.round((scoreSum / total) * 100) / 100,
+    winRate: agentDebates.length > 0 ? round2(wins / agentDebates.length) : 0,
+    avgScore: round2(scoreSum / total),
     bestDimension: sortedDims[0]?.[0] ?? "none",
     worstDimension: sortedDims[sortedDims.length - 1]?.[0] ?? "none",
-    avgDebateQuality: Math.round((qualitySum / total) * 100) / 100,
-    rebuttalWinRate: rebuttalTotal > 0 ? Math.round((rebuttalWins / rebuttalTotal) * 100) / 100 : 0,
-    evidenceClashWinRate: evidenceTotal > 0 ? Math.round((evidenceWins / evidenceTotal) * 100) / 100 : 0,
+    avgDebateQuality: round2(qualitySum / total),
+    rebuttalWinRate: rebuttalTotal > 0 ? round2(rebuttalWins / rebuttalTotal) : 0,
+    evidenceClashWinRate: evidenceTotal > 0 ? round2(evidenceWins / evidenceTotal) : 0,
   };
 }
 
@@ -620,12 +620,12 @@ export function getDebatePillarScore(agentId: string): number {
   const profile = getAgentDebateProfile(agentId);
   if (profile.totalDebates === 0) return 0.5;
 
-  return Math.round((
+  return round2(
     profile.winRate * 0.30 +
     profile.avgScore * 0.30 +
     profile.rebuttalWinRate * 0.20 +
-    profile.avgDebateQuality * 0.20
-  ) * 100) / 100;
+    profile.avgDebateQuality * 0.20,
+  );
 }
 
 export function getDebateStats(): {
@@ -642,9 +642,9 @@ export function getDebateStats(): {
 
   return {
     totalDebates: debates.length,
-    avgQuality: debates.length > 0 ? Math.round((qualitySum / debates.length) * 100) / 100 : 0,
-    avgMargin: debates.length > 0 ? Math.round((marginSum / debates.length) * 100) / 100 : 0,
-    tieRate: debates.length > 0 ? Math.round((ties / debates.length) * 100) / 100 : 0,
+    avgQuality: debates.length > 0 ? round2(qualitySum / debates.length) : 0,
+    avgMargin: debates.length > 0 ? round2(marginSum / debates.length) : 0,
+    tieRate: debates.length > 0 ? round2(ties / debates.length) : 0,
     totalEvidenceClashes: totalClashes,
   };
 }

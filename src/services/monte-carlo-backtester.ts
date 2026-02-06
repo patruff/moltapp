@@ -18,6 +18,8 @@
  * No database access is required — feed trade data via recordHistoricalTrade().
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -837,13 +839,6 @@ function computeStdDev(values: number[], mean: number): number {
   );
 
   return Math.sqrt(sumSquaredDiffs / (values.length - 1));
-}
-
-/**
- * Round a number to 2 decimal places.
- */
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------

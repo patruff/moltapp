@@ -25,6 +25,7 @@ import {
   type V27CompositeScore,
 } from "../services/v27-benchmark-engine.ts";
 import { V27_DIMENSIONS } from "../schemas/benchmark-v27.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV27ApiRoutes = new Hono();
 
@@ -142,10 +143,10 @@ benchmarkV27ApiRoutes.get("/leaderboard/:agentId", (c) => {
       return {
         key: dim.key,
         name: dim.name,
-        score: Math.round(score * 100) / 100,
+        score: round2(score),
         weight: dim.weight,
         weightedContribution:
-          Math.round(((score * dim.weight) / TOTAL_WEIGHT) * 100 * 100) / 100,
+          round2(((score * dim.weight) / TOTAL_WEIGHT) * 100),
         category: dim.category,
       };
     });
@@ -218,7 +219,7 @@ benchmarkV27ApiRoutes.get("/execution-quality/:agentId", (c) => {
       agentId,
       history,
       stats: {
-        avg: Math.round(avg * 100) / 100,
+        avg: round2(avg),
         count,
         trend,
       },
@@ -283,7 +284,7 @@ benchmarkV27ApiRoutes.get("/learning/:agentId", (c) => {
       agentId,
       history,
       stats: {
-        avg: Math.round(avg * 100) / 100,
+        avg: round2(avg),
         count,
         trend,
       },
@@ -451,9 +452,9 @@ benchmarkV27ApiRoutes.get("/compare/:agentA/:agentB", (c) => {
         dimension: dim.key,
         name: dim.name,
         weight: dim.weight,
-        [agentA]: Math.round(valA * 100) / 100,
-        [agentB]: Math.round(valB * 100) / 100,
-        delta: Math.round((valA - valB) * 100) / 100,
+        [agentA]: round2(valA),
+        [agentB]: round2(valB),
+        delta: round2(valA - valB),
         winner,
       };
     });

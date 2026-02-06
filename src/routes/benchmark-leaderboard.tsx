@@ -26,6 +26,7 @@ import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { round2 } from "../lib/math-utils.ts";
 import {
   generateBenchmarkSnapshot,
   buildAgentProfile,
@@ -89,14 +90,14 @@ benchmarkLeaderboardRoutes.get("/data", async (c) => {
       const total = Number(row?.totalTrades ?? 0);
       dbStats = {
         totalTrades: total,
-        avgCoherence: Math.round((Number(row?.avgCoherence) || 0) * 100) / 100,
+        avgCoherence: round2(Number(row?.avgCoherence) || 0),
         hallucinationRate: total > 0
-          ? Math.round((Number(row?.hallucinationCount) / total) * 100) / 100
+          ? round2(Number(row?.hallucinationCount) / total)
           : 0,
         disciplineRate: total > 0
-          ? Math.round((Number(row?.disciplinePassCount) / total) * 100) / 100
+          ? round2(Number(row?.disciplinePassCount) / total)
           : 0,
-        avgConfidence: Math.round((Number(row?.avgConfidence) || 0) * 100) / 100,
+        avgConfidence: round2(Number(row?.avgConfidence) || 0),
       };
     } catch {
       // DB not available, use profile data
@@ -151,15 +152,15 @@ benchmarkLeaderboardRoutes.get("/data", async (c) => {
       provider: agent.provider,
       riskStyle: agent.riskTolerance,
       totalTrades,
-      pnlPercent: Math.round(pnlPercent * 100) / 100,
-      sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
-      winRate: Math.round(winRate * 100) / 100,
+      pnlPercent: round2(pnlPercent),
+      sharpeRatio: round2(sharpeRatio),
+      maxDrawdown: round2(maxDrawdown),
+      winRate: round2(winRate),
       avgCoherence,
       hallucinationRate,
       disciplineRate,
       avgConfidence,
-      calibrationScore: Math.round(calibrationScore * 100) / 100,
+      calibrationScore: round2(calibrationScore),
       compositeScore,
       grade,
       trend,
@@ -235,7 +236,7 @@ benchmarkLeaderboardRoutes.get("/", async (c) => {
 
       const row = stats[0];
       const total = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 100) / 100;
+      const avgCoherence = round2(Number(row?.avgCoherence) || 0);
       const hallucinationRate = total > 0 ? Math.round((Number(row?.hallucinationCount) / total) * 10000) / 100 : 0;
       const disciplineRate = total > 0 ? Math.round((Number(row?.disciplinePassCount) / total) * 10000) / 100 : 0;
       const avgConfidence = Math.round((Number(row?.avgConfidence) || 0.5) * 100);

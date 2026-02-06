@@ -15,7 +15,7 @@
  * 7. Historical trend detection (improving or degrading performance?)
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -232,11 +232,11 @@ export function analyzeRound(
     quality,
     marketContext,
     metrics: {
-      totalUsdcTraded: Math.round(totalUsdc * 100) / 100,
+      totalUsdcTraded: round2(totalUsdc),
       avgConfidence: Math.round(avgConf * 10) / 10,
-      avgQuantity: Math.round(avgQty * 100) / 100,
+      avgQuantity: round2(avgQty),
       uniqueStocksTraded: uniqueStocks,
-      buyToSellRatio: sells > 0 ? Math.round((buys / sells) * 100) / 100 : buys > 0 ? Infinity : 0,
+      buyToSellRatio: sells > 0 ? round2(buys / sells) : buys > 0 ? Infinity : 0,
       roundDurationMs,
     },
   };
@@ -473,7 +473,7 @@ function analyzeMarketContext(
     topMover,
     worstPerformer,
     marketBreadth: round3(marketBreadth),
-    avgVolatility: Math.round(avgVolatility * 100) / 100,
+    avgVolatility: round2(avgVolatility),
     sector,
   };
 }
@@ -698,7 +698,7 @@ export function generateAnalyticsSummary(
       avgParticipationRate: round3(avgParticipation),
       avgExecutionRate: round3(avgExecution),
       avgRoundQuality: Math.round(avgQuality * 10) / 10,
-      totalUsdcTraded: Math.round(totalUsdc * 100) / 100,
+      totalUsdcTraded: round2(totalUsdc),
       unanimousRoundRate: round3(unanimousCount / periodRounds.length),
       splitRoundRate: round3(splitCount / periodRounds.length),
     },

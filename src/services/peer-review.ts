@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { normalize, countWords, mean, splitSentences } from "../lib/math-utils.ts";
+import { normalize, countWords, mean, splitSentences, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -133,13 +133,13 @@ export function conductPeerReview(
   const wouldAgree = evaluateAgreement(reasoning, action, confidence, reviewerAgentId);
   const critique = generateCritique(scores, strengths, weaknesses, action, symbol);
 
-  const overallScore = Math.round(
-    (scores.logicQuality * 0.25 +
+  const overallScore = round2(
+    scores.logicQuality * 0.25 +
       scores.evidenceUsage * 0.20 +
       scores.riskAwareness * 0.20 +
       scores.originality * 0.15 +
-      scores.conclusionValidity * 0.20) * 100,
-  ) / 100;
+      scores.conclusionValidity * 0.20,
+  );
 
   const review: PeerReview = {
     reviewerAgentId,
@@ -220,7 +220,7 @@ export function conductRoundPeerReview(
   // Disagreement rate: how often peers disagree with the agent
   const totalAgreements = reviews.filter((r) => r.wouldAgree).length;
   const disagreementRate = reviews.length > 0
-    ? Math.round((1 - totalAgreements / reviews.length) * 100) / 100
+    ? round2(1 - totalAgreements / reviews.length)
     : 0;
 
   const report: PeerReviewRoundReport = {
@@ -268,11 +268,11 @@ function analyzeReasoningQuality(
   const conclusionValidity = scoreConclusionValidity(reasoning, action, confidence);
 
   return {
-    logicQuality: Math.round(logicQuality * 100) / 100,
-    evidenceUsage: Math.round(evidenceUsage * 100) / 100,
-    riskAwareness: Math.round(riskAwareness * 100) / 100,
-    originality: Math.round(originality * 100) / 100,
-    conclusionValidity: Math.round(conclusionValidity * 100) / 100,
+    logicQuality: round2(logicQuality),
+    evidenceUsage: round2(evidenceUsage),
+    riskAwareness: round2(riskAwareness),
+    originality: round2(originality),
+    conclusionValidity: round2(conclusionValidity),
   };
 }
 
@@ -651,9 +651,9 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
     };
   }
 
-  const avgPeerScore = Math.round(
-    (reviews.reduce((s, r) => s + r.overallScore, 0) / reviews.length) * 100,
-  ) / 100;
+  const avgPeerScore = round2(
+    reviews.reduce((s, r) => s + r.overallScore, 0) / reviews.length,
+  );
 
   const avgScores: PeerReviewScores = {
     logicQuality: mean(reviews.map((r) => r.scores.logicQuality)),
@@ -664,7 +664,7 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
   };
 
   const agreements = reviews.filter((r) => r.wouldAgree).length;
-  const peerAgreementRate = Math.round((agreements / reviews.length) * 100) / 100;
+  const peerAgreementRate = round2(agreements / reviews.length);
 
   // Most common strength/weakness
   const strengthCounts = new Map<string, number>();
@@ -691,7 +691,7 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
   const m = avgPeerScore;
   const variance = scores.reduce((s, v) => s + (v - m) ** 2, 0) / scores.length;
   const stddev = Math.sqrt(variance);
-  const reviewConsistency = Math.round(Math.max(0, 1 - stddev * 2) * 100) / 100;
+  const reviewConsistency = round2(Math.max(0, 1 - stddev * 2));
 
   return {
     agentId,

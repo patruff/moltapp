@@ -16,7 +16,7 @@
  * 8. OUTLIER DETECTION: Are there statistical outliers in metrics?
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -515,9 +515,9 @@ function buildResult(
   const temporalIssues = issues.filter((i) => i.category === "temporal");
   const temporalIntegrity = Math.max(0, 1 - temporalIssues.filter((i) => i.severity === "error").length * 0.2);
 
-  const qualityScore = Math.round(
-    (completeness * 0.3 + consistency * 0.25 + balance * 0.15 + reasoningQuality * 0.2 + temporalIntegrity * 0.1) * 100,
-  ) / 100;
+  const qualityScore = round2(
+    completeness * 0.3 + consistency * 0.25 + balance * 0.15 + reasoningQuality * 0.2 + temporalIntegrity * 0.1,
+  );
 
   // Stats
   const uniqueAgents = new Set(records.map((r) => r.agent_id)).size;
@@ -534,11 +534,11 @@ function buildResult(
     ? Math.round(records.reduce((s, r) => s + r.reasoning.length, 0) / records.length)
     : 0;
   const avgConfidence = records.length > 0
-    ? Math.round((records.reduce((s, r) => s + r.confidence, 0) / records.length) * 100) / 100
+    ? round2(records.reduce((s, r) => s + r.confidence, 0) / records.length)
     : 0;
   const withCoherence = records.filter((r) => r.coherence_score !== null);
   const avgCoherence = withCoherence.length > 0
-    ? Math.round((withCoherence.reduce((s, r) => s + (r.coherence_score ?? 0), 0) / withCoherence.length) * 100) / 100
+    ? round2(withCoherence.reduce((s, r) => s + (r.coherence_score ?? 0), 0) / withCoherence.length)
     : 0;
 
   const idSet = new Set<string>();
@@ -558,11 +558,11 @@ function buildResult(
     issues,
     qualityScore,
     dimensions: {
-      completeness: Math.round(completeness * 100) / 100,
-      consistency: Math.round(consistency * 100) / 100,
-      balance: Math.round(balance * 100) / 100,
-      reasoningQuality: Math.round(reasoningQuality * 100) / 100,
-      temporalIntegrity: Math.round(temporalIntegrity * 100) / 100,
+      completeness: round2(completeness),
+      consistency: round2(consistency),
+      balance: round2(balance),
+      reasoningQuality: round2(reasoningQuality),
+      temporalIntegrity: round2(temporalIntegrity),
     },
     stats: {
       uniqueAgents,

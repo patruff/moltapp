@@ -18,7 +18,7 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
-import { countWords, round3, stdDev } from "../lib/math-utils.ts";
+import { countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -373,11 +373,11 @@ function buildRiskProfile(entries: ReasoningEntry[]): RiskProfile {
   return {
     riskTolerance: holdCount / total > 0.5 ? "conservative" : buyCount / total > 0.4 ? "aggressive" : "moderate",
     avgPositionSize: 0, // Would need trade amounts
-    holdRate: Math.round((holdCount / total) * 100) / 100,
+    holdRate: round2(holdCount / total),
     actionDistribution: {
-      buy: Math.round((buyCount / total) * 100) / 100,
-      sell: Math.round((sellCount / total) * 100) / 100,
-      hold: Math.round((holdCount / total) * 100) / 100,
+      buy: round2(buyCount / total),
+      sell: round2(sellCount / total),
+      hold: round2(holdCount / total),
     },
     maxConfidence: Math.max(...confidences),
     minConfidence: Math.min(...confidences),
@@ -409,10 +409,10 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
   else if (secondAvg < firstAvg - 0.05) qualityTrend = "declining";
 
   return {
-    avgCoherence: Math.round(avgCoherence * 100) / 100,
+    avgCoherence: round2(avgCoherence),
     avgWordCount: Math.round(avgWordCount),
     hallucinationRate: round3(halRate),
-    disciplineRate: Math.round(discRate * 100) / 100,
+    disciplineRate: round2(discRate),
     qualityTrend,
     bestCoherenceScore: Math.max(...coherences),
     worstCoherenceScore: Math.min(...coherences),
@@ -442,14 +442,14 @@ function buildMarketBias(entries: ReasoningEntry[]): MarketBiasSection {
     .map(([symbol, stats]) => ({
       symbol,
       count: stats.count,
-      avgConfidence: Math.round((stats.totalConf / stats.count) * 100) / 100,
+      avgConfidence: round2(stats.totalConf / stats.count),
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
   const intentDistribution: Record<string, number> = {};
   for (const [k, v] of intentCounts) {
-    intentDistribution[k] = Math.round((v / entries.length) * 100) / 100;
+    intentDistribution[k] = round2(v / entries.length);
   }
 
   const topIntent = [...intentCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
@@ -488,12 +488,12 @@ function buildConfidenceProfile(entries: ReasoningEntry[]): ConfidenceProfileSec
     return {
       range: b.label,
       count: inBucket.length,
-      avgCoherence: Math.round(avgCoh * 100) / 100,
+      avgCoherence: round2(avgCoh),
     };
   });
 
   return {
-    avgConfidence: Math.round(avgConf * 100) / 100,
+    avgConfidence: round2(avgConf),
     calibrationScore: 0.5, // Would be enriched by outcome tracker
     overconfidentRate: 0,
     underconfidentRate: 0,

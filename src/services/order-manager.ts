@@ -23,6 +23,7 @@
 import { subscribeToPrices, getPrice, type PriceUpdate } from "./realtime-prices.ts";
 import { eventBus } from "./event-stream.ts";
 import { logTradeEvent } from "./audit-log.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -289,7 +290,7 @@ export function placeStopLoss(params: {
     quantity: params.quantity,
     stopPrice: params.stopPrice,
     entryPrice: params.entryPrice,
-    triggerLossPercent: Math.round(lossPercent * 100) / 100,
+    triggerLossPercent: round2(lossPercent),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     expiresAt: null,
@@ -371,7 +372,7 @@ export function placeTakeProfit(params: {
     quantity: params.quantity,
     targetPrice: params.targetPrice,
     entryPrice: params.entryPrice,
-    targetProfitPercent: Math.round(profitPercent * 100) / 100,
+    targetProfitPercent: round2(profitPercent),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     expiresAt: null,

@@ -25,6 +25,7 @@ import {
 } from "../db/schema/benchmark-v24.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
+import { round2 } from "../lib/math-utils.ts";
 import {
   analyzeReasoningDepthV24,
   analyzeSourceQualityV24,
@@ -172,13 +173,13 @@ export function updateV24Leaderboard(
     rank: 0,
     dimensions: {
       pnl: metrics.pnlPercent ?? 0,
-      coherence: Math.round((metrics.avgCoherence ?? 0.5) * 100) / 100,
-      hallucinationFree: Math.round((metrics.hallucinationFreeRate ?? 0.9) * 100) / 100,
-      discipline: Math.round((metrics.disciplineRate ?? 0.9) * 100) / 100,
-      calibration: Math.round((metrics.calibrationScore ?? 0.3) * 100) / 100,
-      prediction: Math.round((metrics.predictionAccuracy ?? 0.5) * 100) / 100,
-      reasoningDepth: Math.round(avgDepth * 100) / 100,
-      sourceQuality: Math.round(avgSourceQuality * 100) / 100,
+      coherence: round2(metrics.avgCoherence ?? 0.5),
+      hallucinationFree: round2(metrics.hallucinationFreeRate ?? 0.9),
+      discipline: round2(metrics.disciplineRate ?? 0.9),
+      calibration: round2(metrics.calibrationScore ?? 0.3),
+      prediction: round2(metrics.predictionAccuracy ?? 0.5),
+      reasoningDepth: round2(avgDepth),
+      sourceQuality: round2(avgSourceQuality),
     },
     tradeCount: metrics.tradeCount ?? 0,
     updatedAt: new Date().toISOString(),

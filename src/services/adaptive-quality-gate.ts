@@ -20,6 +20,7 @@ import {
   detectHallucinations,
 } from "./coherence-analyzer.ts";
 import { ADAPTIVE_GATE_WEIGHTS } from "../lib/scoring-weights.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -146,10 +147,10 @@ export function computeAdaptiveThresholds(agentId: string): AdaptiveThresholds {
 
   return {
     agentId,
-    minCoherence: Math.max(DEFAULT_THRESHOLDS.minCoherence, round(adaptiveCoherence)),
-    maxHallucinationSeverity: Math.min(DEFAULT_THRESHOLDS.maxHallucinationSeverity, round(adaptiveSeverity)),
+    minCoherence: Math.max(DEFAULT_THRESHOLDS.minCoherence, round2(adaptiveCoherence)),
+    maxHallucinationSeverity: Math.min(DEFAULT_THRESHOLDS.maxHallucinationSeverity, round2(adaptiveSeverity)),
     minReasoningLength: DEFAULT_THRESHOLDS.minReasoningLength,
-    minCompositeScore: Math.max(DEFAULT_THRESHOLDS.minCompositeScore, round(adaptiveComposite)),
+    minCompositeScore: Math.max(DEFAULT_THRESHOLDS.minCompositeScore, round2(adaptiveComposite)),
     dataPoints: history.length,
     lastUpdated: new Date().toISOString(),
   };
@@ -187,7 +188,7 @@ export function evaluateWithAdaptiveGate(
   // --- Composite score (same weights as reasoning-quality-gate) ---
   const hallucinationFree = 1 - hallucinations.severity;
   const disciplineScore = disciplinePass ? 1.0 : 0.0;
-  const compositeScore = round(
+  const compositeScore = round2(
     coherence.score * ADAPTIVE_GATE_WEIGHTS.coherence +
     hallucinationFree * ADAPTIVE_GATE_WEIGHTS.hallucination_free +
     disciplineScore * ADAPTIVE_GATE_WEIGHTS.discipline,
@@ -271,7 +272,7 @@ export function getAdaptiveGateStats(): AdaptiveGateStats {
     const records = evaluationHistory.get(agentId) ?? [];
     const totalEvaluated = records.length;
     const passCount = records.filter((r) => r.passed).length;
-    const passRate = totalEvaluated > 0 ? round(passCount / totalEvaluated) : 0;
+    const passRate = totalEvaluated > 0 ? round2(passCount / totalEvaluated) : 0;
 
     globalPassed += passCount;
     globalTotal += totalEvaluated;
@@ -292,7 +293,7 @@ export function getAdaptiveGateStats(): AdaptiveGateStats {
 
   return {
     agents,
-    globalPassRate: globalTotal > 0 ? round(globalPassed / globalTotal) : 0,
+    globalPassRate: globalTotal > 0 ? round2(globalPassed / globalTotal) : 0,
     totalEvaluated: globalTotal,
   };
 }
@@ -317,7 +318,7 @@ export function recordQualityDataPoint(
 
   const hallucinationFree = 1 - hallucinationSeverity;
   const disciplineScore = disciplinePass ? 1.0 : 0.0;
-  const compositeScore = round(
+  const compositeScore = round2(
     coherence * ADAPTIVE_GATE_WEIGHTS.coherence +
     hallucinationFree * ADAPTIVE_GATE_WEIGHTS.hallucination_free +
     disciplineScore * ADAPTIVE_GATE_WEIGHTS.discipline,
@@ -339,7 +340,3 @@ export function recordQualityDataPoint(
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Round to two decimal places to avoid floating-point noise. */
-function round(n: number): number {
-  return Math.round(n * 100) / 100;
-}

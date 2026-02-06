@@ -24,7 +24,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gt } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Type Aliases
@@ -246,8 +246,8 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
         quantity: pos.quantity,
         avgCost: pos.avgCost,
         currentPrice,
-        marketValue: Math.round(marketValue * 100) / 100,
-        unrealizedPnl: Math.round(unrealizedPnl * 100) / 100,
+        marketValue: round2(marketValue),
+        unrealizedPnl: round2(unrealizedPnl),
         unrealizedPnlPercent: pos.avgCost > 0
           ? Math.round(((currentPrice - pos.avgCost) / pos.avgCost) * 10000) / 100
           : 0,
@@ -267,10 +267,10 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
       followedSince: f.createdAt,
       initialCapital: initialCap,
       currentCash: cash,
-      positionsValue: Math.round(positionsValue * 100) / 100,
-      totalValue: Math.round(totalValue * 100) / 100,
-      totalPnl: Math.round(totalPnl * 100) / 100,
-      totalPnlPercent: Math.round(totalPnlPercent * 100) / 100,
+      positionsValue: round2(positionsValue),
+      totalValue: round2(totalValue),
+      totalPnl: round2(totalPnl),
+      totalPnlPercent: round2(totalPnlPercent),
       tradesCopied: f.tradesCopied,
       positions: enrichedPositions,
       isActive: f.isActive === "true",
@@ -286,9 +286,9 @@ copyTradingRoutes.get("/portfolio/:followerId", async (c) => {
     followerId,
     followerName: follows[0].followerName,
     summary: {
-      totalPortfolioValue: Math.round(totalValue * 100) / 100,
+      totalPortfolioValue: round2(totalValue),
       totalInitialCapital: totalInitial,
-      totalPnl: Math.round((totalValue - totalInitial) * 100) / 100,
+      totalPnl: round2(totalValue - totalInitial),
       totalPnlPercent: totalInitial > 0 ? Math.round(((totalValue - totalInitial) / totalInitial) * 10000) / 100 : 0,
       agentsFollowed: portfolios.length,
       totalTradesCopied: portfolios.reduce((s: number, p: Portfolio) => s + p.tradesCopied, 0),
@@ -678,10 +678,9 @@ copyTradingRoutes.get("/agents/:agentId/followers", async (c) => {
         activeFollowers: followers.filter((f: typeof followers[0]) => f.isActive === "true").length,
         totalCopiedCapital: followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.initialCapital), 0),
         avgFollowerPnl: followers.length > 0
-          ? Math.round(
-              (followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.totalPnlPercent), 0) / followers.length) *
-                100,
-            ) / 100
+          ? round2(
+              followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.totalPnlPercent), 0) / followers.length,
+            )
           : 0,
       },
     });

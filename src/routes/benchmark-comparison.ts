@@ -17,7 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { clamp, mean, round3 } from "../lib/math-utils.ts";
+import { clamp, mean, round2, round3 } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
@@ -219,9 +219,9 @@ function confidenceInterval95(values: number[]): { lower: number; upper: number;
   // Use z=1.96 as approximation for large n; for small n this is conservative enough
   const margin = 1.96 * Math.sqrt(variance(values) / n);
   return {
-    lower: Math.round((m - margin) * 100) / 100,
-    upper: Math.round((m + margin) * 100) / 100,
-    margin: Math.round(margin * 100) / 100,
+    lower: round2(m - margin),
+    upper: round2(m + margin),
+    margin: round2(margin),
   };
 }
 
@@ -310,26 +310,26 @@ function buildHeadToHead(idA: string, idB: string): HeadToHeadResult {
     agentBWins: winsB,
     draws,
     pnlComparison: {
-      agentAPnl: Math.round(totalPnlA * 100) / 100,
-      agentBPnl: Math.round(totalPnlB * 100) / 100,
-      difference: Math.round((totalPnlA - totalPnlB) * 100) / 100,
+      agentAPnl: round2(totalPnlA),
+      agentBPnl: round2(totalPnlB),
+      difference: round2(totalPnlA - totalPnlB),
       pValue: tTest.pValue,
       isSignificant: tTest.pValue < 0.05,
       effectSize: effect.d,
       effectLabel: effect.label,
     },
     coherenceComparison: {
-      agentA: Math.round(avgCohA * 100) / 100,
-      agentB: Math.round(avgCohB * 100) / 100,
+      agentA: round2(avgCohA),
+      agentB: round2(avgCohB),
       winner: avgCohA > avgCohB ? idA : avgCohB > avgCohA ? idB : "tie",
     },
     hallucinationComparison: {
-      agentA: Math.round(avgHallA * 100) / 100,
-      agentB: Math.round(avgHallB * 100) / 100,
+      agentA: round2(avgHallA),
+      agentB: round2(avgHallB),
       winner: avgHallA < avgHallB ? idA : avgHallB < avgHallA ? idB : "tie",
     },
     overallWinner,
-    confidence: Math.round(confidence * 100) / 100,
+    confidence: round2(confidence),
   };
 }
 
@@ -375,12 +375,12 @@ benchmarkComparisonRoutes.get("/rankings", (c) => {
       agentId: id,
       agentName: agentName(id),
       rounds: entries.length,
-      totalPnl: Math.round(totalPnl * 100) / 100,
-      meanPnl: Math.round(mean(pnls) * 100) / 100,
-      stdDev: Math.round(Math.sqrt(variance(pnls)) * 100) / 100,
+      totalPnl: round2(totalPnl),
+      meanPnl: round2(mean(pnls)),
+      stdDev: round2(Math.sqrt(variance(pnls))),
       ci95: ci,
-      avgCoherence: Math.round(mean(entries.map((e) => e.coherence)) * 100) / 100,
-      avgHallucinations: Math.round(mean(entries.map((e) => e.hallucinationCount)) * 100) / 100,
+      avgCoherence: round2(mean(entries.map((e) => e.coherence))),
+      avgHallucinations: round2(mean(entries.map((e) => e.hallucinationCount))),
     };
   });
 
@@ -415,7 +415,7 @@ benchmarkComparisonRoutes.get("/dominance-matrix", (c) => {
         wins: h2h.agentAWins,
         losses: h2h.agentBWins,
         draws: h2h.draws,
-        winRate: total > 0 ? Math.round((h2h.agentAWins / total) * 100) / 100 : 0,
+        winRate: total > 0 ? round2(h2h.agentAWins / total) : 0,
       };
     }
   }
@@ -426,7 +426,7 @@ benchmarkComparisonRoutes.get("/dominance-matrix", (c) => {
     const avgWinRate = opponents.length > 0
       ? mean(opponents.map((b) => matrix[a][b].winRate))
       : 0;
-    return { agentId: a, agentName: agentName(a), avgWinRate: Math.round(avgWinRate * 100) / 100 };
+    return { agentId: a, agentName: agentName(a), avgWinRate: round2(avgWinRate) };
   }).sort((a, b) => b.avgWinRate - a.avgWinRate);
 
   return c.json({

@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, gte } from "drizzle-orm";
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -289,9 +289,9 @@ function computeConfidenceProfile(
   };
 
   return {
-    mean: Math.round(mean * 100) / 100,
+    mean: round2(mean),
     median,
-    stdDev: Math.round(stdDev * 100) / 100,
+    stdDev: round2(stdDev),
     distribution,
     calibration: 0, // Would need outcome data to compute
   };
@@ -310,11 +310,11 @@ function computeRiskAppetite(
   // Trade frequency: non-hold decisions / total decisions
   const nonHolds = decisions.filter((d) => d.action !== "hold").length;
   const tradeFrequency =
-    decisions.length > 0 ? Math.round((nonHolds / decisions.length) * 100) / 100 : 0;
+    decisions.length > 0 ? round2(nonHolds / decisions.length) : 0;
 
   return {
-    avgPositionSize: Math.round(avgPositionSize * 100) / 100,
-    maxPositionSize: Math.round(maxPositionSize * 100) / 100,
+    avgPositionSize: round2(avgPositionSize),
+    maxPositionSize: round2(maxPositionSize),
     avgPortfolioConcentration: 0, // Would need position data
     maxConcurrentPositions: 0, // Would need position history
     tradeFrequency,
@@ -359,7 +359,7 @@ function computeSentimentBias(
   const nonZeroCount = sentiments.filter((s) => s !== 0).length;
   const biasVolatility =
     nonZeroCount > 1
-      ? Math.round((flips / (nonZeroCount - 1)) * 100) / 100
+      ? round2(flips / (nonZeroCount - 1))
       : 0;
 
   return {

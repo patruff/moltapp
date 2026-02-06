@@ -22,6 +22,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getAgentStats } from "../agents/orchestrator.ts";
 import type { AgentStats } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -620,9 +621,9 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
       agentId: config.agentId,
       agentName: config.name,
       mood,
-      recentBuyRatio: Math.round(buyRatio * 100) / 100,
-      recentSellRatio: Math.round(sellRatio * 100) / 100,
-      recentHoldRatio: Math.round(holdRatio * 100) / 100,
+      recentBuyRatio: round2(buyRatio),
+      recentSellRatio: round2(sellRatio),
+      recentHoldRatio: round2(holdRatio),
     });
   }
 
@@ -746,20 +747,18 @@ export async function generateSwarmPredictions(): Promise<SwarmPrediction[]> {
 
     if (upVotes.length > downVotes.length) {
       prediction = "up";
-      probability = Math.round(
+      probability = round2(
         (upVotes.reduce((s, c) => s + c.confidence * c.weight, 0) /
           upVotes.reduce((s, c) => s + c.weight, 0)) *
-          (upVotes.length / configs.length) *
-          100,
-      ) / 100;
+          (upVotes.length / configs.length),
+      );
     } else if (downVotes.length > upVotes.length) {
       prediction = "down";
-      probability = Math.round(
+      probability = round2(
         (downVotes.reduce((s, c) => s + c.confidence * c.weight, 0) /
           downVotes.reduce((s, c) => s + c.weight, 0)) *
-          (downVotes.length / configs.length) *
-          100,
-      ) / 100;
+          (downVotes.length / configs.length),
+      );
     } else {
       prediction = "sideways";
       probability = 50;
@@ -769,7 +768,7 @@ export async function generateSwarmPredictions(): Promise<SwarmPrediction[]> {
       symbol,
       prediction,
       probability: Math.min(95, Math.max(20, probability)),
-      expectedMove: Math.round((1 + Math.random() * 4) * 100) / 100,
+      expectedMove: round2(1 + Math.random() * 4),
       timeframe: "1w",
       contributors,
       historicalAccuracy: 45 + Math.floor(Math.random() * 25),

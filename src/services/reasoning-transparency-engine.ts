@@ -15,7 +15,7 @@
  * "here is exactly how the agent reasoned, claim by claim."
  */
 
-import { countWords, splitSentences } from "../lib/math-utils.ts";
+import { countWords, splitSentences, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -493,13 +493,13 @@ export function analyzeTransparency(
   const assumptionAwareness = Math.max(0, 1 - highCritAssumptions * 0.2);
   const counterfactualDepth = Math.min(1, counterfactuals.length / 4);
 
-  const transparencyScore = Math.round((
+  const transparencyScore = round2(
     claimDensity * 0.20 +
     evidenceCoverage * 0.25 +
     logicValidity * 0.25 +
     assumptionAwareness * 0.15 +
-    counterfactualDepth * 0.15
-  ) * 100) / 100;
+    counterfactualDepth * 0.15,
+  );
 
   const report: TransparencyReport = {
     agentId,
@@ -513,11 +513,11 @@ export function analyzeTransparency(
     counterfactuals,
     transparencyScore,
     componentScores: {
-      claimDensity: Math.round(claimDensity * 100) / 100,
-      evidenceCoverage: Math.round(evidenceCoverage * 100) / 100,
-      logicValidity: Math.round(logicValidity * 100) / 100,
-      assumptionAwareness: Math.round(assumptionAwareness * 100) / 100,
-      counterfactualDepth: Math.round(counterfactualDepth * 100) / 100,
+      claimDensity: round2(claimDensity),
+      evidenceCoverage: round2(evidenceCoverage),
+      logicValidity: round2(logicValidity),
+      assumptionAwareness: round2(assumptionAwareness),
+      counterfactualDepth: round2(counterfactualDepth),
     },
     timestamp: new Date().toISOString(),
   };
@@ -556,12 +556,12 @@ export function getAllTransparencyProfiles(): Record<string, {
     if (reports.length === 0) continue;
     const n = reports.length;
     profiles[agentId] = {
-      avgTransparency: Math.round((reports.reduce((s, r) => s + r.transparencyScore, 0) / n) * 100) / 100,
-      avgClaimDensity: Math.round((reports.reduce((s, r) => s + r.componentScores.claimDensity, 0) / n) * 100) / 100,
-      avgEvidenceCoverage: Math.round((reports.reduce((s, r) => s + r.componentScores.evidenceCoverage, 0) / n) * 100) / 100,
-      avgLogicValidity: Math.round((reports.reduce((s, r) => s + r.componentScores.logicValidity, 0) / n) * 100) / 100,
-      avgAssumptionAwareness: Math.round((reports.reduce((s, r) => s + r.componentScores.assumptionAwareness, 0) / n) * 100) / 100,
-      avgCounterfactualDepth: Math.round((reports.reduce((s, r) => s + r.componentScores.counterfactualDepth, 0) / n) * 100) / 100,
+      avgTransparency: round2(reports.reduce((s, r) => s + r.transparencyScore, 0) / n),
+      avgClaimDensity: round2(reports.reduce((s, r) => s + r.componentScores.claimDensity, 0) / n),
+      avgEvidenceCoverage: round2(reports.reduce((s, r) => s + r.componentScores.evidenceCoverage, 0) / n),
+      avgLogicValidity: round2(reports.reduce((s, r) => s + r.componentScores.logicValidity, 0) / n),
+      avgAssumptionAwareness: round2(reports.reduce((s, r) => s + r.componentScores.assumptionAwareness, 0) / n),
+      avgCounterfactualDepth: round2(reports.reduce((s, r) => s + r.componentScores.counterfactualDepth, 0) / n),
       totalReports: n,
     };
   }
@@ -575,7 +575,7 @@ export function getAllTransparencyProfiles(): Record<string, {
 export function getTransparencyPillarScore(agentId: string): number {
   const reports = reportStore.get(agentId) ?? [];
   if (reports.length === 0) return 0.5;
-  return Math.round((reports.reduce((s, r) => s + r.transparencyScore, 0) / reports.length) * 100) / 100;
+  return round2(reports.reduce((s, r) => s + r.transparencyScore, 0) / reports.length);
 }
 
 /**
@@ -616,7 +616,7 @@ export function getTransparencyStats(): {
 
   return {
     totalReports,
-    avgTransparency: Math.round((totalScore / agentCount) * 100) / 100,
+    avgTransparency: round2(totalScore / agentCount),
     mostTransparent: best.id || null,
     leastTransparent: worst.id || null,
     commonAssumptions,

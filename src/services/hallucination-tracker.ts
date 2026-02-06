@@ -14,7 +14,7 @@
  * 6. SEVERITY TRACKING: Are hallucinations getting more or less severe?
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,7 +223,7 @@ function computeAgentTrend(agentId: string): AgentHallucinationTrend {
     .filter(([, stats]) => stats.total >= 3 && stats.hallucinated > 0)
     .map(([symbol, stats]) => ({
       symbol,
-      rate: Math.round((stats.hallucinated / stats.total) * 100) / 100,
+      rate: round2(stats.hallucinated / stats.total),
     }))
     .sort((a, b) => b.rate - a.rate)
     .slice(0, 5);
@@ -238,7 +238,7 @@ function computeAgentTrend(agentId: string): AgentHallucinationTrend {
     ? cleanTrades.reduce((s, t) => s + t.confidence, 0) / cleanTrades.length
     : 0;
   // Positive = higher confidence when hallucinating (bad sign)
-  const confidenceCorrelation = Math.round((avgConfHallucinated - avgConfClean) * 100) / 100;
+  const confidenceCorrelation = round2(avgConfHallucinated - avgConfClean);
 
   return {
     agentId,
@@ -247,7 +247,7 @@ function computeAgentTrend(agentId: string): AgentHallucinationTrend {
     rolling30: round3(rolling30),
     allTimeRate: round3(allTimeRate),
     trend,
-    avgSeverity: Math.round(avgSeverity * 100) / 100,
+    avgSeverity: round2(avgSeverity),
     totalEvents,
     totalTrades,
     mostCommonType,

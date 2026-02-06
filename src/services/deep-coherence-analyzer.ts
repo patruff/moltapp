@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { mean, round3, splitSentences } from "../lib/math-utils.ts";
+import { mean, round2, round3, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,15 +206,14 @@ export function analyzeDeepCoherence(
   }
 
   // Compute overall score
-  const overallScore = Math.round(
-    (logicalStructure.score * logicalStructure.weight +
+  const overallScore = round2(
+    logicalStructure.score * logicalStructure.weight +
       evidenceGrounding.score * evidenceGrounding.weight +
       riskAwareness.score * riskAwareness.weight +
       temporalReasoning.score * temporalReasoning.weight +
       counterfactualThinking.score * counterfactualThinking.weight +
-      quantitativeRigor.score * quantitativeRigor.weight) *
-      100,
-  ) / 100;
+      quantitativeRigor.score * quantitativeRigor.weight,
+  );
 
   // Text quality bonus/penalty
   let adjustedScore = overallScore;
@@ -226,7 +225,7 @@ export function analyzeDeepCoherence(
     strengths.push("Rich vocabulary and detailed analysis");
   }
 
-  const finalScore = Math.round(Math.min(1, Math.max(0, adjustedScore)) * 100) / 100;
+  const finalScore = round2(Math.min(1, Math.max(0, adjustedScore)));
 
   return {
     overallScore: finalScore,
@@ -405,7 +404,7 @@ function computeTextMetrics(reasoning: string): TextMetrics {
     wordCount: words.length,
     sentenceCount: sentences.length,
     avgWordsPerSentence: sentences.length > 0 ? Math.round((words.length / sentences.length) * 10) / 10 : 0,
-    uniqueWordRatio: words.length > 0 ? Math.round((uniqueWords.size / words.length) * 100) / 100 : 0,
+    uniqueWordRatio: words.length > 0 ? round2(uniqueWords.size / words.length) : 0,
     technicalTermDensity: words.length > 0 ? round3(technicalCount / words.length) : 0,
     quantitativeClaimCount: quantClaims?.length ?? 0,
   };
@@ -476,7 +475,7 @@ export function getAgentDeepCoherenceStats(agentId: string) {
   return {
     agentId,
     totalAnalyzed: history.length,
-    avgOverallScore: Math.round(avgScore * 100) / 100,
+    avgOverallScore: round2(avgScore),
     avgGrade: computeGrade(avgScore),
     dimensionAverages: dimAvgs,
     strengthFrequency: Array.from(strengthCounts.entries())

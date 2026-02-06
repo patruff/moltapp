@@ -17,6 +17,8 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -720,10 +722,6 @@ function generateInsights(
 // ---------------------------------------------------------------------------
 // Utilities
 // ---------------------------------------------------------------------------
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 /**
  * Reset all stored round history (for testing).
