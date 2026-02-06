@@ -15,6 +15,8 @@
  * - Export-ready researcher payloads (JSONL, CSV, summary stats)
  */
 
+import { normalize } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -166,7 +168,7 @@ export function recordV17Scores(
 
   // Build pillar details
   const pillars: PillarScore[] = Object.entries(V17_PILLAR_WEIGHTS).map(([name, weight]) => {
-    const score = Math.max(0, Math.min(1, scores[name] ?? 0.5));
+    const score = normalize(scores[name] ?? 0.5);
     return {
       name,
       score,
