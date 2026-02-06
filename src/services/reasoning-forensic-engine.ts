@@ -14,6 +14,7 @@
  */
 
 import { clamp } from "../lib/math-utils.ts";
+import { FORENSIC_COMPONENT_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,13 +154,13 @@ export function analyzeForensics(
   if (history.length > MAX_HISTORY_PER_AGENT) history.length = MAX_HISTORY_PER_AGENT;
   agentHistory.set(agentId, history);
 
-  // Composite: structure 20%, depth 25%, originality 20%, clarity 15%, cross-trade 20%
+  // Composite: weighted average of 5 forensic dimensions (see FORENSIC_COMPONENT_WEIGHTS)
   const compositeScore = Math.round(
-    (structural.structureScore * 0.20 +
-      depth.depthScore * 0.25 +
-      originality.originalityScore * 0.20 +
-      clarity.clarityScore * 0.15 +
-      (1 - (crossTrade.flags.length * 0.15)) * 0.20) * 100,
+    (structural.structureScore * FORENSIC_COMPONENT_WEIGHTS.structure +
+      depth.depthScore * FORENSIC_COMPONENT_WEIGHTS.depth +
+      originality.originalityScore * FORENSIC_COMPONENT_WEIGHTS.originality +
+      clarity.clarityScore * FORENSIC_COMPONENT_WEIGHTS.clarity +
+      (1 - (crossTrade.flags.length * 0.15)) * FORENSIC_COMPONENT_WEIGHTS.cross_trade) * 100,
   ) / 100;
 
   const clampedScore = clamp(compositeScore, 0, 1);

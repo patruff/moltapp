@@ -85,6 +85,47 @@ export const CERTIFICATION_WEIGHTS_ARRAY = [
   CERTIFICATION_PILLAR_WEIGHTS.actionability,
 ] as const;
 
+/**
+ * Reasoning Forensic Analysis Component Weights (5 dimensions, sum = 1.00)
+ *
+ * Maps forensic analysis dimensions to their contribution to composite reasoning quality score.
+ * These weights balance structural soundness, analytical depth, and consistency.
+ *
+ * Design rationale:
+ * - Depth (25%): Highest weight because multi-angle analysis correlates with decision quality.
+ *   Agents considering 4+ analytical dimensions (technical + fundamental + sentiment + timing)
+ *   consistently outperform those with single-angle reasoning.
+ * - Structure (20%): Well-organized reasoning enables better validation and reduces
+ *   miscommunication between reasoning and action. Clear structure = verifiable logic.
+ * - Originality (20%): Templated reasoning indicates pattern-matching without genuine analysis.
+ *   Unique perspectives and novel connections signal actual thinking vs. rote copying.
+ * - Cross-Trade Integrity (20%): Flags inconsistencies that suggest either learning (good)
+ *   or drift (bad). Tracks whether agent's reasoning evolves coherently over time.
+ * - Clarity (15%): Least critical because unclear reasoning can still be parsed with effort.
+ *   Readability is supportive, not foundational to quality.
+ *
+ * Array order matches dimension sequence: [structure, depth, originality, clarity, cross_trade]
+ */
+export const FORENSIC_COMPONENT_WEIGHTS = {
+  structure: 0.20,
+  depth: 0.25, // Highest: multi-angle analysis = stronger decisions
+  originality: 0.20,
+  clarity: 0.15,
+  cross_trade: 0.20,
+} as const;
+
+/**
+ * Convert forensic component weights to array in canonical dimension order.
+ * Use this for weighted averaging in analyzeReasoningForensics().
+ */
+export const FORENSIC_WEIGHTS_ARRAY = [
+  FORENSIC_COMPONENT_WEIGHTS.structure,
+  FORENSIC_COMPONENT_WEIGHTS.depth,
+  FORENSIC_COMPONENT_WEIGHTS.originality,
+  FORENSIC_COMPONENT_WEIGHTS.clarity,
+  FORENSIC_COMPONENT_WEIGHTS.cross_trade,
+] as const;
+
 // Type safety: ensure weights sum to 1.0 (allow for floating point rounding)
 const validateWeights = (weights: readonly number[], name: string) => {
   const sum = weights.reduce((acc, w) => acc + w, 0);
@@ -97,3 +138,4 @@ const validateWeights = (weights: readonly number[], name: string) => {
 // Validate at module load time
 validateWeights(GENOME_WEIGHTS_ARRAY, "GENOME_PILLAR_WEIGHTS");
 validateWeights(CERTIFICATION_WEIGHTS_ARRAY, "CERTIFICATION_PILLAR_WEIGHTS");
+validateWeights(FORENSIC_WEIGHTS_ARRAY, "FORENSIC_COMPONENT_WEIGHTS");
