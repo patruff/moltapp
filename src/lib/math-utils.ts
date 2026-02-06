@@ -82,6 +82,23 @@ export function round4(value: number): number {
 }
 
 /**
+ * Counts the number of words in a text string.
+ * Splits on whitespace and filters out empty strings for accurate word counting.
+ *
+ * @param text - The text to count words in
+ * @returns The number of words in the text
+ *
+ * @example
+ * countWords("Hello world") // returns 2
+ * countWords("Multiple   spaces   between") // returns 3
+ * countWords("") // returns 0
+ * countWords("  trim me  ") // returns 2
+ */
+export function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+}
+
+/**
  * Calculates the average of a numeric property across an array of objects.
  * Returns 0 for empty arrays (safe division-by-zero handling).
  *

@@ -45,6 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -1714,7 +1715,7 @@ async function executeTradingRound(
         hallucinationCount: 0, // Will be enriched
         disciplinePass: true, // Will be enriched
         pnlPercent: 0, // Will be enriched by financial tracker
-        depthScore: Math.min(1, r.decision.reasoning.split(/\s+/).length / 100),
+        depthScore: Math.min(1, countWords(r.decision.reasoning) / 100),
         originalityScore: 0.5, // Will be enriched
       };
     });
@@ -2188,7 +2189,7 @@ async function executeTradingRound(
         coherenceScore: normConf * 0.6 + 0.3,
         hallucinationFlags: [],
         disciplinePass: true,
-        depthScore: Math.min(1, r.decision.reasoning.split(/\s+/).length / 100),
+        depthScore: Math.min(1, countWords(r.decision.reasoning) / 100),
         forensicScore: 0.5,
         efficiencyScore: 0.5,
         witnesses: allAgentIds.filter((id) => id !== r.agentId),
@@ -2235,7 +2236,7 @@ async function executeTradingRound(
           provenance_integrity: 0.8,
           model_comparison: 0.5,
           metacognition: normConf * 0.4 + 0.3,
-          reasoning_efficiency: Math.min(1, r.decision.reasoning.split(/\s+/).length / 150),
+          reasoning_efficiency: Math.min(1, countWords(r.decision.reasoning) / 150),
           forensic_ledger: ledgerEntry ? 0.9 : 0.3,
           strategy_genome: genomePillarScore,
         },
@@ -2284,7 +2285,7 @@ async function executeTradingRound(
       const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
       const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
       const coherenceEst = normConf * 0.6 + 0.3;
-      const reasoningWords = r.decision.reasoning.split(/\s+/).length;
+      const reasoningWords = countWords(r.decision.reasoning);
 
       // 1. Adversarial robustness analysis
       const adversarial = analyzeAdversarialRobustness(
