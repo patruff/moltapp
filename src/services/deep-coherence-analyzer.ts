@@ -306,6 +306,43 @@ const TEXT_PENALTY_VERY_SHORT = 0.5;
 /** Score multiplier for detailed, rich vocabulary reasoning (100+ words, >0.5 unique ratio) */
 const TEXT_BONUS_DETAILED_RICH = 1.05;
 
+/**
+ * Scoring Bounds and Normalization
+ *
+ * Score caps and floors ensure all dimension and overall scores remain in valid [0, 1] range.
+ * Used consistently across all scoring functions.
+ */
+
+/** Maximum allowed score (upper bound for all dimension scores) */
+const SCORE_MAX = 1;
+
+/** Minimum allowed score (lower bound for all dimension scores) */
+const SCORE_MIN = 0;
+
+/**
+ * Text Processing Parameters
+ *
+ * Controls text analysis behavior for computing text metrics.
+ */
+
+/** Minimum sentence length (in characters) for sentence splitting */
+const SENTENCE_MIN_LENGTH = 3;
+
+/** Rounding precision for avgWordsPerSentence (tenths place) */
+const AVG_WORDS_ROUNDING_PRECISION = 10;
+
+/**
+ * Aggregate Analysis Parameters
+ *
+ * Controls how strength/weakness frequencies are displayed in aggregate stats.
+ */
+
+/** Maximum number of top strengths to display in agent stats */
+const TOP_STRENGTHS_DISPLAY_LIMIT = 5;
+
+/** Maximum number of top weaknesses to display in agent stats */
+const TOP_WEAKNESSES_DISPLAY_LIMIT = 5;
+
 // ---------------------------------------------------------------------------
 // Pattern Libraries
 // ---------------------------------------------------------------------------
@@ -466,11 +503,11 @@ export function analyzeDeepCoherence(
     adjustedScore *= TEXT_PENALTY_VERY_SHORT;
     weaknesses.push("Reasoning is very short — insufficient depth for benchmark");
   } else if (textMetrics.wordCount >= TEXT_DETAILED_WORD_COUNT && textMetrics.uniqueWordRatio > TEXT_UNIQUE_WORD_RATIO_THRESHOLD) {
-    adjustedScore = Math.min(1, adjustedScore * TEXT_BONUS_DETAILED_RICH);
+    adjustedScore = Math.min(SCORE_MAX, adjustedScore * TEXT_BONUS_DETAILED_RICH);
     strengths.push("Rich vocabulary and detailed analysis");
   }
 
-  const finalScore = round2(Math.min(1, Math.max(0, adjustedScore)));
+  const finalScore = round2(Math.min(SCORE_MAX, Math.max(SCORE_MIN, adjustedScore)));
 
   return {
     overallScore: finalScore,
@@ -510,7 +547,7 @@ function scoreDimension(
   }
 
   return {
-    score: Math.min(1, rawScore),
+    score: Math.min(SCORE_MAX, rawScore),
     evidence,
     weight,
   };
@@ -572,7 +609,7 @@ function scoreEvidenceGrounding(
   }
 
   return {
-    score: Math.min(1, score),
+    score: Math.min(SCORE_MAX, score),
     evidence,
     weight,
   };
@@ -622,7 +659,7 @@ function scoreQuantitativeRigor(
   }
 
   return {
-    score: Math.min(1, score),
+    score: Math.min(SCORE_MAX, score),
     evidence,
     weight,
   };
@@ -630,7 +667,7 @@ function scoreQuantitativeRigor(
 
 function computeTextMetrics(reasoning: string): TextMetrics {
   const words = reasoning.split(/\s+/).filter((w) => w.length > 0);
-  const sentences = splitSentences(reasoning, 3);
+  const sentences = splitSentences(reasoning, SENTENCE_MIN_LENGTH);
   const uniqueWords = new Set(words.map((w) => w.toLowerCase()));
 
   // Count technical terms
@@ -648,7 +685,7 @@ function computeTextMetrics(reasoning: string): TextMetrics {
   return {
     wordCount: words.length,
     sentenceCount: sentences.length,
-    avgWordsPerSentence: sentences.length > 0 ? Math.round((words.length / sentences.length) * 10) / 10 : 0,
+    avgWordsPerSentence: sentences.length > 0 ? Math.round((words.length / sentences.length) * AVG_WORDS_ROUNDING_PRECISION) / AVG_WORDS_ROUNDING_PRECISION : 0,
     uniqueWordRatio: words.length > 0 ? round2(uniqueWords.size / words.length) : 0,
     technicalTermDensity: words.length > 0 ? round3(technicalCount / words.length) : 0,
     quantitativeClaimCount: quantClaims?.length ?? 0,
@@ -725,11 +762,11 @@ export function getAgentDeepCoherenceStats(agentId: string) {
     dimensionAverages: dimAvgs,
     strengthFrequency: Array.from(strengthCounts.entries())
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
+      .slice(0, TOP_STRENGTHS_DISPLAY_LIMIT)
       .map(([text, count]) => ({ text, count })),
     weaknessFrequency: Array.from(weaknessCounts.entries())
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
+      .slice(0, TOP_WEAKNESSES_DISPLAY_LIMIT)
       .map(([text, count]) => ({ text, count })),
   };
 }
