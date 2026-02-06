@@ -14,7 +14,7 @@
  */
 
 import { clamp } from "../lib/math-utils.ts";
-import { FORENSIC_COMPONENT_WEIGHTS } from "../lib/scoring-weights.ts";
+import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types

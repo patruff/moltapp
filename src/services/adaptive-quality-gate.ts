@@ -19,6 +19,7 @@ import {
   analyzeCoherence,
   detectHallucinations,
 } from "./coherence-analyzer.ts";
+import { ADAPTIVE_GATE_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -187,7 +188,9 @@ export function evaluateWithAdaptiveGate(
   const hallucinationFree = 1 - hallucinations.severity;
   const disciplineScore = disciplinePass ? 1.0 : 0.0;
   const compositeScore = round(
-    coherence.score * 0.4 + hallucinationFree * 0.3 + disciplineScore * 0.3,
+    coherence.score * ADAPTIVE_GATE_WEIGHTS.coherence +
+    hallucinationFree * ADAPTIVE_GATE_WEIGHTS.hallucination_free +
+    disciplineScore * ADAPTIVE_GATE_WEIGHTS.discipline,
   );
 
   // --- Threshold comparisons ---
@@ -315,7 +318,9 @@ export function recordQualityDataPoint(
   const hallucinationFree = 1 - hallucinationSeverity;
   const disciplineScore = disciplinePass ? 1.0 : 0.0;
   const compositeScore = round(
-    coherence * 0.4 + hallucinationFree * 0.3 + disciplineScore * 0.3,
+    coherence * ADAPTIVE_GATE_WEIGHTS.coherence +
+    hallucinationFree * ADAPTIVE_GATE_WEIGHTS.hallucination_free +
+    disciplineScore * ADAPTIVE_GATE_WEIGHTS.discipline,
   );
 
   history.push({
