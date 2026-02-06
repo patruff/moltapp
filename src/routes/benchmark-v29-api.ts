@@ -19,7 +19,7 @@ import {
   getV29Leaderboard,
   type V29BenchmarkScore,
 } from "../services/v29-benchmark-engine.ts";
-import { sumByKey } from "../lib/math-utils.ts";
+import { groupByKey, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV29ApiRoutes = new Hono();
 
@@ -160,19 +160,14 @@ benchmarkV29ApiRoutes.get("/leaderboard/:agentId", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV29ApiRoutes.get("/dimensions", (c) => {
-  const categories = new Map<string, (typeof V29_DIMENSIONS)[number][]>();
-  for (const dim of V29_DIMENSIONS) {
-    const list = categories.get(dim.category) ?? [];
-    list.push(dim);
-    categories.set(dim.category, list);
-  }
+  const categories = groupByKey(V29_DIMENSIONS, 'category');
 
   return c.json({
     ok: true,
     version: "v29",
     totalDimensions: 18,
     totalWeight: TOTAL_WEIGHT,
-    categories: Object.fromEntries(categories),
+    categories,
     dimensions: V29_DIMENSIONS.map((d) => ({
       ...d,
       weightPercent: Math.round((d.weight / TOTAL_WEIGHT) * 100 * 10) / 10,

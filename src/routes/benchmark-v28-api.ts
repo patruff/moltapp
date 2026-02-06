@@ -25,7 +25,7 @@ import {
   type V28CompositeScore,
 } from "../services/v28-benchmark-engine.ts";
 import { V28_DIMENSIONS } from "../schemas/benchmark-v28.ts";
-import { sumByKey } from "../lib/math-utils.ts";
+import { groupByKey, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV28ApiRoutes = new Hono();
 
@@ -236,19 +236,14 @@ benchmarkV28ApiRoutes.get("/rqi/:agentId", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV28ApiRoutes.get("/dimensions", (c) => {
-  const categories = new Map<string, typeof V28_DIMENSIONS[number][]>();
-  for (const dim of V28_DIMENSIONS) {
-    const list = categories.get(dim.category) ?? [];
-    list.push(dim);
-    categories.set(dim.category, list);
-  }
+  const categories = groupByKey(V28_DIMENSIONS, 'category');
 
   return c.json({
     ok: true,
     version: "v28",
     totalDimensions: 16,
     totalWeight: TOTAL_WEIGHT,
-    categories: Object.fromEntries(categories),
+    categories,
     dimensions: V28_DIMENSIONS.map((d) => ({
       ...d,
       weightPercent: Math.round((d.weight / TOTAL_WEIGHT) * 100 * 10) / 10,
