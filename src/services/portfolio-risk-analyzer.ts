@@ -27,6 +27,185 @@ import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Risk Analysis Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * VaR/CVaR Computation Parameters
+ * Controls Value at Risk and Conditional VaR (Expected Shortfall) calculations
+ */
+
+/** Minimum return samples required for historical VaR calculation */
+const VAR_MIN_SAMPLES = 5;
+
+/** Default VaR estimate (%) when insufficient data — conservative baseline */
+const VAR_DEFAULT = 2.5;
+
+/** Default CVaR estimate (%) when insufficient data — conservative baseline */
+const CVAR_DEFAULT = 3.5;
+
+/** CVaR multiplier when tail average cannot be computed (CVaR ≈ VaR × 1.4) */
+const CVAR_MULTIPLIER_FALLBACK = 1.4;
+
+/** Percentile for VaR calculation (0.05 = 95th percentile, 5% worst case) */
+const VAR_PERCENTILE = 0.05;
+
+/**
+ * Beta Calculation Parameters
+ * Controls portfolio beta vs SPYx (market proxy) computation
+ */
+
+/** Minimum return samples required for beta calculation */
+const BETA_MIN_SAMPLES = 5;
+
+/** Default beta when insufficient data (1.0 = market beta) */
+const BETA_DEFAULT = 1.0;
+
+/** Minimum beta clamp bound (prevents extreme negative beta) */
+const BETA_CLAMP_MIN = -3;
+
+/** Maximum beta clamp bound (prevents extreme positive beta) */
+const BETA_CLAMP_MAX = 3;
+
+/**
+ * Position Risk Thresholds
+ * Controls position-level risk classification (low/moderate/high)
+ */
+
+/** Portfolio weight (%) threshold for HIGH risk classification */
+const POSITION_WEIGHT_HIGH_THRESHOLD = 20;
+
+/** Portfolio weight (%) threshold for MODERATE risk classification */
+const POSITION_WEIGHT_MODERATE_THRESHOLD = 10;
+
+/** Stock volatility (%) threshold for HIGH risk classification */
+const POSITION_VOLATILITY_HIGH_THRESHOLD = 3;
+
+/** Stock volatility (%) threshold for MODERATE risk classification */
+const POSITION_VOLATILITY_MODERATE_THRESHOLD = 2;
+
+/** Max drawdown estimation multiplier (maxDD ≈ volatility × 2.5) */
+const POSITION_MAX_DRAWDOWN_MULTIPLIER = 2.5;
+
+/**
+ * Stress Test Scenario Shock Values (%)
+ * Defines sector-level shocks for what-if scenario analysis
+ */
+
+// Tech Crash Scenario (-20%)
+const STRESS_TECH_CRASH_TECHNOLOGY = -20;
+const STRESS_TECH_CRASH_FINANCIAL = -5;
+const STRESS_TECH_CRASH_COMMUNICATION = -15;
+const STRESS_TECH_CRASH_CONSUMER = -10;
+const STRESS_TECH_CRASH_HEALTHCARE = -3;
+const STRESS_TECH_CRASH_INDEX_DIVERSIFIED = -12;
+const STRESS_TECH_CRASH_INDEX_TECH = -18;
+
+// Market Rally Scenario (+10%)
+const STRESS_RALLY_TECHNOLOGY = 12;
+const STRESS_RALLY_FINANCIAL = 8;
+const STRESS_RALLY_COMMUNICATION = 10;
+const STRESS_RALLY_CONSUMER = 10;
+const STRESS_RALLY_HEALTHCARE = 7;
+const STRESS_RALLY_INDEX_DIVERSIFIED = 10;
+const STRESS_RALLY_INDEX_TECH = 11;
+
+// Interest Rate Shock Scenario
+const STRESS_RATE_TECHNOLOGY = -12;
+const STRESS_RATE_FINANCIAL = 5;
+const STRESS_RATE_COMMUNICATION = -8;
+const STRESS_RATE_CONSUMER = -6;
+const STRESS_RATE_HEALTHCARE = -3;
+const STRESS_RATE_INDEX_DIVERSIFIED = -5;
+const STRESS_RATE_INDEX_TECH = -10;
+
+// Crypto Contagion Scenario
+const STRESS_CRYPTO_TECHNOLOGY = -5;
+const STRESS_CRYPTO_FINANCIAL = -15;
+const STRESS_CRYPTO_COMMUNICATION = -3;
+const STRESS_CRYPTO_CONSUMER = -5;
+const STRESS_CRYPTO_HEALTHCARE = -1;
+const STRESS_CRYPTO_INDEX_DIVERSIFIED = -4;
+const STRESS_CRYPTO_INDEX_TECH = -6;
+
+// Black Swan Scenario (-30%)
+const STRESS_SWAN_TECHNOLOGY = -30;
+const STRESS_SWAN_FINANCIAL = -25;
+const STRESS_SWAN_COMMUNICATION = -28;
+const STRESS_SWAN_CONSUMER = -32;
+const STRESS_SWAN_HEALTHCARE = -20;
+const STRESS_SWAN_INDEX_DIVERSIFIED = -27;
+const STRESS_SWAN_INDEX_TECH = -32;
+
+/**
+ * Risk Score Composite Weights and Thresholds (0-100 scale)
+ * Controls calculation of overall portfolio risk score
+ */
+
+// VaR Contribution Weights (0-25 points)
+const RISK_SCORE_VAR_EXTREME_POINTS = 25;
+const RISK_SCORE_VAR_HIGH_POINTS = 18;
+const RISK_SCORE_VAR_MODERATE_POINTS = 12;
+const RISK_SCORE_VAR_LOW_MULTIPLIER = 5; // score = VaR% × 5
+
+const RISK_THRESHOLD_VAR_EXTREME = 5; // % daily loss
+const RISK_THRESHOLD_VAR_HIGH = 3; // % daily loss
+const RISK_THRESHOLD_VAR_MODERATE = 2; // % daily loss
+
+// Beta Contribution Weights (0-15 points)
+const RISK_SCORE_BETA_EXTREME_POINTS = 15;
+const RISK_SCORE_BETA_MODERATE_POINTS = 10;
+const RISK_SCORE_BETA_LOW_MULTIPLIER = 10; // score = betaDistance × 10
+
+const RISK_THRESHOLD_BETA_EXTREME = 1; // distance from market beta
+const RISK_THRESHOLD_BETA_MODERATE = 0.5; // distance from market beta
+
+// Concentration Risk Weights (0-20 points)
+const RISK_SCORE_CONCENTRATION_EXTREME_POINTS = 20;
+const RISK_SCORE_CONCENTRATION_HIGH_POINTS = 14;
+const RISK_SCORE_CONCENTRATION_MODERATE_POINTS = 8;
+const RISK_SCORE_CONCENTRATION_LOW_DIVISOR = 5; // score = allocation% / 5
+
+const RISK_THRESHOLD_CONCENTRATION_EXTREME = 60; // % in one sector
+const RISK_THRESHOLD_CONCENTRATION_HIGH = 40; // % in one sector
+const RISK_THRESHOLD_CONCENTRATION_MODERATE = 25; // % in one sector
+
+// Drawdown Contribution Weights (0-20 points)
+const RISK_SCORE_DRAWDOWN_SEVERE_POINTS = 20;
+const RISK_SCORE_DRAWDOWN_HIGH_POINTS = 14;
+const RISK_SCORE_DRAWDOWN_MODERATE_POINTS = 8;
+
+const RISK_THRESHOLD_DRAWDOWN_SEVERE = 15; // % max drawdown
+const RISK_THRESHOLD_DRAWDOWN_HIGH = 8; // % max drawdown
+const RISK_THRESHOLD_DRAWDOWN_MODERATE = 4; // % max drawdown
+
+// Cash Buffer Weights (0-10 points, inverse: lower cash = higher risk)
+const RISK_SCORE_CASH_CRITICAL_POINTS = 10;
+const RISK_SCORE_CASH_LOW_POINTS = 6;
+const RISK_SCORE_CASH_MODERATE_POINTS = 3;
+
+const RISK_THRESHOLD_CASH_CRITICAL = 5; // % cash
+const RISK_THRESHOLD_CASH_LOW = 15; // % cash
+const RISK_THRESHOLD_CASH_MODERATE = 30; // % cash
+
+// Position Count Risk Weights (0-10 points)
+const RISK_SCORE_POSITION_HIGH_POINTS = 10;
+const RISK_SCORE_POSITION_MODERATE_POINTS = 5;
+
+const RISK_THRESHOLD_POSITION_HIGH = 3; // high-risk positions count
+const RISK_THRESHOLD_POSITION_MODERATE = 1; // high-risk positions count
+
+/**
+ * Risk Level Classification Thresholds
+ * Maps composite risk score (0-100) to risk level labels
+ */
+
+const RISK_LEVEL_CRITICAL_THRESHOLD = 75; // score ≥ 75 = CRITICAL
+const RISK_LEVEL_HIGH_THRESHOLD = 50; // score ≥ 50 = HIGH
+const RISK_LEVEL_MODERATE_THRESHOLD = 25; // score ≥ 25 = MODERATE
+// score < 25 = LOW
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -265,22 +444,22 @@ export async function analyzePortfolioRisk(
 // ---------------------------------------------------------------------------
 
 function computeVaR(returns: number[]): { var95: number; cvar95: number } {
-  if (returns.length < 5) {
-    return { var95: 2.5, cvar95: 3.5 }; // Default conservative estimates
+  if (returns.length < VAR_MIN_SAMPLES) {
+    return { var95: VAR_DEFAULT, cvar95: CVAR_DEFAULT };
   }
 
   // Sort returns ascending (worst to best)
   const sorted = [...returns].sort((a, b) => a - b);
 
   // 95th percentile: 5% worst case
-  const index95 = Math.floor(sorted.length * 0.05);
+  const index95 = Math.floor(sorted.length * VAR_PERCENTILE);
   const var95 = Math.abs(sorted[index95] ?? sorted[0]);
 
   // Conditional VaR: average of returns worse than VaR
   const tailReturns = sorted.slice(0, index95 + 1);
   const cvar95 = tailReturns.length > 0
     ? Math.abs(tailReturns.reduce((a, b) => a + b, 0) / tailReturns.length)
-    : var95 * 1.4;
+    : var95 * CVAR_MULTIPLIER_FALLBACK;
 
   return {
     var95: round2(var95),
@@ -296,8 +475,8 @@ function computeBeta(agentId: string, portfolioReturns: number[]): number {
   // Use SPYx returns as market proxy
   const marketReturns = returnHistory.get("market_spy") ?? [];
 
-  if (portfolioReturns.length < 5 || marketReturns.length < 5) {
-    return 1.0; // Default to market beta
+  if (portfolioReturns.length < BETA_MIN_SAMPLES || marketReturns.length < BETA_MIN_SAMPLES) {
+    return BETA_DEFAULT;
   }
 
   const minLen = Math.min(portfolioReturns.length, marketReturns.length);
@@ -317,10 +496,10 @@ function computeBeta(agentId: string, portfolioReturns: number[]): number {
     marketVariance += mDiff * mDiff;
   }
 
-  if (marketVariance === 0) return 1.0;
+  if (marketVariance === 0) return BETA_DEFAULT;
 
   const beta = covariance / marketVariance;
-  return round2(clamp(beta, -3, 3));
+  return round2(clamp(beta, BETA_CLAMP_MIN, BETA_CLAMP_MAX));
 }
 
 // ---------------------------------------------------------------------------
@@ -394,8 +573,8 @@ function computePositionRisk(
 
     // Risk level based on weight and volatility
     let riskLevel: "low" | "moderate" | "high" = "low";
-    if (weight > 20 || stockVol > 3) riskLevel = "high";
-    else if (weight > 10 || stockVol > 2) riskLevel = "moderate";
+    if (weight > POSITION_WEIGHT_HIGH_THRESHOLD || stockVol > POSITION_VOLATILITY_HIGH_THRESHOLD) riskLevel = "high";
+    else if (weight > POSITION_WEIGHT_MODERATE_THRESHOLD || stockVol > POSITION_VOLATILITY_MODERATE_THRESHOLD) riskLevel = "moderate";
 
     return {
       symbol: pos.symbol,
@@ -403,7 +582,7 @@ function computePositionRisk(
       varContribution: round2(varContribution),
       volatility: stockVol,
       unrealizedPnl: 0, // Would need current price for real P&L
-      maxDrawdown: stockVol * 2.5, // Rough estimate
+      maxDrawdown: stockVol * POSITION_MAX_DRAWDOWN_MULTIPLIER,
       riskLevel,
     };
   });
@@ -491,65 +670,65 @@ function runStressTests(
       name: "Tech Crash (-20%)",
       description: "Major tech selloff: all tech stocks drop 20%, financials drop 5%",
       shocks: {
-        Technology: -20,
-        "Financial Services": -5,
-        "Communication Services": -15,
-        "Consumer Cyclical": -10,
-        Healthcare: -3,
-        "Index (Diversified)": -12,
-        "Index (Tech-Heavy)": -18,
+        Technology: STRESS_TECH_CRASH_TECHNOLOGY,
+        "Financial Services": STRESS_TECH_CRASH_FINANCIAL,
+        "Communication Services": STRESS_TECH_CRASH_COMMUNICATION,
+        "Consumer Cyclical": STRESS_TECH_CRASH_CONSUMER,
+        Healthcare: STRESS_TECH_CRASH_HEALTHCARE,
+        "Index (Diversified)": STRESS_TECH_CRASH_INDEX_DIVERSIFIED,
+        "Index (Tech-Heavy)": STRESS_TECH_CRASH_INDEX_TECH,
       },
     },
     {
       name: "Market Rally (+10%)",
       description: "Broad market rally: all sectors gain 8-12%",
       shocks: {
-        Technology: 12,
-        "Financial Services": 8,
-        "Communication Services": 10,
-        "Consumer Cyclical": 10,
-        Healthcare: 7,
-        "Index (Diversified)": 10,
-        "Index (Tech-Heavy)": 11,
+        Technology: STRESS_RALLY_TECHNOLOGY,
+        "Financial Services": STRESS_RALLY_FINANCIAL,
+        "Communication Services": STRESS_RALLY_COMMUNICATION,
+        "Consumer Cyclical": STRESS_RALLY_CONSUMER,
+        Healthcare: STRESS_RALLY_HEALTHCARE,
+        "Index (Diversified)": STRESS_RALLY_INDEX_DIVERSIFIED,
+        "Index (Tech-Heavy)": STRESS_RALLY_INDEX_TECH,
       },
     },
     {
       name: "Interest Rate Shock",
       description: "Unexpected rate hike: growth stocks drop, financials rally",
       shocks: {
-        Technology: -12,
-        "Financial Services": 5,
-        "Communication Services": -8,
-        "Consumer Cyclical": -6,
-        Healthcare: -3,
-        "Index (Diversified)": -5,
-        "Index (Tech-Heavy)": -10,
+        Technology: STRESS_RATE_TECHNOLOGY,
+        "Financial Services": STRESS_RATE_FINANCIAL,
+        "Communication Services": STRESS_RATE_COMMUNICATION,
+        "Consumer Cyclical": STRESS_RATE_CONSUMER,
+        Healthcare: STRESS_RATE_HEALTHCARE,
+        "Index (Diversified)": STRESS_RATE_INDEX_DIVERSIFIED,
+        "Index (Tech-Heavy)": STRESS_RATE_INDEX_TECH,
       },
     },
     {
       name: "Crypto Contagion",
       description: "Crypto market crash drags down crypto-adjacent stocks",
       shocks: {
-        Technology: -5,
-        "Financial Services": -15,
-        "Communication Services": -3,
-        "Consumer Cyclical": -5,
-        Healthcare: -1,
-        "Index (Diversified)": -4,
-        "Index (Tech-Heavy)": -6,
+        Technology: STRESS_CRYPTO_TECHNOLOGY,
+        "Financial Services": STRESS_CRYPTO_FINANCIAL,
+        "Communication Services": STRESS_CRYPTO_COMMUNICATION,
+        "Consumer Cyclical": STRESS_CRYPTO_CONSUMER,
+        Healthcare: STRESS_CRYPTO_HEALTHCARE,
+        "Index (Diversified)": STRESS_CRYPTO_INDEX_DIVERSIFIED,
+        "Index (Tech-Heavy)": STRESS_CRYPTO_INDEX_TECH,
       },
     },
     {
       name: "Black Swan (-30%)",
       description: "Severe market crash: all stocks drop 25-35%",
       shocks: {
-        Technology: -30,
-        "Financial Services": -25,
-        "Communication Services": -28,
-        "Consumer Cyclical": -32,
-        Healthcare: -20,
-        "Index (Diversified)": -27,
-        "Index (Tech-Heavy)": -32,
+        Technology: STRESS_SWAN_TECHNOLOGY,
+        "Financial Services": STRESS_SWAN_FINANCIAL,
+        "Communication Services": STRESS_SWAN_COMMUNICATION,
+        "Consumer Cyclical": STRESS_SWAN_CONSUMER,
+        Healthcare: STRESS_SWAN_HEALTHCARE,
+        "Index (Diversified)": STRESS_SWAN_INDEX_DIVERSIFIED,
+        "Index (Tech-Heavy)": STRESS_SWAN_INDEX_TECH,
       },
     },
   ];
@@ -604,47 +783,95 @@ function computeRiskScore(params: {
   let score = 0;
 
   // VaR contribution (0-25 points)
-  if (params.var95 > 5) { score += 25; warnings.push("Extreme VaR: potential daily loss > 5%"); }
-  else if (params.var95 > 3) { score += 18; warnings.push("High VaR: potential daily loss > 3%"); }
-  else if (params.var95 > 2) { score += 12; }
-  else { score += Math.round(params.var95 * 5); }
+  if (params.var95 > RISK_THRESHOLD_VAR_EXTREME) {
+    score += RISK_SCORE_VAR_EXTREME_POINTS;
+    warnings.push(`Extreme VaR: potential daily loss > ${RISK_THRESHOLD_VAR_EXTREME}%`);
+  }
+  else if (params.var95 > RISK_THRESHOLD_VAR_HIGH) {
+    score += RISK_SCORE_VAR_HIGH_POINTS;
+    warnings.push(`High VaR: potential daily loss > ${RISK_THRESHOLD_VAR_HIGH}%`);
+  }
+  else if (params.var95 > RISK_THRESHOLD_VAR_MODERATE) {
+    score += RISK_SCORE_VAR_MODERATE_POINTS;
+  }
+  else {
+    score += Math.round(params.var95 * RISK_SCORE_VAR_LOW_MULTIPLIER);
+  }
 
   // Beta contribution (0-15 points)
-  const betaRisk = Math.abs(params.beta - 1); // Distance from market beta
-  if (betaRisk > 1) { score += 15; warnings.push(`Portfolio beta ${params.beta.toFixed(2)} — highly leveraged exposure`); }
-  else if (betaRisk > 0.5) { score += 10; }
-  else { score += Math.round(betaRisk * 10); }
+  const betaRisk = Math.abs(params.beta - BETA_DEFAULT);
+  if (betaRisk > RISK_THRESHOLD_BETA_EXTREME) {
+    score += RISK_SCORE_BETA_EXTREME_POINTS;
+    warnings.push(`Portfolio beta ${params.beta.toFixed(2)} — highly leveraged exposure`);
+  }
+  else if (betaRisk > RISK_THRESHOLD_BETA_MODERATE) {
+    score += RISK_SCORE_BETA_MODERATE_POINTS;
+  }
+  else {
+    score += Math.round(betaRisk * RISK_SCORE_BETA_LOW_MULTIPLIER);
+  }
 
   // Concentration risk (0-20 points)
   const topSectorAlloc = params.sectorConcentration[0]?.allocation ?? 0;
-  if (topSectorAlloc > 60) { score += 20; warnings.push(`${topSectorAlloc.toFixed(0)}% in one sector — extreme concentration`); }
-  else if (topSectorAlloc > 40) { score += 14; warnings.push(`${topSectorAlloc.toFixed(0)}% in top sector — concentration risk`); }
-  else if (topSectorAlloc > 25) { score += 8; }
-  else { score += Math.round(topSectorAlloc / 5); }
+  if (topSectorAlloc > RISK_THRESHOLD_CONCENTRATION_EXTREME) {
+    score += RISK_SCORE_CONCENTRATION_EXTREME_POINTS;
+    warnings.push(`${topSectorAlloc.toFixed(0)}% in one sector — extreme concentration`);
+  }
+  else if (topSectorAlloc > RISK_THRESHOLD_CONCENTRATION_HIGH) {
+    score += RISK_SCORE_CONCENTRATION_HIGH_POINTS;
+    warnings.push(`${topSectorAlloc.toFixed(0)}% in top sector — concentration risk`);
+  }
+  else if (topSectorAlloc > RISK_THRESHOLD_CONCENTRATION_MODERATE) {
+    score += RISK_SCORE_CONCENTRATION_MODERATE_POINTS;
+  }
+  else {
+    score += Math.round(topSectorAlloc / RISK_SCORE_CONCENTRATION_LOW_DIVISOR);
+  }
 
   // Drawdown contribution (0-20 points)
-  if (params.drawdown.maxDrawdownPercent > 15) { score += 20; warnings.push(`Max drawdown ${params.drawdown.maxDrawdownPercent.toFixed(1)}% — severe`); }
-  else if (params.drawdown.maxDrawdownPercent > 8) { score += 14; }
-  else if (params.drawdown.maxDrawdownPercent > 4) { score += 8; }
-  else { score += Math.round(params.drawdown.maxDrawdownPercent); }
+  if (params.drawdown.maxDrawdownPercent > RISK_THRESHOLD_DRAWDOWN_SEVERE) {
+    score += RISK_SCORE_DRAWDOWN_SEVERE_POINTS;
+    warnings.push(`Max drawdown ${params.drawdown.maxDrawdownPercent.toFixed(1)}% — severe`);
+  }
+  else if (params.drawdown.maxDrawdownPercent > RISK_THRESHOLD_DRAWDOWN_HIGH) {
+    score += RISK_SCORE_DRAWDOWN_HIGH_POINTS;
+  }
+  else if (params.drawdown.maxDrawdownPercent > RISK_THRESHOLD_DRAWDOWN_MODERATE) {
+    score += RISK_SCORE_DRAWDOWN_MODERATE_POINTS;
+  }
+  else {
+    score += Math.round(params.drawdown.maxDrawdownPercent);
+  }
 
   // Cash buffer (0-10 points, lower cash = higher risk)
-  if (params.cashPercent < 5) { score += 10; warnings.push("Cash < 5% — no buying power buffer"); }
-  else if (params.cashPercent < 15) { score += 6; }
-  else if (params.cashPercent < 30) { score += 3; }
+  if (params.cashPercent < RISK_THRESHOLD_CASH_CRITICAL) {
+    score += RISK_SCORE_CASH_CRITICAL_POINTS;
+    warnings.push(`Cash < ${RISK_THRESHOLD_CASH_CRITICAL}% — no buying power buffer`);
+  }
+  else if (params.cashPercent < RISK_THRESHOLD_CASH_LOW) {
+    score += RISK_SCORE_CASH_LOW_POINTS;
+  }
+  else if (params.cashPercent < RISK_THRESHOLD_CASH_MODERATE) {
+    score += RISK_SCORE_CASH_MODERATE_POINTS;
+  }
 
   // Position count risk (0-10 points)
   const highRiskPositions = params.positionRisk.filter((p) => p.riskLevel === "high").length;
-  if (highRiskPositions >= 3) { score += 10; warnings.push(`${highRiskPositions} high-risk positions`); }
-  else if (highRiskPositions >= 1) { score += 5; }
+  if (highRiskPositions >= RISK_THRESHOLD_POSITION_HIGH) {
+    score += RISK_SCORE_POSITION_HIGH_POINTS;
+    warnings.push(`${highRiskPositions} high-risk positions`);
+  }
+  else if (highRiskPositions >= RISK_THRESHOLD_POSITION_MODERATE) {
+    score += RISK_SCORE_POSITION_MODERATE_POINTS;
+  }
 
   // Clamp to 0-100
   score = clamp(score, 0, 100);
 
   let riskLevel: PortfolioRiskReport["riskLevel"];
-  if (score >= 75) riskLevel = "CRITICAL";
-  else if (score >= 50) riskLevel = "HIGH";
-  else if (score >= 25) riskLevel = "MODERATE";
+  if (score >= RISK_LEVEL_CRITICAL_THRESHOLD) riskLevel = "CRITICAL";
+  else if (score >= RISK_LEVEL_HIGH_THRESHOLD) riskLevel = "HIGH";
+  else if (score >= RISK_LEVEL_MODERATE_THRESHOLD) riskLevel = "MODERATE";
   else riskLevel = "LOW";
 
   return { riskScore: score, riskLevel, warnings };
