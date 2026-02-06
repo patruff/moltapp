@@ -99,6 +99,29 @@ export function countWords(text: string): number {
 }
 
 /**
+ * Splits text into sentences by common punctuation marks.
+ * Filters out sentences shorter than minLength after trimming.
+ * Complements countWords() for reasoning analysis across benchmarks.
+ *
+ * @param text - The text to split into sentences
+ * @param minLength - Minimum sentence length to include (default: 0 includes all)
+ * @returns Array of sentences
+ *
+ * @example
+ * splitSentences("Hello world. Short. This is a sentence!")
+ *   // ["Hello world", "Short", "This is a sentence"]
+ * splitSentences("Hello world. Hi. This is longer.", 3)
+ *   // ["Hello world", "This is longer"] (excludes "Hi" - only 2 chars)
+ * splitSentences("  Leading space. Trailing  ") // ["Leading space", "Trailing"]
+ */
+export function splitSentences(text: string, minLength: number = 0): string[] {
+  return text
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > minLength);
+}
+
+/**
  * Calculates the average of a numeric property across an array of objects.
  * Returns 0 for empty arrays (safe division-by-zero handling).
  *
