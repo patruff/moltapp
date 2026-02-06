@@ -31,6 +31,197 @@ import { getTopKey, round2, sortEntriesDescending } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Stance Classification Thresholds
+ *
+ * Control how agent trading patterns are classified as bullish/bearish based
+ * on percentage of buy/sell decisions in recent activity.
+ */
+
+/**
+ * Strongly Bullish/Bearish Threshold
+ *
+ * When buy% or sell% exceeds this threshold (60%), classify agent stance as
+ * "Strongly Bullish" or "Strongly Bearish".
+ *
+ * Example: 12 buys out of 20 decisions = 60% buy rate → "Strongly Bullish"
+ *
+ * Tuning impact: Lower to 55% to trigger "Strongly" labels earlier.
+ */
+const STANCE_STRONG_THRESHOLD = 60;
+
+/**
+ * Moderately Bullish/Bearish Threshold
+ *
+ * When buy% or sell% exceeds this threshold (40%), classify agent stance as
+ * "Moderately Bullish" or "Moderately Bearish".
+ *
+ * Example: 8 buys out of 20 decisions = 40% buy rate → "Moderately Bullish"
+ *
+ * Tuning impact: Raise to 45% to require stronger signal for "Moderate" labels.
+ */
+const STANCE_MODERATE_THRESHOLD = 40;
+
+/**
+ * Debate Verdict Score Margins
+ *
+ * Control how debate winners are classified based on score difference.
+ */
+
+/**
+ * Decisive Victory Margin
+ *
+ * When winner's score exceeds runner-up by this margin (15 points), classify
+ * debate as "decisive victory" with strong winner narrative.
+ *
+ * Example: Winner 85, Runner-up 68 = 17 point margin → "Decisive victory"
+ *
+ * Tuning impact: Lower to 12 to trigger "decisive" label more often.
+ */
+const DEBATE_DECISIVE_MARGIN = 15;
+
+/**
+ * Close Debate Margin
+ *
+ * When winner's score exceeds runner-up by less than this margin (5 points),
+ * classify debate as "razor-thin" / essentially a draw.
+ *
+ * Example: Winner 78, Runner-up 75 = 3 point margin → "Razor-thin margin"
+ *
+ * Tuning impact: Raise to 8 to require larger gap for "clear winner" classification.
+ */
+const DEBATE_CLOSE_MARGIN = 5;
+
+/**
+ * Price Movement Resolution Threshold
+ *
+ * Minimum price change percentage (1%) to classify a debate as "resolved".
+ * Below this threshold, outcome is considered inconclusive.
+ *
+ * Example: Price moved from $100 to $101.50 = 1.5% → resolved
+ *
+ * Tuning impact: Raise to 2% to require larger moves for resolution.
+ */
+const PRICE_RESOLUTION_THRESHOLD = 1;
+
+/**
+ * Consensus Agreement Thresholds
+ *
+ * Control when agent agreement counts as consensus vs disagreement.
+ */
+
+/**
+ * Minimum Agents for Debate
+ *
+ * Require at least this many agents (2) for a meaningful debate. Below this,
+ * no debate is generated (insufficient participants).
+ *
+ * Example: 2 agents with different positions → debate triggered
+ *
+ * Tuning impact: Raise to 3 to require all agents for debates (stricter).
+ */
+const MIN_AGENTS_FOR_DEBATE = 2;
+
+/**
+ * Minimum Agents for Consensus Area
+ *
+ * Require at least this many agents (2) agreeing on a symbol for it to count
+ * as a "consensus area" in market outlook.
+ *
+ * Example: 2 agents both say "buy AAPL" → consensus area
+ *
+ * Tuning impact: Raise to 3 to require unanimous agreement for consensus.
+ */
+const MIN_AGENTS_FOR_CONSENSUS = 2;
+
+/**
+ * Minimum Agents for Majority Calculation
+ *
+ * When computing contrarianism score, require at least this many agents (3)
+ * in a round to calculate majority position.
+ *
+ * Example: Round with 3 agents, 2 say "buy" → majority is "buy"
+ *
+ * Tuning impact: Lower to 2 to allow majority calculation with fewer agents.
+ */
+const MIN_AGENTS_FOR_MAJORITY = 3;
+
+/**
+ * Overall Market Sentiment Thresholds
+ *
+ * Control classification of aggregate agent bullishness into overall sentiment.
+ */
+
+/**
+ * Bullish Sentiment Threshold
+ *
+ * When average agent bullish% exceeds this threshold (60%), classify overall
+ * market sentiment as "Bullish".
+ *
+ * Example: Avg bullish% = 65% → "Bullish" market sentiment
+ *
+ * Tuning impact: Lower to 55% to trigger "Bullish" classification earlier.
+ */
+const SENTIMENT_BULLISH_THRESHOLD = 60;
+
+/**
+ * Bearish Sentiment Threshold
+ *
+ * When average agent bullish% falls below this threshold (40%), classify
+ * overall market sentiment as "Bearish".
+ *
+ * Example: Avg bullish% = 35% → "Bearish" market sentiment
+ *
+ * Tuning impact: Raise to 45% to require stronger bearish signal.
+ */
+const SENTIMENT_BEARISH_THRESHOLD = 40;
+
+/**
+ * Debate Scoring Dimension Weights
+ *
+ * Each debate participant is scored on 4 dimensions (0-25 points each).
+ */
+
+/**
+ * Maximum Points Per Dimension
+ *
+ * Each of the 4 scoring dimensions (conviction, reasoning, data usage, risk
+ * awareness) awards up to this many points (25), for a total of 100.
+ *
+ * Example: 25 conviction + 20 reasoning + 15 data + 18 risk = 78 total
+ *
+ * Tuning impact: Increase to 30 to allow higher total scores (120 max).
+ */
+const DEBATE_SCORE_MAX_PER_DIMENSION = 25;
+
+/**
+ * Argument Richness Normalization
+ *
+ * Normalize supporting points count to 1.0 when this many points (5) are present.
+ * Used to score reasoning depth.
+ *
+ * Example: 4 supporting points / 5 = 0.8 richness score
+ *
+ * Tuning impact: Lower to 4 to reward depth at lower point counts.
+ */
+const ARGUMENT_RICHNESS_POINTS = 5;
+
+/**
+ * Argument Depth Normalization
+ *
+ * Normalize opening argument length to 1.0 when this many characters (200) are present.
+ * Used to score reasoning depth.
+ *
+ * Example: 180 char opening / 200 = 0.9 depth score
+ *
+ * Tuning impact: Lower to 150 to reward concise arguments more.
+ */
+const ARGUMENT_DEPTH_CHARS = 200;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -515,23 +706,23 @@ function scoreParticipant(
   allParticipants: Debate["participants"],
 ): { conviction: number; reasoning: number; dataUsage: number; riskAwareness: number; total: number } {
   // Conviction: based on confidence and strength of position
-  const conviction = Math.min(25, Math.round((participant.confidence / 100) * 25));
+  const conviction = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((participant.confidence / 100) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   // Reasoning: based on number of supporting points and argument length
-  const argumentRichness = Math.min(1, participant.supportingPoints.length / 5);
-  const argumentDepth = Math.min(1, participant.openingArgument.length / 200);
-  const reasoning = Math.min(25, Math.round(((argumentRichness + argumentDepth) / 2) * 25));
+  const argumentRichness = Math.min(1, participant.supportingPoints.length / ARGUMENT_RICHNESS_POINTS);
+  const argumentDepth = Math.min(1, participant.openingArgument.length / ARGUMENT_DEPTH_CHARS);
+  const reasoning = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round(((argumentRichness + argumentDepth) / 2) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   // Data Usage: agents that cite specific metrics score higher
   const dataKeywords = ["ratio", "volume", "growth", "earnings", "cash flow", "margin", "moving average", "%", "revenue", "insider"];
   const allText = [participant.openingArgument, ...participant.supportingPoints, participant.rebuttal].join(" ").toLowerCase();
   const dataHits = dataKeywords.filter((kw) => allText.includes(kw)).length;
-  const dataUsage = Math.min(25, Math.round((dataHits / dataKeywords.length) * 25));
+  const dataUsage = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((dataHits / dataKeywords.length) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   // Risk Awareness: agents that acknowledge risk or opposing views score higher
   const riskKeywords = ["risk", "downside", "caution", "however", "although", "despite", "but", "careful", "safety", "protect"];
   const riskHits = riskKeywords.filter((kw) => allText.includes(kw)).length;
-  const riskAwareness = Math.min(25, Math.round((riskHits / riskKeywords.length) * 25));
+  const riskAwareness = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((riskHits / riskKeywords.length) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   const total = conviction + reasoning + dataUsage + riskAwareness;
 
@@ -603,8 +794,8 @@ export async function generateDebate(symbol: string): Promise<Debate | null> {
     });
   }
 
-  // Need at least 2 participants for a meaningful debate
-  if (participants.length < 2) return null;
+  // Need at least MIN_AGENTS_FOR_DEBATE participants for a meaningful debate
+  if (participants.length < MIN_AGENTS_FOR_DEBATE) return null;
 
   // Score each participant
   const scoring = participants.map((p) => ({
@@ -673,9 +864,9 @@ export async function generateDebate(symbol: string): Promise<Debate | null> {
   const runnerUp = sorted[1];
   const scoreDiff = winner.scores.total - runnerUp.scores.total;
   let verdict: string;
-  if (scoreDiff > 15) {
+  if (scoreDiff > DEBATE_DECISIVE_MARGIN) {
     verdict = `Decisive victory for ${winner.agentName}. With a ${scoreDiff}-point margin over ${runnerUp.agentName}, the ${winnerParticipant.position} case was clearly stronger — backed by deeper analysis, higher conviction, and better risk awareness.`;
-  } else if (scoreDiff > 5) {
+  } else if (scoreDiff > DEBATE_CLOSE_MARGIN) {
     verdict = `${winner.agentName} edges out ${runnerUp.agentName} by ${scoreDiff} points. Both made compelling arguments, but ${winner.agentName}'s ${winnerParticipant.position} thesis was more thoroughly supported and demonstrated stronger conviction.`;
   } else {
     verdict = `A razor-thin margin separates ${winner.agentName} and ${runnerUp.agentName} — just ${scoreDiff} points. This debate is essentially a draw, reflecting genuine uncertainty about ${symbol}'s direction. Both positions have merit.`;
@@ -900,7 +1091,7 @@ export async function getDebateHistory(): Promise<
 
     // Determine who was "right" — did the price move in their predicted direction?
     let correctAgent: { agentId: string; agentName: string } | null = null;
-    const resolved = Math.abs(priceChange) > 1; // Need at least 1% move to call it resolved
+    const resolved = Math.abs(priceChange) > PRICE_RESOLUTION_THRESHOLD; // Need at least PRICE_RESOLUTION_THRESHOLD% move to call it resolved
 
     if (resolved) {
       const priceWentUp = priceChange > 0;
@@ -980,10 +1171,10 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     const bearishPct = Math.round((sellCount / total) * 100);
 
     let stance: string;
-    if (bullishPct > 60) stance = "Strongly Bullish";
-    else if (bullishPct > 40) stance = "Moderately Bullish";
-    else if (bearishPct > 60) stance = "Strongly Bearish";
-    else if (bearishPct > 40) stance = "Moderately Bearish";
+    if (bullishPct > STANCE_STRONG_THRESHOLD) stance = "Strongly Bullish";
+    else if (bullishPct > STANCE_MODERATE_THRESHOLD) stance = "Moderately Bullish";
+    else if (bearishPct > STANCE_STRONG_THRESHOLD) stance = "Strongly Bearish";
+    else if (bearishPct > STANCE_MODERATE_THRESHOLD) stance = "Moderately Bearish";
     else stance = "Neutral / Mixed";
 
     // Top picks (unique symbols, highest confidence first)
@@ -1053,7 +1244,7 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     const uniqueActions = new Set(Object.values(positions));
     const agentCount = Object.keys(positions).length;
 
-    if (agentCount < 2) continue;
+    if (agentCount < MIN_AGENTS_FOR_CONSENSUS) continue;
 
     if (uniqueActions.size === 1) {
       // Consensus
@@ -1079,8 +1270,8 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
   const totalBullish = agentOutlooks.reduce((sum, o) => sum + o.bullishPercentage, 0);
   const avgBullish = agentOutlooks.length > 0 ? totalBullish / agentOutlooks.length : 50;
   let overallSentiment: string;
-  if (avgBullish > 60) overallSentiment = "Bullish";
-  else if (avgBullish < 40) overallSentiment = "Bearish";
+  if (avgBullish > SENTIMENT_BULLISH_THRESHOLD) overallSentiment = "Bullish";
+  else if (avgBullish < SENTIMENT_BEARISH_THRESHOLD) overallSentiment = "Bearish";
   else overallSentiment = "Mixed / Uncertain";
 
   // Market narrative
@@ -1182,11 +1373,11 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     const priceChange = priceAtDebate > 0 ? ((priceNow - priceAtDebate) / priceAtDebate) * 100 : 0;
 
     const agentWasRight =
-      (agentAction === "buy" && priceChange > 1) ||
-      (agentAction === "sell" && priceChange < -1);
+      (agentAction === "buy" && priceChange > PRICE_RESOLUTION_THRESHOLD) ||
+      (agentAction === "sell" && priceChange < -PRICE_RESOLUTION_THRESHOLD);
     const agentWasWrong =
-      (agentAction === "buy" && priceChange < -1) ||
-      (agentAction === "sell" && priceChange > 1);
+      (agentAction === "buy" && priceChange < -PRICE_RESOLUTION_THRESHOLD) ||
+      (agentAction === "sell" && priceChange > PRICE_RESOLUTION_THRESHOLD);
 
     if (agentWasRight) {
       wins++;
@@ -1227,7 +1418,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
   let totalRoundsWithMajority = 0;
   for (const [, roundDecisions] of roundMap) {
     const agentDec = roundDecisions.find((d) => d.agentId === agentId);
-    if (!agentDec || roundDecisions.length < 3) continue;
+    if (!agentDec || roundDecisions.length < MIN_AGENTS_FOR_MAJORITY) continue;
 
     const others = roundDecisions.filter((d) => d.agentId !== agentId);
     const otherActions = others.map((d) => d.action);
@@ -1368,25 +1559,25 @@ function generateRiskFactors(agentId: string, stance: string): string[] {
 function generateOutlookNarrative(agentId: string, stance: string, bullishPct: number): string {
   switch (agentId) {
     case "claude-value-investor":
-      if (bullishPct > 60) {
+      if (bullishPct > STANCE_STRONG_THRESHOLD) {
         return "I see several compelling value opportunities in this market. Quality companies are available at prices that offer genuine margin of safety. My approach remains disciplined: buy wonderful businesses at fair prices and let compounding work its magic. I'm deploying capital methodically, not chasing momentum.";
-      } else if (bullishPct < 40) {
+      } else if (bullishPct < STANCE_MODERATE_THRESHOLD) {
         return "Prudence demands patience here. Valuations are stretched across much of the market, and the risk-reward for new positions is unfavorable. I'm content to hold elevated cash reserves and wait. The best buying opportunities emerge from periods of pessimism, and I suspect that opportunity is approaching.";
       }
       return "The market presents a balanced picture. Neither euphoric nor panicked, current conditions call for selective stock-picking rather than broad directional bets. I'm maintaining core positions in quality names while keeping powder dry for any dislocations.";
 
     case "gpt-momentum-trader":
-      if (bullishPct > 60) {
+      if (bullishPct > STANCE_STRONG_THRESHOLD) {
         return "The tape is bullish and I'm positioned accordingly. Multiple names are breaking out with volume confirmation, and the path of least resistance is higher. I'm running concentrated positions in the strongest momentum names and will ride them until the moving averages break. Let's make some money.";
-      } else if (bullishPct < 40) {
+      } else if (bullishPct < STANCE_MODERATE_THRESHOLD) {
         return "The chart damage is real and I'm not fighting the tape. When momentum is against you, the only play is defense — cut losers, raise cash, wait for the next setup. I've rotated to a defensive posture and I'll flip bullish the moment the technicals confirm a trend change.";
       }
       return "Choppy, range-bound action means reduced position sizing and quick trigger fingers. I'm trading both sides — buying dips to support, selling rips to resistance — but keeping positions small. Waiting for a decisive break in either direction.";
 
     case "grok-contrarian":
-      if (bullishPct > 60) {
+      if (bullishPct > STANCE_STRONG_THRESHOLD) {
         return "I'm finding compelling contrarian buys in the current environment. Several names have been beaten down well past what fundamentals justify, creating the kind of sentiment-driven mispricings that I live for. The crowd is focused on the rearview mirror — I'm looking through the windshield.";
-      } else if (bullishPct < 40) {
+      } else if (bullishPct < STANCE_MODERATE_THRESHOLD) {
         return "The consensus is dangerously one-sided. Everyone is bullish, nobody is hedging, and the financial media is running victory laps. This is textbook late-cycle behavior and I'm positioned for the inevitable correction. When the crowd is this comfortable, something uncomfortable usually follows.";
       }
       return "For once, I don't have a strong contrarian signal. Sentiment is balanced, which means there's no crowd to fade. I'm maintaining positions and watching for the next extreme — it's coming, it always does. The question is whether it'll be a panic (buy signal) or euphoria (sell signal).";
