@@ -17,6 +17,8 @@
  * - Calibration trend over time
  */
 
+import { round4 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -359,6 +361,4 @@ function calibrationGrade(ece: number): string {
   return "F";
 }
 
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
+// round4 imported from ../lib/math-utils.ts

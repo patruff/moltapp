@@ -18,6 +18,8 @@
  * No database dependency — designed for real-time dashboard consumption.
  */
 
+import { round1 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -833,7 +835,4 @@ function describeTraitLevel(value: number, highLabel: string, lowLabel: string):
   return "moderate";
 }
 
-/** Round to 1 decimal place. */
-function round1(n: number): number {
-  return Math.round(n * 10) / 10;
-}
+// round1 imported from ../lib/math-utils.ts

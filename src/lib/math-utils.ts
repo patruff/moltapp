@@ -37,6 +37,21 @@ export function roundToDecimals(value: number, decimals: number): number {
 }
 
 /**
+ * Rounds a number to 1 decimal place.
+ * Common for coarse metrics and display values.
+ *
+ * @param value - The number to round
+ * @returns The rounded value
+ *
+ * @example
+ * round1(3.14159) // returns 3.1
+ * round1(99.99) // returns 100.0
+ */
+export function round1(value: number): number {
+  return roundToDecimals(value, 1);
+}
+
+/**
  * Rounds a number to 2 decimal places.
  * Common for currency, percentages, and ratios.
  *

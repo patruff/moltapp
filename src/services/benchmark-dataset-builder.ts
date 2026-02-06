@@ -15,7 +15,7 @@
  * This is the data science backbone of MoltApp's benchmark.
  */
 
-import { mean } from "../lib/math-utils.ts";
+import { mean, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -488,6 +488,4 @@ function percentile(sorted: number[], p: number): number {
   return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
 }
 
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
+// round4 imported from ../lib/math-utils.ts
