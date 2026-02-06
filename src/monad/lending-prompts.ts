@@ -6,6 +6,7 @@
  */
 
 import type { TradingDecision } from "../agents/base-agent.ts";
+import { normalize } from "../lib/math-utils.ts";
 
 /**
  * Build the prompt asking a high-conviction agent if it wants to borrow $STONKS.
@@ -112,7 +113,7 @@ export function parseBorrowerResponse(raw: string): {
   return {
     shouldBorrow: !!parsed.shouldBorrow,
     amount: Math.max(0, Math.min(50000, Number(parsed.amount) || 0)),
-    interestRate: Math.max(0, Math.min(1, Number(parsed.interestRate) || 0.05)),
+    interestRate: normalize(Number(parsed.interestRate) || 0.05),
     duration: Math.max(1, Math.min(6, Math.round(Number(parsed.duration) || 2))),
     reasoning: String(parsed.reasoning || "No reasoning provided"),
   };
@@ -131,7 +132,7 @@ export function parseLenderResponse(raw: string): {
   return {
     shouldLend: !!parsed.shouldLend,
     amountWilling: Math.max(0, Number(parsed.amountWilling) || 0),
-    counterRate: Math.max(0, Math.min(1, Number(parsed.counterRate) || 0.05)),
+    counterRate: normalize(Number(parsed.counterRate) || 0.05),
     reasoning: String(parsed.reasoning || "No reasoning provided"),
     riskAssessment: String(parsed.riskAssessment || "No assessment provided"),
   };

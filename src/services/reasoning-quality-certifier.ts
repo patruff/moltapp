@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences } from "../lib/math-utils.ts";
+import { splitSentences, normalize } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -320,7 +320,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
 
   return {
     name: "logical_soundness",
-    score: Math.max(0, Math.min(1, Math.round(score * 100) / 100)),
+    score: normalize(Math.round(score * 100) / 100),
     indicators,
     grade: getGrade(score),
   };
@@ -363,7 +363,7 @@ function scoreEpistemicHonesty(reasoning: string, confidence: number): Certifica
 
   return {
     name: "epistemic_honesty",
-    score: Math.max(0, Math.min(1, Math.round(score * 100) / 100)),
+    score: normalize(Math.round(score * 100) / 100),
     indicators,
     grade: getGrade(score),
   };
