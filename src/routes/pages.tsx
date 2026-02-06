@@ -38,7 +38,7 @@ import { trades, agentDecisions, agentTheses, positions } from "../db/schema/ind
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
 import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
-import { getLatestMeetingFromDynamo, getMeetingFromDynamo } from "../services/dynamo-round-persister.ts";
+import { getLatestMeetingFromDynamo, getMeetingFromDynamo, getRecentRounds, type PersistedAgentResult } from "../services/dynamo-round-persister.ts";
 import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
 // Type aliases for database query results and computed types
@@ -344,6 +344,18 @@ pages.get("/", async (c) => {
     }
   }
 
+  // Fetch the latest round from DynamoDB for the "Last Round Summary" widget
+  let latestRound: Awaited<ReturnType<typeof getRecentRounds>>[number] | null = null;
+  try {
+    const recentRounds = await getRecentRounds(5);
+    if (recentRounds.length > 0) {
+      // Sort by timestamp descending to get the most recent
+      latestRound = recentRounds.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0];
+    }
+  } catch {
+    // Non-critical — widget just won't show
+  }
+
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -386,6 +398,105 @@ pages.get("/", async (c) => {
           <span>Total volume: ${formatCurrency(data.aggregateStats.totalVolume)}</span>
         </div>
       </header>
+
+      {/* Last Round Summary */}
+      {latestRound && (
+        <div class="mb-6 bg-gray-900 border border-blue-800/50 rounded-lg p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-blue-300">Last Trading Round</h2>
+            <div class="text-right text-xs text-gray-500">
+              <div>{new Date(latestRound.timestamp).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</div>
+              <div>{formatTimeAgo(new Date(latestRound.timestamp))}</div>
+            </div>
+          </div>
+
+          {/* Consensus badge */}
+          <div class="mb-4 flex items-center gap-2">
+            <span class={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+              latestRound.consensus === "unanimous"
+                ? "bg-green-900 text-green-200"
+                : latestRound.consensus === "majority"
+                  ? "bg-yellow-900 text-yellow-200"
+                  : latestRound.consensus === "split"
+                    ? "bg-red-900 text-red-200"
+                    : "bg-gray-800 text-gray-400"
+            }`}>
+              {latestRound.consensus.toUpperCase()}
+            </span>
+            <span class="text-gray-400 text-sm">
+              {latestRound.consensus === "unanimous" ? "All agents agreed"
+                : latestRound.consensus === "majority" ? "Majority agreed"
+                : latestRound.consensus === "split" ? "Agents disagreed"
+                : "No trades this round"}
+            </span>
+          </div>
+
+          {/* Per-agent decisions */}
+          <div class="space-y-3">
+            {latestRound.results.map((r: PersistedAgentResult) => {
+              const actionColor = r.action === "buy"
+                ? "text-green-400 bg-green-900/40 border-green-800"
+                : r.action === "sell"
+                  ? "text-red-400 bg-red-900/40 border-red-800"
+                  : "text-gray-400 bg-gray-800/40 border-gray-700";
+              const actionIcon = r.action === "buy" ? "\u2191" : r.action === "sell" ? "\u2193" : "\u2014";
+              // Truncate reasoning to a useful snippet
+              const reasoningSnippet = r.reasoning
+                ? truncateText(r.reasoning.replace(/\n+/g, " ").replace(/\s+/g, " "), 200)
+                : "No reasoning provided";
+
+              return (
+                <div class={`border rounded-lg p-3 ${actionColor}`}>
+                  <div class="flex items-center justify-between mb-1">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-sm">{r.agentName}</span>
+                      <span class={`inline-block px-2 py-0.5 rounded text-xs font-bold ${actionColor}`}>
+                        {actionIcon} {r.action.toUpperCase()}
+                      </span>
+                      {r.action !== "hold" && (
+                        <span class="text-white text-sm font-semibold">{stockLabel(r.symbol)}</span>
+                      )}
+                    </div>
+                    <div class="flex items-center gap-2 text-xs">
+                      <span class="text-gray-400">Confidence: <span class="text-white font-semibold">{r.confidence}%</span></span>
+                      {r.executed ? (
+                        <span class="text-green-400" title="Trade executed on-chain">{"\u2713"} Executed</span>
+                      ) : r.action !== "hold" ? (
+                        <span class="text-red-400" title={r.executionError || "Not executed"}>{"\u2717"} Not executed</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p class="text-xs text-gray-300 leading-relaxed mt-1">{reasoningSnippet}</p>
+                  {r.executed && r.filledPrice && r.usdcAmount && (
+                    <div class="mt-1 text-xs text-gray-500">
+                      Filled @ ${formatCurrency(r.filledPrice)} &middot; ${formatCurrency(r.usdcAmount)} USDC
+                      {r.txSignature && (
+                        <span>
+                          {" "}&middot;{" "}
+                          <a
+                            href={solscanTxUrl(r.txSignature)}
+                            target="_blank"
+                            rel="noopener"
+                            class="text-purple-400 hover:text-purple-300 hover:underline"
+                          >
+                            tx {truncateAddress(r.txSignature)}
+                          </a>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {latestRound.errors.length > 0 && (
+            <div class="mt-3 text-xs text-red-400">
+              {latestRound.errors.length} error(s) during this round
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Agent Cards */}
       <div class="space-y-6">
