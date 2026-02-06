@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -230,7 +230,7 @@ function scoreStructuralCompleteness(reasoning: string): CertificationDimension 
   if (hasConclusion) indicators.push("Contains conclusion");
 
   const sentences = splitSentences(reasoning, 10);
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   if (wordCount > 50) indicators.push(`${wordCount} words (sufficient depth)`);
 
   let score = 0;

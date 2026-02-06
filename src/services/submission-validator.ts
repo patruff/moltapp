@@ -24,6 +24,7 @@ import {
   type BenchmarkEvaluation,
 } from "./benchmark-gateway.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Submission Schema
@@ -179,7 +180,7 @@ export function validateAndScoreSubmission(
   }
 
   // Step 7: Reasoning quality pre-check
-  const reasoningWords = submission.trade.reasoning.split(/\s+/).length;
+  const reasoningWords = countWords(submission.trade.reasoning);
   if (reasoningWords < 10) {
     return {
       ok: false,

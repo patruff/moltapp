@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, countWords } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -185,7 +185,7 @@ function analyzeStructure(reasoning: string): StructuralAnalysis {
   const sentences = reasoning.split(/[.!?]+/).filter((s) => s.trim().length > 5);
   const sentenceCount = sentences.length;
   const avgSentenceLength = sentenceCount > 0
-    ? sentences.reduce((sum, s) => sum + s.trim().split(/\s+/).length, 0) / sentenceCount
+    ? sentences.reduce((sum, s) => sum + countWords(s), 0) / sentenceCount
     : 0;
 
   const quantitativeClaimCount = (reasoning.match(QUANTITATIVE_PATTERNS) ?? []).length;
@@ -219,7 +219,7 @@ function analyzeStructure(reasoning: string): StructuralAnalysis {
   if (hasConclusion) structureScore += 0.04;
 
   // Hedge words: some hedging is good (epistemic humility), too much is bad
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
   const hedgeRatio = words > 0 ? hedgeWordCount / words : 0;
   if (hedgeRatio > 0.05) {
     structureScore -= (hedgeRatio - 0.05) * 2; // Penalize excessive hedging

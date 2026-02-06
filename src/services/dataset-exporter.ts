@@ -23,6 +23,7 @@
 
 import { getEvaluations, getCurrentMethodology } from "./benchmark-gateway.ts";
 import { getLeaderboard } from "./leaderboard-engine.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -126,7 +127,7 @@ export function generateDataset(options?: {
     symbol: eval_.trade.symbol,
     quantity: eval_.trade.quantity,
     reasoning: eval_.trade.reasoning,
-    reasoningWordCount: eval_.trade.reasoning.split(/\s+/).length,
+    reasoningWordCount: countWords(eval_.trade.reasoning),
     confidence: eval_.trade.confidence,
     intent: eval_.trade.intent,
     sources: eval_.trade.sources,

@@ -18,7 +18,7 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, countWords } from "../lib/math-utils.ts";
 import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
@@ -222,7 +222,7 @@ function scoreInformationProcessing(obs: TradeObservation[]): Gene {
   // How well does reasoning quality correlate with outcomes?
   const avgCoherence = obs.reduce((s, o) => s + o.coherenceScore, 0) / Math.max(1, obs.length);
   const hallRate = obs.filter((o) => o.hallucinationCount > 0).length / Math.max(1, obs.length);
-  const avgReasoningLength = obs.reduce((s, o) => s + o.reasoning.split(/\s+/).length, 0) / Math.max(1, obs.length);
+  const avgReasoningLength = obs.reduce((s, o) => s + countWords(o.reasoning), 0) / Math.max(1, obs.length);
 
   const score = Math.min(1,
     avgCoherence * GENE_SCORING_WEIGHTS.information_processing.avg_coherence +

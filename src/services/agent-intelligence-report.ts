@@ -18,6 +18,8 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -131,7 +133,7 @@ const MAX_ENTRIES = 5000;
 export function recordIntelligenceEntry(entry: Omit<ReasoningEntry, "wordCount">): void {
   reasoningData.push({
     ...entry,
-    wordCount: entry.reasoning.split(/\s+/).length,
+    wordCount: countWords(entry.reasoning),
   });
   if (reasoningData.length > MAX_ENTRIES) {
     reasoningData.splice(0, reasoningData.length - MAX_ENTRIES);

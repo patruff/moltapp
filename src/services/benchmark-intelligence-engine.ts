@@ -16,6 +16,8 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -315,7 +317,7 @@ const ANALYTICAL_PATTERNS: RegExp[] = [
 ];
 
 function computeEfficiency(reasoning: string): EfficiencyProfile {
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   if (wordCount === 0) {
     return { informationDensity: 0, claimDensity: 0, originalityPerWord: 0, quantitativeRatio: 0, composite: 0 };
   }
@@ -424,7 +426,7 @@ export function recordV16Metrics(
   pushCapped(w.discipline, metrics.discipline ? 1 : 0);
   pushCapped(w.confidence, metrics.confidence);
 
-  const wordCount = metrics.reasoning.split(/\s+/).length;
+  const wordCount = countWords(metrics.reasoning);
   pushCapped(w.wordCounts, wordCount);
   pushCapped(w.quantClaims, countQuantitativeClaims(metrics.reasoning));
   pushCapped(w.hedgeWords, countHedgeWords(metrics.reasoning));

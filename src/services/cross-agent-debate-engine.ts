@@ -15,7 +15,7 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
-import { splitSentences } from "../lib/math-utils.ts";
+import { splitSentences, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -147,7 +147,7 @@ function extractWeaknesses(reasoning: string): string[] {
 
   // Check for hedging without substance
   const hedgeCount = (reasoning.match(/\b(perhaps|maybe|might|possibly|could be)\b/gi) ?? []).length;
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   if (hedgeCount > 3 && wordCount < 100) {
     weaknesses.push("Excessive hedging relative to reasoning length");
   }
@@ -322,8 +322,8 @@ function analyzeLogicalChain(
     }
   }
 
-  const wordsA = reasoningA.split(/\s+/).length || 1;
-  const wordsB = reasoningB.split(/\s+/).length || 1;
+  const wordsA = countWords(reasoningA) || 1;
+  const wordsB = countWords(reasoningB) || 1;
 
   const densityA = Math.round((connectorsA / wordsA) * 1000) / 1000;
   const densityB = Math.round((connectorsB / wordsB) * 1000) / 1000;
@@ -355,7 +355,7 @@ function scoreDebateParticipant(
   opponent: DebateParticipant,
 ): DebateScore {
   // Thesis clarity: how clear and direct is the opening thesis?
-  const thesisWords = participant.thesisStatement.split(/\s+/).length;
+  const thesisWords = countWords(participant.thesisStatement);
   const thesisHasAction = /buy|sell|hold|bullish|bearish/i.test(participant.thesisStatement);
   const thesisClarity = Math.min(1,
     (thesisHasAction ? 0.5 : 0.2) +
@@ -382,7 +382,7 @@ function scoreDebateParticipant(
 
   // Intellectual honesty: acknowledges uncertainty and weaknesses
   const hedges = (participant.reasoning.match(/perhaps|maybe|might|uncertain|unclear|risk|however/gi) ?? []).length;
-  const totalWords = participant.reasoning.split(/\s+/).length;
+  const totalWords = countWords(participant.reasoning);
   const hedgeRate = totalWords > 0 ? hedges / totalWords : 0;
   // Sweet spot: some hedging is good (0.02-0.05), too much is bad
   const intellectualHonesty = hedgeRate > 0.01 && hedgeRate < 0.06

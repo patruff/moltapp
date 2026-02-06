@@ -15,6 +15,8 @@
  * "here is exactly how the agent reasoned, claim by claim."
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -477,7 +479,7 @@ export function analyzeTransparency(
   const counterfactuals = generateCounterfactuals(reasoning, action, symbol, confidence01);
 
   // Compute component scores
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   const claimDensity = Math.min(1, claims.length / Math.max(1, wordCount / 20));
   const directLinks = evidenceMap.filter((l) => l.strength === "direct").length;
   const evidenceCoverage = claims.length > 0

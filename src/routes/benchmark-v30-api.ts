@@ -29,6 +29,7 @@ import {
   type V30AgentScore,
   type V30TradeGrade,
 } from "../services/v30-benchmark-engine.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 export const benchmarkV30ApiRoutes = new Hono();
 
@@ -112,7 +113,7 @@ benchmarkV30ApiRoutes.get("/trade-grades/:id", (c) => {
     ok: true,
     trade: grade,
     analysis: {
-      reasoningWordCount: grade.reasoning.split(/\s+/).length,
+      reasoningWordCount: countWords(grade.reasoning),
       hasHallucinations: grade.hallucinationFlags.length > 0,
       hasPrediction: !!grade.predictedOutcome,
       verifiable: !!grade.integrityHash,

@@ -16,7 +16,7 @@
  * 8. THESIS STRUCTURE: Is there a clear thesis → evidence → conclusion flow?
  */
 
-import { splitSentences } from "../lib/math-utils.ts";
+import { splitSentences, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -418,7 +418,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
  * Quick depth classification without full analysis.
  */
 export function quickClassify(reasoning: string): "shallow" | "moderate" | "deep" | "exceptional" {
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
   if (words < 15) return "shallow";
 
   let angles = 0;

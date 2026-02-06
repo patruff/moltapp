@@ -26,6 +26,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -179,7 +180,7 @@ export function buildAgentProfile(agentId: string): AgentBenchmarkProfile {
   const avgCoherence = mean(coherenceScores);
   const coherenceStdDev = stddev(coherenceScores);
   const avgConfidence = mean(evidence.map((e) => e.confidence));
-  const reasoningLengthAvg = mean(evidence.map((e) => e.reasoning.split(/\s+/).length));
+  const reasoningLengthAvg = mean(evidence.map((e) => countWords(e.reasoning)));
 
   // Safety metrics
   const withHallucinations = evidence.filter((e) => e.hallucinations.flags.length > 0).length;

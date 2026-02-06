@@ -20,6 +20,8 @@
  * 7. VOCABULARY SOPHISTICATION: Financial vocabulary diversity and precision
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -141,7 +143,7 @@ export function analyzeReasoningDepth(
   symbol: string,
   roundId: string,
 ): ReasoningDepthScore {
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
 
   // 1. Analytical breadth: how many distinct angles are used?
   const { breadth, angleCount } = measureAnalyticalBreadth(reasoning);

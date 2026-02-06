@@ -22,6 +22,8 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -208,7 +210,7 @@ export function computeDNA(agentId: string): StrategyDNA {
 
   // 7. Reasoning Depth: average word count / 200 (200 words = 1.0)
   const avgWordCount =
-    trades.reduce((s, t) => s + t.reasoning.split(/\s+/).length, 0) /
+    trades.reduce((s, t) => s + countWords(t.reasoning), 0) /
     trades.length;
   const reasoningDepth = clamp01(avgWordCount / 200);
 

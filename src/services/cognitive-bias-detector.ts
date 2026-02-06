@@ -33,6 +33,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -359,7 +360,7 @@ function detectOverconfidence(
   confidence: number,
   action: string,
 ): BiasDetection | null {
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
 
   // Certainty language
   const certaintyPatterns = [

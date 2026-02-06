@@ -20,6 +20,8 @@
  * - Build structured datasets for reasoning quality research
  */
 
+import { countWords } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -266,7 +268,7 @@ function detectCognitivePatterns(reasoning: string): CognitivePattern[] {
 function computeSophisticationLevel(reasoning: string, method: AnalyticalMethod, structure: ReasoningStructure): number {
   let score = 1; // Base level
 
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   if (wordCount >= 100) score++;
   if (wordCount >= 200) score++;
 

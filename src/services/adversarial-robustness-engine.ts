@@ -14,7 +14,7 @@
  * 5. CONSISTENCY UNDER PRESSURE: Same fundamentals, different framing — same decision?
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -346,7 +346,7 @@ export function measureFramingConsistency(
   }
 
   // Check for extreme confidence with simple reasoning
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
   if (confidence > 0.85 && wordCount < 40) {
     indicators.push("overconfident_with_thin_reasoning");
   }

@@ -14,7 +14,7 @@
  * trade exists in a vacuum.
  */
 
-import { normalize, round2 } from "../lib/math-utils.ts";
+import { normalize, round2, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -430,8 +430,8 @@ function analyzeReasoningEvolution(
   const coherenceDelta = secondAvgCoherence - firstAvgCoherence;
 
   // Compare reasoning length (proxy for depth)
-  const firstAvgLength = firstHalf.reduce((s, e) => s + e.reasoning.split(/\s+/).length, 0) / firstHalf.length;
-  const secondAvgLength = secondHalf.reduce((s, e) => s + e.reasoning.split(/\s+/).length, 0) / secondHalf.length;
+  const firstAvgLength = firstHalf.reduce((s, e) => s + countWords(e.reasoning), 0) / firstHalf.length;
+  const secondAvgLength = secondHalf.reduce((s, e) => s + countWords(e.reasoning), 0) / secondHalf.length;
 
   const lengthDelta = (secondAvgLength - firstAvgLength) / Math.max(1, firstAvgLength);
 
