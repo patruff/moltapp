@@ -87,6 +87,58 @@ export type ToolArgs =
   | GetExecutionQuoteArgs;
 
 // ---------------------------------------------------------------------------
+// Input Validation Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates a required string field (non-empty after trimming)
+ * @param value - The value to validate
+ * @param fieldName - Name of the field for error messages
+ * @param maxLength - Optional maximum length in characters
+ * @returns Error message if invalid, null if valid
+ */
+function validateStringField(
+  value: unknown,
+  fieldName: string,
+  maxLength?: number,
+): string | null {
+  if (!value || typeof value !== "string" || value.trim().length === 0) {
+    return `${fieldName} is required and cannot be empty`;
+  }
+  if (maxLength && value.length > maxLength) {
+    return `${fieldName} must be ${maxLength} characters or less`;
+  }
+  return null;
+}
+
+/**
+ * Validates a numeric field with bounds checking
+ * @param value - The value to parse and validate (string or number)
+ * @param fieldName - Name of the field for error messages
+ * @param min - Minimum allowed value (inclusive)
+ * @param max - Maximum allowed value (inclusive), or Infinity for no upper bound
+ * @returns Error message if invalid, null if valid
+ */
+function validateNumericField(
+  value: unknown,
+  fieldName: string,
+  min: number,
+  max: number = Infinity,
+): string | null {
+  if (!value) {
+    return `${fieldName} is required`;
+  }
+  const num = typeof value === "string" ? parseFloat(value) : Number(value);
+  if (isNaN(num) || num < min || num > max) {
+    if (max === Infinity) {
+      return `${fieldName} must be a positive number`;
+    }
+    return `${fieldName} must be a number between ${min}-${max}`;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Tool Schema Definitions
 // ---------------------------------------------------------------------------
 
@@ -410,27 +462,22 @@ async function executeUpdateThesis(
   args: UpdateThesisArgs,
   ctx: ToolContext,
 ): Promise<string> {
-  if (!args.symbol || typeof args.symbol !== "string") {
-    return JSON.stringify({ success: false, error: "symbol is required" });
+  // Validate required string fields
+  const symbolError = validateStringField(args.symbol, "symbol");
+  if (symbolError) {
+    return JSON.stringify({ success: false, error: symbolError });
   }
-  if (!args.thesis || typeof args.thesis !== "string" || args.thesis.trim().length === 0) {
-    return JSON.stringify({ success: false, error: "thesis is required and cannot be empty" });
-  }
-  if (args.thesis.length > 2000) {
-    return JSON.stringify({ success: false, error: "thesis must be 2000 characters or less" });
-  }
-  if (!args.conviction || typeof args.conviction !== "string") {
-    return JSON.stringify({ success: false, error: "conviction is required" });
+  const thesisError = validateStringField(args.thesis, "thesis", 2000);
+  if (thesisError) {
+    return JSON.stringify({ success: false, error: thesisError });
   }
 
   // Validate conviction is a valid number 1-10
-  const convictionNum = parseInt(args.conviction, 10);
-  if (isNaN(convictionNum) || convictionNum < 1 || convictionNum > 10) {
-    return JSON.stringify({
-      success: false,
-      error: "conviction must be a number between 1-10"
-    });
+  const convictionError = validateNumericField(args.conviction, "conviction", 1, 10);
+  if (convictionError) {
+    return JSON.stringify({ success: false, error: convictionError });
   }
+  const convictionNum = parseInt(args.conviction, 10);
 
   if (!args.direction || !["bullish", "bearish", "neutral"].includes(args.direction)) {
     return JSON.stringify({ success: false, error: "direction must be bullish, bearish, or neutral" });
@@ -438,21 +485,15 @@ async function executeUpdateThesis(
 
   // Validate optional price fields if provided
   if (args.entry_price !== undefined && args.entry_price !== null && args.entry_price !== "") {
-    const entryPrice = parseFloat(args.entry_price);
-    if (isNaN(entryPrice) || entryPrice <= 0) {
-      return JSON.stringify({
-        success: false,
-        error: "entry_price must be a positive number"
-      });
+    const entryPriceError = validateNumericField(args.entry_price, "entry_price", 0.01);
+    if (entryPriceError) {
+      return JSON.stringify({ success: false, error: entryPriceError });
     }
   }
   if (args.target_price !== undefined && args.target_price !== null && args.target_price !== "") {
-    const targetPrice = parseFloat(args.target_price);
-    if (isNaN(targetPrice) || targetPrice <= 0) {
-      return JSON.stringify({
-        success: false,
-        error: "target_price must be a positive number"
-      });
+    const targetPriceError = validateNumericField(args.target_price, "target_price", 0.01);
+    if (targetPriceError) {
+      return JSON.stringify({ success: false, error: targetPriceError });
     }
   }
 
@@ -478,14 +519,14 @@ async function executeCloseThesis(
   args: CloseThesisArgs,
   ctx: ToolContext,
 ): Promise<string> {
-  if (!args.symbol || typeof args.symbol !== "string") {
-    return JSON.stringify({ success: false, error: "symbol is required" });
+  // Validate required string fields
+  const symbolError = validateStringField(args.symbol, "symbol");
+  if (symbolError) {
+    return JSON.stringify({ success: false, error: symbolError });
   }
-  if (!args.reason || typeof args.reason !== "string" || args.reason.trim().length === 0) {
-    return JSON.stringify({ success: false, error: "reason is required and cannot be empty" });
-  }
-  if (args.reason.length > 1000) {
-    return JSON.stringify({ success: false, error: "reason must be 1000 characters or less" });
+  const reasonError = validateStringField(args.reason, "reason", 1000);
+  if (reasonError) {
+    return JSON.stringify({ success: false, error: reasonError });
   }
   try {
     const result = await closeThesis(ctx.agentId, args.symbol, args.reason);
@@ -547,11 +588,10 @@ interface AlphaVantageResponse {
  * - "all" = no filter (default)
  */
 async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
-  if (!args.query || typeof args.query !== "string" || args.query.trim().length === 0) {
-    return JSON.stringify({ results: [], error: "query is required and cannot be empty" });
-  }
-  if (args.query.length > 500) {
-    return JSON.stringify({ results: [], error: "query must be 500 characters or less" });
+  // Validate required string fields
+  const queryError = validateStringField(args.query, "query", 500);
+  if (queryError) {
+    return JSON.stringify({ results: [], error: queryError });
   }
 
   // Validate enum fields if provided
