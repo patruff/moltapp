@@ -587,6 +587,90 @@ export function createKeyMap<T extends Record<string, any>, K extends keyof T & 
 }
 
 /**
+ * Creates a lookup map indexed by a specified key property, mapping to the entire object.
+ * Eliminates manual Map construction loops for simple key-to-object indexing.
+ *
+ * Common use cases:
+ * - Index decisions by roundId: indexBy(decisions, 'roundId') → {round_123: {decision object}}
+ * - Index positions by symbol: indexBy(positions, 'symbol') → {AAPL: {position object}}
+ * - Index users by ID: indexBy(users, 'id') → {123: {user object}}
+ *
+ * @param items - Array of objects to index
+ * @param keyProp - Property to use as index key
+ * @returns Record mapping key values to the full objects
+ *
+ * @example
+ * const decisions = [{roundId: 'r1', action: 'buy'}, {roundId: 'r2', action: 'sell'}];
+ * indexBy(decisions, 'roundId')
+ * // returns { r1: {roundId: 'r1', action: 'buy'}, r2: {roundId: 'r2', action: 'sell'} }
+ *
+ * indexBy([], 'id') // returns {}
+ */
+export function indexBy<T extends Record<string, any>, K extends keyof T & string>(
+  items: readonly T[],
+  keyProp: K,
+): Record<string, T> {
+  return items.reduce(
+    (acc, item) => {
+      acc[String(item[keyProp])] = item;
+      return acc;
+    },
+    {} as Record<string, T>,
+  );
+}
+
+/**
+ * Groups items by a key and aggregates values using custom accumulator logic.
+ * Eliminates manual Map construction loops with complex value accumulation.
+ *
+ * Common use cases:
+ * - Count occurrences: groupAndAggregate(items, 'category', () => 0, (count) => count + 1)
+ * - Sum values: groupAndAggregate(items, 'sector', () => 0, (sum, item) => sum + item.value)
+ * - Collect sets: groupAndAggregate(items, 'type', () => new Set(), (set, item) => set.add(item.id))
+ * - Build objects: groupAndAggregate(items, 'group', () => ({count: 0, total: 0}), (agg, item) => ({count: agg.count + 1, total: agg.total + item.value}))
+ *
+ * @param items - Array of objects to group and aggregate
+ * @param keyFn - Function that extracts grouping key from each item (or keyof T for simple property)
+ * @param initFn - Function that creates initial accumulator value for each group
+ * @param aggregateFn - Function that updates accumulator with each item: (accumulator, item) => newAccumulator
+ * @returns Record mapping group keys to aggregated values
+ *
+ * @example
+ * // Count decisions by sector:
+ * const decisions = [{symbol: 'AAPL', sector: 'Tech'}, {symbol: 'MSFT', sector: 'Tech'}, {symbol: 'JPM', sector: 'Finance'}];
+ * groupAndAggregate(decisions, (d) => d.sector, () => 0, (count) => count + 1)
+ * // returns { Tech: 2, Finance: 1 }
+ *
+ * // Sum confidence by hour:
+ * const hourly = [{hour: 9, conf: 75}, {hour: 9, conf: 80}, {hour: 10, conf: 70}];
+ * groupAndAggregate(hourly, (d) => d.hour, () => ({count: 0, total: 0}), (agg, d) => ({count: agg.count + 1, total: agg.total + d.conf}))
+ * // returns { '9': {count: 2, total: 155}, '10': {count: 1, total: 70} }
+ *
+ * // Collect unique symbols per sector:
+ * groupAndAggregate(decisions, (d) => d.sector, () => new Set<string>(), (set, d) => set.add(d.symbol))
+ * // returns { Tech: Set(['AAPL', 'MSFT']), Finance: Set(['JPM']) }
+ */
+export function groupAndAggregate<T, K extends string | number, V>(
+  items: readonly T[],
+  keyFn: ((item: T) => K) | (keyof T & string),
+  initFn: () => V,
+  aggregateFn: (accumulator: V, item: T) => V,
+): Record<string, V> {
+  const map: Record<string, V> = {};
+  const extractKey = typeof keyFn === 'function' ? keyFn : (item: T) => item[keyFn] as unknown as K;
+
+  for (const item of items) {
+    const key = String(extractKey(item));
+    if (!(key in map)) {
+      map[key] = initFn();
+    }
+    map[key] = aggregateFn(map[key], item);
+  }
+
+  return map;
+}
+
+/**
  * Sorts a record's entries by numeric value using a custom comparison function.
  * Enables sorting by absolute value, nested properties, or complex criteria.
  *

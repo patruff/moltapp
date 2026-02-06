@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, getTopKey, round2, round3, sortDescending, sortEntriesDescending } from "../lib/math-utils.ts";
+import { calculateAverage, getTopKey, round2, round3, sortDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -727,18 +727,20 @@ function computeSectorAllocation(
   decisions: Array<{ action: string; symbol: string }>,
 ): SectorAllocation[] {
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
-  const sectorMap = new Map<string, { symbols: Set<string>; count: number }>();
 
-  for (const d of actionDecisions) {
-    const sector = SECTOR_MAP[d.symbol] ?? "Other";
-    const entry = sectorMap.get(sector) ?? { symbols: new Set<string>(), count: 0 };
-    entry.symbols.add(d.symbol);
-    entry.count++;
-    sectorMap.set(sector, entry);
-  }
+  const sectorMap = groupAndAggregate(
+    actionDecisions,
+    (d) => SECTOR_MAP[d.symbol] ?? "Other",
+    () => ({ symbols: new Set<string>(), count: 0 }),
+    (agg, d) => {
+      agg.symbols.add(d.symbol);
+      agg.count++;
+      return agg;
+    },
+  );
 
   const total = actionDecisions.length || 1;
-  const sectorData = Array.from(sectorMap.entries()).map(([sector, data]) => ({
+  const sectorData = Object.entries(sectorMap).map(([sector, data]) => ({
     sector,
     symbols: Array.from(data.symbols),
     tradeCount: data.count,
@@ -860,18 +862,18 @@ function computeSentimentProfile(
 function computeHourlyActivity(
   decisions: Array<{ createdAt: Date; confidence: number }>,
 ): HourlyActivity[] {
-  const hourMap = new Map<number, { count: number; totalConf: number }>();
-
-  for (const d of decisions) {
-    const hour = d.createdAt.getHours();
-    const entry = hourMap.get(hour) ?? { count: 0, totalConf: 0 };
-    entry.count++;
-    entry.totalConf += d.confidence;
-    hourMap.set(hour, entry);
-  }
+  const hourMap = groupAndAggregate(
+    decisions,
+    (d) => d.createdAt.getHours(),
+    () => ({ count: 0, totalConf: 0 }),
+    (agg, d) => ({
+      count: agg.count + 1,
+      totalConf: agg.totalConf + d.confidence,
+    }),
+  );
 
   return Array.from({ length: 24 }, (_, hour) => {
-    const entry = hourMap.get(hour);
+    const entry = hourMap[hour];
     return {
       hour,
       decisions: entry?.count ?? 0,
@@ -1047,23 +1049,19 @@ function computeHeadToHead(
   decisions2: Array<{ roundId: string | null; action: string; symbol: string; confidence: number; createdAt: Date }>,
 ): HeadToHeadStats {
   // Match by round ID
-  const rounds1 = new Map<string, (typeof decisions1)[0]>();
-  const rounds2 = new Map<string, (typeof decisions2)[0]>();
+  const withRoundId1 = decisions1.filter((d) => d.roundId !== null) as Array<typeof decisions1[0] & { roundId: string }>;
+  const withRoundId2 = decisions2.filter((d) => d.roundId !== null) as Array<typeof decisions2[0] & { roundId: string }>;
 
-  for (const d of decisions1) {
-    if (d.roundId) rounds1.set(d.roundId, d);
-  }
-  for (const d of decisions2) {
-    if (d.roundId) rounds2.set(d.roundId, d);
-  }
+  const rounds1 = indexBy(withRoundId1, "roundId");
+  const rounds2 = indexBy(withRoundId2, "roundId");
 
   let sameDecisionCount = 0;
   let oppositeDecisionCount = 0;
   let agent1Wins = 0;
   let agent2Wins = 0;
 
-  for (const [roundId, d1] of rounds1) {
-    const d2 = rounds2.get(roundId);
+  for (const [roundId, d1] of Object.entries(rounds1)) {
+    const d2 = rounds2[roundId];
     if (!d2) continue;
 
     if (d1.action === d2.action) {
