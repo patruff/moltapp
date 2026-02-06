@@ -8,6 +8,7 @@
  */
 
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { errorMessage } from "../lib/errors.ts";
 import type { NewsItem } from "./search-cache.ts";
 
 // ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ async function fetchAlphaVantageNews(
     return items;
   } catch (err) {
     console.warn(
-      `[AlphaVantage] Error fetching ${ticker}: ${err instanceof Error ? err.message : String(err)}`,
+      `[AlphaVantage] Error fetching ${ticker}: ${errorMessage(err)}`,
     );
     return [];
   }

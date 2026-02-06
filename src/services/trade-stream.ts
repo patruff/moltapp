@@ -22,6 +22,8 @@
  * - Metrics: subscriber count, events emitted, uptime
  */
 
+import { errorMessage } from "../lib/errors.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -182,7 +184,7 @@ export function emitTradeStreamEvent(
       entry.eventsReceived++;
     } catch (err) {
       console.warn(
-        `[TradeStream] Error sending to subscriber ${entry.id}: ${err instanceof Error ? err.message : String(err)}`,
+        `[TradeStream] Error sending to subscriber ${entry.id}: ${errorMessage(err)}`,
       );
     }
   }

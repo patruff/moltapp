@@ -21,6 +21,7 @@ import {
   getStrategyBreakdown,
   getHistoricalPerformance,
 } from "../services/backtesting.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 import { clamp } from "../lib/math-utils.ts";
@@ -48,7 +49,7 @@ backtestRoutes.get("/compare", async (c) => {
       {
         error: "backtest_error",
         code: "comparison_failed",
-        details: error instanceof Error ? error.message : "Failed to compare agents",
+        details: errorMessage(error),
       },
       500,
     );
@@ -99,7 +100,7 @@ backtestRoutes.get("/:agentId", async (c) => {
       {
         error: "backtest_error",
         code: "backtest_failed",
-        details: error instanceof Error ? error.message : "Failed to run backtest",
+        details: errorMessage(error),
       },
       500,
     );
@@ -143,7 +144,7 @@ backtestRoutes.get("/:agentId/equity", async (c) => {
       {
         error: "backtest_error",
         code: "equity_failed",
-        details: error instanceof Error ? error.message : "Failed to generate equity curve",
+        details: errorMessage(error),
       },
       500,
     );
@@ -189,7 +190,7 @@ backtestRoutes.get("/:agentId/strategy", async (c) => {
       {
         error: "backtest_error",
         code: "strategy_failed",
-        details: error instanceof Error ? error.message : "Failed to analyze strategy",
+        details: errorMessage(error),
       },
       500,
     );
@@ -240,7 +241,7 @@ backtestRoutes.get("/:agentId/performance", async (c) => {
       {
         error: "backtest_error",
         code: "performance_failed",
-        details: error instanceof Error ? error.message : "Failed to compute performance",
+        details: errorMessage(error),
       },
       500,
     );

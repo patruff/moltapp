@@ -1,6 +1,7 @@
 import { Turnkey, DEFAULT_SOLANA_ACCOUNTS } from "@turnkey/sdk-server";
 import { TurnkeySigner } from "@turnkey/solana";
 import { env } from "../config/env.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 let turnkeyInstance: InstanceType<typeof Turnkey> | null = null;
 
@@ -61,7 +62,7 @@ export async function createAgentWallet(
     if (err instanceof Error && err.message.startsWith("wallet_")) {
       throw err;
     }
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     throw new Error(`wallet_creation_failed: ${message}`);
   }
 }

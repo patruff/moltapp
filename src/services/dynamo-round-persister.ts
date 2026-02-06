@@ -29,6 +29,7 @@ import type {
   TradingRoundResult,
 } from "../agents/base-agent.ts";
 import type { CircuitBreakerActivation } from "./circuit-breaker.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -241,7 +242,7 @@ export async function persistRound(params: {
     return { success: true };
   } catch (err) {
     writeErrors++;
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     console.error(`[DynamoPersister] Failed to persist round: ${msg}`);
     return { success: false, error: msg };
   }
@@ -308,7 +309,7 @@ async function persistAgentState(params: {
   } catch (err) {
     writeErrors++;
     console.warn(
-      `[DynamoPersister] Failed to persist agent state for ${params.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+      `[DynamoPersister] Failed to persist agent state for ${params.agentId}: ${errorMessage(err)}`,
     );
   }
 }
@@ -337,7 +338,7 @@ export async function getRound(roundId: string): Promise<PersistedRound | null> 
 
     return result.Item ? unmarshalRound(result.Item) : null;
   } catch (err) {
-    console.error(`[DynamoPersister] Failed to get round: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[DynamoPersister] Failed to get round: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -361,7 +362,7 @@ export async function getAgentState(agentId: string): Promise<AgentStateSnapshot
 
     return result.Item ? unmarshalAgentState(result.Item) : null;
   } catch (err) {
-    console.error(`[DynamoPersister] Failed to get agent state: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[DynamoPersister] Failed to get agent state: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -390,7 +391,7 @@ export async function getAllAgentStates(): Promise<AgentStateSnapshot[]> {
 
     return (result.Items ?? []).map(unmarshalAgentState);
   } catch (err) {
-    console.error(`[DynamoPersister] Failed to get all agent states: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`[DynamoPersister] Failed to get all agent states: ${errorMessage(err)}`);
     return [];
   }
 }

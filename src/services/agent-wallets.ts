@@ -18,6 +18,7 @@ import {
   type TokenBalance,
 } from "./solana-tracker.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -382,7 +383,7 @@ export async function preTradeFundCheck(agentId: string): Promise<{
   } catch (err) {
     return {
       ready: false,
-      reason: `Failed to check balance: ${err instanceof Error ? err.message : String(err)}`,
+      reason: `Failed to check balance: ${errorMessage(err)}`,
       solBalance: 0,
       publicKey: wallet.publicKey,
     };

@@ -29,6 +29,7 @@ import {
   normalizeMetric,
 } from "../schemas/benchmark-v23.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -232,13 +233,13 @@ export async function runOutcomeResolution(
           .where(eq(tradeJustifications.id, j.id));
       } catch (err) {
         console.warn(
-          `[OutcomeResolution] DB write failed for ${j.id}: ${err instanceof Error ? err.message : String(err)}`,
+          `[OutcomeResolution] DB write failed for ${j.id}: ${errorMessage(err)}`,
         );
       }
     }
   } catch (err) {
     console.warn(
-      `[OutcomeResolution] Resolution run failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[OutcomeResolution] Resolution run failed: ${errorMessage(err)}`,
     );
   }
 
@@ -445,7 +446,7 @@ export async function updateV23Leaderboard(
       });
   } catch (err) {
     console.warn(
-      `[V23Leaderboard] Update failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[V23Leaderboard] Update failed: ${errorMessage(err)}`,
     );
   }
 }
@@ -473,7 +474,7 @@ export async function persistCalibrationSnapshot(
     }
   } catch (err) {
     console.warn(
-      `[Calibration] Snapshot persist failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[Calibration] Snapshot persist failed: ${errorMessage(err)}`,
     );
   }
 }

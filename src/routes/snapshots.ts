@@ -12,6 +12,7 @@ import {
   takeSnapshot,
   getSnapshotMetrics,
 } from "../services/portfolio-snapshots.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const app = new Hono();
 
@@ -31,7 +32,7 @@ app.get("/:agentId/timeline", async (c) => {
     return c.json(timeline);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get timeline" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -59,7 +60,7 @@ app.get("/:agentId/equity-curve", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get equity curve" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -77,7 +78,7 @@ app.get("/:agentId/drawdown", async (c) => {
     return c.json({ agentId, drawdown: timeline.drawdown });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get drawdown" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -101,7 +102,7 @@ app.get("/compare", async (c) => {
     return c.json(comparison);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to compare" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -125,7 +126,7 @@ app.post("/:agentId/manual", async (c) => {
     return c.json(snapshot);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to take snapshot" },
+      { error: errorMessage(err) },
       500,
     );
   }

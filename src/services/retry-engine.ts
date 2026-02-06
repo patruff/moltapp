@@ -14,6 +14,7 @@
  */
 
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -404,7 +405,7 @@ export async function withRetry<T>(
         exhausted: false,
       };
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       lastError = errMsg;
 
       const durationMs = Date.now() - attemptStart;

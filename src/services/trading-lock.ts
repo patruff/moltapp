@@ -20,6 +20,8 @@
  *   holderInfo: descriptive string (round ID)
  */
 
+import { errorMessage } from "../lib/errors.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -319,7 +321,7 @@ async function tryDynamoLock(
 
     // Other DynamoDB errors — fall back to in-memory
     console.warn(
-      `[TradingLock] DynamoDB lock failed, falling back to in-memory: ${err instanceof Error ? err.message : String(err)}`,
+      `[TradingLock] DynamoDB lock failed, falling back to in-memory: ${errorMessage(err)}`,
     );
     return null;
   }
@@ -357,7 +359,7 @@ async function tryDynamoRelease(lockId: string): Promise<void> {
   } catch (err) {
     // Not critical — in-memory lock is already released
     console.warn(
-      `[TradingLock] DynamoDB release failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+      `[TradingLock] DynamoDB release failed (non-critical): ${errorMessage(err)}`,
     );
   }
 }

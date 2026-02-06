@@ -17,6 +17,7 @@
  */
 
 import { Hono } from "hono";
+import { errorMessage } from "../lib/errors.ts";
 import {
   createSubscription,
   deleteSubscription,
@@ -109,7 +110,7 @@ alertRoutes.post("/subscriptions", async (c) => {
       201,
     );
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     if (msg.startsWith("max_subscriptions_reached") || msg.startsWith("invalid_url") || msg.startsWith("no_events")) {
       return c.json({ error: "validation_error", code: "validation_error", details: msg }, 400);
     }

@@ -29,6 +29,7 @@ import {
 } from "../services/attribution.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const attributionRoutes = new Hono();
 
@@ -90,7 +91,7 @@ attributionRoutes.get("/compare", async (c) => {
       {
         error: "attribution_error",
         code: "comparison_failed",
-        details: error instanceof Error ? error.message : "Failed to compare agent attributions",
+        details: errorMessage(error),
       },
       500,
     );
@@ -133,7 +134,7 @@ attributionRoutes.get("/:agentId", async (c) => {
       {
         error: "attribution_error",
         code: "full_report_failed",
-        details: error instanceof Error ? error.message : "Failed to generate full attribution report",
+        details: errorMessage(error),
       },
       500,
     );
@@ -166,7 +167,7 @@ attributionRoutes.get("/:agentId/brinson", async (c) => {
       {
         error: "attribution_error",
         code: "brinson_failed",
-        details: error instanceof Error ? error.message : "Failed to compute Brinson-Fachler attribution",
+        details: errorMessage(error),
       },
       500,
     );
@@ -198,7 +199,7 @@ attributionRoutes.get("/:agentId/factors", async (c) => {
       {
         error: "attribution_error",
         code: "factor_exposure_failed",
-        details: error instanceof Error ? error.message : "Failed to compute factor exposure",
+        details: errorMessage(error),
       },
       500,
     );
@@ -231,7 +232,7 @@ attributionRoutes.get("/:agentId/alpha-beta", async (c) => {
       {
         error: "attribution_error",
         code: "alpha_beta_failed",
-        details: error instanceof Error ? error.message : "Failed to compute alpha/beta decomposition",
+        details: errorMessage(error),
       },
       500,
     );
@@ -284,7 +285,7 @@ attributionRoutes.get("/:agentId/contributions", async (c) => {
       {
         error: "attribution_error",
         code: "contributions_failed",
-        details: error instanceof Error ? error.message : "Failed to compute trade contributions",
+        details: errorMessage(error),
       },
       500,
     );
@@ -340,7 +341,7 @@ attributionRoutes.get("/:agentId/timing", async (c) => {
       {
         error: "attribution_error",
         code: "timing_failed",
-        details: error instanceof Error ? error.message : "Failed to compute timing analysis",
+        details: errorMessage(error),
       },
       500,
     );
@@ -405,7 +406,7 @@ attributionRoutes.get("/:agentId/risk", async (c) => {
       {
         error: "attribution_error",
         code: "risk_failed",
-        details: error instanceof Error ? error.message : "Failed to compute risk contribution",
+        details: errorMessage(error),
       },
       500,
     );

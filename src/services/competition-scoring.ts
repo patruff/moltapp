@@ -24,6 +24,7 @@ import { competitionScores } from "../db/schema/portfolio-snapshots.ts";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import type { TradingRoundResult } from "../agents/base-agent.ts";
 import { clamp, round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -450,7 +451,7 @@ export async function scoreRound(
     }
   } catch (err) {
     console.warn(
-      `[CompetitionScoring] DB persist failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[CompetitionScoring] DB persist failed: ${errorMessage(err)}`,
     );
   }
 

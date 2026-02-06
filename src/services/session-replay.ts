@@ -19,6 +19,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -410,7 +411,7 @@ export async function listSessions(
     }));
   } catch (err) {
     console.warn(
-      `[SessionReplay] Failed to list sessions: ${err instanceof Error ? err.message : String(err)}`,
+      `[SessionReplay] Failed to list sessions: ${errorMessage(err)}`,
     );
     return [];
   }

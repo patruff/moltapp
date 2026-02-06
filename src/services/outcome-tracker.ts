@@ -13,6 +13,7 @@
  */
 
 import { db } from "../db/index.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, isNull, and, lte, sql, desc } from "drizzle-orm";
@@ -227,7 +228,7 @@ export async function trackOutcomes(
     );
   } catch (err) {
     console.error(
-      `[OutcomeTracker] Failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[OutcomeTracker] Failed: ${errorMessage(err)}`,
     );
   }
 

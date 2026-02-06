@@ -24,6 +24,7 @@ import { round3 } from "../lib/math-utils.ts";
 import { analyzeRound, type RoundDecision } from "./round-analytics.ts";
 import { recordRoundDecisions, type AgentDecisionRecord } from "./cross-agent-analyzer.ts";
 import { isTradingHalted } from "./production-hardening.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -391,7 +392,7 @@ async function executeRound(): Promise<RoundHistoryEntry | null> {
         recordRoundDecisions(result.roundId, crossDecisions);
       } catch (analyticsErr) {
         console.warn(
-          `[AutoRunner] Post-round analytics failed (non-critical): ${analyticsErr instanceof Error ? analyticsErr.message : String(analyticsErr)}`,
+          `[AutoRunner] Post-round analytics failed (non-critical): ${errorMessage(analyticsErr)}`,
         );
       }
     }
@@ -400,7 +401,7 @@ async function executeRound(): Promise<RoundHistoryEntry | null> {
     config.onRoundComplete?.(historyEntry);
   } catch (error) {
     const durationMs = Date.now() - roundStartTime;
-    const errorMsg = error instanceof Error ? error.message : String(error);
+    const errorMsg = errorMessage(error);
 
     historyEntry = {
       roundId: state.currentRoundId,

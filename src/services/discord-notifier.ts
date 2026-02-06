@@ -20,6 +20,7 @@
  */
 
 import { pnlSign } from "../lib/format-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -285,7 +286,7 @@ async function sendToDiscord(
     throw new Error(`Discord webhook failed: HTTP ${response.status} — ${body}`);
   } catch (err) {
     totalFailed++;
-    lastError = err instanceof Error ? err.message : String(err);
+    lastError = errorMessage(err);
     console.error(`[DiscordNotifier] Send failed: ${lastError}`);
     return false;
   }

@@ -10,6 +10,7 @@
 
 import type { EventBridgeEvent } from "aws-lambda";
 import { runTradingRound } from "./agents/orchestrator.ts";
+import { errorMessage } from "./lib/errors.ts";
 
 interface TradingTrigger {
   trigger: string;
@@ -59,8 +60,7 @@ export async function handler(
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const message =
-      error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     console.error(
       `[TradingLambda] Fatal error after ${duration}ms: ${message}`,
     );

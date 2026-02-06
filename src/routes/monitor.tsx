@@ -14,6 +14,7 @@
 
 import { Hono } from "hono";
 import { html } from "hono/html";
+import { errorMessage } from "../lib/errors.ts";
 import { getAgentConfigs, getTradingInfraStatus } from "../agents/orchestrator.ts";
 import {
   calculatePortfolioMetrics,
@@ -419,7 +420,7 @@ monitorRoutes.get("/api/summary", async (c) => {
     return c.json(
       {
         error: "summary_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );

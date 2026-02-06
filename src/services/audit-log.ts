@@ -17,6 +17,8 @@
  * action, details, and a unique eventId for traceability.
  */
 
+import { errorMessage } from "../lib/errors.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -462,7 +464,7 @@ export async function flushToDynamoDB(): Promise<{
       } catch (batchErr) {
         console.error(
           `[AuditLog] DynamoDB batch write failed:`,
-          batchErr instanceof Error ? batchErr.message : String(batchErr),
+          errorMessage(batchErr),
         );
         errors += batch.length;
       }
@@ -473,7 +475,7 @@ export async function flushToDynamoDB(): Promise<{
   } catch (err) {
     console.warn(
       `[AuditLog] DynamoDB flush skipped (not available):`,
-      err instanceof Error ? err.message : String(err),
+      errorMessage(err),
     );
   }
 
@@ -493,7 +495,7 @@ export function startAuditLogFlusher(): void {
     flushToDynamoDB().catch((err) => {
       console.error(
         `[AuditLog] Flush error:`,
-        err instanceof Error ? err.message : String(err),
+        errorMessage(err),
       );
     });
   }, FLUSH_INTERVAL_MS);

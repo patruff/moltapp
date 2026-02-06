@@ -6,6 +6,7 @@
  */
 
 import { Hono } from "hono";
+import { errorMessage } from "../lib/errors.ts";
 import {
   fetchMarketNews,
   getNewsProviderMetrics,
@@ -55,7 +56,7 @@ newsRoutes.get("/latest", async (c) => {
     return c.json(
       {
         error: "news_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -95,7 +96,7 @@ newsRoutes.post("/fetch", async (c) => {
     return c.json(
       {
         error: "fetch_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );

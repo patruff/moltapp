@@ -32,6 +32,7 @@ import { registerFailedTrade, recordRetryAttempt } from "./trade-recovery.ts";
 import { logTradeEvent, logTradeFailure } from "./audit-log.ts";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -292,7 +293,7 @@ export async function executeDecision(req: ExecutionRequest): Promise<ExecutionR
 
     successfulExecutions++;
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorMsg = errorMessage(err);
     const errorCode = extractErrorCode(errorMsg);
 
     result.error = errorMsg;
@@ -693,7 +694,7 @@ async function updateDecisionStatus(
     }
   } catch (err) {
     console.warn(
-      `[TradeExecutor] Failed to update decision status: ${err instanceof Error ? err.message : String(err)}`,
+      `[TradeExecutor] Failed to update decision status: ${errorMessage(err)}`,
     );
   }
 }

@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { wallets, transactions } from "../db/schema/index.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export interface DepositParams {
   agentId: string;
@@ -54,7 +55,7 @@ export async function processDeposit(params: DepositParams): Promise<void> {
   } catch (err: unknown) {
     // Race condition safety: unique constraint violation on txSignature
     // means another process already inserted this deposit
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     if (
       message.includes("unique") ||
       message.includes("duplicate") ||

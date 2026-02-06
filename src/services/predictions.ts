@@ -26,6 +26,7 @@ import {
 import { eq, desc, and, lte, sql, gte, asc, ne } from "drizzle-orm";
 import { getMarketData } from "../agents/orchestrator.ts";
 import { calculateAverage } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -674,7 +675,7 @@ export async function resolveExpiredPredictions(): Promise<{
     } catch (error) {
       result.errors++;
       result.details.push(
-        `${pred.id}: ERROR — ${error instanceof Error ? error.message : "Unknown error"}`,
+        `${pred.id}: ERROR — ${errorMessage(error)}`,
       );
     }
   }

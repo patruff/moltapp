@@ -28,6 +28,7 @@
 import { db } from "../db/index.ts";
 import { sql } from "drizzle-orm";
 import { JUPITER_API_BASE_URL } from "../config/constants.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -242,7 +243,7 @@ export async function readinessCheck(): Promise<ReadinessResult> {
     checks.push({
       name: "database",
       passed: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     });
   }
 
@@ -295,7 +296,7 @@ async function checkDatabase(): Promise<DependencyHealth> {
       name: "database",
       status: "unhealthy",
       latencyMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     };
   }
 }
@@ -355,7 +356,7 @@ async function checkSolanaRpc(): Promise<DependencyHealth> {
       name: "solana_rpc",
       status: "unhealthy",
       latencyMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     };
   }
 }
@@ -403,7 +404,7 @@ async function checkJupiterApi(): Promise<DependencyHealth> {
       name: "jupiter_api",
       status: "unhealthy",
       latencyMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     };
   }
 }
@@ -473,7 +474,7 @@ export async function gracefulShutdown(signal: string): Promise<void> {
       console.log(`[Lifecycle] Shutdown hook completed: ${name}`);
     } catch (err) {
       console.error(
-        `[Lifecycle] Shutdown hook "${name}" failed: ${err instanceof Error ? err.message : String(err)}`,
+        `[Lifecycle] Shutdown hook "${name}" failed: ${errorMessage(err)}`,
       );
     }
   }
@@ -511,7 +512,7 @@ export function installSignalHandlers(): void {
   // Unhandled promise rejections
   process.on("unhandledRejection", (reason) => {
     console.error(
-      `[Lifecycle] Unhandled rejection: ${reason instanceof Error ? reason.message : String(reason)}`,
+      `[Lifecycle] Unhandled rejection: ${errorMessage(reason)}`,
     );
   });
 

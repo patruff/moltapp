@@ -19,7 +19,7 @@ import { z } from "zod";
 import { executeBuy, executeSell } from "../services/trading.ts";
 import { executeDemoBuy, executeDemoSell } from "../services/demo-trading.ts";
 import { env } from "../config/env.ts";
-import { apiError, handleError } from "../lib/errors.ts";
+import { apiError, errorMessage, handleError } from "../lib/errors.ts";
 import {
   tradeWithReasoningSchema,
   tradingIntentEnum,
@@ -100,7 +100,7 @@ async function recordTradeJustification(
     });
   } catch (err) {
     console.warn(
-      `[Trading] Failed to record justification: ${err instanceof Error ? err.message : String(err)}`,
+      `[Trading] Failed to record justification: ${errorMessage(err)}`,
     );
   }
 }

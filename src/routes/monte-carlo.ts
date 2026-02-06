@@ -13,6 +13,8 @@ import {
   type MonteCarloConfig,
 } from "../services/monte-carlo-backtester.ts";
 
+import { errorMessage } from "../lib/errors.ts";
+
 export const monteCarloRoutes = new Hono();
 
 /**
@@ -53,7 +55,7 @@ monteCarloRoutes.get("/simulate/:agentId", async (c) => {
     return c.json(
       {
         error: "simulation_failed",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -77,7 +79,7 @@ monteCarloRoutes.get("/compare", async (c) => {
     return c.json(
       {
         error: "comparison_failed",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );

@@ -17,6 +17,7 @@
 
 import { Hono } from "hono";
 import { round3 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, sql } from "drizzle-orm";
@@ -180,7 +181,7 @@ benchmarkCertificationRoutes.get("/certify/:agentId", async (c) => {
   } catch (err) {
     return c.json({
       ok: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     }, 500);
   }
 });

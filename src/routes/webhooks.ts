@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { errorMessage } from "../lib/errors.ts";
 import { env } from "../config/env.ts";
 import { processDeposit, findAgentByWalletAddress } from "../services/deposit.ts";
 import { USDC_MINT_MAINNET, USDC_MINT_DEVNET } from "../config/constants.ts";
@@ -111,7 +112,7 @@ webhookRoutes.post("/helius", async (c) => {
       // Log but do not fail the webhook -- always return 200
       console.error(
         `Helius webhook: error processing event ${event.signature}:`,
-        err instanceof Error ? err.message : err
+        errorMessage(err)
       );
     }
   }

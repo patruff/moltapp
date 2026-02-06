@@ -22,6 +22,7 @@
  */
 
 import { createHmac, randomBytes } from "crypto";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -269,7 +270,7 @@ export function emitAlert(
   for (const sub of matchingSubs) {
     deliverWebhook(sub, event).catch((err) => {
       console.error(
-        `[AlertWebhooks] Delivery failed for ${sub.id}: ${err instanceof Error ? err.message : String(err)}`,
+        `[AlertWebhooks] Delivery failed for ${sub.id}: ${errorMessage(err)}`,
       );
     });
   }
@@ -457,7 +458,7 @@ async function deliverWebhook(
       throw new Error(`HTTP ${response.status}: ${await response.text().catch(() => "no body")}`);
     }
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorMsg = errorMessage(err);
     delivery.error = errorMsg;
     delivery.status = "failed";
     failedDeliveries++;

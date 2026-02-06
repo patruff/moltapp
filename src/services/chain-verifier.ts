@@ -21,6 +21,7 @@ import {
   getProgramDerivedAddress,
   type Address,
 } from "@solana/kit";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -146,7 +147,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
       if (attempt === MAX_RETRIES) throw err;
       const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 500;
       console.warn(
-        `[ChainVerifier] ${label} attempt ${attempt} failed, retrying in ${Math.round(delay)}ms: ${err instanceof Error ? err.message : String(err)}`,
+        `[ChainVerifier] ${label} attempt ${attempt} failed, retrying in ${Math.round(delay)}ms: ${errorMessage(err)}`,
       );
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -210,7 +211,7 @@ export async function verifyTransaction(signature: string): Promise<TransactionV
 
     return result;
   } catch (err) {
-    result.err = `Verification failed: ${err instanceof Error ? err.message : String(err)}`;
+    result.err = `Verification failed: ${errorMessage(err)}`;
     return result;
   }
 }
@@ -266,7 +267,7 @@ export async function getTransactionDetails(signature: string): Promise<Transact
     };
   } catch (err) {
     console.error(
-      `[ChainVerifier] Failed to get transaction details: ${err instanceof Error ? err.message : String(err)}`,
+      `[ChainVerifier] Failed to get transaction details: ${errorMessage(err)}`,
     );
     return null;
   }
@@ -331,7 +332,7 @@ export async function getOnChainBalance(walletAddress: string): Promise<OnChainB
     }
   } catch (err) {
     console.warn(
-      `[ChainVerifier] Token balance fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[ChainVerifier] Token balance fetch failed: ${errorMessage(err)}`,
     );
   }
 

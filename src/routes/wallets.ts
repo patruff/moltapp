@@ -21,7 +21,7 @@ import {
   estimateWithdrawalFee,
 } from "../services/withdrawal.ts";
 import { getDemoBalances } from "../services/demo-trading.ts";
-import { apiError, handleError } from "../lib/errors.ts";
+import { apiError, errorMessage, handleError } from "../lib/errors.ts";
 
 type WalletEnv = {
   Variables: {
@@ -315,9 +315,9 @@ walletRoutes.post("/withdraw", async (c) => {
       txSignature = result.txSignature;
     }
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
     console.error(
-      `[withdrawal] FAILED agent=${agentId} type=${tokenType} amount=${amount} error=${errorMessage}`
+      `[withdrawal] FAILED agent=${agentId} type=${tokenType} amount=${amount} error=${errMsg}`
     );
     return handleError(c, err);
   }
@@ -342,7 +342,7 @@ walletRoutes.post("/withdraw", async (c) => {
   } catch (dbErr) {
     // Transaction was submitted successfully but DB record failed.
     // Log the error but still return success to the agent since their funds moved.
-    const dbMessage = dbErr instanceof Error ? dbErr.message : String(dbErr);
+    const dbMessage = errorMessage(dbErr);
     console.error(
       `[withdrawal] DB record failed for tx=${txSignature}: ${dbMessage}`
     );

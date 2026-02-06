@@ -17,6 +17,7 @@ import {
   type SimulationConfig,
 } from "../services/portfolio-simulator.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const simulatorRoutes = new Hono();
 
@@ -68,7 +69,7 @@ simulatorRoutes.post("/run", async (c) => {
       message: `Simulated ${result.summary.daysSimulated} days: ${result.summary.totalReturnPercent > 0 ? "+" : ""}${result.summary.totalReturnPercent}% return (${result.summary.tradesFollowed} trades followed)`,
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     if (msg.includes("must be") || msg.includes("cannot exceed") || msg.includes("required")) {
       return c.json({ error: "validation_error", code: "validation_error", details: msg }, 400);
     }
@@ -179,7 +180,7 @@ simulatorRoutes.post("/compare", async (c) => {
       },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     if (msg.includes("must be") || msg.includes("cannot exceed") || msg.includes("required")) {
       return c.json({ error: "validation_error", code: "validation_error", details: msg }, 400);
     }

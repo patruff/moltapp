@@ -13,6 +13,7 @@ import {
   getAgentScoreHistory,
   getCompetitionMetrics,
 } from "../services/competition-scoring.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const app = new Hono();
 
@@ -42,7 +43,7 @@ app.get("/:agentId/history", async (c) => {
     return c.json({ agentId, scores: history });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get score history" },
+      { error: errorMessage(err) },
       500,
     );
   }

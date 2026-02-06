@@ -32,6 +32,7 @@ import { getAllRateLimiterMetrics } from "./rate-limiter.ts";
 import { getSearchCacheMetrics } from "./search-cache.ts";
 import { getLockStatus } from "./trading-lock.ts";
 import { getRpcMetrics } from "./solana-tracker.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { getConfirmationMetrics } from "./transaction-confirmer.ts";
 import { getGateMetrics } from "./pre-round-gate.ts";
 import { getJupiterHardenedMetrics } from "./jupiter-hardened.ts";
@@ -607,7 +608,7 @@ export function startMetricCollector(intervalMs = 60_000): void {
       takeMetricSnapshot();
     } catch (err) {
       console.warn(
-        `[Observability] Metric snapshot failed: ${err instanceof Error ? err.message : String(err)}`,
+        `[Observability] Metric snapshot failed: ${errorMessage(err)}`,
       );
     }
   }, intervalMs);

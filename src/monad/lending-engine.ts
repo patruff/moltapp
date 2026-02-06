@@ -13,6 +13,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { errorMessage } from "../lib/errors.ts";
 import type {
   TradingDecision,
   TradingRoundResult,
@@ -208,7 +209,7 @@ async function settleMaturedLoans(
         );
       } catch (err) {
         console.warn(
-          `[Lending] On-chain settlement failed for ${loan.loanId}, recording as default: ${err instanceof Error ? err.message : String(err)}`,
+          `[Lending] On-chain settlement failed for ${loan.loanId}, recording as default: ${errorMessage(err)}`,
         );
         defaultLoan(loan.loanId);
         settlements.push({
@@ -247,7 +248,7 @@ async function settleMaturedLoans(
       );
     } catch (err) {
       console.warn(
-        `[Lending] Settlement error for ${loan.loanId}: ${err instanceof Error ? err.message : String(err)}`,
+        `[Lending] Settlement error for ${loan.loanId}: ${errorMessage(err)}`,
       );
     }
   }
@@ -305,7 +306,7 @@ export async function runLendingPhase(
       0,
     );
   } catch (err) {
-    const msg = `Settlement phase failed: ${err instanceof Error ? err.message : String(err)}`;
+    const msg = `Settlement phase failed: ${errorMessage(err)}`;
     console.warn(`[Lending] ${msg}`);
     result.errors.push(msg);
   }
@@ -352,7 +353,7 @@ export async function runLendingPhase(
       const rawResponse = await queryLendingLLM(borrowerId, borrowerPrompt);
       borrowerResponse = parseBorrowerResponse(rawResponse);
     } catch (err) {
-      const msg = `Borrower query failed for ${borrowerId}: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `Borrower query failed for ${borrowerId}: ${errorMessage(err)}`;
       console.warn(`[Lending] ${msg}`);
       result.errors.push(msg);
       result.borrowRequests.push({
@@ -433,7 +434,7 @@ export async function runLendingPhase(
         const rawResponse = await queryLendingLLM(lenderId, lenderPrompt);
         lenderResponse = parseLenderResponse(rawResponse);
       } catch (err) {
-        const msg = `Lender query failed for ${lenderId}: ${err instanceof Error ? err.message : String(err)}`;
+        const msg = `Lender query failed for ${lenderId}: ${errorMessage(err)}`;
         console.warn(`[Lending] ${msg}`);
         result.errors.push(msg);
         result.lendResponses.push({
@@ -479,7 +480,7 @@ export async function runLendingPhase(
       try {
         txHash = await executeLoanTransfer(lenderId, borrowerId, agreedAmount);
       } catch (err) {
-        const msg = `On-chain transfer failed: ${err instanceof Error ? err.message : String(err)}`;
+        const msg = `On-chain transfer failed: ${errorMessage(err)}`;
         console.warn(`[Lending] ${msg}`);
         result.errors.push(msg);
         continue;

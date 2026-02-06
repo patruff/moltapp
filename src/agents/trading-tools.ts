@@ -19,6 +19,7 @@ import { computeAgentPerformance } from "../services/performance-tracker.ts";
 import type { agentTheses } from "../db/schema/agent-theses.ts";
 import type { InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG, USDC_MINT_MAINNET } from "../config/constants.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
@@ -510,7 +511,7 @@ async function executeUpdateThesis(
   } catch (err) {
     return JSON.stringify({
       success: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     });
   }
 }
@@ -534,7 +535,7 @@ async function executeCloseThesis(
   } catch (err) {
     return JSON.stringify({
       success: false,
-      error: err instanceof Error ? err.message : String(err),
+      error: errorMessage(err),
     });
   }
 }
@@ -746,7 +747,7 @@ async function executeSearchNewsAlphaVantage(
       },
     });
   } catch (err) {
-    console.warn(`[AlphaVantage] Search failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[AlphaVantage] Search failed: ${errorMessage(err)}`);
     return null;
   }
 }
@@ -828,7 +829,7 @@ async function executeSearchNewsBrave(
   } catch (err) {
     return JSON.stringify({
       results: [],
-      error: err instanceof Error ? err.message : "Search failed",
+      error: errorMessage(err),
     });
   }
 }
@@ -1026,7 +1027,7 @@ async function executeGetExecutionQuote(
     return JSON.stringify({
       symbol: args.symbol,
       side: args.side,
-      error: err instanceof Error ? err.message : "Quote request failed",
+      error: errorMessage(err),
       note: "Use get_stock_prices for mid-market estimates instead.",
     });
   }

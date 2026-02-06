@@ -9,6 +9,7 @@
 import { executeTool, type ToolContext } from "./trading-tools.ts";
 import { SKILL_TEMPLATE } from "./skill-template.ts";
 import { recordLlmUsage } from "../services/llm-cost-tracker.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Core Types
@@ -263,7 +264,7 @@ export abstract class BaseTradingAgent {
     try {
       return await this.runAgentLoop(marketData, portfolio);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       console.error(`[${this.config.name}] Agent loop failed: ${message}`);
       return this.fallbackHold(message);
     }
@@ -398,7 +399,7 @@ export abstract class BaseTradingAgent {
           return decision;
         } catch (err) {
           console.warn(
-            `[${this.config.name}] Failed to parse response on turn ${turn + 1}: ${err instanceof Error ? err.message : String(err)}`,
+            `[${this.config.name}] Failed to parse response on turn ${turn + 1}: ${errorMessage(err)}`,
           );
           // If max_tokens, try partial parse; otherwise continue
           if (agentTurn.stopReason === "max_tokens") {
@@ -410,7 +411,7 @@ export abstract class BaseTradingAgent {
           // If end_turn but parse failed, give up
           if (agentTurn.stopReason === "end_turn") {
             const fallback = this.fallbackHold(
-              `Could not parse decision: ${err instanceof Error ? err.message : String(err)}`,
+              `Could not parse decision: ${errorMessage(err)}`,
             );
             fallback.toolTrace = toolTrace;
             await recordUsage();

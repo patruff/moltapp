@@ -14,6 +14,7 @@ import {
   getRebalanceHistory,
   type RebalanceStrategy,
 } from "../services/portfolio-rebalancer.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const rebalancer = new Hono();
 
@@ -70,7 +71,7 @@ rebalancer.get("/propose/:agentId", async (c) => {
       data: proposal,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });
@@ -119,7 +120,7 @@ rebalancer.get("/compare/:agentId", async (c) => {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });

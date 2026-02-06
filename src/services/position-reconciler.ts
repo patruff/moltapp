@@ -25,6 +25,7 @@ import { eq, type InferSelectModel } from "drizzle-orm";
 import { getWalletBalances, type TokenBalance } from "./solana-tracker.ts";
 import { XSTOCKS_CATALOG, TOKEN_2022_PROGRAM_ADDRESS } from "../config/constants.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 type PositionRow = InferSelectModel<typeof positions>;
 
@@ -155,7 +156,7 @@ export async function reconcileAgent(
     };
   } catch (err) {
     console.error(
-      `[Reconciler] Failed to fetch chain balances for ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+      `[Reconciler] Failed to fetch chain balances for ${agentId}: ${errorMessage(err)}`,
     );
     // Return a report with all positions marked as unverifiable
     return {
@@ -334,7 +335,7 @@ export async function reconcileAllAgents(
       reports.push(report);
     } catch (err) {
       console.error(
-        `[Reconciler] Failed to reconcile ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        `[Reconciler] Failed to reconcile ${agentId}: ${errorMessage(err)}`,
       );
     }
 
@@ -367,7 +368,7 @@ export async function verifyPosition(
     };
   } catch (err) {
     console.error(
-      `[Reconciler] Position verification failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[Reconciler] Position verification failed: ${errorMessage(err)}`,
     );
     return {
       verified: false,

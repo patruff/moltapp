@@ -22,6 +22,7 @@ import {
   type Signature,
 } from "@solana/kit";
 import { env } from "../config/env.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -305,7 +306,7 @@ export async function getTokenBalances(
       }
     } catch (err) {
       console.warn(
-        `[SolanaTracker] Failed to fetch token accounts for program ${programId.slice(0, 8)}...: ${err instanceof Error ? err.message : String(err)}`,
+        `[SolanaTracker] Failed to fetch token accounts for program ${programId.slice(0, 8)}...: ${errorMessage(err)}`,
       );
     }
   }
@@ -423,7 +424,7 @@ export function watchWallet(
       }
     } catch (err) {
       console.error(
-        `[SolanaTracker] Watch poll failed for ${walletAddress.slice(0, 8)}...: ${err instanceof Error ? err.message : String(err)}`,
+        `[SolanaTracker] Watch poll failed for ${walletAddress.slice(0, 8)}...: ${errorMessage(err)}`,
       );
     } finally {
       isPolling = false;

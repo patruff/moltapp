@@ -12,6 +12,7 @@ import {
   compareAgentSessions,
   exportForPresentation,
 } from "../services/session-replay.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const app = new Hono();
 
@@ -31,7 +32,7 @@ app.get("/sessions", async (c) => {
     return c.json({ sessions, count: sessions.length });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to list sessions" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -49,7 +50,7 @@ app.get("/:roundId", async (c) => {
     return c.json(replay);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to replay session" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -68,7 +69,7 @@ app.get("/:roundId/presentation", async (c) => {
     return c.json(presentation);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to export presentation" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -92,7 +93,7 @@ app.get("/:roundId/timeline", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get timeline" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -112,7 +113,7 @@ app.get("/agent/:agentId/compare", async (c) => {
     return c.json(comparison);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to compare sessions" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -138,7 +139,7 @@ app.get("/:roundId/summary", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get summary" },
+      { error: errorMessage(err) },
       500,
     );
   }

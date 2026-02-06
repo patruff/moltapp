@@ -8,7 +8,7 @@ import { verifyIdentity } from "../services/moltbook.ts";
 import { createAgentWallet } from "../services/wallet.ts";
 import { API_KEY_PREFIX } from "../config/constants.ts";
 import { env } from "../config/env.ts";
-import { apiError } from "../lib/errors.ts";
+import { apiError, errorMessage } from "../lib/errors.ts";
 
 const registerBodySchema = z.object({
   identityToken: z.string().min(1, "identityToken is required"),
@@ -42,8 +42,7 @@ authRoutes.post("/register", async (c) => {
   try {
     moltbookAgent = await verifyIdentity(identityToken);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "moltbook_verification_failed";
+    const message = errorMessage(err);
 
     if (message === "invalid_identity_token") {
       return apiError(c, "INVALID_IDENTITY_TOKEN");
@@ -99,8 +98,7 @@ authRoutes.post("/register", async (c) => {
       });
       walletAddress = walletResult.publicKey;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "wallet_creation_failed";
+      const message = errorMessage(err);
       console.error(`Wallet creation failed for agent ${moltbookAgent.id}:`, message);
       return apiError(c, "WALLET_CREATION_FAILED", message);
     }

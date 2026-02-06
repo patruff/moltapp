@@ -15,6 +15,7 @@ import {
   buildCorrelationMatrix,
   detectBehaviorDrift,
 } from "../services/agent-fingerprint.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const DEFAULT_AGENTS = [
   "claude-value-investor",
@@ -38,7 +39,7 @@ app.get("/:agentId", async (c) => {
     return c.json(fingerprint);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to generate fingerprint" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -58,7 +59,7 @@ app.get("/", async (c) => {
     return c.json({ fingerprints });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to get fingerprints" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -77,7 +78,7 @@ app.get("/similarity/:agentA/:agentB", async (c) => {
     return c.json(similarity);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to compute similarity" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -97,7 +98,7 @@ app.get("/correlation-matrix", async (c) => {
     return c.json(matrix);
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to build correlation matrix" },
+      { error: errorMessage(err) },
       500,
     );
   }
@@ -115,7 +116,7 @@ app.get("/:agentId/drift", async (c) => {
     return c.json({ agentId, ...drift });
   } catch (err) {
     return c.json(
-      { error: err instanceof Error ? err.message : "Failed to detect drift" },
+      { error: errorMessage(err) },
       500,
     );
   }

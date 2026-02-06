@@ -24,6 +24,7 @@
 
 import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
 import { eventBus } from "./event-stream.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -325,7 +326,7 @@ function notifySubscribers(update: PriceUpdate): void {
       subscriber(update);
     } catch (err) {
       console.warn(
-        `[RealtimePrices] Subscriber error: ${err instanceof Error ? err.message : String(err)}`,
+        `[RealtimePrices] Subscriber error: ${errorMessage(err)}`,
       );
     }
   }
@@ -391,7 +392,7 @@ async function pollJupiterPrices(): Promise<void> {
       }
     } catch (err) {
       console.warn(
-        `[RealtimePrices] Jupiter poll error: ${err instanceof Error ? err.message : String(err)}`,
+        `[RealtimePrices] Jupiter poll error: ${errorMessage(err)}`,
       );
     }
   }
@@ -411,7 +412,7 @@ function startJupiterPolling(): void {
   // Initial fetch
   pollJupiterPrices().catch((err) =>
     console.warn(
-      `[RealtimePrices] Initial Jupiter poll failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[RealtimePrices] Initial Jupiter poll failed: ${errorMessage(err)}`,
     ),
   );
 
@@ -419,7 +420,7 @@ function startJupiterPolling(): void {
   jupiterPollTimer = setInterval(() => {
     pollJupiterPrices().catch((err) =>
       console.warn(
-        `[RealtimePrices] Jupiter poll failed: ${err instanceof Error ? err.message : String(err)}`,
+        `[RealtimePrices] Jupiter poll failed: ${errorMessage(err)}`,
       ),
     );
   }, JUPITER_POLL_INTERVAL_MS);
@@ -535,7 +536,7 @@ async function connectHeliusWebSocket(): Promise<void> {
 
     ws.on("error", (err: unknown) => {
       console.warn(
-        `[RealtimePrices] Helius WebSocket error: ${err instanceof Error ? err.message : String(err)}`,
+        `[RealtimePrices] Helius WebSocket error: ${errorMessage(err)}`,
       );
     });
 
@@ -564,7 +565,7 @@ async function connectHeliusWebSocket(): Promise<void> {
     });
   } catch (err) {
     console.warn(
-      `[RealtimePrices] Helius WebSocket setup failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[RealtimePrices] Helius WebSocket setup failed: ${errorMessage(err)}`,
     );
   }
 }
@@ -595,7 +596,7 @@ export async function startPriceStream(): Promise<void> {
   // Try Helius WebSocket (optional enhancement)
   connectHeliusWebSocket().catch((err) =>
     console.warn(
-      `[RealtimePrices] Helius connection failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[RealtimePrices] Helius connection failed: ${errorMessage(err)}`,
     ),
   );
 

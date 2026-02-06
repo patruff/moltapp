@@ -26,7 +26,7 @@ import {
 } from "../agents/orchestrator.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { getAllOnChainPortfolios } from "../services/onchain-portfolio.ts";
-import { apiError } from "../lib/errors.ts";
+import { apiError, errorMessage } from "../lib/errors.ts";
 import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -257,7 +257,7 @@ agentRoutes.get("/portfolios/on-chain", async (c) => {
     });
   } catch (error) {
     console.error("[API] Failed to get on-chain portfolios:", error);
-    return apiError(c, "ON_CHAIN_FETCH_FAILED", error instanceof Error ? error.message : String(error));
+    return apiError(c, "ON_CHAIN_FETCH_FAILED", errorMessage(error));
   }
 });
 

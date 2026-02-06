@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { sql } from "drizzle-orm";
+import { errorMessage } from "../lib/errors.ts";
 
 const healthRoutes = new Hono();
 
@@ -31,7 +32,7 @@ healthRoutes.get("/", async (c) => {
     dbLatency = Date.now() - dbCheckStart;
     dbConnected = true;
   } catch (err) {
-    dbError = err instanceof Error ? err.message : String(err);
+    dbError = errorMessage(err);
   }
   
   // Calculate uptime

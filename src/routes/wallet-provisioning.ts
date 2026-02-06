@@ -14,6 +14,7 @@ import {
   checkAllWalletHealth,
   getProvisioningStatus,
 } from "../services/wallet-provisioner.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const walletProvisioningRoutes = new Hono();
 
@@ -40,7 +41,7 @@ walletProvisioningRoutes.post("/provision", async (c) => {
     return c.json(
       {
         error: "provisioning_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -112,7 +113,7 @@ walletProvisioningRoutes.get("/health/all", async (c) => {
     return c.json(
       {
         error: "health_check_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -134,7 +135,7 @@ walletProvisioningRoutes.get("/health/:agentId", async (c) => {
     return c.json(
       {
         error: "health_check_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );

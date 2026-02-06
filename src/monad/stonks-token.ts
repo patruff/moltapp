@@ -12,6 +12,7 @@ import {
   getAllAgentAddresses,
   getMonBalance,
 } from "./monad-client.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 /** Agent $STONKS portfolio snapshot */
 export interface AgentStonksSnapshot {
@@ -35,7 +36,7 @@ export async function getAllAgentBalances(): Promise<AgentStonksSnapshot[]> {
       snapshots.push({ agentId, address, stonksBalance, monBalance });
     } catch (err) {
       console.warn(
-        `[STONKS] Failed to fetch balance for ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        `[STONKS] Failed to fetch balance for ${agentId}: ${errorMessage(err)}`,
       );
       snapshots.push({ agentId, address, stonksBalance: 0, monBalance: 0 });
     }

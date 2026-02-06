@@ -22,6 +22,7 @@ import {
   getAgentDebateStats,
 } from "../services/debates.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const debateRoutes = new Hono();
 
@@ -44,7 +45,7 @@ debateRoutes.get("/", async (c) => {
       {
         error: "debate_error",
         code: "active_debates_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch debates",
+        details: errorMessage(error),
       },
       500,
     );
@@ -69,7 +70,7 @@ debateRoutes.get("/outlook", async (c) => {
       {
         error: "debate_error",
         code: "outlook_failed",
-        details: error instanceof Error ? error.message : "Failed to generate outlook",
+        details: errorMessage(error),
       },
       500,
     );
@@ -94,7 +95,7 @@ debateRoutes.get("/history", async (c) => {
       {
         error: "debate_error",
         code: "history_failed",
-        details: error instanceof Error ? error.message : "Failed to fetch debate history",
+        details: errorMessage(error),
       },
       500,
     );
@@ -132,7 +133,7 @@ debateRoutes.get("/stock/:symbol", async (c) => {
       {
         error: "debate_error",
         code: "debate_generation_failed",
-        details: error instanceof Error ? error.message : "Failed to generate debate",
+        details: errorMessage(error),
       },
       500,
     );
@@ -182,7 +183,7 @@ debateRoutes.get("/:agentId/stats", async (c) => {
       {
         error: "debate_error",
         code: "stats_failed",
-        details: error instanceof Error ? error.message : "Failed to compute debate stats",
+        details: errorMessage(error),
       },
       500,
     );

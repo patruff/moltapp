@@ -46,6 +46,7 @@ import {
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
 import { countWords, round2, round3 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -772,7 +773,7 @@ async function executeAgentDecision(
       );
     }
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
+    const errorMsg = errorMessage(err);
     result.executionError = errorMsg;
     console.error(
       `[Orchestrator] ${agent.name} execution error: ${errorMsg}`,
@@ -833,7 +834,7 @@ export async function runTradingRound(): Promise<{
   } catch (err) {
     // Gate check failure is non-fatal — log and continue
     console.warn(
-      `[Orchestrator] Pre-round gate check error (continuing): ${err instanceof Error ? err.message : String(err)}`,
+      `[Orchestrator] Pre-round gate check error (continuing): ${errorMessage(err)}`,
     );
   }
 
@@ -885,7 +886,7 @@ async function executeTradingRound(
       `[Orchestrator] Fetched market data for ${marketData.length} stocks`,
     );
   } catch (error) {
-    const msg = `Failed to fetch market data: ${error instanceof Error ? error.message : String(error)}`;
+    const msg = `Failed to fetch market data: ${errorMessage(error)}`;
     console.error(`[Orchestrator] ${msg}`);
     return {
       roundId,
@@ -908,7 +909,7 @@ async function executeTradingRound(
     );
   } catch (err) {
     console.warn(
-      `[Orchestrator] News fetch failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+      `[Orchestrator] News fetch failed (non-critical): ${errorMessage(err)}`,
     );
   }
 
@@ -971,7 +972,7 @@ async function executeTradingRound(
       await recordBalanceSnapshot(agent.agentId, `pre-trade-${roundId}`).catch(
         (err) =>
           console.warn(
-            `[Orchestrator] Balance snapshot failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            `[Orchestrator] Balance snapshot failed for ${agent.agentId}: ${errorMessage(err)}`,
           ),
       );
 
@@ -1000,7 +1001,7 @@ async function executeTradingRound(
         }
       } catch (err) {
         console.warn(
-          `[Orchestrator] Quality gate check failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          `[Orchestrator] Quality gate check failed for ${agent.agentId}: ${errorMessage(err)}`,
         );
       }
 
@@ -1065,7 +1066,7 @@ async function executeTradingRound(
           disciplinePass: discipline.passed ? "pass" : "fail",
         }).catch((err: unknown) => {
           console.warn(
-            `[Orchestrator] Justification insert failed: ${err instanceof Error ? err.message : String(err)}`,
+            `[Orchestrator] Justification insert failed: ${errorMessage(err)}`,
           );
         });
 
@@ -1245,7 +1246,7 @@ async function executeTradingRound(
           });
         } catch (err) {
           console.warn(
-            `[Orchestrator] Governance service recording failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            `[Orchestrator] Governance service recording failed for ${agent.agentId}: ${errorMessage(err)}`,
           );
         }
 
@@ -1325,7 +1326,7 @@ async function executeTradingRound(
             }, agent.agentId);
           } catch (err) {
             console.warn(
-              `[Orchestrator] Deep coherence failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+              `[Orchestrator] Deep coherence failed for ${agent.agentId}: ${errorMessage(err)}`,
             );
           }
 
@@ -1351,7 +1352,7 @@ async function executeTradingRound(
             }, agent.agentId);
           } catch (err) {
             console.warn(
-              `[Orchestrator] Pattern analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+              `[Orchestrator] Pattern analysis failed for ${agent.agentId}: ${errorMessage(err)}`,
             );
           }
 
@@ -1417,17 +1418,17 @@ async function executeTradingRound(
             }, agent.agentId);
           } catch (err) {
             console.warn(
-              `[Orchestrator] v11 forensic analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+              `[Orchestrator] v11 forensic analysis failed for ${agent.agentId}: ${errorMessage(err)}`,
             );
           }
         } catch (err) {
           console.warn(
-            `[Orchestrator] Depth/stream analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            `[Orchestrator] Depth/stream analysis failed for ${agent.agentId}: ${errorMessage(err)}`,
           );
         }
       } catch (err) {
         console.warn(
-          `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          `[Orchestrator] Benchmark analysis failed for ${agent.agentId}: ${errorMessage(err)}`,
         );
       }
 
@@ -1523,7 +1524,7 @@ async function executeTradingRound(
 
       } catch (err) {
         console.warn(
-          `[Orchestrator] v12 analysis failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+          `[Orchestrator] v12 analysis failed for ${agent.agentId}: ${errorMessage(err)}`,
         );
       }
 
@@ -1566,7 +1567,7 @@ async function executeTradingRound(
       await recordBalanceSnapshot(agent.agentId, `post-trade-${roundId}`).catch(
         (err) =>
           console.warn(
-            `[Orchestrator] Post-trade snapshot failed for ${agent.agentId}: ${err instanceof Error ? err.message : String(err)}`,
+            `[Orchestrator] Post-trade snapshot failed for ${agent.agentId}: ${errorMessage(err)}`,
           ),
       );
 
@@ -1575,7 +1576,7 @@ async function executeTradingRound(
       // Apply jitter between agents (1-5 seconds)
       await applyTradeJitter();
     } catch (error) {
-      const msg = `${agent.name} failed: ${error instanceof Error ? error.message : String(error)}`;
+      const msg = `${agent.name} failed: ${errorMessage(error)}`;
       console.error(`[Orchestrator] ${msg}`);
       errors.push(msg);
 
@@ -1612,7 +1613,7 @@ async function executeTradingRound(
       }
     } catch (err) {
       console.warn(
-        `[Orchestrator] Lending phase failed (non-critical): ${err instanceof Error ? err.message : String(err)}`,
+        `[Orchestrator] Lending phase failed (non-critical): ${errorMessage(err)}`,
       );
     }
   }
@@ -1718,10 +1719,10 @@ async function executeTradingRound(
       circuitBreakerActivations: allCircuitBreakerActivations,
       lockSkipped: false,
     }).catch((err) =>
-      console.warn(`[Orchestrator] DynamoDB persist failed: ${err instanceof Error ? err.message : String(err)}`),
+      console.warn(`[Orchestrator] DynamoDB persist failed: ${errorMessage(err)}`),
     );
   } catch (err) {
-    console.warn(`[Orchestrator] Round caching failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Round caching failed: ${errorMessage(err)}`);
   }
 
   // Track SPYx return for risk analysis beta calculation
@@ -1736,7 +1737,7 @@ async function executeTradingRound(
 
   // Track outcomes for previous trades (async, non-blocking)
   trackOutcomes(marketData).catch((err) =>
-    console.warn(`[Orchestrator] Outcome tracking failed: ${err instanceof Error ? err.message : String(err)}`),
+    console.warn(`[Orchestrator] Outcome tracking failed: ${errorMessage(err)}`),
   );
 
   // Generate reasoning diffs for this round (compare how agents reasoned differently)
@@ -1750,7 +1751,7 @@ async function executeTradingRound(
       );
     }
   } catch (err) {
-    console.warn(`[Orchestrator] Reasoning diffs failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Reasoning diffs failed: ${errorMessage(err)}`);
   }
 
   // Record round integrity proof (Merkle hash of all justifications)
@@ -1765,7 +1766,7 @@ async function executeTradingRound(
     }));
     recordRoundForIntegrity(roundId, roundJustifications);
   } catch (err) {
-    console.warn(`[Orchestrator] Integrity proof failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Integrity proof failed: ${errorMessage(err)}`);
   }
 
   // Feed leaderboard evolution with round results
@@ -1780,7 +1781,7 @@ async function executeTradingRound(
     }));
     recordLeaderboardRoundResult(roundId, leaderboardResults);
   } catch (err) {
-    console.warn(`[Orchestrator] Leaderboard evolution failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Leaderboard evolution failed: ${errorMessage(err)}`);
   }
 
   // --- NEW: Market regime detection + regime-tagged scoring ---
@@ -1818,7 +1819,7 @@ async function executeTradingRound(
       );
     }
   } catch (err) {
-    console.warn(`[Orchestrator] Regime detection failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Regime detection failed: ${errorMessage(err)}`);
   }
 
   // --- NEW: Peer review — agents critique each other's reasoning ---
@@ -1845,7 +1846,7 @@ async function executeTradingRound(
       mostControversial: peerReport.mostControversial,
     });
   } catch (err) {
-    console.warn(`[Orchestrator] Peer review failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Peer review failed: ${errorMessage(err)}`);
   }
 
   // Emit round completed event
@@ -1925,7 +1926,7 @@ async function executeTradingRound(
       highlights: battles.filter((b) => b.highlight).length,
     });
   } catch (err) {
-    console.warn(`[Orchestrator] v13 battle generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v13 battle generation failed: ${errorMessage(err)}`);
   }
 
   // --- Round-level provenance, Elo, and audit trail ---
@@ -1952,7 +1953,7 @@ async function executeTradingRound(
     // Audit peer review
     auditPeerReview(roundId, results.length, results[0]?.agentId ?? null, 0);
   } catch (err) {
-    console.warn(`[Orchestrator] Governance round finalization failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] Governance round finalization failed: ${errorMessage(err)}`);
   }
 
   // --- v14: Outcome Resolution, Calibration, Volatility, Consensus ---
@@ -2082,7 +2083,7 @@ async function executeTradingRound(
     });
 
   } catch (err) {
-    console.warn(`[Orchestrator] v14 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v14 analysis failed: ${errorMessage(err)}`);
   }
 
   // --- v15: Reasoning Provenance, Cross-Model Comparison, Reproducibility ---
@@ -2227,7 +2228,7 @@ async function executeTradingRound(
     });
 
   } catch (err) {
-    console.warn(`[Orchestrator] v15 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v15 analysis failed: ${errorMessage(err)}`);
   }
 
   // --- v16: Metacognition, Reasoning Depth, Unified 14-Pillar Scoring ---
@@ -2302,7 +2303,7 @@ async function executeTradingRound(
     );
 
   } catch (err) {
-    console.warn(`[Orchestrator] v16 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v16 analysis failed: ${errorMessage(err)}`);
   }
 
   // --- v17: Benchmark Intelligence Gateway, Forensic Ledger, Strategy Genomes ---
@@ -2428,7 +2429,7 @@ async function executeTradingRound(
     );
 
   } catch (err) {
-    console.warn(`[Orchestrator] v17 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v17 analysis failed: ${errorMessage(err)}`);
   }
 
   // =========================================================================
@@ -2549,7 +2550,7 @@ async function executeTradingRound(
     );
 
   } catch (err) {
-    console.warn(`[Orchestrator] v18 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v18 analysis failed: ${errorMessage(err)}`);
   }
 
   // =========================================================================
@@ -2606,7 +2607,7 @@ async function executeTradingRound(
       `[Orchestrator] v20 round complete: ${results.length} agents — transparency + accountability + certification recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v20 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v20 analysis failed: ${errorMessage(err)}`);
   }
 
   // =========================================================================
@@ -2647,7 +2648,7 @@ async function executeTradingRound(
       `[Orchestrator] v21 round complete: ${results.length} agents — chain validation + strategy profiling recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v21 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v21 analysis failed: ${errorMessage(err)}`);
   }
 
   // =========================================================================
@@ -2724,7 +2725,7 @@ async function executeTradingRound(
       `[Orchestrator] v22 round complete: ${results.length} agents — integrity + grounding + bias detection recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v22 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v22 analysis failed: ${errorMessage(err)}`);
   }
 
   // -----------------------------------------------------------------------
@@ -2776,7 +2777,7 @@ async function executeTradingRound(
       `[Orchestrator] v25 round complete: ${results.length} agents — outcome prediction + consensus intelligence recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v25 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v25 analysis failed: ${errorMessage(err)}`);
   }
 
   // -----------------------------------------------------------------------
@@ -2850,7 +2851,7 @@ async function executeTradingRound(
       `[Orchestrator] v28 round complete: ${results.length} agents — accountability + RQI recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v28 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v28 analysis failed: ${errorMessage(err)}`);
   }
 
   // -----------------------------------------------------------------------
@@ -2932,7 +2933,7 @@ async function executeTradingRound(
       `[Orchestrator] v33 round complete: ${results.length} agents — 26-dimension causal + epistemic scoring recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v33 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v33 analysis failed: ${errorMessage(err)}`);
   }
 
   // ── v35 Benchmark Scoring (30 dimensions — info asymmetry + temporal reasoning) ──
@@ -3017,7 +3018,7 @@ async function executeTradingRound(
       `[Orchestrator] v35 round complete: ${results.length} agents — 30-dimension info asymmetry + temporal reasoning scoring recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v35 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v35 analysis failed: ${errorMessage(err)}`);
   }
 
   // -----------------------------------------------------------------------
@@ -3101,7 +3102,7 @@ async function executeTradingRound(
       `[Orchestrator] v36 round complete: ${results.length} agents — 32-dimension reasoning auditability + decision reversibility scoring recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v36 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v36 analysis failed: ${errorMessage(err)}`);
   }
 
   // -----------------------------------------------------------------------
@@ -3186,7 +3187,7 @@ async function executeTradingRound(
       `[Orchestrator] v37 round complete: ${results.length} agents — 34-dimension reasoning composability + strategic foresight scoring recorded`,
     );
   } catch (err) {
-    console.warn(`[Orchestrator] v37 analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[Orchestrator] v37 analysis failed: ${errorMessage(err)}`);
   }
 
   return {

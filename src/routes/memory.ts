@@ -13,6 +13,7 @@ import {
   loadMemoryFromDB,
   clearAgentMemory,
 } from "../services/agent-memory.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const memory = new Hono();
 
@@ -149,7 +150,7 @@ memory.post("/:agentId/load", async (c) => {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });

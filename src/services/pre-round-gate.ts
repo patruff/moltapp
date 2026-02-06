@@ -30,6 +30,7 @@ import { sql } from "drizzle-orm";
 import { env } from "../config/env.ts";
 import { getCircuitBreakerStatus } from "./circuit-breaker.ts";
 import { getLockStatus } from "./trading-lock.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -160,7 +161,7 @@ async function checkDatabase(): Promise<GateCheck> {
       name: "database",
       status: "fail",
       latencyMs: Date.now() - start,
-      message: `Database unavailable: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Database unavailable: ${errorMessage(err)}`,
       required: true,
     };
   }
@@ -220,7 +221,7 @@ async function checkJupiterApi(): Promise<GateCheck> {
       name: "jupiter_api",
       status: "warn",
       latencyMs: Date.now() - start,
-      message: `Jupiter unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Jupiter unreachable: ${errorMessage(err)}`,
       required: false,
     };
   }
@@ -277,7 +278,7 @@ async function checkSolanaRpc(): Promise<GateCheck> {
       name: "solana_rpc",
       status: "warn",
       latencyMs: Date.now() - start,
-      message: `Solana RPC unreachable: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Solana RPC unreachable: ${errorMessage(err)}`,
       required: false,
     };
   }
@@ -343,7 +344,7 @@ function checkTradingLock(): GateCheck {
       name: "trading_lock",
       status: "fail",
       latencyMs: Date.now() - start,
-      message: `Lock check failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Lock check failed: ${errorMessage(err)}`,
       required: true,
     };
   }
@@ -382,7 +383,7 @@ function checkCircuitBreakers(): GateCheck {
       name: "circuit_breakers",
       status: "warn",
       latencyMs: Date.now() - start,
-      message: `CB check failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `CB check failed: ${errorMessage(err)}`,
       required: false,
     };
   }

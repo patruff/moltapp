@@ -8,6 +8,7 @@
 
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import type { NewsItem } from "./search-cache.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Symbol-to-real-name mapping (derived from XSTOCKS_CATALOG)
@@ -99,7 +100,7 @@ export async function braveSearchProvider(symbols: string[]): Promise<NewsItem[]
         });
       }
     } catch (err) {
-      console.warn(`[BraveSearch] Error searching ${symbol}: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn(`[BraveSearch] Error searching ${symbol}: ${errorMessage(err)}`);
     }
   }
 
@@ -118,7 +119,7 @@ export async function braveSearchProvider(symbols: string[]): Promise<NewsItem[]
       });
     }
   } catch (err) {
-    console.warn(`[BraveSearch] Market overview search failed: ${err instanceof Error ? err.message : String(err)}`);
+    console.warn(`[BraveSearch] Market overview search failed: ${errorMessage(err)}`);
   }
 
   console.log(`[BraveSearch] Fetched ${items.length} results for ${topSymbols.length} symbols`);

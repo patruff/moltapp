@@ -22,6 +22,7 @@
  */
 
 import { Hono } from "hono";
+import { errorMessage } from "../lib/errors.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc } from "drizzle-orm";
@@ -117,7 +118,7 @@ benchmarkApiRoutes.get("/export/json", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { ok: false, error: errorMessage(err) },
       500,
     );
   }
@@ -176,7 +177,7 @@ benchmarkApiRoutes.get("/export/csv", async (c) => {
     return c.body(csv);
   } catch (err) {
     return c.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { ok: false, error: errorMessage(err) },
       500,
     );
   }
@@ -397,7 +398,7 @@ benchmarkApiRoutes.get("/validate", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { ok: false, error: err instanceof Error ? err.message : String(err) },
+      { ok: false, error: errorMessage(err) },
       500,
     );
   }

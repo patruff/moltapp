@@ -24,6 +24,7 @@
 
 import { nowISO } from "../lib/format-utils.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -383,7 +384,7 @@ export function emergencyWithdrawAll(
       totalYield += result.yieldEarned;
     } catch (err) {
       console.error(
-        `[DeFiYield] Emergency withdraw failed for ${position.positionId}: ${err instanceof Error ? err.message : String(err)}`,
+        `[DeFiYield] Emergency withdraw failed for ${position.positionId}: ${errorMessage(err)}`,
       );
     }
   }

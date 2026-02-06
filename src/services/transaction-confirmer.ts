@@ -17,6 +17,7 @@
 
 import { createSolanaRpc, signature as toSignature, address } from "@solana/kit";
 import { env } from "../config/env.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -257,7 +258,7 @@ export async function confirmTransaction(
       }
     } catch (err) {
       // RPC error — log and continue polling
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       console.warn(
         `[TxConfirmer] RPC error on poll #${pollAttempts} for ${truncateSig(req.txSignature)}: ${errMsg}${contextStr}`,
       );
@@ -322,7 +323,7 @@ export async function confirmTransactionBatch(
       slot: null,
       blockTime: null,
       fee: null,
-      transactionError: r.reason instanceof Error ? r.reason.message : String(r.reason),
+      transactionError: errorMessage(r.reason),
       confirmationTimeMs: 0,
       pollAttempts: 0,
       timedOut: false,
@@ -370,7 +371,7 @@ export async function getTransactionDetails(
     };
   } catch (err) {
     console.error(
-      `[TxConfirmer] Failed to fetch transaction details for ${truncateSig(txSignature)}: ${err instanceof Error ? err.message : String(err)}`,
+      `[TxConfirmer] Failed to fetch transaction details for ${truncateSig(txSignature)}: ${errorMessage(err)}`,
     );
     return null;
   }

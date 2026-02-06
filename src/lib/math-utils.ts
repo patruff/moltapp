@@ -291,3 +291,29 @@ export function findMin<T extends Record<string, any>>(
     return itemVal < minVal ? item : min;
   }, items[0]);
 }
+
+/**
+ * Sorts an array of objects in descending order by a numeric property.
+ * Creates a shallow copy to avoid mutating the original array.
+ *
+ * Replaces verbose pattern: `array.sort((a, b) => b.property - a.property)`
+ *
+ * @param items - Array of objects to sort
+ * @param key - Property name to sort by (must be numeric)
+ * @returns A new array sorted in descending order
+ *
+ * @example
+ * const agents = [{name: 'A', score: 85}, {name: 'B', score: 92}, {name: 'C', score: 78}];
+ * sortDescending(agents, 'score')
+ * // returns [{name: 'B', score: 92}, {name: 'A', score: 85}, {name: 'C', score: 78}]
+ *
+ * const trades = [{symbol: 'AAPL', pnl: -5.2}, {symbol: 'MSFT', pnl: 8.3}, {symbol: 'GOOGL', pnl: 3.1}];
+ * sortDescending(trades, 'pnl')
+ * // returns [{symbol: 'MSFT', pnl: 8.3}, {symbol: 'GOOGL', pnl: 3.1}, {symbol: 'AAPL', pnl: -5.2}]
+ */
+export function sortDescending<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+): T[] {
+  return [...items].sort((a, b) => (b[key] as number) - (a[key] as number));
+}

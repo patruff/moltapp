@@ -14,6 +14,7 @@
  */
 
 import { createAgentWallet, getTurnkeySigner } from "./wallet.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,7 +131,7 @@ async function persistWalletToDynamo(
     );
   } catch (err) {
     console.error(
-      `[WalletProvisioner] Failed to persist wallet to DynamoDB: ${err instanceof Error ? err.message : String(err)}`,
+      `[WalletProvisioner] Failed to persist wallet to DynamoDB: ${errorMessage(err)}`,
     );
   }
 }
@@ -185,7 +186,7 @@ async function loadWalletsFromDynamo(): Promise<ProvisionedWallet[]> {
     return results;
   } catch (err) {
     console.warn(
-      `[WalletProvisioner] Failed to load wallets from DynamoDB: ${err instanceof Error ? err.message : String(err)}`,
+      `[WalletProvisioner] Failed to load wallets from DynamoDB: ${errorMessage(err)}`,
     );
     return [];
   }
@@ -297,7 +298,7 @@ export async function provisionAllWallets(): Promise<ProvisioningResult> {
         `[WalletProvisioner] ${def.agentName}: Wallet created — ${publicKey}`,
       );
     } catch (err) {
-      const msg = `${def.agentName}: ${err instanceof Error ? err.message : String(err)}`;
+      const msg = `${def.agentName}: ${errorMessage(err)}`;
       errors.push(msg);
       console.error(`[WalletProvisioner] ${msg}`);
       results.push({
@@ -376,7 +377,7 @@ export async function checkWalletHealth(
     hasSufficientFees = sol >= MIN_SOL_FOR_FEES;
   } catch (err) {
     console.warn(
-      `[WalletProvisioner] Balance check failed for ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+      `[WalletProvisioner] Balance check failed for ${agentId}: ${errorMessage(err)}`,
     );
   }
 

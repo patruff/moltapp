@@ -23,6 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte, type InferSelectModel } from "drizzle-orm";
 import { round2 } from "../lib/math-utils.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 type PortfolioSnapshotRow = InferSelectModel<typeof portfolioSnapshots>;
 
@@ -237,7 +238,7 @@ export async function takeSnapshot(
     snapshot.id = inserted.id;
   } catch (err) {
     console.warn(
-      `[PortfolioSnapshots] DB persist failed for ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+      `[PortfolioSnapshots] DB persist failed for ${agentId}: ${errorMessage(err)}`,
     );
   }
 
@@ -269,7 +270,7 @@ export async function takeRoundSnapshots(
       snapshots.push(snapshot);
     } catch (err) {
       console.error(
-        `[PortfolioSnapshots] Failed to snapshot ${agentId}: ${err instanceof Error ? err.message : String(err)}`,
+        `[PortfolioSnapshots] Failed to snapshot ${agentId}: ${errorMessage(err)}`,
       );
     }
   }

@@ -13,6 +13,7 @@ import {
   compareAgents,
   generateEquityCurve,
 } from "../services/portfolio-analytics.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 export const analyticsRoutes = new Hono();
 
@@ -44,7 +45,7 @@ analyticsRoutes.get("/:agentId", async (c) => {
     return c.json(
       {
         error: "metrics_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -73,7 +74,7 @@ analyticsRoutes.get("/:agentId/rolling", async (c) => {
     return c.json(
       {
         error: "rolling_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -102,7 +103,7 @@ analyticsRoutes.get("/:agentId/equity-curve", async (c) => {
     return c.json(
       {
         error: "equity_curve_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );
@@ -126,7 +127,7 @@ analyticsRoutes.get("/compare/all", async (c) => {
     return c.json(
       {
         error: "comparison_error",
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       },
       500,
     );

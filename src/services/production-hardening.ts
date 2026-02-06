@@ -15,6 +15,7 @@
  */
 
 import type { TradingDecision, MarketData, PortfolioContext } from "../agents/base-agent.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -161,7 +162,7 @@ export async function withAgentTimeout(
     const decision = await Promise.race([analyzeFn(), timeoutPromise]);
     return { decision, timedOut: false };
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
 
     if (errMsg.startsWith("AGENT_TIMEOUT:")) {
       metrics.agentTimeouts++;
@@ -211,7 +212,7 @@ export async function withExecutionTimeout<T>(
     const result = await Promise.race([executeFn(), timeoutPromise]);
     return { result, timedOut: false };
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
 
     if (errMsg.startsWith("EXECUTION_TIMEOUT:")) {
       metrics.executionTimeouts++;
@@ -250,7 +251,7 @@ export async function withRoundTimeout<T>(
     metrics.lastSuccessfulRound = new Date().toISOString();
     return { result, timedOut: false };
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
 
     if (errMsg.startsWith("ROUND_TIMEOUT:")) {
       metrics.roundTimeouts++;

@@ -13,6 +13,7 @@ import {
   getAgentAgreementMatrix,
   analyzeHistoricalConsensus,
 } from "../services/consensus-engine.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 const consensus = new Hono();
 
@@ -27,7 +28,7 @@ consensus.get("/", async (c) => {
       data: status,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });
@@ -55,7 +56,7 @@ consensus.get("/accuracy", async (c) => {
       data: accuracy,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });
@@ -83,7 +84,7 @@ consensus.get("/historical", async (c) => {
       data: analysis,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorMessage(error);
     return c.json({ status: "error", error: message }, 500);
   }
 });

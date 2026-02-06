@@ -19,6 +19,7 @@ import { getTransferSolInstruction } from "@solana-program/system";
 import type { TransactionPartialSigner } from "@solana/kit";
 import { getTurnkeySigner } from "./wallet.ts";
 import { env } from "../config/env.ts";
+import { errorMessage } from "../lib/errors.ts";
 import {
   USDC_MINT_MAINNET,
   USDC_MINT_DEVNET,
@@ -262,7 +263,7 @@ export async function withdrawSOL(
 
     return { txSignature: String(txSignature) };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     throw new Error(`withdrawal_sol_failed: ${message}`);
   }
 }
@@ -344,7 +345,7 @@ export async function withdrawUSDC(
 
     return { txSignature: String(txSignature) };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     throw new Error(`withdrawal_usdc_failed: ${message}`);
   }
 }

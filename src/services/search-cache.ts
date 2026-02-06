@@ -45,6 +45,8 @@ export interface SearchCacheMetrics {
   lastRefreshAt: string | null;
 }
 
+import { errorMessage } from "../lib/errors.ts";
+
 type SearchProvider = (
   symbols: string[],
 ) => Promise<NewsItem[]>;
@@ -231,7 +233,7 @@ export async function getCachedNews(
     return result;
   } catch (err) {
     console.error(
-      `[SearchCache] Search failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[SearchCache] Search failed: ${errorMessage(err)}`,
     );
 
     // Return stale cache entry if available

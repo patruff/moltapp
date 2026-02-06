@@ -14,6 +14,7 @@
  */
 
 import { Hono } from "hono";
+import { errorMessage } from "../lib/errors.ts";
 import {
   analyzePortfolioRisk,
   getRiskAnalyzerStats,
@@ -43,7 +44,7 @@ riskAnalysis.get("/compare", async (c) => {
       );
       reports.push(report);
     } catch (err) {
-      console.error(`[RiskAPI] Failed to analyze ${agentId}: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`[RiskAPI] Failed to analyze ${agentId}: ${errorMessage(err)}`);
     }
   }
 
@@ -103,7 +104,7 @@ riskAnalysis.get("/:agentId/stress", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { error: "Failed to run stress tests", message: err instanceof Error ? err.message : String(err) },
+      { error: "Failed to run stress tests", message: errorMessage(err) },
       500,
     );
   }
@@ -135,7 +136,7 @@ riskAnalysis.get("/:agentId/concentration", async (c) => {
     });
   } catch (err) {
     return c.json(
-      { error: "Failed to analyze concentration", message: err instanceof Error ? err.message : String(err) },
+      { error: "Failed to analyze concentration", message: errorMessage(err) },
       500,
     );
   }
@@ -159,7 +160,7 @@ riskAnalysis.get("/:agentId", async (c) => {
     return c.json(report);
   } catch (err) {
     return c.json(
-      { error: "Failed to generate risk report", message: err instanceof Error ? err.message : String(err) },
+      { error: "Failed to generate risk report", message: errorMessage(err) },
       500,
     );
   }

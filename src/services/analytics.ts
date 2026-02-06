@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, round2, round3 } from "../lib/math-utils.ts";
+import { calculateAverage, round2, round3, sortDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -460,8 +460,8 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
   }
 
   // Sort by portfolio value (highest first)
-  rankings.sort((a, b) => b.portfolioValue - a.portfolioValue);
-  rankings.forEach((r, i) => { r.rank = i + 1; });
+  const sortedRankings = sortDescending(rankings, "portfolioValue");
+  sortedRankings.forEach((r, i) => { r.rank = i + 1; });
 
   // Market conditions
   const marketConditions = computeMarketConditions(marketData);
@@ -522,7 +522,7 @@ function computePerformance(
   const lossesConf = calculateAverage(losses, 'confidence');
 
   // Best and worst decisions by confidence
-  const sorted = [...decisions].sort((a, b) => b.confidence - a.confidence);
+  const sorted = sortDescending(decisions, "confidence");
   const best = sorted[0] ?? null;
   const worst = sorted[sorted.length - 1] ?? null;
 
@@ -738,14 +738,13 @@ function computeSectorAllocation(
   }
 
   const total = actionDecisions.length || 1;
-  return Array.from(sectorMap.entries())
-    .map(([sector, data]) => ({
-      sector,
-      symbols: Array.from(data.symbols),
-      tradeCount: data.count,
-      allocation: Math.round((data.count / total) * 1000) / 10,
-    }))
-    .sort((a, b) => b.tradeCount - a.tradeCount);
+  const sectorData = Array.from(sectorMap.entries()).map(([sector, data]) => ({
+    sector,
+    symbols: Array.from(data.symbols),
+    tradeCount: data.count,
+    allocation: Math.round((data.count / total) * 1000) / 10,
+  }));
+  return sortDescending(sectorData, "tradeCount");
 }
 
 function computeStreaks(

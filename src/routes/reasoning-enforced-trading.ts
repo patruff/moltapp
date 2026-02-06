@@ -48,7 +48,7 @@ import {
   analyzeCoherenceWithContext,
 } from "../services/benchmark-evidence-collector.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { apiError } from "../lib/errors.ts";
+import { apiError, errorMessage } from "../lib/errors.ts";
 
 export const reasoningEnforcedTradingRoutes = new Hono();
 
@@ -159,7 +159,7 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
     stats.validationFailed++;
     agentStats.rejected++;
     return apiError(c, "VALIDATION_FAILED",
-      err instanceof Error ? err.message : String(err)
+      errorMessage(err)
     );
   }
 
@@ -252,7 +252,7 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
     });
   } catch (err) {
     console.warn(
-      `[ReasoningEnforced] DB insert failed: ${err instanceof Error ? err.message : String(err)}`,
+      `[ReasoningEnforced] DB insert failed: ${errorMessage(err)}`,
     );
   }
 

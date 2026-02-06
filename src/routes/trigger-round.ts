@@ -26,6 +26,7 @@ import {
   formatNewsForPrompt,
 } from "../services/search-cache.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
 import { clamp, round2, round3 } from "../lib/math-utils.ts";
@@ -327,7 +328,7 @@ app.post("/trigger", async (c) => {
         // Small delay between agents for realism
         await new Promise((resolve) => setTimeout(resolve, 100));
       } catch (err) {
-        const msg = `${agent.name} error: ${err instanceof Error ? err.message : String(err)}`;
+        const msg = `${agent.name} error: ${errorMessage(err)}`;
         triggeredRound.errors.push(msg);
         results.push({
           agentId: agent.agentId,
@@ -394,7 +395,7 @@ app.post("/trigger", async (c) => {
 
     return c.json(triggeredRound);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorMessage(err);
     triggeredRound.status = "failed";
     triggeredRound.errors.push(msg);
     triggeredRound.completedAt = new Date().toISOString();

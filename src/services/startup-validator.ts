@@ -19,6 +19,7 @@
 import { db } from "../db/index.ts";
 import { sql } from "drizzle-orm";
 import { env } from "../config/env.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,7 +125,7 @@ async function checkDatabase(): Promise<HealthCheck> {
       status: "unhealthy",
       severity: "critical",
       latencyMs: Date.now() - start,
-      message: `Connection failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Connection failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -198,7 +199,7 @@ async function checkSolanaRpc(): Promise<HealthCheck> {
       status: "unhealthy",
       severity: "warning",
       latencyMs: Date.now() - start,
-      message: `Failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -254,7 +255,7 @@ async function checkJupiterApi(): Promise<HealthCheck> {
       status: "unhealthy",
       severity: "warning",
       latencyMs: Date.now() - start,
-      message: `Failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -329,7 +330,7 @@ async function checkAnthropicApi(): Promise<HealthCheck> {
       status: "degraded",
       severity: "info",
       latencyMs: Date.now() - start,
-      message: `Check failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Check failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -382,7 +383,7 @@ async function checkOpenAIApi(): Promise<HealthCheck> {
       status: "degraded",
       severity: "info",
       latencyMs: Date.now() - start,
-      message: `Check failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Check failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -435,7 +436,7 @@ async function checkXAIApi(): Promise<HealthCheck> {
       status: "degraded",
       severity: "info",
       latencyMs: Date.now() - start,
-      message: `Check failed: ${err instanceof Error ? err.message : String(err)}`,
+      message: `Check failed: ${errorMessage(err)}`,
     };
   }
 }
@@ -613,7 +614,7 @@ export function startHealthTicker(intervalMs: number = 5 * 60 * 1000): void {
       lastHealthReport = await validateStartupHealth();
     } catch (err) {
       console.error(
-        `[StartupValidator] Background health check failed: ${err instanceof Error ? err.message : String(err)}`,
+        `[StartupValidator] Background health check failed: ${errorMessage(err)}`,
       );
     }
   }, intervalMs);

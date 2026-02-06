@@ -13,6 +13,7 @@
  */
 
 import type { NewsItem } from "./search-cache.ts";
+import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -228,7 +229,7 @@ function parsePerplexityResponse(
     }
   } catch (err) {
     console.warn(
-      `[NewsProvider] Failed to parse Perplexity response: ${err instanceof Error ? err.message : String(err)}`,
+      `[NewsProvider] Failed to parse Perplexity response: ${errorMessage(err)}`,
     );
 
     // Create a single item from the raw text content
@@ -438,7 +439,7 @@ export async function fetchMarketNews(
       recordProviderCall("perplexity", true, Date.now() - pStart);
       allItems.push(...perplexityItems);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       recordProviderCall("perplexity", false, Date.now() - startTime, msg);
       console.warn(`[NewsProvider] Perplexity failed: ${msg}`);
     }
@@ -463,7 +464,7 @@ export async function fetchMarketNews(
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = errorMessage(err);
       recordProviderCall("alphavantage", false, Date.now() - startTime, msg);
       console.warn(`[NewsProvider] Alpha Vantage failed: ${msg}`);
     }

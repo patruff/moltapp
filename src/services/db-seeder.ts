@@ -19,6 +19,7 @@
 
 import { db } from "../db/index.ts";
 import { agents } from "../db/schema/agents.ts";
+import { errorMessage } from "../lib/errors.ts";
 import { wallets } from "../db/schema/wallets.ts";
 import { apiKeys } from "../db/schema/api-keys.ts";
 import { eq, sql } from "drizzle-orm";
@@ -211,7 +212,7 @@ async function seedAgents(records: SeedRecord[]): Promise<void> {
       });
     } catch (err) {
       // Handle unique constraint violations gracefully
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       if (errMsg.includes("duplicate") || errMsg.includes("unique")) {
         records.push({
           table: "agents",
@@ -269,7 +270,7 @@ async function seedWallets(records: SeedRecord[]): Promise<void> {
         message: `Created wallet for ${wallet.agentId} (${wallet.publicKey.slice(0, 8)}...)`,
       });
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       if (errMsg.includes("duplicate") || errMsg.includes("unique")) {
         records.push({
           table: "wallets",
@@ -327,7 +328,7 @@ async function seedApiKeys(records: SeedRecord[]): Promise<void> {
         message: `Created API key for ${keySeed.agentId}`,
       });
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       if (errMsg.includes("duplicate") || errMsg.includes("unique")) {
         records.push({
           table: "api_keys",
@@ -369,7 +370,7 @@ export async function seedDatabase(): Promise<SeedResult> {
     // Verify database connectivity first
     await db.execute(sql`SELECT 1`);
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : String(err);
+    const errMsg = errorMessage(err);
     console.error(`[DBSeeder] Database not accessible: ${errMsg}`);
     return {
       success: false,
