@@ -13,6 +13,8 @@
  * This feeds into the benchmark's qualitative scoring pillar.
  */
 
+import { normalize } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -309,13 +311,13 @@ export function analyzeReasoningPatterns(
   const hedgePenalty = Math.min(0.15, hedgeRatio * 3);
 
   const qualityScore = Math.round(
-    Math.max(0, Math.min(1,
+    normalize(
       depthScore * 0.35 +
       sophisticationScore * 0.25 +
       Math.min(1, quantitativeRatio) * 0.15 +
       (1 - fallacyPenalty) * 0.15 +
       (1 - templatePenalty - hedgePenalty) * 0.10
-    )) * 100,
+    ) * 100,
   ) / 100;
 
   return {

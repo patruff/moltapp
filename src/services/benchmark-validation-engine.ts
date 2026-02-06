@@ -18,6 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
+import { normalize } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -424,7 +425,7 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
     score = 0.6;
   }
 
-  return Math.max(0, Math.min(1, score));
+  return normalize(score);
 }
 
 function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[]): number {
@@ -451,7 +452,7 @@ function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[
     score -= 0.1;
   }
 
-  return Math.max(0, Math.min(1, score));
+  return normalize(score);
 }
 
 function validateConfidenceCalibration(
@@ -506,7 +507,7 @@ function validateConfidenceCalibration(
     score -= 0.2;
   }
 
-  return Math.max(0, Math.min(1, score));
+  return normalize(score);
 }
 
 function validateActionAlignment(decision: TradingDecision, issues: ValidationIssue[]): number {
