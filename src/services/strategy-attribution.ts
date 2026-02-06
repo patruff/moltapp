@@ -14,7 +14,7 @@
  */
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
-import { getTopKey, round2 } from "../lib/math-utils.ts";
+import { getTopKey, round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,15 +223,9 @@ function computeIntentRankings(
       tradeCount: intentTrades.length,
       avgPnlPercent: round2(avgPnl),
       winRate: round2(winRate),
-      avgConfidence: round2(
-        intentTrades.reduce((s, t) => s + t.confidence, 0) / intentTrades.length,
-      ),
-      avgCoherence: round2(
-        intentTrades.reduce((s, t) => s + t.coherenceScore, 0) / intentTrades.length,
-      ),
-      avgHallucinations: round2(
-        intentTrades.reduce((s, t) => s + t.hallucinationCount, 0) / intentTrades.length,
-      ),
+      avgConfidence: round2(averageByKey(intentTrades, 'confidence')),
+      avgCoherence: round2(averageByKey(intentTrades, 'coherenceScore')),
+      avgHallucinations: round2(averageByKey(intentTrades, 'hallucinationCount')),
       bestTradePnl: pnls.length > 0 ? round2(pnls[0]) : 0,
       worstTradePnl: pnls.length > 0 ? round2(pnls[pnls.length - 1]) : 0,
       dominantAction,
@@ -287,12 +281,8 @@ function computeAgentIntentMatrix(
         tradeCount: trades.length,
         avgPnl: round2(avgPnl),
         winRate: round2(winRate),
-        avgConfidence: round2(
-          trades.reduce((s, t) => s + t.confidence, 0) / trades.length,
-        ),
-        avgCoherence: round2(
-          trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length,
-        ),
+        avgConfidence: round2(averageByKey(trades, 'confidence')),
+        avgCoherence: round2(averageByKey(trades, 'coherenceScore')),
       });
     }
 
@@ -398,12 +388,8 @@ export function getAgentIntentProfile(agentId: string): AgentIntentMatrix | null
       tradeCount: trades.length,
       avgPnl: round2(avgPnl),
       winRate: round2(winRate),
-      avgConfidence: round2(
-        trades.reduce((s, t) => s + t.confidence, 0) / trades.length,
-      ),
-      avgCoherence: round2(
-        trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length,
-      ),
+      avgConfidence: round2(averageByKey(trades, 'confidence')),
+      avgCoherence: round2(averageByKey(trades, 'coherenceScore')),
     });
   }
 

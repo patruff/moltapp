@@ -23,6 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
+import { sumByKey } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;
@@ -225,8 +226,8 @@ export async function calculatePortfolioMetrics(
       ? (winningTrades.length / tradeOutcomes.length) * 100
       : 0;
 
-  const grossProfit = winningTrades.reduce((s, t) => s + t.pnl, 0);
-  const grossLoss = Math.abs(losingTrades.reduce((s, t) => s + t.pnl, 0));
+  const grossProfit = sumByKey(winningTrades, 'pnl');
+  const grossLoss = Math.abs(sumByKey(losingTrades, 'pnl'));
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : null;
 
   const averageWin =
@@ -257,7 +258,7 @@ export async function calculatePortfolioMetrics(
   const holdingPeriods = calculateHoldingPeriods(tradeRecords);
 
   // Volume
-  const totalVolumeUsdc = tradeRecords.reduce((s, t) => s + t.usdcAmount, 0);
+  const totalVolumeUsdc = sumByKey(tradeRecords, 'usdcAmount');
   const avgTradeSize =
     tradeRecords.length > 0 ? totalVolumeUsdc / tradeRecords.length : 0;
 
