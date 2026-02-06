@@ -18,7 +18,7 @@
  * 5. ORIGINALITY — who brought novel analysis vs templated responses?
  */
 
-import { round2, sortEntriesDescending } from "../lib/math-utils.ts";
+import { countByCondition, round2, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -491,10 +491,10 @@ export function getArbitrationStats(): {
   tieRate: number;
   resolvedOutcomes: number;
 } {
-  const disagreements = arbitrationCases.filter(c => c.isDisagreement).length;
-  const ties = arbitrationCases.filter(c => c.winner === "tie").length;
+  const disagreements = countByCondition(arbitrationCases, c => c.isDisagreement);
+  const ties = countByCondition(arbitrationCases, c => c.winner === "tie");
   const marginSum = arbitrationCases.reduce((s, c) => s + c.margin, 0);
-  const resolved = arbitrationCases.filter(c => c.outcomeVerdict && c.outcomeVerdict !== "pending").length;
+  const resolved = countByCondition(arbitrationCases, c => !!(c.outcomeVerdict && c.outcomeVerdict !== "pending"));
 
   return {
     totalCases: arbitrationCases.length,
