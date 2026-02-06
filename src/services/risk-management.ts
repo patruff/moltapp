@@ -27,7 +27,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
-import { round2, round3 } from "../lib/math-utils.ts";
+import { round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -343,7 +343,7 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
 
   // HHI = sum of squared market shares (x10000)
   const hhi = Math.round(
-    weights.reduce((sum, w) => sum + (w.weight * 100) ** 2, 0),
+    sumByKey(weights, 'weight', (w) => (w * 100) ** 2),
   );
 
   // Classify concentration
@@ -358,9 +358,10 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
     "AAPLx", "AMZNx", "GOOGLx", "METAx", "MSFTx", "NVDAx", "TSLAx",
     "COINx", "HOODx", "NFLXx", "PLTRx", "CRMx", "AVGOx",
   ]);
-  const techExposure = weights
-    .filter((w) => techSymbols.has(w.symbol))
-    .reduce((sum, w) => sum + w.weight, 0);
+  const techExposure = sumByKey(
+    weights.filter((w) => techSymbols.has(w.symbol)),
+    'weight'
+  );
 
   return {
     hhi,
@@ -368,7 +369,7 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
     largestPositionPercent: round2(weights[0].weight * 100),
     largestPositionSymbol: weights[0].symbol,
     top3Percent: round2(
-      weights.slice(0, 3).reduce((s, w) => s + w.weight, 0) * 100,
+      sumByKey(weights.slice(0, 3), 'weight') * 100,
     ),
     techExposurePercent: round2(techExposure * 100),
   };
@@ -999,13 +1000,11 @@ export async function getPlatformRiskSummary() {
   // Platform-level aggregation
   const avgRiskScore =
     dashboards.length > 0
-      ? Math.round(
-          dashboards.reduce((s, d) => s + d.riskScore, 0) / dashboards.length,
-        )
+      ? Math.round(averageByKey(dashboards, 'riskScore'))
       : 0;
 
-  const totalVar95 = dashboards.reduce((s, d) => s + d.var.var95, 0);
-  const totalVar99 = dashboards.reduce((s, d) => s + d.var.var99, 0);
+  const totalVar95 = dashboards.reduce((sum, d) => sum + d.var.var95, 0);
+  const totalVar99 = dashboards.reduce((sum, d) => sum + d.var.var99, 0);
 
   const circuitBreakers = dashboards.filter(
     (d) => d.drawdown.circuitBreakerTriggered,

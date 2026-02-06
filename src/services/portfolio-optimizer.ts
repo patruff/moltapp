@@ -260,7 +260,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   const riskFreeRate = 0.05; // 5% risk-free rate
 
   // Calculate current allocation (based on trade frequency)
-  const totalTrades = Object.values(symbolCounts).reduce((s, v) => s + v.count, 0) || 1;
+  const totalTrades = sumByKey(Object.values(symbolCounts), 'count') || 1;
   const currentAllocation: AllocationEntry[] = symbols.map((sym) => {
     const stock = XSTOCKS_CATALOG.find((s) => s.symbol === sym);
     const entry = symbolCounts[sym];
@@ -440,7 +440,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
       .filter((w) => w.weight > 0.01)
       .sort((a, b) => b.weight - a.weight)
       .slice(0, 10);
-    const topTotal = topWeights.reduce((s, w) => s + w.weight, 0) || 1;
+    const topTotal = sumByKey(topWeights, 'weight') || 1;
     for (const w of topWeights) {
       w.weight = round4(w.weight / topTotal);
     }

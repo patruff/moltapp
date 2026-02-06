@@ -13,7 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
-import { round2, stdDev } from "../lib/math-utils.ts";
+import { round2, stdDev, averageByKey } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -855,9 +855,7 @@ export async function getRegimeAgentCorrelation(): Promise<RegimeAgentCorrelatio
       const winRate = actionDecs.length > 0
         ? (highConf.length / actionDecs.length) * 100
         : 0;
-      const avgConf = decs.length > 0
-        ? decs.reduce((s, d) => s + d.confidence, 0) / decs.length
-        : 0;
+      const avgConf = averageByKey(decs, 'confidence');
 
       // Best stock in this regime
       const stockCounts: Record<string, { count: number; totalConf: number }> = {};
