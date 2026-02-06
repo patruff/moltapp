@@ -198,3 +198,81 @@ export function stdDev(values: number[]): number {
   const variance = values.reduce((s, v) => s + (v - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
+
+/**
+ * Finds the element with the maximum value for a given property.
+ * Returns undefined if array is empty.
+ * Optionally accepts a custom comparator for complex comparison logic (e.g., Math.abs).
+ *
+ * Replaces verbose pattern: `array.reduce((a, b) => b.prop > a.prop ? b : a, array[0])`
+ *
+ * @param items - Array of objects to search
+ * @param key - Property name to compare
+ * @param compareFn - Optional custom comparison function (defaults to direct comparison)
+ * @returns The element with the maximum value, or undefined if array is empty
+ *
+ * @example
+ * const agents = [{name: 'A', score: 85}, {name: 'B', score: 92}];
+ * findMax(agents, 'score') // returns {name: 'B', score: 92}
+ *
+ * const trades = [{symbol: 'AAPL', beta: -0.5}, {symbol: 'MSFT', beta: 1.2}];
+ * findMax(trades, 'beta', (a, b) => Math.abs(a) - Math.abs(b)) // returns {symbol: 'MSFT', beta: 1.2}
+ *
+ * findMax([], 'score') // returns undefined
+ */
+export function findMax<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+  compareFn?: (a: number, b: number) => number,
+): T | undefined {
+  if (items.length === 0) return undefined;
+
+  return items.reduce((max, item) => {
+    const maxVal = max[key] as number;
+    const itemVal = item[key] as number;
+
+    if (compareFn) {
+      return compareFn(itemVal, maxVal) > 0 ? item : max;
+    }
+    return itemVal > maxVal ? item : max;
+  }, items[0]);
+}
+
+/**
+ * Finds the element with the minimum value for a given property.
+ * Returns undefined if array is empty.
+ * Optionally accepts a custom comparator for complex comparison logic (e.g., Math.abs).
+ *
+ * Replaces verbose pattern: `array.reduce((a, b) => b.prop < a.prop ? b : a, array[0])`
+ *
+ * @param items - Array of objects to search
+ * @param key - Property name to compare
+ * @param compareFn - Optional custom comparison function (defaults to direct comparison)
+ * @returns The element with the minimum value, or undefined if array is empty
+ *
+ * @example
+ * const agents = [{name: 'A', risk: 0.15}, {name: 'B', risk: 0.08}];
+ * findMin(agents, 'risk') // returns {name: 'B', risk: 0.08}
+ *
+ * const trades = [{symbol: 'AAPL', beta: -0.5}, {symbol: 'MSFT', beta: 1.2}];
+ * findMin(trades, 'beta', (a, b) => Math.abs(a) - Math.abs(b)) // returns {symbol: 'AAPL', beta: -0.5}
+ *
+ * findMin([], 'risk') // returns undefined
+ */
+export function findMin<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+  compareFn?: (a: number, b: number) => number,
+): T | undefined {
+  if (items.length === 0) return undefined;
+
+  return items.reduce((min, item) => {
+    const minVal = min[key] as number;
+    const itemVal = item[key] as number;
+
+    if (compareFn) {
+      return compareFn(itemVal, minVal) < 0 ? item : min;
+    }
+    return itemVal < minVal ? item : min;
+  }, items[0]);
+}

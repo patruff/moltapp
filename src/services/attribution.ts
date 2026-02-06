@@ -16,7 +16,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1243,11 +1243,11 @@ export async function compareAttribution(
   }
 
   // Determine winners
-  const bestStockPicker = summaries.reduce((a, b) => b.selectionEffect > a.selectionEffect ? b : a, summaries[0]);
-  const bestTimingAgent = summaries.reduce((a, b) => b.timingScore > a.timingScore ? b : a, summaries[0]);
-  const mostDiversified = summaries.reduce((a, b) => b.diversificationRatio > a.diversificationRatio ? b : a, summaries[0]);
-  const highestAlpha = summaries.reduce((a, b) => b.alpha > a.alpha ? b : a, summaries[0]);
-  const lowestBeta = summaries.reduce((a, b) => Math.abs(b.beta) < Math.abs(a.beta) ? b : a, summaries[0]);
+  const bestStockPicker = findMax(summaries, "selectionEffect");
+  const bestTimingAgent = findMax(summaries, "timingScore");
+  const mostDiversified = findMax(summaries, "diversificationRatio");
+  const highestAlpha = findMax(summaries, "alpha");
+  const lowestBeta = findMin(summaries, "beta", (a, b) => Math.abs(a) - Math.abs(b));
 
   // Build comparison narrative
   const narrativeParts: string[] = [];
