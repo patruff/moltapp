@@ -1275,7 +1275,7 @@ async function executeTradingRound(
 
       // --- v12: Validation Engine, Reasoning Taxonomy, Cross-Round Consistency ---
       try {
-        const normalizedConf12 = decision.confidence > 1 ? decision.confidence / 100 : decision.confidence;
+        const normalizedConf12 = normalizeConfidence(decision.confidence);
 
         // 1. Validate trade against benchmark quality dimensions
         const validationResult = validateForBenchmark(
@@ -1654,7 +1654,7 @@ async function executeTradingRound(
         0.5, // coherence will be filled from justification
         0.5, // depth will be filled from depth analyzer
         false,
-        r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+        normalizeConfidence(r.decision.confidence),
         r.decision.action,
         roundId,
       );
@@ -1670,7 +1670,7 @@ async function executeTradingRound(
       reasoning: r.decision.reasoning,
       action: r.decision.action,
       symbol: r.decision.symbol,
-      confidence: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+      confidence: normalizeConfidence(r.decision.confidence),
     }));
 
     const peerReport = conductRoundPeerReview(roundDecisions, roundId);
@@ -1702,7 +1702,7 @@ async function executeTradingRound(
   try {
     // Build battle participants from round results
     const battleParticipants: BattleParticipant[] = results.map((r) => {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       return {
         agentId: r.agentId,
         action: r.decision.action,
@@ -1784,7 +1784,7 @@ async function executeTradingRound(
     // Process Elo updates from pairwise comparisons
     const eloResults = results.map((r) => ({
       agentId: r.agentId,
-      compositeScore: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+      compositeScore: normalizeConfidence(r.decision.confidence),
     }));
     processRoundElo(eloResults);
 
@@ -1801,7 +1801,7 @@ async function executeTradingRound(
   try {
     // 1. Register predictions and resolve pending ones
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       const stock = marketData.find((m) => m.symbol.toLowerCase() === r.decision.symbol.toLowerCase());
 
       // Register prediction if agent provided one
@@ -1866,7 +1866,7 @@ async function executeTradingRound(
 
     // 3. Record consensus divergence
     const consensusAgents: AgentRoundAction[] = results.map((r) => {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       return {
         agentId: r.agentId,
         action: r.decision.action,
@@ -1886,7 +1886,7 @@ async function executeTradingRound(
 
     // 4. Update v14 agent metrics
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       recordV14AgentMetrics(r.agentId, {
         financial: 0.5,
         reasoning: normConf * 0.8 + 0.1,
@@ -1936,7 +1936,7 @@ async function executeTradingRound(
     }
 
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
 
       // Cryptographic provenance proof
       const proof = createReasoningProof(
@@ -1968,7 +1968,7 @@ async function executeTradingRound(
       action: r.decision.action,
       symbol: r.decision.symbol,
       reasoning: r.decision.reasoning,
-      confidence: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+      confidence: normalizeConfidence(r.decision.confidence),
       roundId,
       timestamp: new Date().toISOString(),
     }));
@@ -2004,7 +2004,7 @@ async function executeTradingRound(
     };
     const scoringOutputs: Record<string, unknown> = {};
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       scoringOutputs[r.agentId] = { composite: normConf * 0.4 + 0.4 };
     }
 
@@ -2030,7 +2030,7 @@ async function executeTradingRound(
 
     // 4. Update v15 agent metrics
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       recordV15AgentMetrics(r.agentId, {
         financial: 0.5,
         reasoning: normConf * 0.8 + 0.1,
@@ -2075,7 +2075,7 @@ async function executeTradingRound(
   // --- v16: Metacognition, Reasoning Depth, Unified 14-Pillar Scoring ---
   try {
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
 
       // 1. Score reasoning depth (8 dimensions)
       const depthResult = scoreV16Depth(r.decision.reasoning);
@@ -2169,7 +2169,7 @@ async function executeTradingRound(
     })();
 
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
       const sources = r.decision.sources ?? extractSourcesFromReasoning(r.decision.reasoning);
 
@@ -2282,7 +2282,7 @@ async function executeTradingRound(
     let reasoningLengthSum = 0;
 
     for (const r of results) {
-      const normConf = r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence;
+      const normConf = normalizeConfidence(r.decision.confidence);
       const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
       const coherenceEst = normConf * 0.6 + 0.3;
       const reasoningWords = countWords(r.decision.reasoning);
@@ -2398,7 +2398,7 @@ async function executeTradingRound(
   try {
     for (const result of results) {
       const d = result.decision;
-      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const conf01 = normalizeConfidence(d.confidence);
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
 
       // 1. Reasoning Transparency Engine — decompose reasoning into claims, evidence, logic
@@ -2455,7 +2455,7 @@ async function executeTradingRound(
   try {
     for (const result of results) {
       const d = result.decision;
-      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const conf01 = normalizeConfidence(d.confidence);
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
       const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
 
@@ -2506,13 +2506,13 @@ async function executeTradingRound(
           action: r.decision.action,
           symbol: r.decision.symbol,
           reasoning: r.decision.reasoning,
-          confidence: r.decision.confidence > 1 ? r.decision.confidence / 100 : r.decision.confidence,
+          confidence: normalizeConfidence(r.decision.confidence),
         }));
     }
 
     for (const result of results) {
       const d = result.decision;
-      const conf01 = d.confidence > 1 ? d.confidence / 100 : d.confidence;
+      const conf01 = normalizeConfidence(d.confidence);
       const sources = d.sources ?? extractSourcesFromReasoning(d.reasoning);
       const intent = d.intent ?? classifyIntent(d.reasoning, d.action);
       const tradeId = `v22_${roundId}_${result.agentId}`;
