@@ -20,6 +20,66 @@
 import { round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Calibration Grading Thresholds (ECE boundaries)
+ *
+ * Expected Calibration Error (ECE) measures how well an agent's confidence
+ * scores predict actual trade outcomes. Lower ECE = better calibration.
+ *
+ * Grade boundaries define calibration quality tiers:
+ */
+
+/** ECE threshold for A+ grade (< 0.02) - nearly perfect calibration */
+const CALIBRATION_THRESHOLD_A_PLUS = 0.02;
+
+/** ECE threshold for A grade (0.02-0.05) - excellent calibration */
+const CALIBRATION_THRESHOLD_A = 0.05;
+
+/** ECE threshold for A- grade (0.05-0.08) - very good calibration */
+const CALIBRATION_THRESHOLD_A_MINUS = 0.08;
+
+/** ECE threshold for B+ grade (0.08-0.10) - good calibration */
+const CALIBRATION_THRESHOLD_B_PLUS = 0.10;
+
+/** ECE threshold for B grade (0.10-0.13) - above average calibration */
+const CALIBRATION_THRESHOLD_B = 0.13;
+
+/** ECE threshold for B- grade (0.13-0.16) - slightly above average */
+const CALIBRATION_THRESHOLD_B_MINUS = 0.16;
+
+/** ECE threshold for C+ grade (0.16-0.20) - average calibration */
+const CALIBRATION_THRESHOLD_C_PLUS = 0.20;
+
+/** ECE threshold for C grade (0.20-0.25) - below average calibration */
+const CALIBRATION_THRESHOLD_C = 0.25;
+
+/** ECE threshold for C- grade (0.25-0.30) - poor calibration */
+const CALIBRATION_THRESHOLD_C_MINUS = 0.30;
+
+/** ECE threshold for D grade (0.30-0.35) - very poor calibration */
+const CALIBRATION_THRESHOLD_D = 0.35;
+
+/**
+ * Gap Detection Thresholds
+ *
+ * Gap = avgConfidence - actualWinRate for a confidence bucket.
+ * Positive gap = overconfidence, negative gap = underconfidence.
+ */
+
+/** Gap threshold (|gap| > 0.05) to classify bucket as over/underconfident */
+const CALIBRATION_GAP_SIGNIFICANCE = 0.05;
+
+/**
+ * Trend Analysis Parameters
+ */
+
+/** Bucket size (0.2 = 5 buckets) for calibration trend analysis over time */
+const CALIBRATION_TREND_BUCKET_SIZE = 0.2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -226,8 +286,8 @@ export function computeCalibration(
 
   const avgOverconfidence = overconfidenceBuckets > 0 ? overconfidenceSum / overconfidenceBuckets : 0;
   const nonEmptyBuckets = buckets.filter((b) => b.count > 0);
-  const overconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap > 0.05).length;
-  const underconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap < -0.05).length;
+  const overconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap > CALIBRATION_GAP_SIGNIFICANCE).length;
+  const underconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap < -CALIBRATION_GAP_SIGNIFICANCE).length;
 
   return {
     agentId: resolvedAgentId,
@@ -266,7 +326,7 @@ export function computeCalibrationTrend(
     const n = batch.length;
 
     // Quick ECE computation
-    const bucketSize = 0.2; // 5 buckets for trend
+    const bucketSize = CALIBRATION_TREND_BUCKET_SIZE; // 5 buckets for trend
     let ece = 0;
     let brierSum = 0;
 
@@ -348,16 +408,16 @@ export function getOutcomeData(agentId?: string): OutcomeRecord[] {
 // ---------------------------------------------------------------------------
 
 function calibrationGrade(ece: number): string {
-  if (ece <= 0.02) return "A+";
-  if (ece <= 0.05) return "A";
-  if (ece <= 0.08) return "A-";
-  if (ece <= 0.10) return "B+";
-  if (ece <= 0.13) return "B";
-  if (ece <= 0.16) return "B-";
-  if (ece <= 0.20) return "C+";
-  if (ece <= 0.25) return "C";
-  if (ece <= 0.30) return "C-";
-  if (ece <= 0.35) return "D";
+  if (ece <= CALIBRATION_THRESHOLD_A_PLUS) return "A+";
+  if (ece <= CALIBRATION_THRESHOLD_A) return "A";
+  if (ece <= CALIBRATION_THRESHOLD_A_MINUS) return "A-";
+  if (ece <= CALIBRATION_THRESHOLD_B_PLUS) return "B+";
+  if (ece <= CALIBRATION_THRESHOLD_B) return "B";
+  if (ece <= CALIBRATION_THRESHOLD_B_MINUS) return "B-";
+  if (ece <= CALIBRATION_THRESHOLD_C_PLUS) return "C+";
+  if (ece <= CALIBRATION_THRESHOLD_C) return "C";
+  if (ece <= CALIBRATION_THRESHOLD_C_MINUS) return "C-";
+  if (ece <= CALIBRATION_THRESHOLD_D) return "D";
   return "F";
 }
 
