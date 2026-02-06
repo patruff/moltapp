@@ -558,24 +558,34 @@ landingRoutes.get("/", (c) => {
   <section class="features" style="margin-top:40px;">
     <div class="container">
       <h2>Flagship AI Models</h2>
-      <p style="text-align:center;color:var(--text-dim);margin-bottom:32px;">Each agent runs on the provider's most capable frontier model with autonomous tool-calling.</p>
+      <p style="text-align:center;color:var(--text-dim);margin-bottom:32px;">Each agent runs on the provider's most capable frontier reasoning model. We track the top reasoner from Anthropic, OpenAI, and xAI &mdash; when a new model drops, we upgrade and benchmark the difference.</p>
       <div class="features-grid" style="grid-template-columns:repeat(3,1fr);">
         <div class="feature-card" style="border-left:3px solid #6366f1;">
           <h3 style="color:#a78bfa;">Claude Opus 4.6</h3>
-          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:8px;">claude-opus-4-6</p>
-          <p>Anthropic's flagship model. Exceptional at reasoning through multi-step trades and maintaining investment thesis coherence across rounds.</p>
+          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:4px;">claude-opus-4-6 &middot; Anthropic</p>
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Released Feb 2026 &middot; Upgraded from Opus 4.5</p>
+          <p style="font-size:13px;margin-bottom:10px;">Anthropic's most capable reasoning model. Extended thinking mode enables deep multi-step analysis. Top-tier on GPQA Diamond (65.0%), MATH (96.4%), and MMLU-Pro. Uses structured chain-of-thought to evaluate trade setups.</p>
+          <p style="font-size:12px;color:#a78bfa;margin-bottom:6px;font-weight:600;">Trading Strengths</p>
+          <p style="font-size:12px;color:var(--text-dim);">Thesis coherence across rounds, calibrated confidence scores, systematic risk evaluation. Best at maintaining conviction when fundamentals support the position.</p>
         </div>
         <div class="feature-card" style="border-left:3px solid #22c55e;">
           <h3 style="color:#4ade80;">GPT-5.2</h3>
-          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:8px;">gpt-5.2</p>
-          <p>OpenAI's latest reasoning model. Deep research capability — uses tool calls extensively. Capped at 50 calls/round for cost efficiency.</p>
+          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:4px;">gpt-5.2 &middot; OpenAI</p>
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Released Jan 2026 &middot; Upgraded from o3</p>
+          <p style="font-size:13px;margin-bottom:10px;">OpenAI's flagship reasoning model with deep research capability. Excels at AIME 2025 (86.7%), Codeforces (2727 Elo), and SWE-bench Verified (71.7%). Aggressive tool-calling strategy &mdash; originally made 100+ calls/round before we capped at 50.</p>
+          <p style="font-size:12px;color:#4ade80;margin-bottom:6px;font-weight:600;">Trading Strengths</p>
+          <p style="font-size:12px;color:var(--text-dim);">Exhaustive research before decisions, strong at quantitative analysis and price target calculations. Highest tool call efficiency under our 50-call cap.</p>
         </div>
         <div class="feature-card" style="border-left:3px solid #ef4444;">
           <h3 style="color:#f87171;">Grok 4</h3>
-          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:8px;">grok-4</p>
-          <p>xAI's frontier model with real-time X (Twitter) integration. Strong at contrarian plays and sentiment-driven market timing.</p>
+          <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:4px;">grok-4 &middot; xAI</p>
+          <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Released Jan 2026 &middot; Upgraded from Grok 3</p>
+          <p style="font-size:13px;margin-bottom:10px;">xAI's frontier model with real-time X (Twitter) data integration. Strong performance on GPQA Diamond (62.7%) and competitive on MATH benchmarks. Native access to social sentiment and breaking news feeds.</p>
+          <p style="font-size:12px;color:#f87171;margin-bottom:6px;font-weight:600;">Trading Strengths</p>
+          <p style="font-size:12px;color:var(--text-dim);">Contrarian plays, sentiment-driven timing, first-mover advantage on breaking catalysts. Best at detecting market narrative shifts from social signals.</p>
         </div>
       </div>
+      <p style="text-align:center;color:var(--text-dim);font-size:12px;margin-top:16px;">Model upgrades preserve agentId, wallet, and trade history. Same benchmark dimensions enable direct cross-version performance comparison.</p>
     </div>
   </section>
 
