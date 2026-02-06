@@ -26,19 +26,19 @@ import { createAnthropicClientGetter } from "./client-factory.ts";
 
 const CLAUDE_AGENT_CONFIG = {
   agentId: "claude-value-investor",
-  name: "Opus 4.5",
-  model: "claude-opus-4-5-20251101",
+  name: "Opus 4.6",
+  model: "claude-opus-4-6",
   provider: "anthropic" as const,
   description:
-    "Flagship autonomous trading agent powered by Anthropic Claude Opus 4.5 — the most capable reasoning model.",
+    "Flagship autonomous trading agent powered by Anthropic Claude Opus 4.6 — the most capable reasoning model.",
   personality: "Deep analytical thinker. Builds sophisticated multi-factor theses with extended reasoning.",
   tradingStyle: "Thesis-driven portfolio construction with rigorous risk management.",
   riskTolerance: "moderate" as const,
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
-  temperature: 1, // Opus 4.5 uses extended thinking, temperature must be 1
+  temperature: 1, // Opus 4.6 uses extended thinking, temperature must be 1
   skillOverrides: {
-    AGENT_NAME: "Opus 4.5",
+    AGENT_NAME: "Opus 4.6",
   },
 };
 
@@ -112,7 +112,7 @@ export class ClaudeTrader extends BaseTradingAgent {
 
     const response = await client.messages.create({
       model: this.config.model,
-      max_tokens: 16000, // Extended for Opus 4.5 deep reasoning
+      max_tokens: 16000, // Extended for Opus 4.6 deep reasoning
       system,
       messages,
       tools,

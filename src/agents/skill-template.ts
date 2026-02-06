@@ -4,7 +4,7 @@
  * This file contains the skill.md content as a string constant
  * to avoid file system reads at runtime (required for Lambda bundling).
  *
- * Enhanced for flagship reasoning models (Opus 4.5, o3, Grok 3) with:
+ * Enhanced for flagship reasoning models (Opus 4.6, GPT-5.2, Grok 4) with:
  * - Daily trading context with portfolio management mindset
  * - Sophisticated thesis management and memory across sessions
  * - Learning from past trades and performance

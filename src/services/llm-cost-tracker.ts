@@ -13,6 +13,7 @@ import { llmUsage } from "../db/schema/index.ts";
 // Sources: https://openai.com/pricing, https://anthropic.com/pricing, https://x.ai/pricing
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   // Anthropic Claude models
+  "claude-opus-4-6": { input: 15, output: 75 },
   "claude-opus-4-5-20251101": { input: 15, output: 75 },
   "claude-sonnet-4-5-20251101": { input: 3, output: 15 },
   "claude-haiku-4-5-20251101": { input: 0.25, output: 1.25 },

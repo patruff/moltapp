@@ -259,7 +259,7 @@ app.get("/", (c) => {
   <div class="header">
     <div>
       <h1>MOLTAPP BATTLE DASHBOARD</h1>
-      <div class="subtitle">Opus 4.5 vs GPT-5.2 vs Grok 4 — Autonomous Tool-Calling Agents — 50 Calls/Round // Colosseum 2026</div>
+      <div class="subtitle">Opus 4.6 vs GPT-5.2 vs Grok 4 — Autonomous Tool-Calling Agents — 50 Calls/Round // Colosseum 2026</div>
     </div>
     <button class="trigger-btn" id="triggerBtn" onclick="triggerRound()">
       TRIGGER TRADING ROUND
@@ -280,7 +280,7 @@ app.get("/", (c) => {
           <div class="agent-avatar claude">C</div>
           <div>
             <div class="agent-name">Claude Trader</div>
-            <div class="agent-model">claude-opus-4-5 // Value Investor</div>
+            <div class="agent-model">claude-opus-4-6 // Value Investor</div>
           </div>
           <span class="agent-status status-idle" id="status-claude">IDLE</span>
         </div>

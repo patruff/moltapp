@@ -1885,7 +1885,7 @@ pages.get("/performance", async (c) => {
 
   // Agent colors
   const agentColors: Record<string, string> = {
-    "claude-value-investor": "#8B5CF6", // Purple (Opus 4.5)
+    "claude-value-investor": "#8B5CF6", // Purple (Opus 4.6)
     "gpt-momentum-trader": "#10B981",   // Green (GPT 5.2)
     "grok-contrarian": "#F59E0B",       // Orange (Grok 4)
   };

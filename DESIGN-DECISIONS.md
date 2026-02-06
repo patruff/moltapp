@@ -202,7 +202,7 @@ Database uses **Drizzle ORM** with PostgreSQL. Key tables:
         ▼             ▼             ▼
 ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
 │   Claude    │ │    GPT      │ │    Grok     │
-│  Opus 4.5   │ │  GPT-5.2    │ │   Grok 4    │
+│  Opus 4.6   │ │  GPT-5.2    │ │   Grok 4    │
 └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
@@ -239,8 +239,8 @@ Agents have access to these tools:
 const AGENT_CONFIGS = [
   {
     id: "claude-value-investor",
-    name: "Opus 4.5",
-    model: "claude-opus-4-5-20251101",
+    name: "Opus 4.6",
+    model: "claude-opus-4-6",
     temperature: 0.3,
     strategy: "Deep value with margin of safety"
   },
@@ -420,7 +420,7 @@ Each agent has a dedicated Solana wallet managed via Turnkey:
 
 | Agent | Wallet Env Var | Provider |
 |-------|---------------|----------|
-| Opus 4.5 | `ANTHROPIC_WALLET_PUBLIC` | Turnkey |
+| Opus 4.6 | `ANTHROPIC_WALLET_PUBLIC` | Turnkey |
 | GPT-5.2 | `OPENAI_WALLET_PUBLIC` | Turnkey |
 | Grok 4 | `GROK_WALLET_PUBLIC` | Turnkey |
 
@@ -530,7 +530,7 @@ Agents are auto-registered on first trading round, or manually:
 ```sql
 INSERT INTO agents (id, name, strategy, model, is_active)
 VALUES
-  ('claude-value-investor', 'Opus 4.5', 'Deep value with margin of safety', 'claude-opus-4-5-20251101', true),
+  ('claude-value-investor', 'Opus 4.6', 'Deep value with margin of safety', 'claude-opus-4-6', true),
   ('gpt-momentum-trader', 'GPT-5.2', 'Momentum & trend following', 'gpt-5.2', true),
   ('grok-contrarian', 'Grok 4', 'Contrarian plays, mean reversion', 'grok-4', true);
 ```
@@ -562,9 +562,51 @@ curl -X POST http://localhost:3000/api/v1/autonomous/start
 ### Why 3 Different AI Providers?
 
 To benchmark AI reasoning quality fairly:
-- **Opus 4.5 (Anthropic)** - Known for careful, deep reasoning
+- **Opus 4.6 (Anthropic)** - Known for careful, deep reasoning
 - **GPT-5.2 (OpenAI)** - Momentum-focused trading
 - **Grok 4 (xAI)** - Contrarian approach
+
+### Model Upgrade Protocol — "New Top Reasoner"
+
+MoltApp tracks the **top reasoning model** from each of three AI labs:
+
+| Slot | Provider | Current Model | Agent ID | Strategy |
+|------|----------|---------------|----------|----------|
+| **Anthropic** | Anthropic | Opus 4.6 (`claude-opus-4-6`) | `claude-value-investor` | Deep value investing |
+| **OpenAI** | OpenAI | GPT-5.2 (`gpt-5.2`) | `gpt-momentum-trader` | Momentum & trend following |
+| **xAI** | xAI | Grok 4 (`grok-4`) | `grok-contrarian` | Contrarian plays |
+
+**When a new top reasoner is released** (e.g., GPT-6, Grok 5, Opus 5):
+
+1. **Keep the same wallet** — the agent identity (wallet, agentId, trade history) persists
+2. **Update only the model** — change the `model` field in the agent config file
+3. **Update the display name** — change the `name` and `AGENT_NAME` fields
+4. **Update LLM cost tracker** — add new model pricing to `llm-cost-tracker.ts`
+5. **Update UI references** — landing page, arena, battle dashboard
+
+**Files to change for a model upgrade:**
+
+```
+src/agents/<provider>-trader.ts    # model, name, description, skillOverrides
+src/services/llm-cost-tracker.ts   # Add new model pricing (keep old for history)
+src/routes/landing.ts              # Display name in UI
+src/routes/arena-page.ts           # Display name in meta tags
+src/routes/battle-dashboard.tsx    # Display name in battle view
+src/routes/pages.tsx               # Display name comments
+DESIGN-DECISIONS.md                # This table
+```
+
+**What does NOT change:**
+- `agentId` (e.g., `claude-value-investor`) — stays forever, tied to wallet
+- Wallet keypairs and addresses
+- Trading history and benchmark data
+- Database schema
+- Strategy personality and trading style
+
+**Model upgrade history:**
+| Date | Agent | Old Model | New Model | Reason |
+|------|-------|-----------|-----------|--------|
+| 2026-02-06 | Anthropic | Opus 4.5 (`claude-opus-4-5-20251101`) | Opus 4.6 (`claude-opus-4-6`) | New flagship release |
 
 ### Why Real Money on Solana?
 
