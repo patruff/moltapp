@@ -25,6 +25,7 @@ import {
   type V28CompositeScore,
 } from "../services/v28-benchmark-engine.ts";
 import { V28_DIMENSIONS } from "../schemas/benchmark-v28.ts";
+import { sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV28ApiRoutes = new Hono();
 
@@ -37,7 +38,7 @@ for (const dim of V28_DIMENSIONS) {
   DIMENSION_WEIGHTS[dim.key] = dim.weight;
 }
 
-const TOTAL_WEIGHT = V28_DIMENSIONS.reduce((sum, d) => sum + d.weight, 0);
+const TOTAL_WEIGHT = sumByKey(V28_DIMENSIONS, 'weight');
 
 // ---------------------------------------------------------------------------
 // GET / — v28 benchmark overview

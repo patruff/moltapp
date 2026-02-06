@@ -6,6 +6,7 @@
  */
 
 import type { ActiveLoan } from "./types.ts";
+import { sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // In-Memory State
@@ -89,16 +90,14 @@ export function defaultLoan(loanId: string): void {
 
 /** Get total $STONKS currently lent out by an agent */
 export function getTotalLentOut(lenderId: string): number {
-  return getActiveLoans()
-    .filter((l) => l.lenderId === lenderId)
-    .reduce((sum, l) => sum + l.amount, 0);
+  const lenderLoans = getActiveLoans().filter((l) => l.lenderId === lenderId);
+  return sumByKey(lenderLoans, 'amount');
 }
 
 /** Get total $STONKS currently borrowed by an agent */
 export function getTotalBorrowed(borrowerId: string): number {
-  return getActiveLoans()
-    .filter((l) => l.borrowerId === borrowerId)
-    .reduce((sum, l) => sum + l.amount, 0);
+  const borrowerLoans = getActiveLoans().filter((l) => l.borrowerId === borrowerId);
+  return sumByKey(borrowerLoans, 'amount');
 }
 
 /** Get lending history summary */
@@ -112,7 +111,7 @@ export function getLendingSummary(): {
   return {
     activeCount: active.length,
     settledCount: settledLoans.length,
-    totalBorrowed: active.reduce((sum, l) => sum + l.amount, 0),
+    totalBorrowed: sumByKey(active, 'amount'),
     totalInterestPaid: settledLoans.reduce(
       (sum, l) => sum + (l.settlement?.interestPaid ?? 0),
       0,

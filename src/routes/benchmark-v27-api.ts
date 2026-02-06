@@ -25,7 +25,7 @@ import {
   type V27CompositeScore,
 } from "../services/v27-benchmark-engine.ts";
 import { V27_DIMENSIONS } from "../schemas/benchmark-v27.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV27ApiRoutes = new Hono();
 
@@ -38,7 +38,7 @@ for (const dim of V27_DIMENSIONS) {
   DIMENSION_WEIGHTS[dim.key] = dim.weight;
 }
 
-const TOTAL_WEIGHT = V27_DIMENSIONS.reduce((sum, d) => sum + d.weight, 0);
+const TOTAL_WEIGHT = sumByKey(V27_DIMENSIONS, 'weight');
 
 // ---------------------------------------------------------------------------
 // GET / — v27 benchmark overview
@@ -193,15 +193,14 @@ benchmarkV27ApiRoutes.get("/execution-quality/:agentId", (c) => {
 
     // Compute stats
     const scores = history.map((h) => h.executionQualityScore);
-    const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    const avg = mean(scores);
     const count = scores.length;
 
     // Trend: compare last 3 entries avg to overall avg
     let trend: "improving" | "declining" | "stable";
     if (count >= 3) {
       const recentSlice = scores.slice(-3);
-      const recentAvg =
-        recentSlice.reduce((sum, s) => sum + s, 0) / recentSlice.length;
+      const recentAvg = mean(recentSlice);
       const delta = recentAvg - avg;
       if (delta > 0.03) {
         trend = "improving";
@@ -258,15 +257,14 @@ benchmarkV27ApiRoutes.get("/learning/:agentId", (c) => {
 
     // Compute stats
     const scores = history.map((h) => h.learningScore);
-    const avg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    const avg = mean(scores);
     const count = scores.length;
 
     // Trend: compare last 3 entries avg to overall avg
     let trend: "improving" | "declining" | "stable";
     if (count >= 3) {
       const recentSlice = scores.slice(-3);
-      const recentAvg =
-        recentSlice.reduce((sum, s) => sum + s, 0) / recentSlice.length;
+      const recentAvg = mean(recentSlice);
       const delta = recentAvg - avg;
       if (delta > 0.03) {
         trend = "improving";

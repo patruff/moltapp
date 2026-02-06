@@ -45,7 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices } from "../services/market-aggregator.ts";
 
@@ -3238,10 +3238,7 @@ export async function getAgentStats(agentId: string) {
     const sellDecisions = decisions.filter((d: AgentDecision) => d.action === "sell");
     const holdDecisions = decisions.filter((d: AgentDecision) => d.action === "hold");
 
-    const avgConfidence =
-      totalDecisions > 0
-        ? decisions.reduce((sum: number, d: AgentDecision) => sum + d.confidence, 0) / totalDecisions
-        : 0;
+    const avgConfidence = averageByKey(decisions, 'confidence');
 
     // Symbol frequency
     const symbolCounts: Record<string, number> = {};

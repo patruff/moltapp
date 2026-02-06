@@ -19,6 +19,7 @@ import {
   getV29Leaderboard,
   type V29BenchmarkScore,
 } from "../services/v29-benchmark-engine.ts";
+import { sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV29ApiRoutes = new Hono();
 
@@ -47,7 +48,7 @@ const V29_DIMENSIONS = [
   { key: "edgeConsistency", name: "Edge", weight: 1, category: "performance", description: "Consistent positive edge" },
 ];
 
-const TOTAL_WEIGHT = V29_DIMENSIONS.reduce((sum, d) => sum + d.weight, 0);
+const TOTAL_WEIGHT = sumByKey(V29_DIMENSIONS, 'weight');
 
 const AGENT_LABELS: Record<string, string> = {
   "claude-value-investor": "Claude ValueBot",
