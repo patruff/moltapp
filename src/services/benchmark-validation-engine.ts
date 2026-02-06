@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { normalize, round3, splitSentences } from "../lib/math-utils.ts";
+import { normalize, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -219,7 +219,7 @@ export function validateForBenchmark(
   });
 
   // --- Compute composite score ---
-  const qualityScore = dimensions.reduce((sum, d) => sum + d.score * d.weight, 0);
+  const qualityScore = weightedSum(dimensions, 'score', 'weight');
   const roundedScore = round3(qualityScore);
 
   // Grade assignment

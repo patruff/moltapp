@@ -15,7 +15,7 @@
  * 7. Forensic Quality (Structure, Originality, Clarity, Cross-trade integrity)
  */
 
-import { mean, round2 } from "../lib/math-utils.ts";
+import { mean, round2, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -256,7 +256,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
 
   // Composite score: weighted average of all pillars
   const compositeScore = round2(
-    pillars.reduce((sum, p) => sum + p.score * p.weight, 0),
+    weightedSum(pillars, 'score', 'weight'),
   );
 
   // Rank and trend

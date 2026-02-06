@@ -15,7 +15,7 @@
  * - Export-ready researcher payloads (JSONL, CSV, summary stats)
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,7 +181,7 @@ export function recordV17Scores(
   });
 
   // Compute weighted composite
-  const composite = pillars.reduce((sum, p) => sum + p.score * p.weight, 0);
+  const composite = weightedSum(pillars, 'score', 'weight');
 
   // Identify strengths (top 3) and weaknesses (bottom 3)
   const sorted = [...pillars].sort((a, b) => b.score - a.score);

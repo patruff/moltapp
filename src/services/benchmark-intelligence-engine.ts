@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countWords, mean, round3, splitSentences } from "../lib/math-utils.ts";
+import { countWords, mean, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -638,7 +638,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // Compute weighted composite
-  const composite = pillars.reduce((sum, p) => sum + p.score * p.weight, 0);
+  const composite = weightedSum(pillars, 'score', 'weight');
   const normalizedComposite = round3(composite);
 
   // Rank
