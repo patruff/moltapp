@@ -619,3 +619,33 @@ export function sortEntriesByValue(
 ): [string, number][] {
   return Object.entries(record).sort(([, a], [, b]) => compareFn(a, b));
 }
+
+/**
+ * Counts the number of items in an array that match a given condition.
+ * More efficient than filter().length as it avoids creating an intermediate array.
+ *
+ * Replaces verbose pattern: `items.filter(predicate).length`
+ *
+ * @param items - Array of items to count
+ * @param predicate - Function that returns true for items to count
+ * @returns Number of items matching the condition
+ *
+ * @example
+ * const decisions = [{action: 'buy'}, {action: 'hold'}, {action: 'buy'}];
+ * countByCondition(decisions, d => d.action === 'buy') // returns 2
+ *
+ * const agents = [{confidence: 75}, {confidence: 45}, {confidence: 82}];
+ * countByCondition(agents, a => a.confidence > 70) // returns 2
+ *
+ * countByCondition([], () => true) // returns 0
+ */
+export function countByCondition<T>(
+  items: readonly T[],
+  predicate: (item: T) => boolean,
+): number {
+  let count = 0;
+  for (const item of items) {
+    if (predicate(item)) count++;
+  }
+  return count;
+}

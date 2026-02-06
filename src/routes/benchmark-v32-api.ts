@@ -16,7 +16,7 @@
  */
 
 import { Hono } from "hono";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 import {
   getAgentScores,
   getAgentScore,
@@ -226,8 +226,8 @@ benchmarkV32ApiRoutes.get("/grounding/:agentId", (c) => {
 
   const groundingScores = trades.map((t) => t.groundingScore);
   const avg = groundingScores.reduce((a, b) => a + b, 0) / groundingScores.length;
-  const highlyGrounded = trades.filter((t) => t.groundingScore >= 70).length;
-  const poorlyGrounded = trades.filter((t) => t.groundingScore < 40).length;
+  const highlyGrounded = countByCondition(trades, (t) => t.groundingScore >= 70);
+  const poorlyGrounded = countByCondition(trades, (t) => t.groundingScore < 40);
 
   return c.json({
     ok: true,

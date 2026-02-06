@@ -15,7 +15,7 @@
  * 7. Historical trend detection (improving or degrading performance?)
  */
 
-import { round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -220,8 +220,8 @@ export function analyzeRound(
   const uniqueStocks = new Set(
     activeDecisions.map((d) => d.symbol),
   ).size;
-  const buys = activeDecisions.filter((d) => d.action === "buy").length;
-  const sells = activeDecisions.filter((d) => d.action === "sell").length;
+  const buys = countByCondition(activeDecisions, (d) => d.action === "buy");
+  const sells = countByCondition(activeDecisions, (d) => d.action === "sell");
 
   const analytics: RoundAnalytics = {
     roundId,
@@ -565,7 +565,7 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
       else break;
     }
 
-    const execSuccesses = recentRoundsData.filter((r) => r.executed).length;
+    const execSuccesses = countByCondition(recentRoundsData, (r) => r.executed);
 
     trends.push({
       agentId,

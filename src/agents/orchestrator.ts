@@ -45,7 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { averageByKey, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices } from "../services/market-aggregator.ts";
 
@@ -1901,7 +1901,7 @@ async function executeTradingRound(
       roundId,
       battleCount: battles.length,
       comparisonCount: reasoningComparisons.length,
-      highlights: battles.filter((b) => b.highlight).length,
+      highlights: countByCondition(battles, (b) => b.highlight),
     });
   } catch (err) {
     console.warn(`[Orchestrator] v13 battle generation failed: ${errorMessage(err)}`);
@@ -1912,7 +1912,7 @@ async function executeTradingRound(
     // Record round in provenance chain
     recordRoundProvenance(roundId, {
       agentCount: results.length,
-      tradeCount: results.filter((r) => r.decision.action !== "hold").length,
+      tradeCount: countByCondition(results, (r) => r.decision.action !== "hold"),
       avgCoherence: 0.5, // Will be enriched by scoring engine
       hallucinationCount: 0,
       tradingMode: getTradingMode(),
@@ -1997,7 +1997,7 @@ async function executeTradingRound(
     if (newlyResolved.length > 0) {
       console.log(
         `[Orchestrator] v14 resolved ${newlyResolved.length} predictions. ` +
-        `Correct: ${newlyResolved.filter((r) => r.directionCorrect).length}/${newlyResolved.length}`,
+        `Correct: ${countByCondition(newlyResolved, (r) => r.directionCorrect)}/${newlyResolved.length}`,
       );
     }
 
@@ -2049,7 +2049,7 @@ async function executeTradingRound(
       consensusType: consensusSnapshot.consensusType,
       agreementScore: consensusSnapshot.agreementScore,
       predictionsResolved: newlyResolved.length,
-      predictionsCorrect: newlyResolved.filter((r) => r.directionCorrect).length,
+      predictionsCorrect: countByCondition(newlyResolved, (r) => r.directionCorrect),
     });
 
     emitBenchmarkEvent("benchmark_update", {
@@ -2298,8 +2298,8 @@ async function executeTradingRound(
     // Compute consensus for genome
     const majorityAction = (() => {
       const actions = results.filter((r) => r.decision.action !== "hold").map((r) => r.decision.action);
-      const buys = actions.filter((a) => a === "buy").length;
-      const sells = actions.filter((a) => a === "sell").length;
+      const buys = countByCondition(actions, (a) => a === "buy");
+      const sells = countByCondition(actions, (a) => a === "sell");
       if (buys > sells) return "buy";
       if (sells > buys) return "sell";
       return null;
@@ -3185,8 +3185,8 @@ function computeRoundConsensus(results: TradingRoundResult[]): "unanimous" | "ma
   const nonHold = results.filter((r) => r.decision.action !== "hold");
   if (nonHold.length === 0) return "no_trades";
   const actions = nonHold.map((r) => r.decision.action);
-  const buys = actions.filter((a) => a === "buy").length;
-  const sells = actions.filter((a) => a === "sell").length;
+  const buys = countByCondition(actions, (a) => a === "buy");
+  const sells = countByCondition(actions, (a) => a === "sell");
   if (buys === nonHold.length || sells === nonHold.length) return "unanimous";
   if (buys > sells && buys > 1) return "majority";
   if (sells > buys && sells > 1) return "majority";
