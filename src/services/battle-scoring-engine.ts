@@ -23,6 +23,94 @@
 import { round3, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Battle Dimension Scoring Weights
+ *
+ * These weights determine how much each performance dimension contributes to
+ * the overall battle composite score. Total weights = 1.0 (100%).
+ */
+
+/** Weight for financial performance (P&L) in battle scoring (20%) */
+const DIMENSION_WEIGHT_FINANCIAL = 0.20;
+
+/** Weight for reasoning coherence quality in battle scoring (20%) */
+const DIMENSION_WEIGHT_REASONING_COHERENCE = 0.20;
+
+/** Weight for reasoning depth (detail, analysis) in battle scoring (15%) */
+const DIMENSION_WEIGHT_REASONING_DEPTH = 0.15;
+
+/** Weight for confidence calibration accuracy in battle scoring (15%) */
+const DIMENSION_WEIGHT_CONVICTION_CALIBRATION = 0.15;
+
+/** Weight for originality/novelty of reasoning in battle scoring (10%) */
+const DIMENSION_WEIGHT_ORIGINALITY = 0.10;
+
+/** Weight for safety (hallucination-free) in battle scoring (10%) */
+const DIMENSION_WEIGHT_SAFETY = 0.10;
+
+/** Weight for discipline (rules compliance) in battle scoring (10%) */
+const DIMENSION_WEIGHT_DISCIPLINE = 0.10;
+
+/**
+ * Hallucination Penalty
+ *
+ * Safety scores are penalized per hallucination count. Each hallucination
+ * reduces the safety score by this amount (starting from 1.0 perfect score).
+ */
+
+/** Penalty per hallucination in safety scoring (25% per hallucination) */
+const HALLUCINATION_PENALTY_PER_COUNT = 0.25;
+
+/**
+ * Battle Outcome Classification Thresholds
+ *
+ * These thresholds classify battles based on margin of victory:
+ * - TIE_THRESHOLD: Composite scores within this margin = tie (no winner)
+ * - HIGHLIGHT_*: Battles outside these ranges are marked as highlights
+ */
+
+/** Margin threshold for classifying battle as a tie (within 1.5% = tie) */
+const BATTLE_TIE_THRESHOLD = 0.015;
+
+/** Margin threshold for "close battle" highlights (< 5% = close) */
+const BATTLE_HIGHLIGHT_CLOSE_MARGIN = 0.05;
+
+/** Margin threshold for "upset/blowout" highlights (> 30% = dominant) */
+const BATTLE_HIGHLIGHT_UPSET_MARGIN = 0.30;
+
+/**
+ * Dimension Comparison Thresholds
+ *
+ * When comparing dimension scores (e.g., coherence A vs B), differences
+ * smaller than this threshold are classified as ties (no clear winner).
+ */
+
+/** Tie threshold for dimension scoring (within 2% = dimension tie) */
+const DIMENSION_TIE_THRESHOLD = 0.02;
+
+/**
+ * Narrative Generation Margin Classification
+ *
+ * These thresholds classify margin of victory for human-readable narratives:
+ * - < 0.10: "razor-thin" margin
+ * - 0.10 - 0.25: "modest" margin
+ * - 0.25 - 0.50: "convincing" margin
+ * - > 0.50: "dominant" margin
+ */
+
+/** Margin threshold for "razor-thin" victory classification (< 10%) */
+const NARRATIVE_MARGIN_RAZOR_THIN = 0.10;
+
+/** Margin threshold for "modest" victory classification (< 25%) */
+const NARRATIVE_MARGIN_MODEST = 0.25;
+
+/** Margin threshold for "convincing" victory classification (< 50%) */
+const NARRATIVE_MARGIN_CONVINCING = 0.50;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -129,10 +217,9 @@ function scoreDimension(
   const effectiveB = higherIsBetter ? valueB : 1 - valueB;
 
   const diff = effectiveA - effectiveB;
-  const threshold = 0.02; // Within 2% is a tie
 
   let winnerAgentId: string | null = null;
-  if (Math.abs(diff) > threshold) {
+  if (Math.abs(diff) > DIMENSION_TIE_THRESHOLD) {
     winnerAgentId = diff > 0 ? "A" : "B"; // Placeholder, replaced in battle
   }
 
@@ -174,7 +261,13 @@ function generateNarrative(
     .filter((d) => d.winnerAgentId === (winnerId === agentA.agentId ? "A" : "B"))
     .map((d) => d.name);
 
-  const closeness = margin < 0.1 ? "razor-thin" : margin < 0.25 ? "modest" : margin < 0.5 ? "convincing" : "dominant";
+  const closeness = margin < NARRATIVE_MARGIN_RAZOR_THIN
+    ? "razor-thin"
+    : margin < NARRATIVE_MARGIN_MODEST
+      ? "modest"
+      : margin < NARRATIVE_MARGIN_CONVINCING
+        ? "convincing"
+        : "dominant";
 
   const dimensionList = dominantDims.length > 0
     ? dominantDims.slice(0, 3).join(", ")
@@ -200,7 +293,7 @@ export function runBattle(
   const rawDimensions: BattleDimension[] = [
     scoreDimension(
       "financial",
-      0.20,
+      DIMENSION_WEIGHT_FINANCIAL,
       Math.max(0, (agentA.pnlPercent + 100) / 200), // Normalize PnL to 0-1
       Math.max(0, (agentB.pnlPercent + 100) / 200),
       true,
@@ -208,7 +301,7 @@ export function runBattle(
     ),
     scoreDimension(
       "reasoning_coherence",
-      0.20,
+      DIMENSION_WEIGHT_REASONING_COHERENCE,
       agentA.coherenceScore,
       agentB.coherenceScore,
       true,
@@ -216,7 +309,7 @@ export function runBattle(
     ),
     scoreDimension(
       "reasoning_depth",
-      0.15,
+      DIMENSION_WEIGHT_REASONING_DEPTH,
       agentA.depthScore,
       agentB.depthScore,
       true,
@@ -224,7 +317,7 @@ export function runBattle(
     ),
     scoreDimension(
       "conviction_calibration",
-      0.15,
+      DIMENSION_WEIGHT_CONVICTION_CALIBRATION,
       agentA.confidence,
       agentB.confidence,
       true,
@@ -232,7 +325,7 @@ export function runBattle(
     ),
     scoreDimension(
       "originality",
-      0.10,
+      DIMENSION_WEIGHT_ORIGINALITY,
       agentA.originalityScore,
       agentB.originalityScore,
       true,
@@ -240,15 +333,15 @@ export function runBattle(
     ),
     scoreDimension(
       "safety",
-      0.10,
-      agentA.hallucinationCount === 0 ? 1 : Math.max(0, 1 - agentA.hallucinationCount * 0.25),
-      agentB.hallucinationCount === 0 ? 1 : Math.max(0, 1 - agentB.hallucinationCount * 0.25),
+      DIMENSION_WEIGHT_SAFETY,
+      agentA.hallucinationCount === 0 ? 1 : Math.max(0, 1 - agentA.hallucinationCount * HALLUCINATION_PENALTY_PER_COUNT),
+      agentB.hallucinationCount === 0 ? 1 : Math.max(0, 1 - agentB.hallucinationCount * HALLUCINATION_PENALTY_PER_COUNT),
       true,
       "Safety: A={scoreA} vs B={scoreB} (diff={diff})",
     ),
     scoreDimension(
       "discipline",
-      0.10,
+      DIMENSION_WEIGHT_DISCIPLINE,
       agentA.disciplinePass ? 1.0 : 0.0,
       agentB.disciplinePass ? 1.0 : 0.0,
       true,
@@ -273,10 +366,10 @@ export function runBattle(
 
   const margin = Math.abs(compositeA - compositeB);
   const overallWinner =
-    margin < 0.015 ? null : compositeA > compositeB ? agentA.agentId : agentB.agentId;
+    margin < BATTLE_TIE_THRESHOLD ? null : compositeA > compositeB ? agentA.agentId : agentB.agentId;
 
   // Is this a highlight? Close battles + big upsets are highlights
-  const isHighlight = margin < 0.05 || margin > 0.3;
+  const isHighlight = margin < BATTLE_HIGHLIGHT_CLOSE_MARGIN || margin > BATTLE_HIGHLIGHT_UPSET_MARGIN;
 
   const narrative = generateNarrative(agentA, agentB, dimensions, overallWinner, margin);
 
