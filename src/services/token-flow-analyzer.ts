@@ -167,6 +167,142 @@ const MAX_FLOWS = 5000;
 const SLIPPAGE_BPS_PER_1000_USDC = 2.5;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Conviction Classification Thresholds
+ *
+ * Token conviction measures buy-and-hold behavior vs churning for each
+ * agent-symbol pair. Score is 0-100 based on net accumulation, direction
+ * consistency, and buy bias.
+ */
+
+/**
+ * Minimum conviction score to classify as "strong-accumulator" (with net positive position).
+ * Score >= 80 indicates very high conviction: agent is consistently accumulating
+ * with minimal churning and strong directional consistency.
+ */
+const CONVICTION_STRONG_ACCUMULATOR_THRESHOLD = 80;
+
+/**
+ * Minimum conviction score to classify as "accumulator" (with net positive position).
+ * Score >= 60 indicates high conviction: agent is net buying with good consistency
+ * but may have some tactical selling.
+ */
+const CONVICTION_ACCUMULATOR_THRESHOLD = 60;
+
+/**
+ * Minimum conviction score to classify as "trader" (neutral/mixed position).
+ * Score >= 40 indicates moderate activity: agent is balanced between buying/selling,
+ * active trading but not heavily directional.
+ */
+const CONVICTION_TRADER_THRESHOLD = 40;
+
+/**
+ * Conviction Scoring Weights
+ *
+ * Conviction score is composed of three components, each contributing points
+ * to the final 0-100 score.
+ */
+
+/**
+ * Maximum points awarded for net accumulation ratio (0-50 points).
+ * Net accumulation = |netPosition| / totalActivity. Higher ratio = more conviction.
+ * Example: Bought 100, sold 20 → netRatio = 80/120 = 0.67 → 33.5 points.
+ */
+const CONVICTION_ACCUMULATION_POINTS_MAX = 50;
+
+/**
+ * Maximum points awarded for direction consistency (0-30 points).
+ * Consistency = 1 - (directionChanges / maxChanges). Fewer flips = more conviction.
+ * Example: 10 flows with 2 direction changes → consistency = 1 - 2/9 = 0.78 → 23.4 points.
+ */
+const CONVICTION_CONSISTENCY_POINTS_MAX = 30;
+
+/**
+ * Maximum points awarded for buy bias when net position is positive (0-20 points).
+ * Buy bias = bought / totalActivity. Higher buy percentage = more conviction.
+ * Example: 80% buys → 0.80 * 20 = 16 points.
+ */
+const CONVICTION_BUY_BIAS_POINTS_MAX = 20;
+
+/**
+ * Maximum points awarded for sell bias when net position is negative (0-5 points).
+ * When distributing (net negative), buy bias is inverted and scaled down to penalize.
+ * Example: Distributor with 30% buys → (1 - 0.30) * 5 = 3.5 points (weak conviction).
+ */
+const CONVICTION_SELL_BIAS_POINTS_MAX = 5;
+
+/**
+ * Flow Heatmap Intensity Calculation
+ *
+ * Heatmap cells show agent-symbol flow intensity on a 0-100 scale, combining
+ * volume (relative to max) and frequency (number of flow events).
+ */
+
+/**
+ * Scaling factor for volume intensity component (0-80 points).
+ * Volume intensity = (cellVolume / maxVolume) * 80. This reserves 20 points
+ * for frequency boost, ensuring volume is the primary driver.
+ */
+const HEATMAP_VOLUME_INTENSITY_SCALING = 80;
+
+/**
+ * Multiplier for frequency boost component (2 points per flow event).
+ * Frequency boost = min(flowCount * 2, 20). Rewards high-frequency trading
+ * but caps at 20 points to prevent overwhelming volume signal.
+ */
+const HEATMAP_FREQUENCY_BOOST_MULTIPLIER = 2;
+
+/**
+ * Maximum points from frequency boost (0-20 points cap).
+ * Caps frequency contribution at 20 points regardless of flow count,
+ * ensuring volume remains primary intensity driver.
+ */
+const HEATMAP_FREQUENCY_BOOST_MAX = 20;
+
+/**
+ * Maximum intensity score cap (0-100 scale).
+ * Final intensity = min(volumeIntensity + frequencyBoost, 100).
+ * Ensures all cells fit in normalized 0-100 range.
+ */
+const HEATMAP_INTENSITY_MAX = 100;
+
+/**
+ * Flow Direction Detection Threshold
+ *
+ * Threshold for classifying net flow direction as "buy" or "sell" vs "neutral".
+ * Net direction is based on netFlow = buyVolume - sellVolume.
+ */
+
+/**
+ * Minimum net flow percentage to classify direction as "buy" or "sell" (10% threshold).
+ * If netFlow > totalVolume * 0.1 → "buy"
+ * If netFlow < -totalVolume * 0.1 → "sell"
+ * Otherwise → "neutral"
+ * Example: $1000 total volume, +$150 net flow → +15% → "buy"
+ */
+const FLOW_DIRECTION_THRESHOLD = 0.1;
+
+/**
+ * Flow Momentum Classification
+ *
+ * Flow momentum compares velocity (flows per hour) between first half and
+ * second half of observation window to detect acceleration/deceleration.
+ */
+
+/**
+ * Minimum change ratio to classify momentum as "increasing" or "decreasing" (20% threshold).
+ * Change ratio = (secondVelocity - firstVelocity) / firstVelocity
+ * If changeRatio > 0.2 → "increasing"
+ * If changeRatio < -0.2 → "decreasing"
+ * Otherwise → "stable"
+ * Example: First half = 10 flows/hr, second half = 13 flows/hr → +30% → "increasing"
+ */
+const FLOW_MOMENTUM_CHANGE_THRESHOLD = 0.2;
+
+// ---------------------------------------------------------------------------
 // State (Ring Buffer)
 // ---------------------------------------------------------------------------
 
@@ -447,13 +583,13 @@ export function getFlowHeatmap(): FlowHeatmap {
     const netFlow = data.buyVol - data.sellVol;
 
     // Intensity: normalized 0-100 based on volume relative to max, boosted by frequency
-    const volumeIntensity = maxVolume > 0 ? (totalVol / maxVolume) * 80 : 0;
-    const frequencyBoost = Math.min(data.count * 2, 20);
-    const intensity = Math.min(100, Math.round(volumeIntensity + frequencyBoost));
+    const volumeIntensity = maxVolume > 0 ? (totalVol / maxVolume) * HEATMAP_VOLUME_INTENSITY_SCALING : 0;
+    const frequencyBoost = Math.min(data.count * HEATMAP_FREQUENCY_BOOST_MULTIPLIER, HEATMAP_FREQUENCY_BOOST_MAX);
+    const intensity = Math.min(HEATMAP_INTENSITY_MAX, Math.round(volumeIntensity + frequencyBoost));
 
     let netDirection: HeatmapCell["netDirection"] = "neutral";
-    if (netFlow > totalVol * 0.1) netDirection = "buy";
-    else if (netFlow < -totalVol * 0.1) netDirection = "sell";
+    if (netFlow > totalVol * FLOW_DIRECTION_THRESHOLD) netDirection = "buy";
+    else if (netFlow < -totalVol * FLOW_DIRECTION_THRESHOLD) netDirection = "sell";
 
     cells.push({
       agentId,
@@ -644,25 +780,25 @@ export function getTokenConviction(): TokenConviction[] {
     // Conviction score components:
     // 1. Net accumulation ratio (0-50 points): how much of activity is net accumulation
     const netRatio = totalActivity > 0 ? Math.abs(netPosition) / totalActivity : 0;
-    const accumulationPoints = netRatio * 50;
+    const accumulationPoints = netRatio * CONVICTION_ACCUMULATION_POINTS_MAX;
 
     // 2. Direction consistency (0-30 points): fewer direction changes = more conviction
     const maxChanges = Math.max(flowCount - 1, 1);
     const consistencyRatio = 1 - (directionChanges / maxChanges);
-    const consistencyPoints = consistencyRatio * 30;
+    const consistencyPoints = consistencyRatio * CONVICTION_CONSISTENCY_POINTS_MAX;
 
     // 3. Accumulation bias (0-20 points): buying more than selling = positive conviction
     const buyBias = totalActivity > 0 ? (bought / totalActivity) : 0.5;
     // If net positive, full points proportional to buy bias; if net negative, penalize
-    const biasPoints = netPosition >= 0 ? buyBias * 20 : (1 - buyBias) * 5;
+    const biasPoints = netPosition >= 0 ? buyBias * CONVICTION_BUY_BIAS_POINTS_MAX : (1 - buyBias) * CONVICTION_SELL_BIAS_POINTS_MAX;
 
     const convictionScore = Math.round(Math.min(100, accumulationPoints + consistencyPoints + biasPoints));
 
     // Classify style
     let style: TokenConviction["style"];
-    if (convictionScore >= 80 && netPosition > 0) style = "strong-accumulator";
-    else if (convictionScore >= 60 && netPosition > 0) style = "accumulator";
-    else if (convictionScore >= 40) style = "trader";
+    if (convictionScore >= CONVICTION_STRONG_ACCUMULATOR_THRESHOLD && netPosition > 0) style = "strong-accumulator";
+    else if (convictionScore >= CONVICTION_ACCUMULATOR_THRESHOLD && netPosition > 0) style = "accumulator";
+    else if (convictionScore >= CONVICTION_TRADER_THRESHOLD) style = "trader";
     else if (netPosition < 0) style = "distributor";
     else style = "churner";
 
@@ -761,8 +897,8 @@ function computeFlowMomentum(
 
   const changeRatio = (secondVelocity - firstVelocity) / firstVelocity;
 
-  if (changeRatio > 0.2) return "increasing";
-  if (changeRatio < -0.2) return "decreasing";
+  if (changeRatio > FLOW_MOMENTUM_CHANGE_THRESHOLD) return "increasing";
+  if (changeRatio < -FLOW_MOMENTUM_CHANGE_THRESHOLD) return "decreasing";
   return "stable";
 }
 
