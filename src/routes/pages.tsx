@@ -111,6 +111,15 @@ for (const [slug, id] of Object.entries(AGENT_SLUG_TO_ID)) {
   if (!AGENT_ID_TO_SLUG[id]) AGENT_ID_TO_SLUG[id] = slug;
 }
 
+/** Human-readable stock label: "Microsoft (MSFT)" or "PORTFOLIO" for non-stock symbols */
+function stockLabel(symbol: string): string {
+  if (!symbol || symbol === "PORTFOLIO") return "their portfolio";
+  const name = getStockName(symbol);
+  // Strip the trailing "x" from token symbols for display (MSFTx → MSFT)
+  const ticker = symbol.endsWith("x") ? symbol.slice(0, -1) : symbol;
+  return name !== symbol ? `${name} (${ticker})` : ticker;
+}
+
 /** Resolve a slug or ID to the canonical agent ID */
 function resolveAgentId(slugOrId: string): string {
   // Check if it's a friendly slug first
@@ -418,7 +427,7 @@ pages.get("/", async (c) => {
               <div class="mb-4 p-3 bg-gray-950 rounded-lg border-l-2 border-blue-500">
                 <div class="flex items-center gap-2 mb-1">
                   <span class="text-xs text-gray-500 uppercase">Current Thesis</span>
-                  <span class="text-white font-semibold text-sm">{entry.activeThesis.symbol}</span>
+                  <span class="text-white font-semibold text-sm">{stockLabel(entry.activeThesis.symbol)}</span>
                   <DirectionBadge direction={entry.activeThesis.direction} />
                   <span class="text-gray-500 text-xs">
                     Conviction: {entry.activeThesis.conviction}/10
@@ -438,7 +447,7 @@ pages.get("/", async (c) => {
                   {entry.topPositions.map((pos: PositionSummary) => (
                     <div class="bg-gray-950 rounded p-3 flex justify-between items-center">
                       <div>
-                        <div class="text-white font-semibold">{pos.symbol}</div>
+                        <div class="text-white font-semibold">{stockLabel(pos.symbol)}</div>
                         <div class="text-gray-500 text-xs">{formatQuantity(pos.quantity)} shares</div>
                       </div>
                       <div class="text-right">
@@ -498,7 +507,7 @@ pages.get("/", async (c) => {
               {latestMeeting.consensus.type.toUpperCase()}
             </span>
             <span class="text-white ml-2 font-semibold">
-              {latestMeeting.consensus.action.toUpperCase()} {latestMeeting.consensus.symbol}
+              {latestMeeting.consensus.action.toUpperCase()} {stockLabel(latestMeeting.consensus.symbol)}
             </span>
             <span class="text-gray-400 ml-2 text-sm">
               ({latestMeeting.consensus.agreementScore}% agreement)
@@ -931,7 +940,7 @@ pages.get("/agent/:id", async (c) => {
               return (
                 <div class={`border-l-2 ${isActive ? "border-blue-500" : "border-gray-700"} pl-4 pb-3`}>
                   <div class="flex items-start gap-2 mb-2">
-                    <span class="text-white text-sm font-bold">{t.symbol}</span>
+                    <span class="text-white text-sm font-bold">{stockLabel(t.symbol)}</span>
                     <StatusBadge status={t.status} isActive={isActive} />
                     <DirectionBadge direction={t.direction} />
                     {t.conviction != null && (
@@ -1047,7 +1056,7 @@ pages.get("/agent/:id", async (c) => {
               <div class="border-l-2 border-gray-700 pl-4">
                 <div class="flex items-center gap-2 mb-1">
                   <ActionBadge action={d.action} size="xs" />
-                  {d.symbol && <span class="text-white text-sm font-semibold">{d.symbol}</span>}
+                  {d.symbol && <span class="text-white text-sm font-semibold">{stockLabel(d.symbol)}</span>}
                   {d.confidence != null && (
                     <span class="text-gray-500 text-xs">Confidence: {Math.round(d.confidence * 100)}%</span>
                   )}
@@ -1166,7 +1175,7 @@ pages.get("/rounds", async (c) => {
                     <div class="flex items-center gap-2 mb-2">
                       <span class="text-white font-semibold text-sm">{agentName}</span>
                       <ActionBadge action={d.action} size="xs" />
-                      {d.symbol && <span class="text-gray-300 text-sm">{d.symbol}</span>}
+                      {d.symbol && <span class="text-gray-300 text-sm">{stockLabel(d.symbol)}</span>}
                       {d.quantity && <span class="text-gray-500 text-xs">${d.quantity}</span>}
                       <span class="text-gray-500 text-xs ml-auto">
                         {Math.round(d.confidence * 100)}% confidence
@@ -1263,7 +1272,7 @@ pages.get("/round/:id", async (c) => {
                     {agentName}
                   </a>
                   <ActionBadge action={j.action} size="sm" />
-                  {j.symbol && <span class="text-white font-semibold">{j.symbol}</span>}
+                  {j.symbol && <span class="text-white font-semibold">{stockLabel(j.symbol)}</span>}
                 </div>
                 <div class="text-right">
                   <div class="text-gray-400 text-sm">Confidence</div>
@@ -2239,7 +2248,7 @@ pages.get("/meeting/:roundId", (c) => {
             {meeting.consensus.type.toUpperCase()}
           </span>
           <span class="text-white font-semibold">
-            {meeting.consensus.action.toUpperCase()} {meeting.consensus.symbol}
+            {meeting.consensus.action.toUpperCase()} {stockLabel(meeting.consensus.symbol)}
           </span>
           <span class="text-gray-400 text-sm">
             {meeting.consensus.agreementScore}% agreement
@@ -2296,7 +2305,7 @@ pages.get("/meeting/:roundId", (c) => {
               <div class="bg-gray-900 border border-gray-700 rounded-lg p-3">
                 <div class={`font-bold ${nameColor} mb-1`}>{vote.agentName}</div>
                 <div class="text-white font-semibold">
-                  {vote.action.toUpperCase()} {vote.symbol}
+                  {vote.action.toUpperCase()} {stockLabel(vote.symbol)}
                 </div>
                 <div class="text-gray-400 text-xs mt-1">
                   Confidence: {vote.confidence}%
