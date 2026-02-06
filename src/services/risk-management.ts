@@ -30,6 +30,181 @@ import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base
 import { round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * VaR & Monte Carlo Simulation Parameters
+ *
+ * These constants control the Value-at-Risk (VaR) calculation methodology:
+ * - Lookback period for historical simulation
+ * - Number of Monte Carlo simulation paths
+ * - Confidence level percentiles
+ * - Volatility assumptions for return generation
+ */
+
+/** Number of trading days to look back for VaR calculation (252 = 1 trading year) */
+const VAR_LOOKBACK_DAYS = 252;
+
+/** Number of Monte Carlo simulation paths for portfolio VaR (10,000 = industry standard) */
+const VAR_NUM_SIMULATIONS = 10000;
+
+/** 95th percentile confidence level for VaR calculation (5% tail risk) */
+const VAR_PERCENTILE_95 = 0.05;
+
+/** 99th percentile confidence level for VaR calculation (1% tail risk) */
+const VAR_PERCENTILE_99 = 0.01;
+
+/** Assumed daily volatility for individual stocks (2% daily = ~32% annualized) */
+const VAR_DAILY_VOLATILITY_ASSUMPTION = 0.02;
+
+/** Volatility used for simulated return generation (1.5% daily = ~24% annualized) */
+const VAR_SIMULATED_RETURN_VOLATILITY = 0.015;
+
+/** Annual risk-free rate for Sortino/Treynor calculations (~5% = Fed funds rate) */
+const RISK_FREE_RATE_ANNUAL = 0.05;
+
+/** Market volatility for beta calculation (1.2% daily SPY vol = ~19% annualized) */
+const MARKET_RETURN_VOLATILITY = 0.012;
+
+/**
+ * Concentration Risk Thresholds (Herfindahl-Hirschman Index)
+ *
+ * HHI measures portfolio concentration by summing squared position weights.
+ * Scale: 0-10,000 (10,000 = 100% in one position)
+ *
+ * DOJ Antitrust Guidelines:
+ * - < 1,500: Unconcentrated market (diversified)
+ * - 1,500-2,500: Moderate concentration
+ * - > 2,500: Highly concentrated
+ *
+ * MoltApp applies stricter thresholds for trading safety:
+ * - We flag anything > 5,000 as "highly concentrated" (requires 50%+ in one position)
+ */
+
+/** HHI < 1,500: Diversified portfolio (e.g., 10 equal-weight positions = HHI 1,000) */
+const HHI_DIVERSIFIED_MAX = 1500;
+
+/** HHI 1,500-2,500: Moderate concentration (e.g., 30% + 20% + 5 x 10% = HHI 1,700) */
+const HHI_MODERATE_MAX = 2500;
+
+/** HHI 2,500-5,000: Concentrated portfolio (e.g., 40% + 30% + 30% = HHI 3,400) */
+const HHI_CONCENTRATED_MAX = 5000;
+
+/** HHI > 5,000: Highly concentrated (single-stock risk, e.g., 70% + 30% = HHI 5,800) */
+const HHI_HIGHLY_CONCENTRATED = 10000; // Max value (100% in one position)
+
+/**
+ * Correlation Classification Thresholds
+ *
+ * Pearson correlation coefficient ranges from -1 to +1:
+ * - Near 0: No linear relationship
+ * - Near ±1: Strong linear relationship
+ *
+ * These thresholds classify correlation strength for diversification analysis.
+ */
+
+/** |correlation| < 0.3: Weak correlation (good for diversification) */
+const CORRELATION_WEAK_THRESHOLD = 0.3;
+
+/** |correlation| 0.3-0.5: Moderate correlation */
+const CORRELATION_MODERATE_THRESHOLD = 0.5;
+
+/** |correlation| 0.5-0.7: Strong correlation (positions move together) */
+const CORRELATION_STRONG_THRESHOLD = 0.7;
+
+/** |correlation| > 0.7: Very strong correlation (high systemic risk) */
+// Implicit: > CORRELATION_STRONG_THRESHOLD
+
+/** |correlation| < 0.1: Neutral direction (near-zero correlation) */
+const CORRELATION_DIRECTION_NEUTRAL_THRESHOLD = 0.1;
+
+/** Market correlation factor for simulated returns (0.6 = moderate market correlation) */
+const MARKET_CORRELATION_FACTOR = 0.6;
+
+/**
+ * Portfolio History Management
+ *
+ * Controls how much historical data to retain for risk calculations.
+ */
+
+/** Number of days of portfolio history to retain (365 = 1 calendar year) */
+const PORTFOLIO_HISTORY_RETENTION_DAYS = 365;
+
+/** Maximum number of alerts to retain in memory (circular buffer) */
+const ALERTS_BUFFER_SIZE = 500;
+
+/**
+ * Risk Score Calculation Parameters
+ *
+ * These constants control how the 0-100 risk score is computed from:
+ * - VaR ratio (VaR / portfolio value)
+ * - Current drawdown percentage
+ * - HHI concentration index
+ * - Beta exposure (market sensitivity)
+ */
+
+/** VaR ratio multiplier for risk score (500 = VaR of 5% portfolio → 25 points) */
+const RISK_SCORE_VAR_MULTIPLIER = 500;
+
+/** Drawdown multiplier for risk score (1.5 = 10% drawdown → 15 points) */
+const RISK_SCORE_DRAWDOWN_MULTIPLIER = 1.5;
+
+/** HHI divisor for risk score (400 = HHI 10,000 → 25 points) */
+const RISK_SCORE_HHI_DIVISOR = 400;
+
+/** Beta threshold for volatility penalty (beta > 1.5 → fixed 15 points) */
+const RISK_SCORE_BETA_HIGH_THRESHOLD = 1.5;
+
+/** Fixed volatility penalty when beta > threshold */
+const RISK_SCORE_BETA_HIGH_PENALTY = 15;
+
+/** Beta multiplier for volatility penalty when beta ≤ threshold (10 = beta 1.0 → 10 points) */
+const RISK_SCORE_BETA_MULTIPLIER = 10;
+
+/**
+ * Risk Score Classification Thresholds
+ *
+ * Maps 0-100 risk score to human-readable risk levels.
+ */
+
+/** Risk score < 15: Minimal risk (well-diversified, low volatility) */
+const RISK_LEVEL_MINIMAL_THRESHOLD = 15;
+
+/** Risk score 15-35: Low risk (some concentration or volatility) */
+const RISK_LEVEL_LOW_THRESHOLD = 35;
+
+/** Risk score 35-55: Moderate risk (normal trading conditions) */
+const RISK_LEVEL_MODERATE_THRESHOLD = 55;
+
+/** Risk score 55-75: High risk (concentrated positions or high volatility) */
+const RISK_LEVEL_HIGH_THRESHOLD = 75;
+
+/** Risk score > 75: Critical risk (circuit breaker warning) */
+// Implicit: > RISK_LEVEL_HIGH_THRESHOLD
+
+/**
+ * VaR Alert Threshold
+ *
+ * Triggers warning alert when 99% VaR exceeds this fraction of portfolio value.
+ */
+
+/** Alert if VaR99 > 10% of portfolio value (potential for large 1-day loss) */
+const VAR_ALERT_THRESHOLD = 0.1;
+
+/**
+ * Stress Test Scenarios
+ *
+ * Sector-specific impact factors for stress testing.
+ */
+
+/** Tech sector crash: Non-tech stocks drop by 2% (flight to safety) */
+const STRESS_TEST_TECH_CRASH_OTHER_IMPACT = -0.02;
+
+/** Rate shock: Non-tech stocks drop by 5% (all equities affected, growth hit harder) */
+const STRESS_TEST_RATE_SHOCK_OTHER_IMPACT = -0.05;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -248,7 +423,7 @@ function generateCorrelatedReturns(
  * Calculate Value-at-Risk using historical simulation.
  */
 export function calculateVaR(portfolio: PortfolioContext): VaRResult {
-  const lookbackDays = 252; // 1 trading year
+  const lookbackDays = VAR_LOOKBACK_DAYS;
   const portfolioValue = portfolio.totalValue;
 
   if (portfolio.positions.length === 0) {
@@ -263,7 +438,7 @@ export function calculateVaR(portfolio: PortfolioContext): VaRResult {
   }
 
   // Generate simulated portfolio returns based on position weights
-  const numSimulations = 10000;
+  const numSimulations = VAR_NUM_SIMULATIONS;
   const dailyReturns: number[] = [];
 
   for (let sim = 0; sim < numSimulations; sim++) {
@@ -271,8 +446,7 @@ export function calculateVaR(portfolio: PortfolioContext): VaRResult {
 
     for (const pos of portfolio.positions) {
       const weight = (pos.quantity * pos.currentPrice) / portfolioValue;
-      // Assume individual stock daily vol of ~2% (annualized ~32%)
-      const vol = 0.02;
+      const vol = VAR_DAILY_VOLATILITY_ASSUMPTION;
       const u1 = Math.random();
       const u2 = Math.random();
       const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
@@ -289,8 +463,8 @@ export function calculateVaR(portfolio: PortfolioContext): VaRResult {
   dailyReturns.sort((a, b) => a - b);
 
   // VaR at 95% confidence = 5th percentile loss
-  const var95Index = Math.floor(numSimulations * 0.05);
-  const var99Index = Math.floor(numSimulations * 0.01);
+  const var95Index = Math.floor(numSimulations * VAR_PERCENTILE_95);
+  const var99Index = Math.floor(numSimulations * VAR_PERCENTILE_99);
 
   const var95 = Math.abs(dailyReturns[var95Index] * portfolioValue);
   const var99 = Math.abs(dailyReturns[var99Index] * portfolioValue);
@@ -348,9 +522,9 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
 
   // Classify concentration
   let level: ConcentrationRisk["level"];
-  if (hhi < 1500) level = "diversified";
-  else if (hhi < 2500) level = "moderate";
-  else if (hhi < 5000) level = "concentrated";
+  if (hhi < HHI_DIVERSIFIED_MAX) level = "diversified";
+  else if (hhi < HHI_MODERATE_MAX) level = "moderate";
+  else if (hhi < HHI_CONCENTRATED_MAX) level = "concentrated";
   else level = "highly_concentrated";
 
   // Tech stocks
@@ -395,8 +569,8 @@ export function calculateDrawdown(
   history.push({ date: now, value: portfolio.totalValue });
 
   // Keep last 365 days of history
-  if (history.length > 365) {
-    history.splice(0, history.length - 365);
+  if (history.length > PORTFOLIO_HISTORY_RETENTION_DAYS) {
+    history.splice(0, history.length - PORTFOLIO_HISTORY_RETENTION_DAYS);
   }
 
   // Find peak
@@ -474,10 +648,10 @@ export function calculateRiskAdjustedMetrics(
   const returns =
     dailyReturns.length >= 10
       ? dailyReturns
-      : generateSimulatedReturns(252, 0.015);
+      : generateSimulatedReturns(VAR_LOOKBACK_DAYS, VAR_SIMULATED_RETURN_VOLATILITY);
 
   const meanReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
-  const riskFreeRate = 0.05 / 252; // Daily risk-free rate (~5% annual)
+  const riskFreeRate = RISK_FREE_RATE_ANNUAL / VAR_LOOKBACK_DAYS; // Daily risk-free rate
 
   // Standard deviation
   const variance =
@@ -515,7 +689,7 @@ export function calculateRiskAdjustedMetrics(
   const calmarRatio = maxDD !== 0 ? annualizedReturn / Math.abs(maxDD) : 0;
 
   // Beta vs market (assume SPYx-like returns)
-  const marketReturns = generateSimulatedReturns(returns.length, 0.012);
+  const marketReturns = generateSimulatedReturns(returns.length, MARKET_RETURN_VOLATILITY);
   let covXY = 0;
   let varMarket = 0;
   const meanMarket =
@@ -531,7 +705,7 @@ export function calculateRiskAdjustedMetrics(
 
   // Jensen's alpha
   const alpha =
-    (annualizedReturn - (0.05 + beta * (meanMarket * 252 - 0.05))) * 100;
+    (annualizedReturn - (RISK_FREE_RATE_ANNUAL + beta * (meanMarket * VAR_LOOKBACK_DAYS - RISK_FREE_RATE_ANNUAL))) * 100;
 
   // Information ratio
   const excessReturns = returns.map((r, i) => r - marketReturns[i]);
@@ -611,12 +785,12 @@ export function calculateCorrelationMatrix(
   const numDays = 60;
 
   // Generate correlated returns for all positions
-  const volatilities = positions.map(() => 0.02); // ~2% daily vol each
+  const volatilities = positions.map(() => VAR_DAILY_VOLATILITY_ASSUMPTION);
   const allReturns = generateCorrelatedReturns(
     numDays,
     positions.length,
     volatilities,
-    0.6, // moderate market correlation
+    MARKET_CORRELATION_FACTOR,
   );
 
   // Calculate pairwise correlations
@@ -649,14 +823,14 @@ export function calculateCorrelationMatrix(
       // Classify
       const absCorr = Math.abs(correlation);
       let strength: CorrelationPair["strength"];
-      if (absCorr < 0.3) strength = "weak";
-      else if (absCorr < 0.5) strength = "moderate";
-      else if (absCorr < 0.7) strength = "strong";
+      if (absCorr < CORRELATION_WEAK_THRESHOLD) strength = "weak";
+      else if (absCorr < CORRELATION_MODERATE_THRESHOLD) strength = "moderate";
+      else if (absCorr < CORRELATION_STRONG_THRESHOLD) strength = "strong";
       else strength = "very_strong";
 
       let direction: CorrelationPair["direction"];
-      if (correlation > 0.1) direction = "positive";
-      else if (correlation < -0.1) direction = "negative";
+      if (correlation > CORRELATION_DIRECTION_NEUTRAL_THRESHOLD) direction = "positive";
+      else if (correlation < -CORRELATION_DIRECTION_NEUTRAL_THRESHOLD) direction = "negative";
       else direction = "neutral";
 
       pairs.push({
@@ -792,9 +966,9 @@ function addAlert(params: {
   };
   alertsStore.push(alert);
 
-  // Keep last 500 alerts
-  if (alertsStore.length > 500) {
-    alertsStore.splice(0, alertsStore.length - 500);
+  // Keep last N alerts
+  if (alertsStore.length > ALERTS_BUFFER_SIZE) {
+    alertsStore.splice(0, alertsStore.length - ALERTS_BUFFER_SIZE);
   }
 }
 
@@ -851,11 +1025,11 @@ export function runStressTests(portfolio: PortfolioContext): StressTestResult[] 
 
       // Tech sector crash only affects tech stocks
       if (scenario.name === "Tech Sector Crash") {
-        posMove = techSymbols.has(pos.symbol) ? scenario.move / 100 : -0.02;
+        posMove = techSymbols.has(pos.symbol) ? scenario.move / 100 : STRESS_TEST_TECH_CRASH_OTHER_IMPACT;
       }
       // Rate shock hits growth stocks harder
       if (scenario.name === "Rate Shock") {
-        posMove = techSymbols.has(pos.symbol) ? scenario.move / 100 : -0.05;
+        posMove = techSymbols.has(pos.symbol) ? scenario.move / 100 : STRESS_TEST_RATE_SHOCK_OTHER_IMPACT;
       }
 
       const impact = posValue * posMove;
@@ -934,11 +1108,11 @@ export async function getAgentRiskDashboard(
     });
   }
 
-  if (var_.var99 > portfolio.totalValue * 0.1) {
+  if (var_.var99 > portfolio.totalValue * VAR_ALERT_THRESHOLD) {
     addAlert({
       severity: "warning",
       type: "var_breach",
-      message: `High VaR: 99% daily VaR of $${var_.var99.toFixed(2)} exceeds 10% of portfolio value`,
+      message: `High VaR: 99% daily VaR of $${var_.var99.toFixed(2)} exceeds ${VAR_ALERT_THRESHOLD * 100}% of portfolio value`,
       agentId,
     });
   }
@@ -948,26 +1122,28 @@ export async function getAgentRiskDashboard(
 
   // VaR contribution (0-25)
   const varRatio = portfolio.totalValue > 0 ? var_.var95 / portfolio.totalValue : 0;
-  riskScore += Math.min(25, varRatio * 500);
+  riskScore += Math.min(25, varRatio * RISK_SCORE_VAR_MULTIPLIER);
 
   // Drawdown contribution (0-25)
-  riskScore += Math.min(25, Math.abs(drawdown.currentDrawdown) * 1.5);
+  riskScore += Math.min(25, Math.abs(drawdown.currentDrawdown) * RISK_SCORE_DRAWDOWN_MULTIPLIER);
 
   // Concentration contribution (0-25)
-  riskScore += Math.min(25, concentration.hhi / 400);
+  riskScore += Math.min(25, concentration.hhi / RISK_SCORE_HHI_DIVISOR);
 
   // Volatility contribution (0-25)
-  const volatilityPenalty = riskAdjustedMetrics.beta > 1.5 ? 15 : riskAdjustedMetrics.beta * 10;
+  const volatilityPenalty = riskAdjustedMetrics.beta > RISK_SCORE_BETA_HIGH_THRESHOLD
+    ? RISK_SCORE_BETA_HIGH_PENALTY
+    : riskAdjustedMetrics.beta * RISK_SCORE_BETA_MULTIPLIER;
   riskScore += Math.min(25, volatilityPenalty);
 
   riskScore = Math.round(Math.min(100, Math.max(0, riskScore)));
 
   // Classify overall risk
   let overallRisk: RiskLevel;
-  if (riskScore < 15) overallRisk = "minimal";
-  else if (riskScore < 35) overallRisk = "low";
-  else if (riskScore < 55) overallRisk = "moderate";
-  else if (riskScore < 75) overallRisk = "high";
+  if (riskScore < RISK_LEVEL_MINIMAL_THRESHOLD) overallRisk = "minimal";
+  else if (riskScore < RISK_LEVEL_LOW_THRESHOLD) overallRisk = "low";
+  else if (riskScore < RISK_LEVEL_MODERATE_THRESHOLD) overallRisk = "moderate";
+  else if (riskScore < RISK_LEVEL_HIGH_THRESHOLD) overallRisk = "high";
   else overallRisk = "critical";
 
   return {
