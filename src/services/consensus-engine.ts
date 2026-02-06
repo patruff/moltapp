@@ -29,6 +29,72 @@ import { round2 } from "../lib/math-utils.ts";
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of agents required for unanimous consensus.
+ * @constant {number} UNANIMOUS_THRESHOLD - 3/3 agents required
+ */
+const UNANIMOUS_THRESHOLD = 3;
+
+/**
+ * Minimum agents required for consensus signal detection.
+ * @constant {number} CONSENSUS_MIN_AGENTS - At least 2 agents must agree
+ * @example If 2/3 agents buy the same stock → consensus signal generated
+ */
+const CONSENSUS_MIN_AGENTS = 2;
+
+/**
+ * Minimum unique symbols for cross-symbol consensus.
+ * @constant {number} CONSENSUS_UNIQUE_SYMBOLS_MIN - Must be > 1 for market sentiment
+ * @example If 2 agents buy DIFFERENT stocks → market-level bullish sentiment (not symbol-specific)
+ */
+const CONSENSUS_UNIQUE_SYMBOLS_MIN = 1;
+
+/**
+ * Confidence boost percentage for unanimous consensus (3/3 agents).
+ * @constant {number} CONSENSUS_BOOST_UNANIMOUS - 25% boost when all agents agree
+ * @example Agent confidence 75 + unanimous 25% → boosted confidence 94
+ */
+const CONSENSUS_BOOST_UNANIMOUS = 25;
+
+/**
+ * Confidence boost percentage for majority consensus (2/3 agents).
+ * @constant {number} CONSENSUS_BOOST_MAJORITY - 15% boost when 2 agents agree
+ * @example Agent confidence 75 + majority 15% → boosted confidence 86
+ */
+const CONSENSUS_BOOST_MAJORITY = 15;
+
+/**
+ * Confidence threshold for applying high-confidence multiplier.
+ * @constant {number} CONFIDENCE_HIGH_THRESHOLD - 70%+ average = apply 1.1× boost
+ * @example If other agents' avg confidence > 70 → boost multiplied by 1.1×
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 70;
+
+/**
+ * Confidence multiplier when other agents have high conviction (>70%).
+ * @constant {number} CONFIDENCE_HIGH_MULTIPLIER - 1.1× additional boost
+ * @example Base boost 15 × 1.1 multiplier = 16.5 final boost
+ */
+const CONFIDENCE_HIGH_MULTIPLIER = 1.1;
+
+/**
+ * Strength multiplier for unanimous consensus in weighted confidence calculation.
+ * @constant {number} UNANIMOUS_STRENGTH_MULTIPLIER - 1.2× multiplier for 3/3 agreement
+ * @example Weighted confidence 80 × 1.2 = 96 (20% boost for unanimity)
+ */
+const UNANIMOUS_STRENGTH_MULTIPLIER = 1.2;
+
+/**
+ * Divergence score calculation divisor (average of opposing sides).
+ * @constant {number} DIVERGENCE_SCORE_DIVISOR - Divide sum by 2 for average
+ * @example (buyConf 75 + sellConf 85) / 2 = 80 divergence score
+ */
+const DIVERGENCE_SCORE_DIVISOR = 2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -247,7 +313,7 @@ export function analyzeRoundConsensus(
     }
 
     for (const [action, group] of actionGroups.entries()) {
-      if (group.length >= 2) {
+      if (group.length >= CONSENSUS_MIN_AGENTS) {
         const agreeingAgents = group.map((r) => r.agentId);
         const dissentingAgents = symbolResults
           .filter((r) => r.decision.action !== action)
@@ -266,7 +332,7 @@ export function analyzeRoundConsensus(
           group.length > 0 ? totalWeight / group.length : 0;
 
         // Boost confidence for unanimous consensus
-        const strengthMultiplier = group.length === 3 ? 1.2 : 1.0;
+        const strengthMultiplier = group.length === UNANIMOUS_THRESHOLD ? UNANIMOUS_STRENGTH_MULTIPLIER : 1.0;
         const boostedConfidence = Math.min(
           100,
           Math.round(weightedConfidence * strengthMultiplier),
@@ -319,7 +385,7 @@ export function analyzeRoundConsensus(
       const sellConf =
         decisions.filter((d) => d.action === "sell").reduce((s, d) => s + d.confidence, 0) /
         Math.max(1, decisions.filter((d) => d.action === "sell").length);
-      const divergenceScore = Math.round((buyConf + sellConf) / 2);
+      const divergenceScore = Math.round((buyConf + sellConf) / DIVERGENCE_SCORE_DIVISOR);
 
       divergences.push({
         roundId,
@@ -334,10 +400,10 @@ export function analyzeRoundConsensus(
 
   // Detect cross-symbol action consensus (e.g., all agents buying different stocks = bullish)
   for (const [action, group] of Object.entries(actionCounts)) {
-    if (group.length >= 2 && action !== "hold") {
+    if (group.length >= CONSENSUS_MIN_AGENTS && action !== "hold") {
       // Check if they're buying/selling DIFFERENT stocks (market-level sentiment)
       const uniqueSymbols = new Set(group.map((r) => r.decision.symbol));
-      if (uniqueSymbols.size > 1) {
+      if (uniqueSymbols.size > CONSENSUS_UNIQUE_SYMBOLS_MIN) {
         // This is a sentiment consensus, not a symbol consensus
         // Record it as a special "MARKET" signal
         const agreeingAgents = group.map((r) => r.agentId);
@@ -454,7 +520,7 @@ export function getConsensusBoostedConfidence(
 
   // Calculate consensus boost: +15% for majority, +25% for unanimous
   const isUnanimous = matching.length === allResults.length;
-  const boostPercent = isUnanimous ? 25 : 15;
+  const boostPercent = isUnanimous ? CONSENSUS_BOOST_UNANIMOUS : CONSENSUS_BOOST_MAJORITY;
 
   // Also factor in the average confidence of the agreeing agents
   const othersAvgConfidence =
@@ -466,7 +532,7 @@ export function getConsensusBoostedConfidence(
     Math.max(1, matching.length - 1);
 
   // If others are also very confident, boost more
-  const confidenceMultiplier = othersAvgConfidence > 70 ? 1.1 : 1.0;
+  const confidenceMultiplier = othersAvgConfidence > CONFIDENCE_HIGH_THRESHOLD ? CONFIDENCE_HIGH_MULTIPLIER : 1.0;
 
   const boost = Math.round(boostPercent * confidenceMultiplier);
   const boosted = Math.min(100, agentDecision.confidence + boost);
