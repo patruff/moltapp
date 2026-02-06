@@ -23,6 +23,7 @@
  */
 
 import { createHash } from "crypto";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -235,7 +236,7 @@ export function recordRoundProvenance(roundId: string, results: {
     roundId,
     agentCount: results.agentCount,
     tradeCount: results.tradeCount,
-    avgCoherence: Math.round(results.avgCoherence * 1000) / 1000,
+    avgCoherence: round3(results.avgCoherence),
     hallucinationCount: results.hallucinationCount,
     tradingMode: results.tradingMode,
   });
@@ -254,12 +255,12 @@ export function recordScoringProvenance(agentId: string, scores: {
 }): ProvenanceBlock {
   return appendToChain("scoring_applied", {
     agentId,
-    composite: Math.round(scores.composite * 1000) / 1000,
-    coherence: Math.round(scores.coherence * 1000) / 1000,
-    hallucinationRate: Math.round(scores.hallucinationRate * 1000) / 1000,
-    discipline: Math.round(scores.discipline * 1000) / 1000,
+    composite: round3(scores.composite),
+    coherence: round3(scores.coherence),
+    hallucinationRate: round3(scores.hallucinationRate),
+    discipline: round3(scores.discipline),
     pnl: Math.round(scores.pnl * 100) / 100,
-    sharpe: Math.round(scores.sharpe * 1000) / 1000,
+    sharpe: round3(scores.sharpe),
     methodologyVersion,
   });
 }
@@ -327,7 +328,7 @@ export function recordExternalSubmission(submissionId: string, agentId: string, 
   return appendToChain("external_submission", {
     submissionId,
     agentId,
-    compositeScore: Math.round(score * 1000) / 1000,
+    compositeScore: round3(score),
   });
 }
 

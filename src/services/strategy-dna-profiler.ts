@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -437,6 +437,3 @@ function clamp01(v: number): number {
   return Math.min(1, Math.max(0, v));
 }
 
-function round3(v: number): number {
-  return Math.round(v * 1000) / 1000;
-}

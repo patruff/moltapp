@@ -18,7 +18,7 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -411,7 +411,7 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
   return {
     avgCoherence: Math.round(avgCoherence * 100) / 100,
     avgWordCount: Math.round(avgWordCount),
-    hallucinationRate: Math.round(halRate * 1000) / 1000,
+    hallucinationRate: round3(halRate),
     disciplineRate: Math.round(discRate * 100) / 100,
     qualityTrend,
     bestCoherenceScore: Math.max(...coherences),

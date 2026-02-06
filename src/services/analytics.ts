@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage } from "../lib/math-utils.ts";
+import { calculateAverage, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1124,7 +1124,7 @@ function computeCorrelation(
   const num = psum - (sum1 * sum2) / n;
   const den = Math.sqrt((sum1sq - (sum1 * sum1) / n) * (sum2sq - (sum2 * sum2) / n));
 
-  return den === 0 ? 0 : Math.round((num / den) * 1000) / 1000;
+  return den === 0 ? 0 : round3(num / den);
 }
 
 function findDivergences(

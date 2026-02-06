@@ -20,6 +20,7 @@
  */
 
 import { createHash } from "crypto";
+import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -446,7 +447,7 @@ export function runTamperCheck(): TamperCheckResult {
     tampered: events.length > 0,
     recordsChecked,
     events,
-    integrityScore: Math.round(integrityScore * 1000) / 1000,
+    integrityScore: round3(integrityScore),
     checkedAt: new Date().toISOString(),
   };
 

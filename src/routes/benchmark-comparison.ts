@@ -17,7 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round3 } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
@@ -124,7 +124,7 @@ function welchTTest(a: number[], b: number[]) {
   // p = I_{df/(df+t^2)}(df/2, 1/2) which we approximate with a series.
   const pValue = tDistPValue(Math.abs(t), df);
 
-  return { tStatistic: Math.round(t * 1000) / 1000, degreesOfFreedom: Math.round(df * 10) / 10, pValue };
+  return { tStatistic: round3(t), degreesOfFreedom: Math.round(df * 10) / 10, pValue };
 }
 
 /**
@@ -210,7 +210,7 @@ function cohensD(a: number[], b: number[]): { d: number; label: string } {
   if (nA < 2 || nB < 2) return { d: 0, label: "insufficient data" };
   const pooledStd = Math.sqrt(((nA - 1) * variance(a) + (nB - 1) * variance(b)) / (nA + nB - 2));
   if (pooledStd === 0) return { d: 0, label: "negligible" };
-  const d = Math.round(((mean(a) - mean(b)) / pooledStd) * 1000) / 1000;
+  const d = round3((mean(a) - mean(b)) / pooledStd);
   const absD = Math.abs(d);
   const label = absD < 0.2 ? "negligible" : absD < 0.5 ? "small" : absD < 0.8 ? "medium" : "large";
   return { d, label };

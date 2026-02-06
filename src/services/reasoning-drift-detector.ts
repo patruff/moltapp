@@ -17,6 +17,8 @@
  * Uses sliding window analysis with configurable window sizes.
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -411,6 +413,3 @@ function mode(arr: string[]): string {
   );
 }
 
-function round3(v: number): number {
-  return Math.round(v * 1000) / 1000;
-}

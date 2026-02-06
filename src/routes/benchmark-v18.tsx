@@ -22,6 +22,7 @@ import {
   getAllRobustnessProfiles,
   getAdversarialPillarScore,
 } from "../services/adversarial-robustness-engine.ts";
+import { round3 } from "../lib/math-utils.ts";
 import {
   getAllMemoryProfiles,
   getMemoryPillarScore,
@@ -374,7 +375,7 @@ function computeComposite(pillars: Record<string, number>): number {
     score += (pillars[name] ?? 0.5) * weight;
     total += weight;
   }
-  return total > 0 ? Math.round((score / total) * 1000) / 1000 : 0.5;
+  return total > 0 ? round3(score / total) : 0.5;
 }
 
 function gradeFromScore(s: number): string {

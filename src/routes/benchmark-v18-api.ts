@@ -22,6 +22,7 @@
  */
 
 import { Hono } from "hono";
+import { round3 } from "../lib/math-utils.ts";
 import {
   getAgentRobustnessProfile,
   getAllRobustnessProfiles,
@@ -197,7 +198,7 @@ benchmarkV18ApiRoutes.get("/robustness", (c) => {
     agents: profiles,
     summary: {
       avgScore: profiles.length > 0
-        ? Math.round(profiles.reduce((s, p) => s + p.overallScore, 0) / profiles.length * 1000) / 1000
+        ? round3(profiles.reduce((s, p) => s + p.overallScore, 0) / profiles.length)
         : 0,
       totalTests: profiles.reduce((s, p) => s + p.testCount, 0),
       mostVulnerable: profiles.length > 0
@@ -229,7 +230,7 @@ benchmarkV18ApiRoutes.get("/memory", (c) => {
     agents: profiles,
     summary: {
       avgMemoryScore: profiles.length > 0
-        ? Math.round(profiles.reduce((s, p) => s + p.memoryScore, 0) / profiles.length * 1000) / 1000
+        ? round3(profiles.reduce((s, p) => s + p.memoryScore, 0) / profiles.length)
         : 0,
       bestLearner: profiles.length > 0
         ? profiles.sort((a, b) => b.memoryScore - a.memoryScore)[0]?.agentId ?? null
@@ -316,7 +317,7 @@ benchmarkV18ApiRoutes.get("/weights", (c) => {
     version: "v18",
     pillarCount: Object.keys(V18_PILLAR_WEIGHTS).length,
     weights: V18_PILLAR_WEIGHTS,
-    totalWeight: Math.round(total * 1000) / 1000,
+    totalWeight: round3(total),
     newInV18: {
       adversarial_robustness: {
         weight: V18_PILLAR_WEIGHTS.adversarial_robustness,
@@ -404,7 +405,7 @@ function computeV18Composite(pillars: Record<string, number>): number {
     totalWeight += weight;
   }
   return totalWeight > 0
-    ? Math.round((composite / totalWeight) * 1000) / 1000
+    ? round3(composite / totalWeight)
     : 0.5;
 }
 

@@ -38,6 +38,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, eq, sql } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import * as crypto from "crypto";
+import { round3 } from "../lib/math-utils.ts";
 
 export const benchmarkResearcherApiRoutes = new Hono();
 
@@ -503,6 +504,3 @@ benchmarkResearcherApiRoutes.get("/violations", (c) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}

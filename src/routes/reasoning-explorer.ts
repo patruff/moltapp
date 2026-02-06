@@ -22,7 +22,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
-import { countWords, getFilteredWords, splitSentences } from "../lib/math-utils.ts";
+import { countWords, getFilteredWords, round3, splitSentences } from "../lib/math-utils.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -218,7 +218,7 @@ reasoningExplorerRoutes.get("/similar/:id", (c) => {
       action: s.entry.action,
       symbol: s.entry.symbol,
       reasoning: s.entry.reasoning.slice(0, 300),
-      similarity: Math.round(s.similarity * 1000) / 1000,
+      similarity: round3(s.similarity),
       sameAction: s.entry.action === target.action,
       sameSymbol: s.entry.symbol === target.symbol,
     })),
@@ -256,11 +256,11 @@ reasoningExplorerRoutes.get("/trends", async (c) => {
 
     const trends = dailyStats.map((d: typeof dailyStats[0]) => ({
       date: d.date,
-      avgCoherence: Math.round((Number(d.avgCoherence) || 0) * 1000) / 1000,
-      avgConfidence: Math.round((Number(d.avgConfidence) || 0) * 1000) / 1000,
+      avgCoherence: round3(Number(d.avgCoherence) || 0),
+      avgConfidence: round3(Number(d.avgConfidence) || 0),
       tradeCount: Number(d.tradeCount),
       hallucinationRate: Number(d.tradeCount) > 0
-        ? Math.round((Number(d.hallucinationCount) / Number(d.tradeCount)) * 1000) / 1000
+        ? round3(Number(d.hallucinationCount) / Number(d.tradeCount))
         : 0,
     }));
 
@@ -287,8 +287,8 @@ reasoningExplorerRoutes.get("/trends", async (c) => {
 
     const trends = Array.from(byDate.entries()).map(([date, entries]) => ({
       date,
-      avgCoherence: Math.round((entries.reduce((s, e) => s + e.coherenceScore, 0) / entries.length) * 1000) / 1000,
-      avgConfidence: Math.round((entries.reduce((s, e) => s + e.confidence, 0) / entries.length) * 1000) / 1000,
+      avgCoherence: round3(entries.reduce((s, e) => s + e.coherenceScore, 0) / entries.length),
+      avgConfidence: round3(entries.reduce((s, e) => s + e.confidence, 0) / entries.length),
       tradeCount: entries.length,
     }));
 
@@ -358,7 +358,7 @@ reasoningExplorerRoutes.get("/vocabulary", (c) => {
     agentVocab[aid] = {
       uniqueTerms: allTerms.size,
       totalWords,
-      ratio: totalWords > 0 ? Math.round((allTerms.size / totalWords) * 1000) / 1000 : 0,
+      ratio: totalWords > 0 ? round3(allTerms.size / totalWords) : 0,
     };
   }
 
@@ -578,10 +578,10 @@ reasoningExplorerRoutes.get("/intent-analysis", async (c) => {
       const rows = intentStats.filter((r: typeof intentStats[0]) => r.intent === intent);
       const totalCount = rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.count), 0);
       byIntent[intent].avgCoherence = totalCount > 0
-        ? Math.round(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgCoherence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
+        ? round3(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgCoherence ?? 0) * Number(r.count), 0) / totalCount)
         : 0;
       byIntent[intent].avgConfidence = totalCount > 0
-        ? Math.round(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgConfidence ?? 0) * Number(r.count), 0) / totalCount * 1000) / 1000
+        ? round3(rows.reduce((s: number, r: typeof rows[0]) => s + Number(r.avgConfidence ?? 0) * Number(r.count), 0) / totalCount)
         : 0;
     }
 
@@ -648,7 +648,7 @@ reasoningExplorerRoutes.get("/agent-style", (c) => {
       hedgingFrequency: Math.round((totalHedging / entries.length) * 100) / 100,
       assertiveFrequency: Math.round((totalAssertive / entries.length) * 100) / 100,
       dataReferenceRate: Math.round((totalDataRef / entries.length) * 100) / 100,
-      avgCoherence: Math.round((entries.reduce((s, e) => s + e.coherenceScore, 0) / entries.length) * 1000) / 1000,
+      avgCoherence: round3(entries.reduce((s, e) => s + e.coherenceScore, 0) / entries.length),
       sampleCount: entries.length,
     };
   }

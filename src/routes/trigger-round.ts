@@ -28,7 +28,7 @@ import {
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round3 } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import type {
   MarketData,
@@ -471,7 +471,7 @@ function generateRandomPositions(marketData: MarketData[]) {
 
     positions.push({
       symbol: stock.symbol,
-      quantity: Math.round(qty * 1000) / 1000,
+      quantity: round3(qty),
       averageCostBasis: Math.round(costBasis * 100) / 100,
       currentPrice: stock.price,
       unrealizedPnl: Math.round(pnl * 100) / 100,

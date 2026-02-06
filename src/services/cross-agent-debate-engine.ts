@@ -15,7 +15,7 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
-import { splitSentences, countWords } from "../lib/math-utils.ts";
+import { splitSentences, countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -325,8 +325,8 @@ function analyzeLogicalChain(
   const wordsA = countWords(reasoningA) || 1;
   const wordsB = countWords(reasoningB) || 1;
 
-  const densityA = Math.round((connectorsA / wordsA) * 1000) / 1000;
-  const densityB = Math.round((connectorsB / wordsB) * 1000) / 1000;
+  const densityA = round3(connectorsA / wordsA);
+  const densityB = round3(connectorsB / wordsB);
 
   let stronger: string | "equal" = "equal";
   const scoreA = causalA * 0.4 + densityA * 100 * 0.3 + sentencesA.length * 0.3;

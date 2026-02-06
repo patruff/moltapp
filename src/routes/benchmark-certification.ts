@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { round3 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, sql } from "drizzle-orm";
@@ -122,17 +123,17 @@ benchmarkCertificationRoutes.get("/certify/:agentId", async (c) => {
       return c.json({ ok: false, error: "No trades to certify" }, 400);
     }
 
-    const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 1000) / 1000;
-    const hallucinationRate = Math.round((Number(row?.hallucinationCount) / totalTrades) * 1000) / 1000;
-    const disciplineRate = Math.round((Number(row?.disciplinePassCount) / totalTrades) * 1000) / 1000;
-    const avgConfidence = Math.round((Number(row?.avgConfidence) || 0) * 1000) / 1000;
+    const avgCoherence = round3(Number(row?.avgCoherence) || 0);
+    const hallucinationRate = round3(Number(row?.hallucinationCount) / totalTrades);
+    const disciplineRate = round3(Number(row?.disciplinePassCount) / totalTrades);
+    const avgConfidence = round3(Number(row?.avgConfidence) || 0);
     const calibration = calculateConfidenceCalibration(agentId);
 
     const halFree = 1 - hallucinationRate;
-    const compositeScore = Math.round(
-      (avgCoherence * 0.20 + halFree * 0.15 + disciplineRate * 0.10 +
-        avgConfidence * 0.10 + calibration.score * 0.10 + 0.5 * 0.35) * 1000,
-    ) / 1000;
+    const compositeScore = round3(
+      avgCoherence * 0.20 + halFree * 0.15 + disciplineRate * 0.10 +
+        avgConfidence * 0.10 + calibration.score * 0.10 + 0.5 * 0.35,
+    );
 
     // Generate deterministic hash from metrics
     const hashInput = `${agentId}:${totalTrades}:${avgCoherence}:${hallucinationRate}:${disciplineRate}:${avgConfidence}:${compositeScore}`;
@@ -248,10 +249,10 @@ benchmarkCertificationRoutes.get("/leaderboard-certified", async (c) => {
         ? Number(row?.disciplinePassCount) / totalTrades
         : 0;
 
-      const compositeScore = Math.round(
-        (avgCoherence * 0.35 + halFree * 0.25 + disciplineRate * 0.20 +
-          (Number(row?.avgConfidence) || 0.5) * 0.20) * 1000,
-      ) / 1000;
+      const compositeScore = round3(
+        avgCoherence * 0.35 + halFree * 0.25 + disciplineRate * 0.20 +
+          (Number(row?.avgConfidence) || 0.5) * 0.20,
+      );
 
       // Check for existing certification
       const existingCert = [...certifications.values()].find(

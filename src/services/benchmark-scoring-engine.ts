@@ -20,7 +20,7 @@
  * - Statistical significance flags
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -362,7 +362,7 @@ function normalizeSharpe(sharpe: number): number {
 }
 
 function round(v: number): number {
-  return Math.round(v * 1000) / 1000;
+  return round3(v);
 }
 
 // ---------------------------------------------------------------------------

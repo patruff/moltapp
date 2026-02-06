@@ -45,7 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round3 } from "../lib/math-utils.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -2505,7 +2505,7 @@ async function executeTradingRound(
       coherenceAvg: results.length > 0 ? coherenceSum / results.length : 0,
       hallucinationRate: results.length > 0 ? hallucinationCount / results.length : 0,
       avgReasoningLength: results.length > 0 ? reasoningLengthSum / results.length : 0,
-      agentScoreSpread: Math.round(scoreSpread * 1000) / 1000,
+      agentScoreSpread: round3(scoreSpread),
       calibrationAvg: 0.5,
     });
 

@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { round3 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications, benchmarkSnapshots } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
@@ -232,22 +233,22 @@ benchmarkExportRoutes.get("/export/summary", async (c) => {
 
       const row = stats[0];
       const total = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 1000) / 1000;
-      const avgConfidence = Math.round((Number(row?.avgConfidence) || 0) * 1000) / 1000;
+      const avgCoherence = round3(Number(row?.avgCoherence) || 0);
+      const avgConfidence = round3(Number(row?.avgConfidence) || 0);
       const hallucinationRate = total > 0
-        ? Math.round((Number(row?.hallucinationCount) / total) * 1000) / 1000
+        ? round3(Number(row?.hallucinationCount) / total)
         : 0;
       const disciplineRate = total > 0
-        ? Math.round((Number(row?.disciplinePassCount) / total) * 1000) / 1000
+        ? round3(Number(row?.disciplinePassCount) / total)
         : 0;
 
       // Composite score: weighted blend matching the v3 scoring engine weights
-      const compositeScore = Math.round((
+      const compositeScore = round3(
         avgCoherence * 0.20 +
         (1 - hallucinationRate) * 0.15 +
         disciplineRate * 0.10 +
         avgConfidence * 0.10
-      ) * 1000) / 1000;
+      );
 
       const intentDistribution: Record<string, number> = {};
       for (const ir of intentRows) {

@@ -16,6 +16,8 @@
  * 8. OUTLIER DETECTION: Are there statistical outliers in metrics?
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -545,7 +547,7 @@ function buildResult(
     if (idSet.has(r.id)) dupes++;
     idSet.add(r.id);
   }
-  const duplicateRate = records.length > 0 ? Math.round((dupes / records.length) * 1000) / 1000 : 0;
+  const duplicateRate = records.length > 0 ? round3(dupes / records.length) : 0;
 
   return {
     valid: errorCount === 0,

@@ -13,6 +13,8 @@
  * - Vocabulary stability: Does the agent use consistent terminology?
  */
 
+import { round3 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -240,7 +242,7 @@ export function analyzeVolatility(agentId: string): VolatilityMetrics {
       symbol,
       tradeCount: symbolSnaps.length,
       sentimentRange: Math.round((maxSent - minSent) * 100) / 100,
-      avgConfidence: Math.round(mean(symbolSnaps.map((s) => s.confidence)) * 1000) / 1000,
+      avgConfidence: round3(mean(symbolSnaps.map((s) => s.confidence))),
       flipCount: flips,
       lastAction: actions[actions.length - 1],
     };
@@ -408,9 +410,6 @@ function assessStability(
   return parts.join(" ");
 }
 
-function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
 
 function emptyVolatility(agentId: string, rounds: number): VolatilityMetrics {
   return {

@@ -16,7 +16,7 @@
  * 8. THESIS STRUCTURE: Is there a clear thesis → evidence → conclusion flow?
  */
 
-import { splitSentences, countWords } from "../lib/math-utils.ts";
+import { splitSentences, countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -397,7 +397,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const weakestDimension = dimEntries[dimEntries.length - 1][0];
 
   return {
-    overall: Math.round(overall * 1000) / 1000,
+    overall: round3(overall),
     classification,
     grade: scoreToGrade(overall),
     dimensions,
@@ -405,7 +405,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
       wordCount,
       sentenceCount,
       avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
-      uniqueWordRatio: Math.round(uniqueWordRatio * 1000) / 1000,
+      uniqueWordRatio: round3(uniqueWordRatio),
       questionCount,
     },
     anglesDetected,
@@ -463,5 +463,5 @@ export function compareDepth(reasoningA: string, reasoningB: string): {
     }
   }
 
-  return { scoreA, scoreB, winner, margin: Math.round(margin * 1000) / 1000, dimensionWins };
+  return { scoreA, scoreB, winner, margin: round3(margin), dimensionWins };
 }

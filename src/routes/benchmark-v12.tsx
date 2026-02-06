@@ -20,6 +20,7 @@ import {
   analyzeConsistency,
   getTrackedAgents,
 } from "../services/cross-round-consistency.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 export const benchmarkV12Routes = new Hono();
 
@@ -123,7 +124,7 @@ benchmarkV12Routes.get("/data", (c) => {
     version: "12.0.0",
     agents,
     health: {
-      avgComposite: Math.round(avgComposite * 1000) / 1000,
+      avgComposite: round3(avgComposite),
       agentCount: agents.length,
       totalTrades: agents.reduce((s, a) => s + a.tradeCount, 0),
     },

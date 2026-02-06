@@ -33,6 +33,7 @@ import {
   validateForBenchmark,
   type DatasetQualityReport,
 } from "../services/benchmark-validation-engine.ts";
+import { round3 } from "../lib/math-utils.ts";
 
 export const benchmarkV12ApiRoutes = new Hono();
 
@@ -244,7 +245,7 @@ benchmarkV12ApiRoutes.get("/quality", (c) => {
     ok: true,
     benchmark: "moltapp-v12",
     quality: {
-      avgConsistencyScore: Math.round(avgConsistency * 1000) / 1000,
+      avgConsistencyScore: round3(avgConsistency),
       agentCount: agents.length,
       totalAnomalies: agentQuality.reduce((s, a) => s + a.anomalies, 0),
       totalRoundsAnalyzed: agentQuality.reduce((s, a) => s + a.roundsAnalyzed, 0),

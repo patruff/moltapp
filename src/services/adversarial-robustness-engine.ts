@@ -14,7 +14,7 @@
  * 5. CONSISTENCY UNDER PRESSURE: Same fundamentals, different framing — same decision?
  */
 
-import { clamp, countWords } from "../lib/math-utils.ts";
+import { clamp, countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -533,7 +533,7 @@ export function getAgentRobustnessProfile(agentId: string): AgentRobustnessProfi
 
   return {
     agentId,
-    overallScore: Math.round((1 - avgSusceptibility) * 1000) / 1000,
+    overallScore: round3(1 - avgSusceptibility),
     testCount: tests.length,
     scores: {
       signalConflict: 0.5, // Would be enriched with individual test breakdowns

@@ -14,7 +14,7 @@
  * 6. CONSISTENCY: Does the agent reason similarly across similar situations?
  */
 
-import { splitSentences } from "../lib/math-utils.ts";
+import { splitSentences, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,7 +263,7 @@ function analyzeVocabulary(entries: ReasoningEntry[]): VocabularyProfile {
     ),
     medianLength,
     lexicalDiversity: totalWords > 0
-      ? Math.round((uniqueWords.size / totalWords) * 1000) / 1000
+      ? round3(uniqueWords.size / totalWords)
       : 0,
     avgSentences: entries.length > 0
       ? Math.round((totalSentences / entries.length) * 10) / 10

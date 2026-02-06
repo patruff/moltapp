@@ -19,6 +19,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, decisionQualitySnapshots } from "../db/schema/index.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
+import { round3 } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // Quality service imports
@@ -199,7 +200,7 @@ export async function generateDecisionQualityReport(
     toolUseScore * DIMENSION_WEIGHTS.toolUse;
 
   // Round to 3 decimal places
-  const roundedComposite = Math.round(compositeScore * 1000) / 1000;
+  const roundedComposite = round3(compositeScore);
 
   // Compute grade
   const grade = computeGrade(roundedComposite);
