@@ -47,6 +47,7 @@ import {
 import { braveSearchProvider } from "../services/brave-search.ts";
 import { countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { fetchAggregatedPrices } from "../services/market-aggregator.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -515,80 +516,44 @@ export async function getMarketData(): Promise<MarketData[]> {
     return cachedMarketData;
   }
 
-  const results: MarketData[] = [];
-
   try {
-    // Try to fetch real prices from Jupiter
-    const mintAddresses = XSTOCKS_CATALOG.map((s) => s.mintAddress);
-    const jupiterApiKey = process.env.JUPITER_API_KEY;
+    // Use the market aggregator which:
+    // - Fetches from Jupiter with CoinGecko/DexScreener fallbacks
+    // - Maintains price history (enabling technical indicators)
+    // - Computes change24h from history when Jupiter doesn't provide it
+    // - Has its own 10-second cache
+    const aggregated = await fetchAggregatedPrices();
 
-    // Batch in groups of 50 (Jupiter limit)
-    const batches: string[][] = [];
-    for (let i = 0; i < mintAddresses.length; i += 50) {
-      batches.push(mintAddresses.slice(i, i + 50));
-    }
+    const results: MarketData[] = aggregated.map((p) => ({
+      symbol: p.symbol,
+      name: p.name,
+      mintAddress: p.mintAddress,
+      price: p.price,
+      change24h: p.change24h,
+      volume24h: p.volume24h,
+    }));
 
-    const priceMap = new Map<string, number>();
+    // Cache results
+    cachedMarketData = results;
+    cachedMarketDataTimestamp = Date.now();
 
-    for (const batch of batches) {
-      const ids = batch.join(",");
-      const url = `https://api.jup.ag/price/v3?ids=${ids}`;
-      const headers: Record<string, string> = {};
-      if (jupiterApiKey) {
-        headers["x-api-key"] = jupiterApiKey;
-      }
-
-      try {
-        const resp = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
-        if (resp.ok) {
-          const data = (await resp.json()) as {
-            data: Record<string, { price: string }>;
-          };
-          for (const [mint, info] of Object.entries(data.data)) {
-            if (info?.price) {
-              priceMap.set(mint, parseFloat(info.price));
-            }
-          }
-        }
-      } catch {
-        // Jupiter API failed for this batch, will use mock prices
-      }
-    }
-
-    // Build market data from catalog
-    for (const stock of XSTOCKS_CATALOG) {
-      const price = priceMap.get(stock.mintAddress) ?? generateMockPrice(stock.symbol);
-      const change24h = priceMap.has(stock.mintAddress) ? null : generateMockChange();
-      const volume24h = priceMap.has(stock.mintAddress) ? null : generateMockVolume();
-
-      results.push({
-        symbol: stock.symbol,
-        name: stock.name,
-        mintAddress: stock.mintAddress,
-        price,
-        change24h,
-        volume24h,
-      });
-    }
+    return results;
   } catch {
     // Complete fallback to mock data
-    for (const stock of XSTOCKS_CATALOG) {
-      results.push({
-        symbol: stock.symbol,
-        name: stock.name,
-        mintAddress: stock.mintAddress,
-        price: generateMockPrice(stock.symbol),
-        change24h: generateMockChange(),
-        volume24h: generateMockVolume(),
-      });
-    }
+    const results: MarketData[] = XSTOCKS_CATALOG.map((stock) => ({
+      symbol: stock.symbol,
+      name: stock.name,
+      mintAddress: stock.mintAddress,
+      price: generateMockPrice(stock.symbol),
+      change24h: generateMockChange(),
+      volume24h: generateMockVolume(),
+    }));
+
+    cachedMarketData = results;
+    cachedMarketDataTimestamp = Date.now();
+
+    return results;
   }
-
-  // Cache results
-  cachedMarketData = results;
-  cachedMarketDataTimestamp = Date.now();
-
-  return results;
 }
 
 // ---------------------------------------------------------------------------

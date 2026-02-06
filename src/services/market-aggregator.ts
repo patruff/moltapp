@@ -172,8 +172,25 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
     if (jupPrice) {
       price = jupPrice.price;
       source = "jupiter";
-      change24h = jupPrice.change24h;
-      volume24h = jupPrice.volume24h;
+      // Jupiter V3 doesn't return 24h change/volume — compute from price history
+      const hist = priceHistory.get(stock.symbol) ?? [];
+      if (jupPrice.change24h !== 0) {
+        change24h = jupPrice.change24h;
+      } else if (hist.length >= 2) {
+        // Estimate 24h change from oldest available history point
+        const oldest = hist[0];
+        const ageMs = now - oldest.timestamp;
+        if (ageMs > 0 && oldest.price > 0) {
+          change24h = ((price - oldest.price) / oldest.price) * 100;
+        } else {
+          change24h = 0;
+        }
+      } else if (prevPrice) {
+        change24h = ((price - prevPrice.price) / prevPrice.price) * 100;
+      } else {
+        change24h = 0;
+      }
+      volume24h = jupPrice.volume24h !== 0 ? jupPrice.volume24h : (prevPrice?.volume24h ?? 0);
     } else if (prevPrice && now - new Date(prevPrice.updatedAt).getTime() < 120_000) {
       // Use cached price if less than 2 minutes old
       price = prevPrice.price;
@@ -286,8 +303,11 @@ async function fetchJupiterPrices(): Promise<Map<string, JupiterPriceEntry>> {
 
           for (const [mint, entry] of Object.entries(data.data)) {
             if (entry?.price) {
+              const parsed = parseFloat(entry.price);
+              // Validate: reject NaN, zero, negative, or absurdly large prices
+              if (!Number.isFinite(parsed) || parsed <= 0) continue;
               result.set(mint, {
-                price: parseFloat(entry.price),
+                price: parsed,
                 change24h: 0, // Jupiter V3 doesn't return 24h change directly
                 volume24h: 0,
               });

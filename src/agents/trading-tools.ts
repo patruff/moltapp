@@ -1004,9 +1004,21 @@ async function executeGetExecutionQuote(
     const midMarketPrice = midMarketData?.price ?? effectivePrice;
 
     // Calculate implied price impact
-    const priceImpactPercent = Math.abs(
+    let priceImpactPercent = Math.abs(
       ((effectivePrice - midMarketPrice) / midMarketPrice) * 100,
     );
+
+    // Guard against stale/divergent mid-market prices producing extreme impacts
+    // If impact > 20%, the mid-market price is likely stale — flag but cap
+    let priceNote: string;
+    if (priceImpactPercent > 20) {
+      priceNote = `WARNING: Mid-market price may be stale (${midMarketPrice.toFixed(2)} vs effective ${effectivePrice.toFixed(2)}). Price impact unreliable. Use effectivePrice as current market rate.`;
+      priceImpactPercent = -1; // Signal unreliable
+    } else if (priceImpactPercent > 1) {
+      priceNote = "WARNING: High price impact (>1%). Consider smaller trade size.";
+    } else {
+      priceNote = "Quote matches execution conditions. Valid for ~30 seconds.";
+    }
 
     return JSON.stringify({
       symbol: args.symbol,
@@ -1016,12 +1028,10 @@ async function executeGetExecutionQuote(
       outputAmount: outputAmount.toFixed(args.side === "buy" ? 6 : 2),
       effectivePrice: effectivePrice.toFixed(4),
       midMarketPrice: midMarketPrice.toFixed(4),
-      priceImpactPercent: priceImpactPercent.toFixed(4),
+      priceImpactPercent: priceImpactPercent === -1 ? "unreliable" : priceImpactPercent.toFixed(4),
       slippageBps: order.slippageBps,
       swapType: order.swapType ?? "unknown",
-      note: priceImpactPercent > 1
-        ? "WARNING: High price impact (>1%). Consider smaller trade size."
-        : "Quote matches execution conditions. Valid for ~30 seconds.",
+      note: priceNote,
     });
   } catch (err) {
     return JSON.stringify({
