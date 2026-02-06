@@ -38,6 +38,7 @@ import {
   checkInstructionDiscipline,
 } from "../services/coherence-analyzer.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
+import { countWords } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { addBrainFeedEntry, buildBrainFeedEntry } from "./brain-feed.ts";
@@ -322,7 +323,7 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
     },
     reasoning: {
       length: validated.reasoning.length,
-      wordCount: validated.reasoning.split(/\s+/).length,
+      wordCount: countWords(validated.reasoning),
       sourcesCount: validated.sources.length,
       intent: validated.intent,
     },
@@ -386,7 +387,7 @@ reasoningEnforcedTradingRoutes.post("/validate", async (c) => {
     tips: [
       coherence.score < 0.5 ? "Ensure your reasoning supports your trade direction (bullish text for buys, bearish for sells)" : null,
       hallucinations.flags.length > 0 ? "Remove or correct factual claims that don't match market data" : null,
-      result.data.reasoning.split(/\s+/).length < 15 ? "Longer, more detailed reasoning tends to score higher" : null,
+      countWords(result.data.reasoning) < 15 ? "Longer, more detailed reasoning tends to score higher" : null,
       result.data.sources.length < 2 ? "Citing multiple data sources improves benchmark scores" : null,
     ].filter(Boolean),
   });

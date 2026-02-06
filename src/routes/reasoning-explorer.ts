@@ -22,6 +22,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
+import { countWords } from "../lib/math-utils.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -502,12 +503,12 @@ reasoningExplorerRoutes.get("/exemplars", async (c) => {
       bestReasoning: best.map((r: typeof best[0]) => ({
         ...r,
         reasoning: r.reasoning.slice(0, 500),
-        wordCount: r.reasoning.split(/\s+/).length,
+        wordCount: countWords(r.reasoning),
       })),
       worstReasoning: worst.map((r: typeof worst[0]) => ({
         ...r,
         reasoning: r.reasoning.slice(0, 500),
-        wordCount: r.reasoning.split(/\s+/).length,
+        wordCount: countWords(r.reasoning),
       })),
       mostVerbose: verbose.map((r: typeof verbose[0]) => ({
         id: r.id,
@@ -515,7 +516,7 @@ reasoningExplorerRoutes.get("/exemplars", async (c) => {
         action: r.action,
         symbol: r.symbol,
         coherenceScore: r.coherenceScore,
-        wordCount: r.reasoning.split(/\s+/).length,
+        wordCount: countWords(r.reasoning),
         preview: r.reasoning.slice(0, 200),
       })),
     });

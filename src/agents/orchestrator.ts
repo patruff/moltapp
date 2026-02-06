@@ -983,7 +983,7 @@ async function executeTradingRound(
           intent,
           coherenceScore: coherence.score,
           hallucinationCount: hallucinations.flags.length,
-          wordCount: decision.reasoning.split(/\s+/).length,
+          wordCount: countWords(decision.reasoning),
           sentimentScore: Math.max(-1, Math.min(1, sentimentScore)),
           timestamp: new Date().toISOString(),
         });
@@ -1843,7 +1843,7 @@ async function executeTradingRound(
         confidence: normConf,
         intent: r.decision.intent ?? "value",
         sentimentScore: volSentiment,
-        wordCount: r.decision.reasoning.split(/\s+/).length,
+        wordCount: countWords(r.decision.reasoning),
         coherenceScore: coherenceForCalib,
         keyPhrases,
         timestamp: new Date().toISOString(),
