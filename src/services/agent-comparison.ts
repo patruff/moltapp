@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { findMax, findMin, getTopKey, round2 } from "../lib/math-utils.ts";
+import { averageByKey, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -241,20 +241,11 @@ export function buildAgentSnapshot(
   const winRate = tradesWithPnl.length > 0 ? (wins.length / tradesWithPnl.length) * 100 : 0;
 
   // Confidence metrics
-  const avgConfidence =
-    allDecisions.length > 0
-      ? allDecisions.reduce((s, d) => s + d.confidence, 0) / allDecisions.length
-      : 0;
+  const avgConfidence = averageByKey(allDecisions, "confidence");
 
-  const avgConfidenceOnWins =
-    wins.length > 0
-      ? wins.reduce((s, t) => s + t.confidence, 0) / wins.length
-      : 0;
+  const avgConfidenceOnWins = averageByKey(wins, "confidence");
 
-  const avgConfidenceOnLosses =
-    losses.length > 0
-      ? losses.reduce((s, t) => s + t.confidence, 0) / losses.length
-      : 0;
+  const avgConfidenceOnLosses = averageByKey(losses, "confidence");
 
   // Conviction accuracy: success rate on high-confidence trades (>70%)
   const highConfTrades = tradesWithPnl.filter((t) => t.confidence > 70);
@@ -265,7 +256,7 @@ export function buildAgentSnapshot(
       : 0;
 
   // P&L
-  const totalPnl = tradesWithPnl.reduce((s, t) => s + (t.pnl ?? 0), 0);
+  const totalPnl = sumByKey(tradesWithPnl, "pnl");
   const bestTrade = findMax(tradesWithPnl, "pnl") ?? null;
   const worstTrade = findMin(tradesWithPnl, "pnl") ?? null;
 
@@ -298,10 +289,7 @@ export function buildAgentSnapshot(
   // Finalize symbol stats
   for (const [sym, stats] of Object.entries(symbolBreakdown)) {
     const symbolTrades = trades.filter((t) => t.symbol === sym);
-    stats.avgConfidence =
-      symbolTrades.length > 0
-        ? symbolTrades.reduce((s, t) => s + t.confidence, 0) / symbolTrades.length
-        : 0;
+    stats.avgConfidence = averageByKey(symbolTrades, "confidence");
     const symbolWins = symbolTrades.filter((t) => (t.pnl ?? 0) > 0);
     const symbolWithPnl = symbolTrades.filter((t) => t.pnl !== undefined);
     stats.winRate =
@@ -357,7 +345,7 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
   }
 
   const returns = trades.map((t) => t.pnl ?? 0);
-  const avgReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
+  const avgReturn = mean(returns);
 
   // Volatility (standard deviation)
   const variance =
@@ -395,18 +383,18 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
   }
 
   // Calmar ratio
-  const totalReturn = returns.reduce((s, r) => s + r, 0);
+  const totalReturn = returns.reduce((s, r) => s + r, 0); // cumulative sum needed for Calmar
   const calmarRatio = maxDrawdown > 0 ? totalReturn / maxDrawdown : 0;
 
   // Profit factor
-  const grossProfit = returns.filter((r) => r > 0).reduce((s, r) => s + r, 0);
-  const grossLoss = Math.abs(
-    returns.filter((r) => r < 0).reduce((s, r) => s + r, 0),
-  );
+  const positiveReturns = returns.filter((r) => r > 0);
+  const negativeReturns = returns.filter((r) => r < 0);
+  const grossProfit = positiveReturns.reduce((s, r) => s + r, 0);
+  const grossLoss = Math.abs(negativeReturns.reduce((s, r) => s + r, 0));
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
   // Average position size (as % of assumed $10k portfolio)
-  const avgQty = trades.reduce((s, t) => s + t.quantity, 0) / trades.length;
+  const avgQty = averageByKey(trades, "quantity");
   const avgPositionSizePercent = (avgQty / 10000) * 100;
 
   return {
@@ -433,9 +421,7 @@ function computeStyleProfile(
   const tradeFrequency = totalRounds > 0 ? trades.length / totalRounds : 0;
 
   // Risk appetite: based on average quantity relative to max trade size
-  const avgQty = trades.length > 0
-    ? trades.reduce((s, t) => s + t.quantity, 0) / trades.length
-    : 0;
+  const avgQty = averageByKey(trades, "quantity");
   const riskAppetite = Math.min(100, (avgQty / 50) * 100); // 50 USDC is max
 
   // Diversification: unique stocks traded / total stock universe
@@ -443,17 +429,11 @@ function computeStyleProfile(
   const diversificationScore = Math.min(100, (uniqueSymbols / 20) * 100);
 
   // Conviction strength: avg confidence when not holding
-  const convictionStrength =
-    trades.length > 0
-      ? trades.reduce((s, t) => s + t.confidence, 0) / trades.length
-      : 0;
+  const convictionStrength = averageByKey(trades, "confidence");
 
   // Consistency: inverse of confidence standard deviation
   const confidences = allDecisions.map((d) => d.confidence);
-  const avgConf =
-    confidences.length > 0
-      ? confidences.reduce((s, c) => s + c, 0) / confidences.length
-      : 0;
+  const avgConf = mean(confidences);
   const confVariance =
     confidences.length > 1
       ? confidences.reduce((s, c) => s + Math.pow(c - avgConf, 2), 0) / confidences.length
