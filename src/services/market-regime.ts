@@ -13,7 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
-import { stdDev } from "../lib/math-utils.ts";
+import { round2, stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -1117,10 +1117,7 @@ export async function getSectorRotation(): Promise<SectorAnalysis> {
 // Internal Helpers
 // ---------------------------------------------------------------------------
 
-/** Round to 2 decimal places */
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+// round2 imported from ../lib/math-utils.ts
 
 /** Compute block returns (e.g., weekly returns from daily returns) */
 function computeBlockReturns(returns: number[], blockSize: number): number[] {

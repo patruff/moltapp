@@ -16,6 +16,8 @@
  * - Chronological timeline replay with optional time-range filtering
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -934,7 +936,7 @@ function buildStandings(): CompetitionNarrative["currentStandings"] {
     entries.push({
       agentId,
       agentLabel: AGENT_LABELS[agentId] ?? agentId,
-      pnlPercent: Math.round(pnl * 100) / 100,
+      pnlPercent: round2(pnl),
       rank: 0, // computed after sort
     });
   }

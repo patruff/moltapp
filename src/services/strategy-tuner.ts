@@ -16,7 +16,7 @@
  * violate hard limits. This is optimization within safety constraints.
  */
 
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -362,7 +362,7 @@ export function evaluateDecision(
   // Adjust quantity based on position size multiplier
   const modifiedQuantity =
     decision.action !== "hold"
-      ? Math.round(decision.quantity * adj.positionSizeMultiplier * 100) / 100
+      ? round2(decision.quantity * adj.positionSizeMultiplier)
       : 0;
 
   // Check against max single position allocation
@@ -452,7 +452,7 @@ export function getStrategyTunerStatus(): {
     stats: {
       totalAdjustmentsCalculated: adjustmentHistory.length,
       agentsWithActiveAdjustments: activeAdjustments.size,
-      averagePositionMultiplier: Math.round(avgMultiplier * 100) / 100,
+      averagePositionMultiplier: round2(avgMultiplier),
       agentsInConservativeMode: adjustments.filter(
         (a) => a.adjustment.positionSizeMultiplier < 0.5,
       ).length,

@@ -17,7 +17,7 @@
  */
 
 import { eventBus } from "./event-stream.ts";
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -608,7 +608,7 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
 
   const params: AdaptiveRiskParams = {
     agentId,
-    positionSizeMultiplier: Math.round(positionSizeMultiplier * 100) / 100,
+    positionSizeMultiplier: round2(positionSizeMultiplier),
     minConfidenceThreshold: minConfidence,
     avoidSymbols,
     strengthSymbols,
@@ -869,7 +869,7 @@ function createPattern(
     type,
     description,
     occurrences,
-    avgPnlPercent: Math.round(avgPnlPercent * 100) / 100,
+    avgPnlPercent: round2(avgPnlPercent),
     patternConfidence: Math.round(patternConfidence),
     symbols,
     firstSeen: now,

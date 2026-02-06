@@ -27,6 +27,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
+import { round2 } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 
 // ---------------------------------------------------------------------------
@@ -924,7 +925,7 @@ export async function getDebateHistory(): Promise<
       winner,
       priceAtDebate,
       priceNow,
-      priceChange: Math.round(priceChange * 100) / 100,
+      priceChange: round2(priceChange),
       correctAgent,
       resolved,
     });

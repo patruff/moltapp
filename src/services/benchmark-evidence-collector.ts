@@ -26,7 +26,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, mean, round3 } from "../lib/math-utils.ts";
+import { countWords, mean, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -337,7 +337,7 @@ export function analyzeCoherenceWithContext(
 
   return {
     ...baseResult,
-    score: Math.round(adjustedScore * 100) / 100,
+    score: round2(adjustedScore),
     regimeAdjustment,
     regimeNote,
   };
@@ -404,7 +404,7 @@ function computeMaxDrawdown(returns: number[]): number {
     if (dd > maxDd) maxDd = dd;
   }
 
-  return Math.round(maxDd * 100) / 100;
+  return round2(maxDd);
 }
 
 function computeCalibration(evidence: TradeEvidence[]): number {

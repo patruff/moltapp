@@ -15,6 +15,8 @@
  * - Risk Score: single 0-100 score summarizing portfolio risk level
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -306,7 +308,7 @@ export function updateDrawdown(
       ? ((tracker.peakValue - currentValue) / tracker.peakValue) * 100
       : 0;
 
-  tracker.currentDrawdownPercent = Math.round(drawdown * 100) / 100;
+  tracker.currentDrawdownPercent = round2(drawdown);
 
   if (drawdown > 0) {
     tracker.isInDrawdown = true;
@@ -319,7 +321,7 @@ export function updateDrawdown(
 
   // Update max drawdown
   if (drawdown > tracker.maxDrawdownPercent) {
-    tracker.maxDrawdownPercent = Math.round(drawdown * 100) / 100;
+    tracker.maxDrawdownPercent = round2(drawdown);
   }
 
   // Generate anomalies for significant drawdowns

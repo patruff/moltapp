@@ -13,6 +13,8 @@
  * a unified, configurable retry engine.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -590,7 +592,7 @@ export function getRetryMetrics(): RetryMetrics {
     totalRetriesUsed,
     retriesByPolicy: { ...retriesByPolicy },
     retryBudgetExhaustion,
-    averageRetriesPerCall: Math.round(avgRetries * 100) / 100,
+    averageRetriesPerCall: round2(avgRetries),
     recentRetries: recentRetries.slice(0, 20),
   };
 }

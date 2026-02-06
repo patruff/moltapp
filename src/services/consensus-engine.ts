@@ -24,6 +24,7 @@ import { trades } from "../db/schema/trades.ts";
 import { eq, desc, sql, and, gte, inArray, type InferSelectModel } from "drizzle-orm";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
@@ -283,7 +284,7 @@ export function analyzeRoundConsensus(
           dissentingAgents,
           confidence: boostedConfidence,
           individualConfidences,
-          averageQuantity: Math.round(avgQuantity * 100) / 100,
+          averageQuantity: round2(avgQuantity),
           strength: group.length === results.length ? "unanimous" : "majority",
           combinedReasoning: group
             .map((r) => `[${r.agentName}] ${r.decision.reasoning}`)

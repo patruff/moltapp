@@ -18,6 +18,7 @@
  */
 
 import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
+import { round2, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -785,13 +786,7 @@ function pearsonCorrelation(a: number[], b: number[]): number | null {
   return denom > 0 ? cov / denom : null;
 }
 
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
-
-function round4(n: number): number {
-  return Math.round(n * 10000) / 10000;
-}
+// round2 and round4 imported from ../lib/math-utils.ts
 
 /** Generate a mock price with small random variation from last known. */
 function generateMockPrice(symbol: string, lastPrice?: number): number {
@@ -803,5 +798,5 @@ function generateMockPrice(symbol: string, lastPrice?: number): number {
   };
   const base = lastPrice ?? basePrices[symbol] ?? 100;
   const variation = 1 + (Math.random() - 0.5) * 0.02;
-  return Math.round(base * variation * 100) / 100;
+  return round2(base * variation);
 }

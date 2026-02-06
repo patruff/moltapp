@@ -793,7 +793,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
     agentId,
     agentName: config.name,
     tradingFrequency,
-    avgDecisionsPerDay: Math.round(avgDecisionsPerDay * 100) / 100,
+    avgDecisionsPerDay: round2(avgDecisionsPerDay),
     preferredActions: { buy: buys, sell: sells, hold: holds },
     convictionProfile: {
       highConviction,
@@ -871,7 +871,7 @@ export async function getHistoricalPerformance(
       maxDrawdownPercent: result.metrics.maxDrawdownPercent,
       winRate: result.metrics.winRate,
       avgTradePnl: result.metrics.totalTrades > 0
-        ? Math.round((result.totalReturn / result.metrics.totalTrades) * 100) / 100
+        ? round2(result.totalReturn / result.metrics.totalTrades)
         : 0,
       totalReturn: result.totalReturn,
       totalReturnPercent: result.totalReturnPercent,
@@ -915,22 +915,22 @@ function computeBacktestMetrics(
 
   // Average win/loss amounts
   const avgWinAmount = wins.length > 0
-    ? Math.round((wins.reduce((s, t) => s + t.pnl, 0) / wins.length) * 100) / 100
+    ? round2(wins.reduce((s, t) => s + t.pnl, 0) / wins.length)
     : 0;
   const avgLossAmount = losses.length > 0
-    ? Math.round((losses.reduce((s, t) => s + Math.abs(t.pnl), 0) / losses.length) * 100) / 100
+    ? round2(losses.reduce((s, t) => s + Math.abs(t.pnl), 0) / losses.length)
     : 0;
 
   // Payoff ratio
   const payoffRatio = avgLossAmount > 0
-    ? Math.round((avgWinAmount / avgLossAmount) * 100) / 100
+    ? round2(avgWinAmount / avgLossAmount)
     : avgWinAmount > 0 ? Infinity : 0;
 
   // Profit factor
   const grossProfit = wins.reduce((s, t) => s + t.pnl, 0);
   const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
   const profitFactor = grossLoss > 0
-    ? Math.round((grossProfit / grossLoss) * 100) / 100
+    ? round2(grossProfit / grossLoss)
     : grossProfit > 0 ? Infinity : 0;
 
   // Average holding period (approximate: days between buy and sell for same symbol)
@@ -981,12 +981,12 @@ function computeBacktestMetrics(
 
   // Sharpe ratio
   const sharpeRatio = annualizedVol > 0
-    ? Math.round(((meanReturn - dailyRfr) / dailyVol * Math.sqrt(252)) * 100) / 100
+    ? round2((meanReturn - dailyRfr) / dailyVol * Math.sqrt(252))
     : 0;
 
   // Sortino ratio
   const sortinoRatio = annualizedDownside > 0
-    ? Math.round(((meanReturn - dailyRfr) / downsideDeviation * Math.sqrt(252)) * 100) / 100
+    ? round2((meanReturn - dailyRfr) / downsideDeviation * Math.sqrt(252))
     : 0;
 
   // Max drawdown
@@ -1003,7 +1003,7 @@ function computeBacktestMetrics(
 
   // Calmar ratio
   const calmarRatio = maxDrawdownPercent > 0
-    ? Math.round((annualizedReturn / maxDrawdownPercent) * 100) / 100
+    ? round2(annualizedReturn / maxDrawdownPercent)
     : 0;
 
   // Value at Risk (95th percentile)
@@ -1082,8 +1082,8 @@ function computeMonthlyReturns(
 
     return {
       month,
-      return: Math.round(monthReturn * 100) / 100,
-      returnPercent: Math.round(monthReturnPercent * 100) / 100,
+      return: round2(monthReturn),
+      returnPercent: round2(monthReturnPercent),
       trades: entry.trades,
     };
   });

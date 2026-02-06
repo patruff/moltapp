@@ -25,6 +25,7 @@
 
 import { getPrice, getAggregatedPrice, type PricePoint } from "./realtime-prices.ts";
 import { logTradeEvent } from "./audit-log.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -300,11 +301,11 @@ export async function validatePrice(
     rejectReason: null,
     validatedPrice: Math.round(validatedPrice * 10000) / 10000,
     maxDeviationPercent: config.maxSourceDeviationPercent,
-    actualDeviationPercent: Math.round(proposedDeviation * 100) / 100,
+    actualDeviationPercent: round2(proposedDeviation),
     sourcesConfirmed: sourceDetails.length,
     sourceDetails,
     slippageProtection,
-    estimatedSlippagePercent: Math.round(estimatedSlippage * 100) / 100,
+    estimatedSlippagePercent: round2(estimatedSlippage),
     validatedAt: new Date().toISOString(),
   };
 
@@ -431,7 +432,7 @@ export function getPriceValidatorMetrics(): PriceValidatorMetrics {
     rejectionReasons: { ...rejectionReasons },
     avgDeviationPercent:
       totalValidations > 0
-        ? Math.round((totalDeviation / totalValidations) * 100) / 100
+        ? round2(totalDeviation / totalValidations)
         : 0,
     avgSourceCount:
       totalValidations > 0

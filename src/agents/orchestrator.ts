@@ -1308,9 +1308,9 @@ async function executeTradingRound(
             patternResult = analyzeReasoningPatterns(agent.agentId, decision.reasoning);
             recordReasoningForPatternAnalysis(agent.agentId, decision.reasoning, patternResult.qualityScore);
             console.log(
-              `[Orchestrator] ${agent.name} patterns: quality=${patternResult.qualityScore.toFixed(2)}, ` +
+              `[Orchestrator] ${agent.name} patterns: quality=${round2(patternResult.qualityScore)}, ` +
               `fallacies=${patternResult.fallacies.length}, depth=${patternResult.depth.classification}, ` +
-              `vocab=${patternResult.vocabulary.sophisticationScore.toFixed(2)}`,
+              `vocab=${round2(patternResult.vocabulary.sophisticationScore)}`,
             );
 
             emitBenchmarkEvent("pattern_analyzed", {
@@ -1363,9 +1363,9 @@ async function executeTradingRound(
             });
 
             console.log(
-              `[Orchestrator] ${agent.name} forensic: composite=${forensicReport.compositeScore.toFixed(2)} (${forensicReport.grade}), ` +
-              `depth=${forensicReport.depth.classification}, originality=${forensicReport.originality.originalityScore.toFixed(2)}, ` +
-              `clarity=${forensicReport.clarity.clarityScore.toFixed(2)}, integrity-flags=${forensicReport.crossTrade.flags.length}`,
+              `[Orchestrator] ${agent.name} forensic: composite=${round2(forensicReport.compositeScore)} (${forensicReport.grade}), ` +
+              `depth=${forensicReport.depth.classification}, originality=${round2(forensicReport.originality.originalityScore)}, ` +
+              `clarity=${round2(forensicReport.clarity.clarityScore)}, integrity-flags=${forensicReport.crossTrade.flags.length}`,
             );
 
             emitV11Event("forensic_analyzed", {
@@ -2107,7 +2107,7 @@ async function executeTradingRound(
     const crossModelResult = compareRoundReasoning(comparisonEntries);
 
     console.log(
-      `[Orchestrator] v15 cross-model: herding=${crossModelResult.herdingScore.toFixed(2)}, ` +
+      `[Orchestrator] v15 cross-model: herding=${round2(crossModelResult.herdingScore)}, ` +
       `pairs=${crossModelResult.similarities.length}, ` +
       `divergences=${crossModelResult.divergencePoints.length}`,
     );
@@ -2242,8 +2242,8 @@ async function executeTradingRound(
       });
 
       console.log(
-        `[Orchestrator] v16 ${r.agentId}: depth=${depthResult.overall.toFixed(2)} ` +
-        `(${depthResult.classification}), efficiency=${efficiency.composite.toFixed(2)}, ` +
+        `[Orchestrator] v16 ${r.agentId}: depth=${round2(depthResult.overall)} ` +
+        `(${depthResult.classification}), efficiency=${round2(efficiency.composite)}, ` +
         `angles=${depthResult.anglesDetected.length}`,
       );
     }

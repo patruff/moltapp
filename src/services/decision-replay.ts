@@ -23,6 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // Database query result types
 type DecisionRow = typeof agentDecisions.$inferSelect;
@@ -512,7 +513,7 @@ function buildMarketContext(
   return {
     prices: snapshot,
     marketDirection: direction,
-    avgChange24h: Math.round(avgChange * 100) / 100,
+    avgChange24h: round2(avgChange),
     topGainer,
     topLoser,
     targetStock: target ? {

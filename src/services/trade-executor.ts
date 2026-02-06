@@ -31,6 +31,7 @@ import { emitTradeAlert, emitCircuitBreakerAlert } from "./alert-webhooks.ts";
 import { registerFailedTrade, recordRetryAttempt } from "./trade-recovery.ts";
 import { logTradeEvent, logTradeFailure } from "./audit-log.ts";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -650,7 +651,7 @@ async function fetchCurrentPrice(mintAddress: string, symbol: string): Promise<n
   };
   const base = mockPrices[symbol] ?? 100;
   const variation = 1 + (Math.random() - 0.5) * 0.02;
-  return Math.round(base * variation * 100) / 100;
+  return round2(base * variation);
 }
 
 // ---------------------------------------------------------------------------
@@ -802,7 +803,7 @@ export function getExecutionStats(): ExecutionStats {
     paperExecutions,
     successfulExecutions,
     failedExecutions,
-    totalVolumeUSDC: Math.round(totalVolumeUSDC * 100) / 100,
+    totalVolumeUSDC: round2(totalVolumeUSDC),
     averageExecutionMs: Math.round(avgDuration),
     executionsByAgent: { ...executionsByAgent },
     executionsBySymbol: { ...executionsBySymbol },
