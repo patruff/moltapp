@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -278,7 +278,7 @@ function analyzeReasoningQuality(
 
 function scoreLogicQuality(reasoning: string): number {
   let score = 0.3; // baseline
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
 
   // Length bonus: more detailed reasoning tends to be more logical
   if (words > 30) score += 0.1;
@@ -381,7 +381,7 @@ function scoreRiskAwareness(reasoning: string, action: "buy" | "sell" | "hold"):
 function scoreOriginality(reasoning: string): number {
   let score = 0.3;
 
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
   const sentences = reasoning.split(/[.!?]+/).filter(Boolean).length;
 
   // Unique word ratio (vocabulary diversity)
@@ -419,7 +419,7 @@ function scoreConclusionValidity(
   let score = 0.5; // neutral baseline
 
   // Check if reasoning length matches confidence
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
   const normalizedConf = normalizeConfidence(confidence);
 
   // High confidence with short reasoning = suspicious
@@ -470,7 +470,7 @@ function countPatternWeight(text: string, patterns: RegExp[]): number {
 function identifyStrengths(reasoning: string, _action: string): string[] {
   const strengths: string[] = [];
 
-  if (reasoning.split(/\s+/).length > 60) {
+  if (countWords(reasoning) > 60) {
     strengths.push("Detailed analysis with substantial reasoning");
   }
   if (/\bbecause\b|\btherefore\b|\bthus\b|\bconsequently\b/i.test(reasoning)) {
@@ -497,7 +497,7 @@ function identifyStrengths(reasoning: string, _action: string): string[] {
 
 function identifyWeaknesses(reasoning: string, action: string, confidence: number): string[] {
   const weaknesses: string[] = [];
-  const words = reasoning.split(/\s+/).length;
+  const words = countWords(reasoning);
   const normalizedConf = normalizeConfidence(confidence);
 
   if (words < 20) {
@@ -540,7 +540,7 @@ function evaluateAgreement(
   const normalizedConf = normalizeConfidence(confidence);
   const hasEvidence = /\$\d+\.?\d*|\d+\.?\d*%/i.test(reasoning);
   const hasRiskAwareness = /\brisk\b|\bdownside\b|\bcaution\b/i.test(reasoning);
-  const wordCount = reasoning.split(/\s+/).length;
+  const wordCount = countWords(reasoning);
 
   // Base agreement probability
   let agreeProb = 0.5;
