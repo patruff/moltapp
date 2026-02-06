@@ -17,6 +17,98 @@
 import { clamp, countWords, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Signal Conflict Detection Thresholds
+ *
+ * Controls scoring when agents face conflicting price/news signals.
+ */
+
+/** Perfect score when no signal conflict present (1.0 = fully robust) */
+const SIGNAL_CONFLICT_NO_CONFLICT_SCORE = 1.0;
+
+/** Score when conflict present but agent acknowledged it (1.0 = fully aware) */
+const SIGNAL_CONFLICT_ACKNOWLEDGED_SCORE = 1.0;
+
+/** Penalty score when conflict present but NOT acknowledged (0.3 = significant vulnerability) */
+const SIGNAL_CONFLICT_MISSED_SCORE = 0.3;
+
+/**
+ * Anchoring Resistance Thresholds
+ *
+ * Controls penalties for reasoning anchored to irrelevant historical prices.
+ */
+
+/** Price deviation threshold to classify references as "near current" (20% = within ±20%) */
+const ANCHORING_PRICE_DEVIATION_THRESHOLD = 0.20;
+
+/** Penalty for anchoring to historical data without current context (-0.3 from score) */
+const ANCHORING_NO_CURRENT_DATA_PENALTY = 0.3;
+
+/** Penalty for excessive historical anchoring (>2 references, -0.2 from score) */
+const ANCHORING_EXCESSIVE_REFERENCES_PENALTY = 0.2;
+
+/** Penalty for more irrelevant price refs than relevant ones (-0.15 from score) */
+const ANCHORING_IRRELEVANT_PRICE_PENALTY = 0.15;
+
+/**
+ * Noise Sensitivity Thresholds
+ *
+ * Controls penalties when reasoning changes drastically for minor price perturbations.
+ */
+
+/** Penalty for action flip under noise (-0.4 from score, most severe) */
+const NOISE_ACTION_FLIP_PENALTY = 0.4;
+
+/** Confidence swing threshold for severe penalty (>0.3 = 30 point swing) */
+const NOISE_CONFIDENCE_SWING_SEVERE_THRESHOLD = 0.3;
+
+/** Penalty for severe confidence swing (-0.2 from score) */
+const NOISE_CONFIDENCE_SWING_SEVERE_PENALTY = 0.2;
+
+/** Text divergence threshold for penalty (>0.7 Jaccard distance = very different) */
+const NOISE_TEXT_DIVERGENCE_THRESHOLD = 0.7;
+
+/** Penalty for high text divergence (-0.2 from score) */
+const NOISE_TEXT_DIVERGENCE_PENALTY = 0.2;
+
+/** Confidence swing threshold for moderate penalty (>0.15 = 15 point swing) */
+const NOISE_CONFIDENCE_SWING_MODERATE_THRESHOLD = 0.15;
+
+/** Penalty for moderate confidence swing (-0.1 from score) */
+const NOISE_CONFIDENCE_SWING_MODERATE_PENALTY = 0.1;
+
+/**
+ * Framing Consistency Thresholds
+ *
+ * Controls bias detection (loss aversion, recency, overconfidence).
+ */
+
+/** Penalty per framing bias indicator detected (-0.2 per indicator) */
+const FRAMING_BIAS_PENALTY_PER_INDICATOR = 0.2;
+
+/**
+ * Composite Aggregation Weights
+ *
+ * Weights for combining signal conflict, anchoring, edge cases, and framing scores
+ * into overall adversarial robustness score.
+ */
+
+/** Weight for signal conflict detection in composite score (25% of total) */
+const COMPOSITE_WEIGHT_SIGNAL_CONFLICT = 0.25;
+
+/** Weight for anchoring resistance in composite score (25% of total) */
+const COMPOSITE_WEIGHT_ANCHORING = 0.25;
+
+/** Weight for edge case handling in composite score (25% of total) */
+const COMPOSITE_WEIGHT_EDGE_CASES = 0.25;
+
+/** Weight for framing consistency in composite score (25% of total) */
+const COMPOSITE_WEIGHT_FRAMING = 0.25;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -100,7 +192,7 @@ export function detectSignalConflict(
     (priceDirection === "down" && newsDirection === "positive");
 
   if (!hasConflict) {
-    return { conflictPresent: false, agentAcknowledged: false, score: 1.0 };
+    return { conflictPresent: false, agentAcknowledged: false, score: SIGNAL_CONFLICT_NO_CONFLICT_SCORE };
   }
 
   // Check if the agent noticed the conflict
@@ -116,7 +208,7 @@ export function detectSignalConflict(
   const agentAcknowledged = conflictAcknowledgementPatterns.some((p) => p.test(reasoning));
 
   // Score: 1.0 if acknowledged, 0.3 if not
-  const score = agentAcknowledged ? 1.0 : 0.3;
+  const score = agentAcknowledged ? SIGNAL_CONFLICT_ACKNOWLEDGED_SCORE : SIGNAL_CONFLICT_MISSED_SCORE;
 
   return { conflictPresent: true, agentAcknowledged, score };
 }
@@ -171,7 +263,7 @@ export function measureAnchoringResistance(
     const price = parseFloat(ref.replace(/[$,]/g, ""));
     if (price > 0) {
       const deviation = Math.abs(price - currentPrice) / currentPrice;
-      if (deviation < 0.20) nearCurrentCount++;
+      if (deviation < ANCHORING_PRICE_DEVIATION_THRESHOLD) nearCurrentCount++;
       else farFromCurrentCount++;
     }
   }
@@ -179,13 +271,13 @@ export function measureAnchoringResistance(
   // Score: penalize heavy anchoring to historical data without current context
   let score = 1.0;
   if (anchoredRefs.length > 0 && !hasCurrentData) {
-    score -= 0.3; // Anchoring without current data
+    score -= ANCHORING_NO_CURRENT_DATA_PENALTY; // Anchoring without current data
   }
   if (anchoredRefs.length > 2) {
-    score -= 0.2; // Excessive historical anchoring
+    score -= ANCHORING_EXCESSIVE_REFERENCES_PENALTY; // Excessive historical anchoring
   }
   if (farFromCurrentCount > nearCurrentCount && priceRefs.length > 0) {
-    score -= 0.15; // More irrelevant price references than relevant ones
+    score -= ANCHORING_IRRELEVANT_PRICE_PENALTY; // More irrelevant price references than relevant ones
   }
 
   return {
@@ -226,10 +318,10 @@ export function measureNoiseSensitivity(
 
   // Score: penalize high sensitivity
   let score = 1.0;
-  if (actionFlipped) score -= 0.4;
-  if (confidenceSwing > 0.3) score -= 0.2;
-  if (textDivergence > 0.7) score -= 0.2;
-  if (confidenceSwing > 0.15) score -= 0.1;
+  if (actionFlipped) score -= NOISE_ACTION_FLIP_PENALTY;
+  if (confidenceSwing > NOISE_CONFIDENCE_SWING_SEVERE_THRESHOLD) score -= NOISE_CONFIDENCE_SWING_SEVERE_PENALTY;
+  if (textDivergence > NOISE_TEXT_DIVERGENCE_THRESHOLD) score -= NOISE_TEXT_DIVERGENCE_PENALTY;
+  if (confidenceSwing > NOISE_CONFIDENCE_SWING_MODERATE_THRESHOLD) score -= NOISE_CONFIDENCE_SWING_MODERATE_PENALTY;
 
   return {
     score: clamp(score, 0, 1),
@@ -356,7 +448,7 @@ export function measureFramingConsistency(
     indicators.push("sunk_cost_language");
   }
 
-  const score = Math.max(0, 1 - indicators.length * 0.2);
+  const score = Math.max(0, 1 - indicators.length * FRAMING_BIAS_PENALTY_PER_INDICATOR);
   return { score, framingBiasIndicators: indicators };
 }
 
@@ -419,10 +511,10 @@ export function analyzeAdversarialRobustness(
 
   // Weighted aggregate
   const overallScore = Math.round(
-    (signalConflict.score * 0.25 +
-      anchoring.score * 0.25 +
-      edgeCases.score * 0.25 +
-      framing.score * 0.25) * 1000
+    (signalConflict.score * COMPOSITE_WEIGHT_SIGNAL_CONFLICT +
+      anchoring.score * COMPOSITE_WEIGHT_ANCHORING +
+      edgeCases.score * COMPOSITE_WEIGHT_EDGE_CASES +
+      framing.score * COMPOSITE_WEIGHT_FRAMING) * 1000
   ) / 1000;
 
   return {
