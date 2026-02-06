@@ -39,6 +39,9 @@ const envSchema = z.object({
   // Brave Search for real market research
   BRAVE_API_KEY: z.string().optional(),
 
+  // Alpha Vantage for free news + sentiment
+  ALPHA_VANTAGE_API_KEY: z.string().optional(),
+
   // Future (optional for now)
   TURNKEY_API_PRIVATE_KEY: z.string().optional(),
   TURNKEY_API_PUBLIC_KEY: z.string().optional(),
