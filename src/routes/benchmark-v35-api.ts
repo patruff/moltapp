@@ -33,6 +33,7 @@ import {
   getBenchmarkVersion,
   type V35TradeGrade,
 } from "../services/v35-benchmark-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV35ApiRoutes = new Hono();
 
@@ -267,7 +268,7 @@ benchmarkV35ApiRoutes.get("/info-asymmetry/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgInformationAsymmetry: Math.round(avg * 100) / 100,
+    avgInformationAsymmetry: round2(avg),
     distribution,
     mostUniqueTrades,
     leastUniqueTrades,
@@ -336,7 +337,7 @@ benchmarkV35ApiRoutes.get("/temporal/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgTemporalReasoning: Math.round(avg * 100) / 100,
+    avgTemporalReasoning: round2(avg),
     distribution,
     bestTemporalTrades,
     worstTemporalTrades,
@@ -404,7 +405,7 @@ benchmarkV35ApiRoutes.get("/traceability/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgTraceability: Math.round(avg * 100) / 100,
+    avgTraceability: round2(avg),
     distribution,
     topTrades,
     worstTrades,
@@ -477,7 +478,7 @@ benchmarkV35ApiRoutes.get("/adversarial/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgAdversarialCoherence: Math.round(avg * 100) / 100,
+    avgAdversarialCoherence: round2(avg),
     distribution,
     resilientTrades,
     fragileTrades,

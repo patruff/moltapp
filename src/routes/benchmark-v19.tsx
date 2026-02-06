@@ -12,6 +12,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getV17Rankings,
   getV17Health,
@@ -129,7 +130,7 @@ benchmarkV19Routes.get("/data", (c) => {
     for (const [p, w] of Object.entries(V19_WEIGHTS)) {
       composite += (pillars[p] ?? 0.5) * w;
     }
-    composite = Math.round(composite * 100) / 100;
+    composite = round2(composite);
 
     const grade = composite >= 0.95 ? "A+"
       : composite >= 0.90 ? "A"

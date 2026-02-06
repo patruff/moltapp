@@ -62,6 +62,7 @@ import {
   getRecentCertificates,
   verifyCertificate,
 } from "../services/reasoning-quality-certifier.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV20ApiRoutes = new Hono();
 
@@ -156,7 +157,7 @@ function computeAllScores(): V20Score[] {
 
     return {
       agentId,
-      composite: Math.round(composite * 100) / 100,
+      composite: round2(composite),
       grade: computeGrade(composite),
       rank: 0,
       pillars,

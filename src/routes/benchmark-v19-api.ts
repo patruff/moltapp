@@ -27,6 +27,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getAgentArbitrationProfile,
   getAllArbitrationProfiles,
@@ -132,7 +133,7 @@ function computeV19Score(
   for (const [pillar, weight] of Object.entries(V19_PILLAR_WEIGHTS)) {
     composite += (pillars[pillar] ?? 0.5) * weight;
   }
-  composite = Math.round(composite * 100) / 100;
+  composite = round2(composite);
 
   // Grade assignment
   const grade = composite >= 0.95 ? "A+"

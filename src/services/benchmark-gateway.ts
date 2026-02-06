@@ -31,6 +31,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -258,12 +259,12 @@ export function evaluateTrade(params: {
   // 2. Calculate composite score
   const hallucinationScore = 1 - hallucinations.severity;
   const disciplineScore = discipline.passed ? 1.0 : Math.max(0, 1 - discipline.violations.length * 0.25);
-  const composite = Math.round(
-    (coherence.score * methodology.weights.coherence +
+  const composite = round2(
+    coherence.score * methodology.weights.coherence +
      hallucinationScore * methodology.weights.hallucination +
      disciplineScore * methodology.weights.discipline +
-     trade.confidence * methodology.weights.calibration) * 100
-  ) / 100;
+     trade.confidence * methodology.weights.calibration,
+  );
 
   // 3. Assign grade
   const grade = composite >= 0.95 ? "A+" : composite >= 0.90 ? "A" :
@@ -573,18 +574,18 @@ export function getGatewayStats(): {
     return {
       agentId,
       evalCount: evals.length,
-      avgComposite: Math.round(avgComposite * 100) / 100,
-      avgCoherence: Math.round(avgCoherence * 100) / 100,
-      hallucinationRate: Math.round((halCount / evals.length) * 100) / 100,
+      avgComposite: round2(avgComposite),
+      avgCoherence: round2(avgCoherence),
+      hallucinationRate: round2(halCount / evals.length),
       adversarialRisk: report.riskLevel,
     };
   });
 
   return {
     totalEvaluations: total,
-    avgComposite: Math.round((compositeSum / total) * 100) / 100,
+    avgComposite: round2(compositeSum / total),
     gradeDistribution,
-    adversarialBlockRate: Math.round((adversarialBlocked / total) * 100) / 100,
+    adversarialBlockRate: round2(adversarialBlocked / total),
     reproducibilityRate: 1, // All evaluations are deterministic by design
     methodology,
     agentSummaries,

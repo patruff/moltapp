@@ -24,6 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -894,10 +895,6 @@ async function fetchCurrentPrices(): Promise<Map<string, number>> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
 
 function buildComparison(
   metric: string,

@@ -21,6 +21,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   generateCalibrationReport,
   getAllCalibrationReports,
@@ -160,7 +161,7 @@ benchmarkAnalyticsRoutes.get("/patterns/:agentId", async (c) => {
     agentId,
     analyses,
     aggregate: {
-      avgQualityScore: Math.round(avgQuality * 100) / 100,
+      avgQualityScore: round2(avgQuality),
       totalFallacies,
       depthDistribution,
       sampleCount: analyses.length,

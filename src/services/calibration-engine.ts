@@ -20,6 +20,8 @@
 // Types
 // ---------------------------------------------------------------------------
 
+import { round2 } from "../lib/math-utils.ts";
+
 export interface CalibrationSample {
   agentId: string;
   confidence: number;   // 0-1: agent's self-reported confidence
@@ -263,7 +265,7 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
   const eceScore = Math.max(0, 1 - ece * 5);      // 0.2 ECE = 0.0 score
   const brierPenalty = Math.max(0, 1 - brierScore * 4);
   const monotonicBonus = isMonotonic ? 0.1 : 0;
-  const score = Math.round(Math.min(1, (eceScore * 0.5 + brierPenalty * 0.4 + monotonicBonus)) * 100) / 100;
+  const score = round2(Math.min(1, eceScore * 0.5 + brierPenalty * 0.4 + monotonicBonus));
 
   return {
     agentId,
@@ -271,8 +273,8 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
     brierScore,
     buckets,
     diagnosis,
-    overconfidenceRate: Math.round(overconfidenceRate * 100) / 100,
-    underconfidenceRate: Math.round(underconfidenceRate * 100) / 100,
+    overconfidenceRate: round2(overconfidenceRate),
+    underconfidenceRate: round2(underconfidenceRate),
     sampleCount: samples.length,
     isMonotonic,
     trend,

@@ -20,6 +20,7 @@
 
 import { Hono } from "hono";
 import { html } from "hono/html";
+import { round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq } from "drizzle-orm";
@@ -67,20 +68,20 @@ benchmarkDashboardRoutes.get("/data", async (c) => {
 
       const row = stats[0];
       const totalTrades = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 100) / 100;
+      const avgCoherence = round2(Number(row?.avgCoherence) || 0);
       const hallucinationRate = totalTrades > 0
-        ? Math.round((Number(row?.hallucinationCount) / totalTrades) * 100) / 100
+        ? round2(Number(row?.hallucinationCount) / totalTrades)
         : 0;
       const disciplineRate = totalTrades > 0
-        ? Math.round((Number(row?.disciplinePassCount) / totalTrades) * 100) / 100
+        ? round2(Number(row?.disciplinePassCount) / totalTrades)
         : 0;
 
       // Calculate composite benchmark score
       const hallucinationFree = 1 - hallucinationRate;
-      const compositeScore = Math.round(
-        (avgCoherence * 0.35 + hallucinationFree * 0.25 + disciplineRate * 0.2 +
-          (Number(row?.avgConfidence) || 0.5) * 0.2) * 100,
-      ) / 100;
+      const compositeScore = round2(
+        avgCoherence * 0.35 + hallucinationFree * 0.25 + disciplineRate * 0.2 +
+          (Number(row?.avgConfidence) || 0.5) * 0.2,
+      );
 
       const agentCalibration = calculateConfidenceCalibration(agent.agentId);
       const agentOutcomes = getOutcomeTrackerStats(agent.agentId);
@@ -94,7 +95,7 @@ benchmarkDashboardRoutes.get("/data", async (c) => {
         tradingStyle: agent.tradingStyle,
         totalTrades,
         avgCoherence,
-        avgConfidence: Math.round((Number(row?.avgConfidence) || 0) * 100) / 100,
+        avgConfidence: round2(Number(row?.avgConfidence) || 0),
         hallucinationRate,
         disciplineRate,
         compositeScore,
@@ -153,11 +154,11 @@ benchmarkDashboardRoutes.get("/data", async (c) => {
     benchmarkComparison: benchmarkSummary,
     qualityGate: {
       passRate: qualityGateStats.totalChecked > 0
-        ? Math.round((qualityGateStats.totalPassed / qualityGateStats.totalChecked) * 100) / 100
+        ? round2(qualityGateStats.totalPassed / qualityGateStats.totalChecked)
         : 1,
       totalChecked: qualityGateStats.totalChecked,
       totalRejected: qualityGateStats.totalRejected,
-      avgCompositeScore: Math.round(qualityGateStats.avgCompositeScore * 100) / 100,
+      avgCompositeScore: round2(qualityGateStats.avgCompositeScore),
     },
     outcomes: outcomeStats,
     calibration,
@@ -204,7 +205,7 @@ benchmarkDashboardRoutes.get("/", async (c) => {
 
       const row = stats[0];
       const totalTrades = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 100) / 100;
+      const avgCoherence = round2(Number(row?.avgCoherence) || 0);
       const hallucinationRate = totalTrades > 0
         ? Math.round((Number(row?.hallucinationCount) / totalTrades) * 10000) / 100
         : 0;

@@ -28,6 +28,7 @@ import {
   compareAttribution,
 } from "../services/attribution.ts";
 import { parseQueryInt } from "../lib/query-params.js";
+import { round2 } from "../lib/math-utils.ts";
 
 export const attributionRoutes = new Hono();
 
@@ -266,7 +267,7 @@ attributionRoutes.get("/:agentId/contributions", async (c) => {
       contributions,
       summary: {
         totalTrades: contributions.length,
-        totalPnl: Math.round(totalPnl * 100) / 100,
+        totalPnl: round2(totalPnl),
         winnerCount: winners.length,
         loserCount: losers.length,
         convictionTradeCount: convictionTrades.length,
@@ -373,7 +374,7 @@ attributionRoutes.get("/:agentId/risk", async (c) => {
       .map(([sector, data]) => ({
         sector,
         weight: Math.round(data.totalWeight * 10000) / 100,
-        componentVaR: Math.round(data.totalComponentVaR * 100) / 100,
+        componentVaR: round2(data.totalComponentVaR),
         positionCount: data.positionCount,
       }))
       .sort((a, b) => b.componentVaR - a.componentVaR);

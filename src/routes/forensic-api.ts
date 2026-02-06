@@ -15,6 +15,7 @@
 
 import { Hono } from "hono";
 import { parseQueryInt } from "../lib/query-params.ts";
+import { round2 } from "../lib/math-utils.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import {
   getAgentForensicHealth,
@@ -114,8 +115,8 @@ forensicApiRoutes.get("/compare", (c) => {
     ok: true,
     agents: comparison,
     crossAgentMetrics: {
-      avgDepth: Math.round(avgDepth * 100) / 100,
-      avgOriginality: Math.round(avgOriginality * 100) / 100,
+      avgDepth: round2(avgDepth),
+      avgOriginality: round2(avgOriginality),
       totalViolations,
       agentCount: comparison.length,
     },

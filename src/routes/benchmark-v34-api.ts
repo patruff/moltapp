@@ -28,6 +28,7 @@ import {
   getBenchmarkVersion,
   type V34TradeGrade,
 } from "../services/v34-benchmark-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV34ApiRoutes = new Hono();
 
@@ -256,7 +257,7 @@ benchmarkV34ApiRoutes.get("/traceability/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgTraceability: Math.round(avg * 100) / 100,
+    avgTraceability: round2(avg),
     distribution,
     topTrades,
     worstTrades,
@@ -329,7 +330,7 @@ benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgAdversarialCoherence: Math.round(avg * 100) / 100,
+    avgAdversarialCoherence: round2(avg),
     distribution,
     resilientTrades,
     fragileTrades,

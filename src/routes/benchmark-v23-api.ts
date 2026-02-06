@@ -29,6 +29,7 @@ import {
 } from "../services/outcome-resolution-engine.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV23ApiRoutes = new Hono();
 
@@ -107,8 +108,8 @@ benchmarkV23ApiRoutes.get("/leaderboard", async (c) => {
         compositeScore: scores.score,
         grade: scores.grade,
         tradeCount: results.length,
-        predictionAccuracy: Math.round(accuracy * 100) / 100,
-        avgPnl: Math.round(avgPnl * 100) / 100,
+        predictionAccuracy: round2(accuracy),
+        avgPnl: round2(avgPnl),
         breakdown: scores.breakdown,
       };
     });
@@ -445,8 +446,8 @@ benchmarkV23ApiRoutes.get("/health", (c) => {
     },
     recentStats: recent.length > 0
       ? {
-          profitRate: Math.round((profits / recent.length) * 100) / 100,
-          directionAccuracy: Math.round((dirCorrect / recent.length) * 100) / 100,
+          profitRate: round2(profits / recent.length),
+          directionAccuracy: round2(dirCorrect / recent.length),
           avgPnl: Math.round(
             (recent.reduce((s, r) => s + (r.pnlPercent ?? 0), 0) / recent.length) * 100,
           ) / 100,

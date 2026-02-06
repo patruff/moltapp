@@ -24,7 +24,7 @@ import {
   type BenchmarkEvaluation,
 } from "./benchmark-gateway.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Submission Schema
@@ -315,9 +315,9 @@ export function getExternalLeaderboard(): {
       model: first.submission.model,
       provider: first.submission.provider,
       submissions: scored.length,
-      avgComposite: Math.round(avgComposite * 100) / 100,
-      avgCoherence: Math.round(avgCoherence * 100) / 100,
-      hallucinationRate: scored.length > 0 ? Math.round((halCount / scored.length) * 100) / 100 : 0,
+      avgComposite: round2(avgComposite),
+      avgCoherence: round2(avgCoherence),
+      hallucinationRate: scored.length > 0 ? round2(halCount / scored.length) : 0,
       bestGrade,
     };
   });
@@ -358,6 +358,6 @@ export function getSubmissionStats(): {
     rejectedCount: rejected,
     uniqueAgents: agents.size,
     uniqueModels: models.size,
-    avgComposite: scored > 0 ? Math.round((compositeSum / scored) * 100) / 100 : 0,
+    avgComposite: scored > 0 ? round2(compositeSum / scored) : 0,
   };
 }

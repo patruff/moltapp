@@ -18,6 +18,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getAgentScores,
   getAgentScore,
@@ -242,7 +243,7 @@ benchmarkV33ApiRoutes.get("/justification/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgCausalReasoning: Math.round(avg * 100) / 100,
+    avgCausalReasoning: round2(avg),
     distribution,
     topTrades,
     version: "33.0",
@@ -291,7 +292,7 @@ benchmarkV33ApiRoutes.get("/predictions", (c) => {
       ) / 100,
       predictionCount: data.scores.length,
       resolvedCount: data.total,
-      accuracyRate: data.total > 0 ? Math.round((data.correct / data.total) * 100) / 100 : 0,
+      accuracyRate: data.total > 0 ? round2(data.correct / data.total) : 0,
     }))
     .sort((a, b) => b.avgPrecisionScore - a.avgPrecisionScore);
 
@@ -337,7 +338,7 @@ benchmarkV33ApiRoutes.get("/grounding/:agentId", (c) => {
     agentId,
     benchmark: "moltapp-v33",
     groundingAnalysis: {
-      avgGroundingScore: Math.round(avg * 100) / 100,
+      avgGroundingScore: round2(avg),
       tradesAnalyzed: trades.length,
       highlyGrounded: trades.filter((t) => t.groundingScore >= 70).length,
       poorlyGrounded: trades.filter((t) => t.groundingScore < 40).length,

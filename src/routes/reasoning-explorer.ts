@@ -22,7 +22,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
-import { countWords, getFilteredWords, round3, splitSentences } from "../lib/math-utils.ts";
+import { countWords, getFilteredWords, round2, round3, splitSentences } from "../lib/math-utils.ts";
 
 export const reasoningExplorerRoutes = new Hono();
 
@@ -146,7 +146,7 @@ reasoningExplorerRoutes.get("/search", async (c) => {
       confidence: s.entry.confidence,
       coherenceScore: s.entry.coherenceScore,
       intent: s.entry.intent,
-      relevanceScore: Math.round(s.score * 100) / 100,
+      relevanceScore: round2(s.score),
       source: "index" as const,
     })),
     ...dbResults
@@ -420,7 +420,7 @@ reasoningExplorerRoutes.get("/controversial", async (c) => {
         roundId: entry.roundId,
         symbol: entry.symbol,
         distinctActions: Number(entry.actionCount),
-        avgCoherence: Math.round((Number(entry.avgCoherence) || 0) * 100) / 100,
+        avgCoherence: round2(Number(entry.avgCoherence) || 0),
         reasonings: reasonings.map((r: typeof reasonings[0]) => ({
           agentId: r.agentId,
           action: r.action,
@@ -644,10 +644,10 @@ reasoningExplorerRoutes.get("/agent-style", (c) => {
     styles[agentId] = {
       avgWordCount: Math.round(avgWordCount),
       avgSentenceLength: Math.round(avgSentenceLength * 10) / 10,
-      questionFrequency: Math.round((totalQuestions / entries.length) * 100) / 100,
-      hedgingFrequency: Math.round((totalHedging / entries.length) * 100) / 100,
-      assertiveFrequency: Math.round((totalAssertive / entries.length) * 100) / 100,
-      dataReferenceRate: Math.round((totalDataRef / entries.length) * 100) / 100,
+      questionFrequency: round2(totalQuestions / entries.length),
+      hedgingFrequency: round2(totalHedging / entries.length),
+      assertiveFrequency: round2(totalAssertive / entries.length),
+      dataReferenceRate: round2(totalDataRef / entries.length),
       avgCoherence: round3(entries.reduce((s, e) => s + e.coherenceScore, 0) / entries.length),
       sampleCount: entries.length,
     };

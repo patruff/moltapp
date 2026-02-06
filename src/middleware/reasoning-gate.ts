@@ -18,7 +18,7 @@
  */
 
 import type { Context, Next } from "hono";
-import { splitSentences } from "../lib/math-utils.ts";
+import { round2, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -256,7 +256,7 @@ export function validateTradeReasoning(body: Record<string, unknown>): Reasoning
 
   return {
     valid: issues.length === 0,
-    score: Math.round(score * 100) / 100,
+    score: round2(score),
     issues,
   };
 }

@@ -21,6 +21,7 @@
 
 import { Hono } from "hono";
 import { html } from "hono/html";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getV17Rankings,
   getV17Health,
@@ -168,7 +169,7 @@ function computeV22Score(
   for (const [pillar, weight] of Object.entries(V22_WEIGHTS)) {
     score += (pillars[pillar] ?? 0.5) * weight;
   }
-  return { score: Math.round(score * 100) / 100, pillars };
+  return { score: round2(score), pillars };
 }
 
 function computeAllScores(): V22Score[] {

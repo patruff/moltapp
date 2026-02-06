@@ -41,6 +41,7 @@ import {
   extractSourcesFromReasoning,
 } from "../schemas/trade-reasoning.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
+import { round2 } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 
 export const benchmarkSubmissionRoutes = new Hono();
@@ -312,9 +313,9 @@ benchmarkSubmissionRoutes.get("/leaderboard", (c) => {
       modelProvider: latest.modelProvider,
       modelName: latest.modelName,
       totalSubmissions: subs.length,
-      avgComposite: Math.round(avgComposite * 100) / 100,
-      avgCoherence: Math.round(avgCoherence * 100) / 100,
-      avgDeepCoherence: Math.round(avgDeepCoherence * 100) / 100,
+      avgComposite: round2(avgComposite),
+      avgCoherence: round2(avgCoherence),
+      avgDeepCoherence: round2(avgDeepCoherence),
       hallucinationRate: subs.length > 0
         ? Math.round((hallucinatedCount / subs.length) * 10000) / 100
         : 0,

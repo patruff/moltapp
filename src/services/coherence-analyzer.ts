@@ -18,6 +18,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -270,7 +271,7 @@ export function analyzeCoherence(
   }
 
   return {
-    score: Math.round(score * 100) / 100,
+    score: round2(score),
     explanation,
     signals,
   };
@@ -500,9 +501,9 @@ export function runFullAnalysis(
   const hallucinationScore = 1 - hallucinations.severity;
   const disciplineScore = discipline.passed ? 1.0 : Math.max(0, 1 - discipline.violations.length * 0.25);
 
-  const aggregateScore = Math.round(
-    (coherence.score * 0.4 + hallucinationScore * 0.3 + disciplineScore * 0.3) * 100,
-  ) / 100;
+  const aggregateScore = round2(
+    coherence.score * 0.4 + hallucinationScore * 0.3 + disciplineScore * 0.3,
+  );
 
   return {
     coherence,

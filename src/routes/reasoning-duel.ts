@@ -19,6 +19,7 @@ import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { apiError, handleError } from "../lib/errors.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const reasoningDuelRoutes = new Hono();
 
@@ -409,8 +410,8 @@ reasoningDuelRoutes.get("/matchup", async (c) => {
         totalDuels,
         agreementRate: totalDuels > 0 ? Math.round((agreementCount / totalDuels) * 100) : 0,
         coherenceComparison: {
-          [agentA]: { avgCoherence: Math.round(avgCohA * 100) / 100, wins: aCoherenceWins },
-          [agentB]: { avgCoherence: Math.round(avgCohB * 100) / 100, wins: bCoherenceWins },
+          [agentA]: { avgCoherence: round2(avgCohA), wins: aCoherenceWins },
+          [agentB]: { avgCoherence: round2(avgCohB), wins: bCoherenceWins },
           overallWinner: aCoherenceWins > bCoherenceWins ? agentA : bCoherenceWins > aCoherenceWins ? agentB : "tie",
         },
         recentDuels: duels.slice(0, 20),
@@ -444,8 +445,8 @@ reasoningDuelRoutes.get("/stats", async (c) => {
       .map((s: typeof agentStats[0]) => ({
         agentId: s.agentId,
         totalTrades: Number(s.totalTrades),
-        avgCoherence: Math.round((Number(s.avgCoherence) || 0) * 100) / 100,
-        avgConfidence: Math.round((Number(s.avgConfidence) || 0) * 100) / 100,
+        avgCoherence: round2(Number(s.avgCoherence) || 0),
+        avgConfidence: round2(Number(s.avgConfidence) || 0),
         actionSplit: {
           buy: Number(s.buyCount),
           sell: Number(s.sellCount),

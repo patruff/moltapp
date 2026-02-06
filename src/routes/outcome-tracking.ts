@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import {
   trackOutcomes,
@@ -136,7 +137,7 @@ outcomeTrackingRoutes.get("/calibration/:agentId", (c) => {
     vsOverall: {
       agentScore: calibration.score,
       overallScore: overallCalibration.score,
-      delta: Math.round((calibration.score - overallCalibration.score) * 100) / 100,
+      delta: round2(calibration.score - overallCalibration.score),
     },
   });
 });
@@ -158,9 +159,9 @@ outcomeTrackingRoutes.get("/quality-gate", (c) => {
         totalRejected: stats.totalRejected,
         passRate:
           stats.totalChecked > 0
-            ? Math.round((stats.totalPassed / stats.totalChecked) * 100) / 100
+            ? round2(stats.totalPassed / stats.totalChecked)
             : 1,
-        avgCompositeScore: Math.round(stats.avgCompositeScore * 100) / 100,
+        avgCompositeScore: round2(stats.avgCompositeScore),
         rejectionBreakdown: stats.rejectionsByReason,
       },
     },

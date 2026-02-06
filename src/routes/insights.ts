@@ -24,6 +24,7 @@ import {
 } from "../services/analytics.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { apiError } from "../lib/errors.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Router
@@ -460,5 +461,5 @@ function findLeader<T extends { agentId: string; agentName: string }>(
     }
   }
 
-  return { agentId: leader.agentId, agentName: leader.agentName, value: Math.round(maxVal * 100) / 100 };
+  return { agentId: leader.agentId, agentName: leader.agentName, value: round2(maxVal) };
 }

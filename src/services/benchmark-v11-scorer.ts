@@ -15,7 +15,7 @@
  * 7. Forensic Quality (Structure, Originality, Clarity, Cross-trade integrity)
  */
 
-import { mean } from "../lib/math-utils.ts";
+import { mean, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -164,9 +164,9 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     score: 0,
     grade: "",
   };
-  financial.score = Math.round(
-    (financial.components.pnl * 0.4 + financial.components.sharpe * 0.35 + financial.components.winRate * 0.25) * 100,
-  ) / 100;
+  financial.score = round2(
+    financial.components.pnl * 0.4 + financial.components.sharpe * 0.35 + financial.components.winRate * 0.25,
+  );
   financial.grade = scoreToGrade(financial.score);
 
   // Pillar 2: Reasoning
@@ -180,9 +180,9 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     score: 0,
     grade: "",
   };
-  reasoning.score = Math.round(
-    (reasoning.components.coherence * 0.6 + reasoning.components.depth * 0.4) * 100,
-  ) / 100;
+  reasoning.score = round2(
+    reasoning.components.coherence * 0.6 + reasoning.components.depth * 0.4,
+  );
   reasoning.grade = scoreToGrade(reasoning.score);
 
   // Pillar 3: Safety
@@ -196,9 +196,9 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     score: 0,
     grade: "",
   };
-  safety.score = Math.round(
-    (safety.components.hallucinationFree * 0.6 + safety.components.discipline * 0.4) * 100,
-  ) / 100;
+  safety.score = round2(
+    safety.components.hallucinationFree * 0.6 + safety.components.discipline * 0.4,
+  );
   safety.grade = scoreToGrade(safety.score);
 
   // Pillar 4: Calibration
@@ -208,7 +208,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Calibration",
     weight: 0.10,
     components: { calibration: calibrationScore },
-    score: Math.round(calibrationScore * 100) / 100,
+    score: round2(calibrationScore),
     grade: scoreToGrade(calibrationScore),
   };
 
@@ -217,7 +217,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Patterns",
     weight: 0.10,
     components: { patternQuality: mean(m.patternQuality) },
-    score: Math.round(mean(m.patternQuality) * 100) / 100,
+    score: round2(mean(m.patternQuality)),
     grade: scoreToGrade(mean(m.patternQuality)),
   };
 
@@ -227,7 +227,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     name: "Adaptability",
     weight: 0.10,
     components: { consistency: adaptability },
-    score: Math.round(adaptability * 100) / 100,
+    score: round2(adaptability),
     grade: scoreToGrade(adaptability),
   };
 
@@ -244,20 +244,20 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     score: 0,
     grade: "",
   };
-  forensic.score = Math.round(
-    (forensic.components.structure * 0.25 +
+  forensic.score = round2(
+    forensic.components.structure * 0.25 +
       forensic.components.originality * 0.30 +
       forensic.components.clarity * 0.20 +
-      forensic.components.integrity * 0.25) * 100,
-  ) / 100;
+      forensic.components.integrity * 0.25,
+  );
   forensic.grade = scoreToGrade(forensic.score);
 
   const pillars = [financial, reasoning, safety, calibration, patterns, adapt, forensic];
 
   // Composite score: weighted average of all pillars
-  const compositeScore = Math.round(
-    pillars.reduce((sum, p) => sum + p.score * p.weight, 0) * 100,
-  ) / 100;
+  const compositeScore = round2(
+    pillars.reduce((sum, p) => sum + p.score * p.weight, 0),
+  );
 
   // Rank and trend
   const prevRank = previousRanks.get(agentId) ?? null;

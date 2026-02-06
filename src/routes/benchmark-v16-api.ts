@@ -19,6 +19,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getAllV16Scores,
   getV16Score,
@@ -272,7 +273,7 @@ benchmarkV16ApiRoutes.get("/weights", (c) => {
     version: "v16",
     pillarCount: Object.keys(weights).length,
     weights,
-    totalWeight: Math.round(totalWeight * 100) / 100,
+    totalWeight: round2(totalWeight),
     newPillars: ["metacognition", "efficiency"],
     gradeScale: {
       "A+": ">= 0.95", "A": ">= 0.90", "A-": ">= 0.85",

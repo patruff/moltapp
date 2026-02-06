@@ -23,7 +23,7 @@
  */
 
 import { createHash } from "crypto";
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -259,7 +259,7 @@ export function recordScoringProvenance(agentId: string, scores: {
     coherence: round3(scores.coherence),
     hallucinationRate: round3(scores.hallucinationRate),
     discipline: round3(scores.discipline),
-    pnl: Math.round(scores.pnl * 100) / 100,
+    pnl: round2(scores.pnl),
     sharpe: round3(scores.sharpe),
     methodologyVersion,
   });

@@ -28,7 +28,7 @@ import {
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
-import { clamp, round3 } from "../lib/math-utils.ts";
+import { clamp, round2, round3 } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import type {
   MarketData,
@@ -82,8 +82,8 @@ function generateMarketData(): MarketData[] {
       symbol: stock.symbol,
       name: stock.name,
       mintAddress: stock.mintAddress,
-      price: Math.round(base * variation * 100) / 100,
-      change24h: Math.round((Math.random() - 0.5) * 10 * 100) / 100,
+      price: round2(base * variation),
+      change24h: round2((Math.random() - 0.5) * 10),
       volume24h: Math.round((10 + Math.random() * 490) * 1_000_000),
     };
   });
@@ -472,9 +472,9 @@ function generateRandomPositions(marketData: MarketData[]) {
     positions.push({
       symbol: stock.symbol,
       quantity: round3(qty),
-      averageCostBasis: Math.round(costBasis * 100) / 100,
+      averageCostBasis: round2(costBasis),
       currentPrice: stock.price,
-      unrealizedPnl: Math.round(pnl * 100) / 100,
+      unrealizedPnl: round2(pnl),
       unrealizedPnlPercent:
         costBasis > 0
           ? Math.round(((stock.price - costBasis) / costBasis) * 10000) / 100

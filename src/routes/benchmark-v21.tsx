@@ -67,6 +67,7 @@ import {
   getStrategyPillarScore,
   getStrategyStats,
 } from "../services/agent-strategy-profiler.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV21Routes = new Hono();
 
@@ -228,7 +229,7 @@ function computeV21Scores(): V21AgentScore[] {
     for (const [pillar, weight] of Object.entries(V21_WEIGHTS)) {
       composite += (pillars[pillar] ?? 0.5) * weight;
     }
-    composite = Math.round(composite * 100) / 100;
+    composite = round2(composite);
 
     // v21 highlights
     const transProfile = transparencyProfiles[agentId];

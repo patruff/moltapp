@@ -24,6 +24,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   tradeWithReasoningSchema,
   holdWithReasoningSchema,
@@ -206,8 +207,8 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
   coherenceSum += coherence.score;
   confidenceSum += validated.confidence;
   coherenceCount++;
-  stats.avgCoherenceScore = Math.round((coherenceSum / coherenceCount) * 100) / 100;
-  stats.avgConfidence = Math.round((confidenceSum / coherenceCount) * 100) / 100;
+  stats.avgCoherenceScore = round2(coherenceSum / coherenceCount);
+  stats.avgConfidence = round2(confidenceSum / coherenceCount);
 
   if (hallucinations.flags.length > 0) stats.hallucinationsFlagged++;
   if (!discipline.passed) stats.disciplineViolations++;
@@ -305,7 +306,7 @@ reasoningEnforcedTradingRoutes.post("/", async (c) => {
   // Build scorecard
   const scorecard = {
     justificationId,
-    compositeScore: Math.round(compositeScore * 100) / 100,
+    compositeScore: round2(compositeScore),
     qualityGatePassed,
     coherence: {
       score: coherence.score,
@@ -454,10 +455,10 @@ reasoningEnforcedTradingRoutes.get("/stats", (c) => {
     enforcement: {
       totalSubmissions: stats.totalSubmissions,
       validationPassRate: stats.totalSubmissions > 0
-        ? Math.round((stats.validationPassed / stats.totalSubmissions) * 100) / 100
+        ? round2(stats.validationPassed / stats.totalSubmissions)
         : 1,
       qualityGatePassRate: stats.validationPassed > 0
-        ? Math.round((stats.qualityGatePassed / stats.validationPassed) * 100) / 100
+        ? round2(stats.qualityGatePassed / stats.validationPassed)
         : 1,
       avgCoherenceScore: stats.avgCoherenceScore,
       avgConfidence: stats.avgConfidence,

@@ -13,6 +13,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications, benchmarkSnapshots } from "../db/schema/trade-reasoning.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
@@ -288,11 +289,11 @@ brainFeedRoutes.get("/stats", async (c) => {
     const agentStats = stats.map((s: typeof stats[0]) => ({
       agentId: s.agentId,
       totalTrades: Number(s.totalTrades),
-      avgCoherence: Math.round((Number(s.avgCoherence) || 0) * 100) / 100,
-      avgConfidence: Math.round((Number(s.avgConfidence) || 0) * 100) / 100,
+      avgCoherence: round2(Number(s.avgCoherence) || 0),
+      avgConfidence: round2(Number(s.avgConfidence) || 0),
       hallucinationRate:
         Number(s.totalTrades) > 0
-          ? Math.round((Number(s.hallucinationCount) / Number(s.totalTrades)) * 100) / 100
+          ? round2(Number(s.hallucinationCount) / Number(s.totalTrades))
           : 0,
     }));
 
@@ -332,9 +333,9 @@ brainFeedRoutes.get("/stats", async (c) => {
     const agentStats = Array.from(agentMap.entries()).map(([agentId, data]) => ({
       agentId,
       totalTrades: data.coherence.length,
-      avgCoherence: Math.round((data.coherence.reduce((s, v) => s + v, 0) / data.coherence.length) * 100) / 100,
-      avgConfidence: Math.round((data.confidence.reduce((s, v) => s + v, 0) / data.confidence.length) * 100) / 100,
-      hallucinationRate: Math.round((data.hallucinations / data.coherence.length) * 100) / 100,
+      avgCoherence: round2(data.coherence.reduce((s, v) => s + v, 0) / data.coherence.length),
+      avgConfidence: round2(data.confidence.reduce((s, v) => s + v, 0) / data.confidence.length),
+      hallucinationRate: round2(data.hallucinations / data.coherence.length),
     }));
 
     return c.json({
@@ -385,8 +386,8 @@ brainFeedRoutes.get("/:agentId", async (c) => {
       limit,
       offset,
       benchmarkScores: {
-        avgCoherence: Math.round(avgCoherence * 100) / 100,
-        hallucinationRate: total > 0 ? Math.round((hallucinationCount / justifications.length) * 100) / 100 : 0,
+        avgCoherence: round2(avgCoherence),
+        hallucinationRate: total > 0 ? round2(hallucinationCount / justifications.length) : 0,
         tradesAnalyzed: justifications.length,
       },
     });

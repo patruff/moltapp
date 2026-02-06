@@ -33,6 +33,7 @@ import {
   getBenchmarkVersion,
   type V36TradeGrade,
 } from "../services/v36-benchmark-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV36ApiRoutes = new Hono();
 
@@ -253,7 +254,7 @@ benchmarkV36ApiRoutes.get("/auditability/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgAuditability: Math.round(avg * 100) / 100,
+    avgAuditability: round2(avg),
     distribution,
     topTrades,
     worstTrades,
@@ -308,7 +309,7 @@ benchmarkV36ApiRoutes.get("/reversibility/:agentId", (c) => {
   return c.json({
     ok: true,
     agentId,
-    avgReversibility: Math.round(avg * 100) / 100,
+    avgReversibility: round2(avg),
     distribution,
     noExitPlanCount: noExitPlan.length,
     strongExitPlanCount: strongExitPlan.length,

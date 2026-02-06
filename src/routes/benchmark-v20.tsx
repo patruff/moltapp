@@ -21,6 +21,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getV17Rankings,
   getV17Health,
@@ -206,7 +207,7 @@ function computeV20Scores(): V20AgentScore[] {
     for (const [pillar, weight] of Object.entries(V20_WEIGHTS)) {
       composite += (pillars[pillar] ?? 0.5) * weight;
     }
-    composite = Math.round(composite * 100) / 100;
+    composite = round2(composite);
 
     // v20 highlights
     const transProfile = transparencyProfiles[agentId];

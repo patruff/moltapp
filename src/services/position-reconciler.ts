@@ -24,6 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { getWalletBalances, type TokenBalance } from "./solana-tracker.ts";
 import { XSTOCKS_CATALOG, TOKEN_2022_PROGRAM_ADDRESS } from "../config/constants.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 type PositionRow = InferSelectModel<typeof positions>;
 
@@ -225,7 +226,7 @@ export async function reconcileAgent(
       dbQuantity: dbQty,
       chainQuantity: chainQty,
       difference,
-      differencePercent: Math.round(differencePercent * 100) / 100,
+      differencePercent: round2(differencePercent),
       discrepancy,
       withinTolerance,
       tokenAccount: chainToken?.tokenAccount ?? null,

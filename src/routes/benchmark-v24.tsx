@@ -20,6 +20,7 @@ import {
   runV24Analysis,
   computeV24CompositeScore,
 } from "../services/reasoning-depth-quality-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV24Routes = new Hono();
 
@@ -147,13 +148,13 @@ benchmarkV24Routes.get("/", async (c) => {
         tradeCount: trades.length,
         dimensions: {
           pnl: 0,
-          coherence: Math.round(avgCoherence * 100) / 100,
-          hallucinationFree: Math.round((1 - hallucinationCount / trades.length) * 100) / 100,
-          discipline: Math.round((disciplinePass / trades.length) * 100) / 100,
+          coherence: round2(avgCoherence),
+          hallucinationFree: round2(1 - hallucinationCount / trades.length),
+          discipline: round2(disciplinePass / trades.length),
           calibration: 0.3,
           prediction: 0.5,
-          reasoningDepth: Math.round(avgDepth * 100) / 100,
-          sourceQuality: Math.round(avgSourceQuality * 100) / 100,
+          reasoningDepth: round2(avgDepth),
+          sourceQuality: round2(avgSourceQuality),
         },
         recentReasoning: trades[0] ? trades[0].reasoning.slice(0, 200) + "..." : "",
         topPattern,

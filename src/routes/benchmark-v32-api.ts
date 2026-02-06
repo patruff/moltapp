@@ -16,6 +16,7 @@
  */
 
 import { Hono } from "hono";
+import { round2 } from "../lib/math-utils.ts";
 import {
   getAgentScores,
   getAgentScore,
@@ -232,11 +233,11 @@ benchmarkV32ApiRoutes.get("/grounding/:agentId", (c) => {
     ok: true,
     agentId,
     groundingAnalysis: {
-      avgGroundingScore: Math.round(avg * 100) / 100,
+      avgGroundingScore: round2(avg),
       tradesAnalyzed: trades.length,
       highlyGroundedTrades: highlyGrounded,
       poorlyGroundedTrades: poorlyGrounded,
-      groundingRate: Math.round((highlyGrounded / trades.length) * 100) / 100,
+      groundingRate: round2(highlyGrounded / trades.length),
       recentTrades: trades.slice(0, 10).map((t) => ({
         tradeId: t.tradeId,
         symbol: t.symbol,

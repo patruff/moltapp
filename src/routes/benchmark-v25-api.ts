@@ -12,7 +12,7 @@
  */
 
 import { Hono } from "hono";
-import { mean } from "../lib/math-utils.ts";
+import { mean, round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq } from "drizzle-orm";
@@ -318,10 +318,10 @@ benchmarkV25ApiRoutes.get("/consensus", (c) => {
   const summaryArray = Array.from(agentSummary.entries()).map(([agentId, data]) => ({
     agentId,
     totalRounds: data.total,
-    agreementRate: data.total > 0 ? Math.round((data.agreed / data.total) * 100) / 100 : 0,
-    contrarianRate: data.total > 0 ? Math.round((data.contrarian / data.total) * 100) / 100 : 0,
-    avgReasoningSimilarity: data.total > 0 ? Math.round((data.avgSimilarity / data.total) * 100) / 100 : 0,
-    avgIndependentThinking: data.total > 0 ? Math.round((data.avgIndependence / data.total) * 100) / 100 : 0,
+    agreementRate: data.total > 0 ? round2(data.agreed / data.total) : 0,
+    contrarianRate: data.total > 0 ? round2(data.contrarian / data.total) : 0,
+    avgReasoningSimilarity: data.total > 0 ? round2(data.avgSimilarity / data.total) : 0,
+    avgIndependentThinking: data.total > 0 ? round2(data.avgIndependence / data.total) : 0,
   }));
 
   return c.json({
@@ -355,7 +355,7 @@ benchmarkV25ApiRoutes.get("/agent/:id", async (c) => {
         ok: true,
         agentId,
         tradeCount: trades.length,
-        avgCoherence: Math.round(avgCoh * 100) / 100,
+        avgCoherence: round2(avgCoh),
         recentTrades: trades.slice(0, 10).map((t: typeof trades[0]) => ({
           action: t.action,
           symbol: t.symbol,

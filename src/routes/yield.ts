@@ -22,6 +22,7 @@ import {
   updateProtocolStatus,
 } from "../services/defi-yield.ts";
 import { apiError, handleError } from "../lib/errors.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const yieldRoutes = new Hono();
 
@@ -67,9 +68,9 @@ yieldRoutes.get("/agent/:agentId", (c) => {
     activePositions: active,
     closedPositions: closed,
     totals: {
-      deposited: Math.round(totalDeposited * 100) / 100,
-      currentValue: Math.round(totalValue * 100) / 100,
-      yieldEarned: Math.round(totalYield * 100) / 100,
+      deposited: round2(totalDeposited),
+      currentValue: round2(totalValue),
+      yieldEarned: round2(totalYield),
     },
   });
 });

@@ -29,6 +29,7 @@ import {
   type V26DimensionScores,
   type StrategyDna,
 } from "../services/v26-benchmark-engine.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV26ApiRoutes = new Hono();
 
@@ -211,7 +212,7 @@ benchmarkV26ApiRoutes.get("/scores/:agentId", (c) => {
 
   const dimensionDetails = Object.entries(cached.scores).map(([dim, score]) => ({
     dimension: dim,
-    score: Math.round(score * 100) / 100,
+    score: round2(score),
     weight: V26_WEIGHTS[dim as keyof V26DimensionScores],
     weighted: Math.round(score * V26_WEIGHTS[dim as keyof V26DimensionScores] * 10000) / 100,
   }));
@@ -270,7 +271,7 @@ function calculateDiversification(dna: Record<string, number>): number {
   const values = Object.values(dna);
   const sumSquares = values.reduce((s, v) => s + v * v, 0);
   // 1 - Herfindahl: 0 = concentrated, 1 = diversified
-  return Math.round((1 - sumSquares) * 100) / 100;
+  return round2(1 - sumSquares);
 }
 
 // ---------------------------------------------------------------------------
@@ -326,9 +327,9 @@ benchmarkV26ApiRoutes.get("/risk-reward/:agentId", async (c) => {
       ok: true,
       agentId,
       summary: {
-        avgDisciplineScore: Math.round(avgDiscipline * 100) / 100,
-        riskBoundaryRate: Math.round(riskBoundaryRate * 100) / 100,
-        profitTargetRate: Math.round(profitTargetRate * 100) / 100,
+        avgDisciplineScore: round2(avgDiscipline),
+        riskBoundaryRate: round2(riskBoundaryRate),
+        profitTargetRate: round2(profitTargetRate),
         tradesAnalyzed: analyses.length,
       },
       trades: analyses,

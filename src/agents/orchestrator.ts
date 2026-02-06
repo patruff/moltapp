@@ -45,7 +45,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { countWords, round3 } from "../lib/math-utils.ts";
+import { countWords, round2, round3 } from "../lib/math-utils.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -910,7 +910,7 @@ async function executeTradingRound(
     const moversContext = `\n\n**Market Movers (>3% change today)**:\n${movers
       .map(
         (m) =>
-          `- ${m.symbol} (${m.name}): ${m.change24h! > 0 ? "+" : ""}${m.change24h!.toFixed(2)}% at $${m.price.toFixed(2)}`,
+          `- ${m.symbol} (${m.name}): ${m.change24h! > 0 ? "+" : ""}${round2(m.change24h!)}% at $${round2(m.price)}`,
       )
       .join("\n")}`;
 
@@ -920,7 +920,7 @@ async function executeTradingRound(
     }
 
     console.log(
-      `[Orchestrator] Pre-computed ${movers.length} movers (>${Math.abs(movers[movers.length - 1].change24h!).toFixed(2)}% change)`,
+      `[Orchestrator] Pre-computed ${movers.length} movers (>${round2(Math.abs(movers[movers.length - 1].change24h!))}% change)`,
     );
   }
 
@@ -962,13 +962,13 @@ async function executeTradingRound(
         const qualityResult = checkReasoningQuality(decision, marketData);
         if (!qualityResult.passed) {
           console.log(
-            `[Orchestrator] ${agent.name} QUALITY GATE REJECTED: composite=${qualityResult.scores.composite.toFixed(2)}, ` +
+            `[Orchestrator] ${agent.name} QUALITY GATE REJECTED: composite=${round2(qualityResult.scores.composite)}, ` +
             `reasons: ${qualityResult.rejectionReasons.join("; ")}`,
           );
           decision = qualityResult.decision;
         } else {
           console.log(
-            `[Orchestrator] ${agent.name} quality gate PASSED: composite=${qualityResult.scores.composite.toFixed(2)}`,
+            `[Orchestrator] ${agent.name} quality gate PASSED: composite=${round2(qualityResult.scores.composite)}`,
           );
         }
       } catch (err) {
@@ -1013,7 +1013,7 @@ async function executeTradingRound(
         const intent = decision.intent ?? classifyIntent(decision.reasoning, decision.action);
 
         console.log(
-          `[Orchestrator] ${agent.name} benchmark: coherence=${coherence.score.toFixed(2)}, ` +
+          `[Orchestrator] ${agent.name} benchmark: coherence=${round2(coherence.score)}, ` +
           `hallucinations=${hallucinations.flags.length}, discipline=${discipline.passed ? "PASS" : "FAIL"}`,
         );
 
@@ -1232,7 +1232,7 @@ async function executeTradingRound(
             roundId,
           );
           console.log(
-            `[Orchestrator] ${agent.name} depth: ${depthScore.overall.toFixed(2)} (${depthScore.classification}), ` +
+            `[Orchestrator] ${agent.name} depth: ${round2(depthScore.overall)} (${depthScore.classification}), ` +
             `angles=${depthScore.angleCount}`,
           );
 
@@ -1285,7 +1285,7 @@ async function executeTradingRound(
             );
             recordDeepAnalysis(agent.agentId, deepResult);
             console.log(
-              `[Orchestrator] ${agent.name} deep coherence: ${deepResult.overallScore.toFixed(2)} (${deepResult.grade}), ` +
+              `[Orchestrator] ${agent.name} deep coherence: ${round2(deepResult.overallScore)} (${deepResult.grade}), ` +
               `strengths=${deepResult.strengths.length}, weaknesses=${deepResult.weaknesses.length}`,
             );
 
@@ -3392,12 +3392,12 @@ function generateMockPrice(symbol: string): number {
   const base = MOCK_BASE_PRICES[symbol] ?? 100;
   // Add ±2% random variation
   const variation = 1 + (Math.random() - 0.5) * 0.04;
-  return Math.round(base * variation * 100) / 100;
+  return round2(base * variation);
 }
 
 function generateMockChange(): number {
   // Random 24h change between -5% and +5%
-  return Math.round((Math.random() - 0.5) * 10 * 100) / 100;
+  return round2((Math.random() - 0.5) * 10);
 }
 
 function generateMockVolume(): number {

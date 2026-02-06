@@ -303,7 +303,7 @@ benchmarkV24ApiRoutes.get("/agent/:id", async (c) => {
     v24Profile: cached ?? null,
     reasoningDepthProfile: {
       avgScore: depthData
-        ? Math.round((depthData.scores.reduce((a, b) => a + b, 0) / depthData.scores.length) * 100) / 100
+        ? round2(depthData.scores.reduce((a, b) => a + b, 0) / depthData.scores.length)
         : null,
       sampleCount: depthData?.scores.length ?? 0,
       patternDistribution: patternDist,
@@ -311,7 +311,7 @@ benchmarkV24ApiRoutes.get("/agent/:id", async (c) => {
     },
     sourceQualityProfile: {
       avgScore: srcData
-        ? Math.round((srcData.scores.reduce((a, b) => a + b, 0) / srcData.scores.length) * 100) / 100
+        ? round2(srcData.scores.reduce((a, b) => a + b, 0) / srcData.scores.length)
         : null,
       sampleCount: srcData?.scores.length ?? 0,
       categoryDistribution: categoryDist,
@@ -352,7 +352,7 @@ benchmarkV24ApiRoutes.get("/depth-analysis", async (c) => {
       }
       allEntries.push({
         agentId,
-        avgDepth: Math.round(avg * 100) / 100,
+        avgDepth: round2(avg),
         tradeCount: data.scores.length,
         topPattern,
       });
@@ -389,7 +389,7 @@ benchmarkV24ApiRoutes.get("/source-analysis", async (c) => {
       const sorted = [...data.categories.entries()].sort((a, b) => b[1] - a[1]);
       allEntries.push({
         agentId,
-        avgQuality: Math.round(avg * 100) / 100,
+        avgQuality: round2(avg),
         tradeCount: data.scores.length,
         topCategories: sorted.slice(0, 5).map(([c]) => c),
       });
