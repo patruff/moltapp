@@ -16,6 +16,159 @@
 import { normalize, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Depth Classification Thresholds
+ * Controls how reasoning quality is classified based on analytical angles
+ */
+
+/** Minimum analytical angles required for EXCEPTIONAL classification */
+const DEPTH_EXCEPTIONAL_MIN_ANGLES = 5;
+
+/** Minimum analytical angles required for DEEP classification */
+const DEPTH_DEEP_MIN_ANGLES = 3;
+
+/** Minimum analytical angles required for MODERATE classification */
+const DEPTH_MODERATE_MIN_ANGLES = 2;
+
+/**
+ * Sophistication Scoring Weights
+ * Controls vocabulary sophistication score calculation (0-1 scale)
+ */
+
+/** Weight for type-token ratio (unique/total words) in sophistication score */
+const SOPHISTICATION_WEIGHT_TYPE_TOKEN = 0.3;
+
+/** Weight for finance term count in sophistication score */
+const SOPHISTICATION_WEIGHT_FINANCE_TERMS = 0.4;
+
+/** Weight for word count in sophistication score */
+const SOPHISTICATION_WEIGHT_WORD_COUNT = 0.3;
+
+/** Divisor for finance term normalization (financeTerms / divisor, max 1.0) */
+const SOPHISTICATION_FINANCE_TERM_DIVISOR = 10;
+
+/** Divisor for word count normalization (wordCount / divisor, max 1.0) */
+const SOPHISTICATION_WORD_COUNT_DIVISOR = 200;
+
+/**
+ * Template Detection Thresholds
+ * Controls template/canned response probability calculation
+ */
+
+/** Type-token ratio threshold below which reasoning is considered templated */
+const TEMPLATE_TYPE_TOKEN_THRESHOLD = 0.4;
+
+/** Multiplier for template probability when below threshold */
+const TEMPLATE_PROBABILITY_MULTIPLIER = 5;
+
+/** Jaccard similarity threshold for template usage detection (0-1 scale) */
+const TEMPLATE_SIMILARITY_THRESHOLD = 0.7;
+
+/**
+ * Quality Score Fallacy Penalties
+ * Controls how logical fallacies reduce aggregate quality score
+ */
+
+/** Maximum total fallacy penalty cap (prevents excessive penalization) */
+const QUALITY_FALLACY_PENALTY_MAX = 0.4;
+
+/** Penalty for high-severity fallacy (e.g., sunk cost) */
+const QUALITY_FALLACY_PENALTY_HIGH = 0.15;
+
+/** Penalty for medium-severity fallacy (e.g., gambler's fallacy) */
+const QUALITY_FALLACY_PENALTY_MEDIUM = 0.08;
+
+/** Penalty for low-severity fallacy (e.g., anchoring bias) */
+const QUALITY_FALLACY_PENALTY_LOW = 0.03;
+
+/**
+ * Quality Score Hedge Penalties
+ * Controls how hedge words reduce quality score
+ */
+
+/** Maximum hedge penalty cap */
+const QUALITY_HEDGE_PENALTY_MAX = 0.15;
+
+/** Multiplier for hedge ratio penalty (hedgeRatio × multiplier) */
+const QUALITY_HEDGE_PENALTY_MULTIPLIER = 3;
+
+/**
+ * Quality Score Component Weights
+ * Controls aggregate quality score calculation (sum to 1.0)
+ */
+
+/** Weight for reasoning depth score (highest priority) */
+const QUALITY_WEIGHT_DEPTH = 0.35;
+
+/** Weight for vocabulary sophistication */
+const QUALITY_WEIGHT_SOPHISTICATION = 0.25;
+
+/** Weight for quantitative reasoning presence */
+const QUALITY_WEIGHT_QUANTITATIVE = 0.15;
+
+/** Weight for hallucination-free analysis (inverse of fallacy penalty) */
+const QUALITY_WEIGHT_HALLUCINATION_FREE = 0.15;
+
+/** Weight for template/hedge penalty component */
+const QUALITY_WEIGHT_TEMPLATE_HEDGE = 0.10;
+
+/** Template penalty multiplier within aggregate quality score */
+const QUALITY_TEMPLATE_PENALTY_MULTIPLIER = 0.3;
+
+/**
+ * Depth Score Classification Values
+ * Maps depth classification to numeric score (0-1 scale)
+ */
+
+/** Score for EXCEPTIONAL depth (5+ angles + counter-argument + risk) */
+const DEPTH_SCORE_EXCEPTIONAL = 1.0;
+
+/** Score for DEEP depth (3+ angles + counter/risk) */
+const DEPTH_SCORE_DEEP = 0.75;
+
+/** Score for MODERATE depth (2+ angles) */
+const DEPTH_SCORE_MODERATE = 0.5;
+
+/** Score for SHALLOW depth (0-1 angles) */
+const DEPTH_SCORE_SHALLOW = 0.25;
+
+/**
+ * Trend Detection Thresholds
+ * Controls quality trend classification (improving/degrading/stable)
+ */
+
+/** Minimum history entries required for trend detection */
+const TREND_MIN_HISTORY = 10;
+
+/** Quality score delta threshold for IMPROVING trend (+0.05 or more) */
+const TREND_IMPROVING_THRESHOLD = 0.05;
+
+/** Quality score delta threshold for DEGRADING trend (-0.05 or less) */
+const TREND_DEGRADING_THRESHOLD = -0.05;
+
+/**
+ * Template Usage Detection Parameters
+ * Controls template detection via Jaccard similarity analysis
+ */
+
+/** Minimum history entries required for template detection */
+const TEMPLATE_MIN_HISTORY = 5;
+
+/** Number of recent reasoning entries to compare for template detection */
+const TEMPLATE_RECENT_WINDOW = 10;
+
+/**
+ * Quantitative Reasoning Normalization
+ * Controls quantitative pattern ratio calculation
+ */
+
+/** Divisor for word count normalization (quantMatches / (wordCount / divisor)) */
+const QUANTITATIVE_WORD_COUNT_DIVISOR = 20;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -247,11 +400,11 @@ export function analyzeReasoningPatterns(
 
   let classification: DepthMetrics["classification"];
   const angleCount = detectedAngles.size;
-  if (angleCount >= 5 && hasCounterArgument && hasRiskDiscussion) {
+  if (angleCount >= DEPTH_EXCEPTIONAL_MIN_ANGLES && hasCounterArgument && hasRiskDiscussion) {
     classification = "exceptional";
-  } else if (angleCount >= 3 && (hasCounterArgument || hasRiskDiscussion)) {
+  } else if (angleCount >= DEPTH_DEEP_MIN_ANGLES && (hasCounterArgument || hasRiskDiscussion)) {
     classification = "deep";
-  } else if (angleCount >= 2) {
+  } else if (angleCount >= DEPTH_MODERATE_MIN_ANGLES) {
     classification = "moderate";
   } else {
     classification = "shallow";
@@ -277,7 +430,7 @@ export function analyzeReasoningPatterns(
     if (FINANCE_TERMS.has(word)) financeTerms++;
   }
 
-  const sophisticationScore = Math.min(1, (typeTokenRatio * 0.3 + Math.min(financeTerms / 10, 1) * 0.4 + Math.min(wordCount / 200, 1) * 0.3));
+  const sophisticationScore = Math.min(1, (typeTokenRatio * SOPHISTICATION_WEIGHT_TYPE_TOKEN + Math.min(financeTerms / SOPHISTICATION_FINANCE_TERM_DIVISOR, 1) * SOPHISTICATION_WEIGHT_FINANCE_TERMS + Math.min(wordCount / SOPHISTICATION_WORD_COUNT_DIVISOR, 1) * SOPHISTICATION_WEIGHT_WORD_COUNT));
 
   const vocabulary: VocabularyMetrics = {
     uniqueWords,
@@ -287,7 +440,7 @@ export function analyzeReasoningPatterns(
   };
 
   // 4. Template probability (high similarity if very low type-token ratio)
-  const templateProbability = typeTokenRatio < 0.4 ? Math.min(1, (0.4 - typeTokenRatio) * 5) : 0;
+  const templateProbability = typeTokenRatio < TEMPLATE_TYPE_TOKEN_THRESHOLD ? Math.min(1, (TEMPLATE_TYPE_TOKEN_THRESHOLD - typeTokenRatio) * TEMPLATE_PROBABILITY_MULTIPLIER) : 0;
 
   // 5. Hedge word ratio
   const hedgeMatches = reasoning.match(HEDGE_WORDS) ?? [];
@@ -295,28 +448,28 @@ export function analyzeReasoningPatterns(
 
   // 6. Quantitative ratio
   const quantMatches = reasoning.match(QUANT_PATTERNS) ?? [];
-  const quantitativeRatio = wordCount > 0 ? Math.round((quantMatches.length / Math.max(1, wordCount / 20)) * 100) / 100 : 0;
+  const quantitativeRatio = wordCount > 0 ? Math.round((quantMatches.length / Math.max(1, wordCount / QUANTITATIVE_WORD_COUNT_DIVISOR)) * 100) / 100 : 0;
 
   // 7. Aggregate quality score
-  const depthScore = classification === "exceptional" ? 1.0
-    : classification === "deep" ? 0.75
-    : classification === "moderate" ? 0.5
-    : 0.25;
+  const depthScore = classification === "exceptional" ? DEPTH_SCORE_EXCEPTIONAL
+    : classification === "deep" ? DEPTH_SCORE_DEEP
+    : classification === "moderate" ? DEPTH_SCORE_MODERATE
+    : DEPTH_SCORE_SHALLOW;
 
-  const fallacyPenalty = Math.min(0.4, fallacies.reduce((s, f) => {
-    return s + (f.severity === "high" ? 0.15 : f.severity === "medium" ? 0.08 : 0.03);
+  const fallacyPenalty = Math.min(QUALITY_FALLACY_PENALTY_MAX, fallacies.reduce((s, f) => {
+    return s + (f.severity === "high" ? QUALITY_FALLACY_PENALTY_HIGH : f.severity === "medium" ? QUALITY_FALLACY_PENALTY_MEDIUM : QUALITY_FALLACY_PENALTY_LOW);
   }, 0));
 
-  const templatePenalty = templateProbability * 0.3;
-  const hedgePenalty = Math.min(0.15, hedgeRatio * 3);
+  const templatePenalty = templateProbability * QUALITY_TEMPLATE_PENALTY_MULTIPLIER;
+  const hedgePenalty = Math.min(QUALITY_HEDGE_PENALTY_MAX, hedgeRatio * QUALITY_HEDGE_PENALTY_MULTIPLIER);
 
   const qualityScore = Math.round(
     normalize(
-      depthScore * 0.35 +
-      sophisticationScore * 0.25 +
-      Math.min(1, quantitativeRatio) * 0.15 +
-      (1 - fallacyPenalty) * 0.15 +
-      (1 - templatePenalty - hedgePenalty) * 0.10
+      depthScore * QUALITY_WEIGHT_DEPTH +
+      sophisticationScore * QUALITY_WEIGHT_SOPHISTICATION +
+      Math.min(1, quantitativeRatio) * QUALITY_WEIGHT_QUANTITATIVE +
+      (1 - fallacyPenalty) * QUALITY_WEIGHT_HALLUCINATION_FREE +
+      (1 - templatePenalty - hedgePenalty) * QUALITY_WEIGHT_TEMPLATE_HEDGE
     ) * 100,
   ) / 100;
 
@@ -371,7 +524,7 @@ export function detectQualityTrend(agentId: string): {
   sampleCount: number;
 } {
   const history = agentHistory.get(agentId) ?? [];
-  if (history.length < 10) {
+  if (history.length < TREND_MIN_HISTORY) {
     return { trend: "stable", recentAvg: 0, historicalAvg: 0, sampleCount: history.length };
   }
 
@@ -383,7 +536,7 @@ export function detectQualityTrend(agentId: string): {
   const recentAvg = secondHalf.reduce((s, h) => s + h.qualityScore, 0) / secondHalf.length;
 
   const diff = recentAvg - historicalAvg;
-  const trend = diff > 0.05 ? "improving" : diff < -0.05 ? "degrading" : "stable";
+  const trend = diff > TREND_IMPROVING_THRESHOLD ? "improving" : diff < TREND_DEGRADING_THRESHOLD ? "degrading" : "stable";
 
   return {
     trend,
@@ -403,11 +556,11 @@ export function detectTemplateUsage(agentId: string): {
   pairCount: number;
 } {
   const history = agentHistory.get(agentId) ?? [];
-  if (history.length < 5) {
+  if (history.length < TEMPLATE_MIN_HISTORY) {
     return { avgSimilarity: 0, isTemplated: false, pairCount: 0 };
   }
 
-  const recent = history.slice(-10);
+  const recent = history.slice(-TEMPLATE_RECENT_WINDOW);
   let totalSim = 0;
   let pairs = 0;
 
@@ -427,7 +580,7 @@ export function detectTemplateUsage(agentId: string): {
 
   return {
     avgSimilarity,
-    isTemplated: avgSimilarity > 0.7,
+    isTemplated: avgSimilarity > TEMPLATE_SIMILARITY_THRESHOLD,
     pairCount: pairs,
   };
 }
