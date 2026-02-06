@@ -545,6 +545,48 @@ export function groupByKey<T extends Record<string, any>>(
 }
 
 /**
+ * Creates a key-value map from an array of objects by extracting specified property values.
+ * Converts arrays to Record<string, V> for O(1) lookups instead of O(n) array scans.
+ *
+ * Common use cases:
+ * - Dimension weight maps: createKeyMap(DIMENSIONS, 'key', 'weight') → {pnlPercent: 15, sharpeRatio: 10}
+ * - Symbol price maps: createKeyMap(positions, 'symbol', 'price') → {AAPL: 150.25, MSFT: 380.50}
+ * - ID entity maps: createKeyMap(users, 'id', 'name') → {123: 'Alice', 456: 'Bob'}
+ *
+ * @param items - Array of objects to convert to map
+ * @param keyProp - Property to use as map keys
+ * @param valueProp - Property to use as map values
+ * @returns Record mapping keyProp values to valueProp values
+ *
+ * @example
+ * const dimensions = [
+ *   { key: 'pnlPercent', weight: 15, category: 'performance' },
+ *   { key: 'sharpeRatio', weight: 10, category: 'performance' },
+ * ];
+ *
+ * createKeyMap(dimensions, 'key', 'weight')
+ * // returns { pnlPercent: 15, sharpeRatio: 10 }
+ *
+ * createKeyMap(dimensions, 'category', 'weight')
+ * // returns { performance: 10 } (last value wins if duplicate keys)
+ *
+ * createKeyMap([], 'key', 'weight') // returns {}
+ */
+export function createKeyMap<T extends Record<string, any>, K extends keyof T & string, V extends keyof T>(
+  items: readonly T[],
+  keyProp: K,
+  valueProp: V,
+): Record<string, T[V]> {
+  return items.reduce(
+    (acc, item) => {
+      acc[String(item[keyProp])] = item[valueProp];
+      return acc;
+    },
+    {} as Record<string, T[V]>,
+  );
+}
+
+/**
  * Sorts a record's entries by numeric value using a custom comparison function.
  * Enables sorting by absolute value, nested properties, or complex criteria.
  *

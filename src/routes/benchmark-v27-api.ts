@@ -25,7 +25,7 @@ import {
   type V27CompositeScore,
 } from "../services/v27-benchmark-engine.ts";
 import { V27_DIMENSIONS } from "../schemas/benchmark-v27.ts";
-import { groupByKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
+import { createKeyMap, groupByKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV27ApiRoutes = new Hono();
 
@@ -33,11 +33,7 @@ export const benchmarkV27ApiRoutes = new Hono();
 // Dimension weight map derived from V27_DIMENSIONS for quick lookups
 // ---------------------------------------------------------------------------
 
-const DIMENSION_WEIGHTS: Record<string, number> = {};
-for (const dim of V27_DIMENSIONS) {
-  DIMENSION_WEIGHTS[dim.key] = dim.weight;
-}
-
+const DIMENSION_WEIGHTS = createKeyMap(V27_DIMENSIONS, 'key', 'weight');
 const TOTAL_WEIGHT = sumByKey(V27_DIMENSIONS, 'weight');
 
 // ---------------------------------------------------------------------------

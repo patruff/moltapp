@@ -29,15 +29,6 @@ import { groupByKey, sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV28ApiRoutes = new Hono();
 
-// ---------------------------------------------------------------------------
-// Dimension weight map
-// ---------------------------------------------------------------------------
-
-const DIMENSION_WEIGHTS: Record<string, number> = {};
-for (const dim of V28_DIMENSIONS) {
-  DIMENSION_WEIGHTS[dim.key] = dim.weight;
-}
-
 const TOTAL_WEIGHT = sumByKey(V28_DIMENSIONS, 'weight');
 
 // ---------------------------------------------------------------------------
