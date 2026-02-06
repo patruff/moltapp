@@ -58,6 +58,216 @@ import {
 } from "./v36-benchmark-engine.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Tier Classification Thresholds
+ * Used by getTier() to classify composite scores into performance tiers.
+ */
+/** Minimum composite score for S-tier (elite performance) */
+const TIER_S_THRESHOLD = 85;
+/** Minimum composite score for A-tier (excellent performance) */
+const TIER_A_THRESHOLD = 70;
+/** Minimum composite score for B-tier (good performance) */
+const TIER_B_THRESHOLD = 55;
+/** Minimum composite score for C-tier (average performance) */
+const TIER_C_THRESHOLD = 40;
+// Below 40 = D-tier (below average)
+
+/**
+ * Trade Grade Boundaries
+ * Used by getGrade() to convert 0-100 scores into letter grades.
+ */
+/** Minimum score for A+ grade (outstanding) */
+const GRADE_A_PLUS_THRESHOLD = 95;
+/** Minimum score for A grade (excellent) */
+const GRADE_A_THRESHOLD = 85;
+/** Minimum score for B+ grade (very good) */
+const GRADE_B_PLUS_THRESHOLD = 75;
+/** Minimum score for B grade (good) */
+const GRADE_B_THRESHOLD = 65;
+/** Minimum score for C+ grade (above average) */
+const GRADE_C_PLUS_THRESHOLD = 55;
+/** Minimum score for C grade (average) */
+const GRADE_C_THRESHOLD = 45;
+/** Minimum score for D grade (below average) */
+const GRADE_D_THRESHOLD = 30;
+// Below 30 = F grade (failing)
+
+/**
+ * Reasoning Composability Scoring Constants
+ * Used by scoreReasoningComposability() to evaluate modular reasoning quality.
+ */
+
+// Argument Modularity (0-20)
+/** Max points from independence pattern matches (e.g., "independently", "separately") */
+const COMPOSABILITY_MODULARITY_INDEPENDENCE_CAP = 8;
+/** Points per independence pattern match */
+const COMPOSABILITY_MODULARITY_INDEPENDENCE_MULTIPLIER = 4;
+/** Max points from sequential pattern matches (e.g., "first", "second", "1.", "2.") */
+const COMPOSABILITY_MODULARITY_SEQUENTIAL_CAP = 8;
+/** Points per sequential pattern match */
+const COMPOSABILITY_MODULARITY_SEQUENTIAL_MULTIPLIER = 3;
+/** Max points from bullet-style patterns */
+const COMPOSABILITY_MODULARITY_BULLET_CAP = 4;
+/** Points per bullet pattern match */
+const COMPOSABILITY_MODULARITY_BULLET_MULTIPLIER = 2;
+/** Total max score for modularity sub-component */
+const COMPOSABILITY_MODULARITY_MAX = 20;
+
+// Cross-Trade Reasoning Reuse (0-20)
+/** Max points from callback pattern matches (e.g., "as I noted", "consistent with my thesis") */
+const COMPOSABILITY_REUSE_CALLBACK_CAP = 12;
+/** Points per callback pattern match */
+const COMPOSABILITY_REUSE_CALLBACK_MULTIPLIER = 4;
+/** Max points from shared concepts with previous reasonings */
+const COMPOSABILITY_REUSE_SHARED_CONCEPTS_CAP = 8;
+/** Points per previous reasoning with shared concepts */
+const COMPOSABILITY_REUSE_SHARED_CONCEPTS_MULTIPLIER = 4;
+/** Minimum word overlap to count as shared concept */
+const COMPOSABILITY_REUSE_OVERLAP_THRESHOLD = 3;
+/** Partial credit when no previous reasoning available */
+const COMPOSABILITY_REUSE_NO_PREVIOUS_CREDIT = 3;
+/** Total max score for reuse sub-component */
+const COMPOSABILITY_REUSE_MAX = 20;
+
+// Hierarchical Structure (0-20)
+/** Max points from thesis pattern matches */
+const COMPOSABILITY_HIERARCHY_THESIS_CAP = 6;
+/** Points per thesis pattern match */
+const COMPOSABILITY_HIERARCHY_THESIS_MULTIPLIER = 3;
+/** Max points from sub-claim pattern matches */
+const COMPOSABILITY_HIERARCHY_SUBCLAIM_CAP = 6;
+/** Points per sub-claim pattern match */
+const COMPOSABILITY_HIERARCHY_SUBCLAIM_MULTIPLIER = 3;
+/** Max points from evidence pattern matches */
+const COMPOSABILITY_HIERARCHY_EVIDENCE_CAP = 8;
+/** Points per evidence pattern match */
+const COMPOSABILITY_HIERARCHY_EVIDENCE_MULTIPLIER = 3;
+/** Total max score for hierarchy sub-component */
+const COMPOSABILITY_HIERARCHY_MAX = 20;
+
+// Transferable Insights (0-20)
+/** Max points from general principle pattern matches */
+const COMPOSABILITY_TRANSFER_PRINCIPLE_CAP = 12;
+/** Points per general principle pattern match */
+const COMPOSABILITY_TRANSFER_PRINCIPLE_MULTIPLIER = 4;
+/** Max points from framework-level thinking patterns */
+const COMPOSABILITY_TRANSFER_FRAMEWORK_CAP = 8;
+/** Points per framework pattern match */
+const COMPOSABILITY_TRANSFER_FRAMEWORK_MULTIPLIER = 3;
+/** Total max score for transfer sub-component */
+const COMPOSABILITY_TRANSFER_MAX = 20;
+
+// Synthesis Quality (0-20)
+/** Max points from synthesis pattern matches */
+const COMPOSABILITY_SYNTHESIS_PATTERN_CAP = 12;
+/** Points per synthesis pattern match */
+const COMPOSABILITY_SYNTHESIS_PATTERN_MULTIPLIER = 4;
+/** Max points from connective tissue patterns */
+const COMPOSABILITY_SYNTHESIS_CONNECTIVE_CAP = 8;
+/** Points per connective pattern match */
+const COMPOSABILITY_SYNTHESIS_CONNECTIVE_MULTIPLIER = 3;
+/** Total max score for synthesis sub-component */
+const COMPOSABILITY_SYNTHESIS_MAX = 20;
+
+// Bonus
+/** Minimum source count to trigger bonus */
+const COMPOSABILITY_BONUS_SOURCE_THRESHOLD = 4;
+/** Points per source above threshold */
+const COMPOSABILITY_BONUS_SOURCE_MULTIPLIER = 2;
+/** Max bonus points from high source count */
+const COMPOSABILITY_BONUS_SOURCE_CAP = 5;
+/** Baseline source offset (sources - 3) */
+const COMPOSABILITY_BONUS_SOURCE_OFFSET = 3;
+
+/**
+ * Strategic Foresight Scoring Constants
+ * Used by scoreStrategicForesight() to evaluate forward-looking strategic thinking.
+ */
+
+// Catalyst Chain Identification (0-20)
+/** Max points from causal chain pattern matches */
+const FORESIGHT_CHAIN_PATTERN_CAP = 12;
+/** Points per causal chain pattern match */
+const FORESIGHT_CHAIN_PATTERN_MULTIPLIER = 4;
+/** Points for 3+ "leads to" matches (long chains) */
+const FORESIGHT_CHAIN_LEADS_TO_HIGH = 8;
+/** Points for 2 "leads to" matches (medium chains) */
+const FORESIGHT_CHAIN_LEADS_TO_MEDIUM = 5;
+/** Points for 1 "leads to" match (short chains) */
+const FORESIGHT_CHAIN_LEADS_TO_LOW = 2;
+/** Threshold for long causal chains */
+const FORESIGHT_CHAIN_LEADS_TO_HIGH_THRESHOLD = 3;
+/** Threshold for medium causal chains */
+const FORESIGHT_CHAIN_LEADS_TO_MEDIUM_THRESHOLD = 2;
+/** Threshold for short causal chains */
+const FORESIGHT_CHAIN_LEADS_TO_LOW_THRESHOLD = 1;
+/** Total max score for chain sub-component */
+const FORESIGHT_CHAIN_MAX = 20;
+
+// Scenario Branching (0-20)
+/** Max points from if/then pattern matches */
+const FORESIGHT_BRANCH_IF_THEN_CAP = 8;
+/** Points per if/then pattern match */
+const FORESIGHT_BRANCH_IF_THEN_MULTIPLIER = 3;
+/** Max points from else/alternative pattern matches */
+const FORESIGHT_BRANCH_ELSE_CAP = 8;
+/** Points per else pattern match */
+const FORESIGHT_BRANCH_ELSE_MULTIPLIER = 3;
+/** Max points from explicit scenario analysis patterns */
+const FORESIGHT_BRANCH_SCENARIO_CAP = 4;
+/** Points per scenario analysis pattern match */
+const FORESIGHT_BRANCH_SCENARIO_MULTIPLIER = 2;
+/** Total max score for branching sub-component */
+const FORESIGHT_BRANCH_MAX = 20;
+
+// Opportunity Cost Awareness (0-20)
+/** Max points from rejection/alternative pattern matches */
+const FORESIGHT_OPPORTUNITY_REJECTION_CAP = 12;
+/** Points per rejection pattern match */
+const FORESIGHT_OPPORTUNITY_REJECTION_MULTIPLIER = 4;
+/** Max points from comparative analysis patterns */
+const FORESIGHT_OPPORTUNITY_COMPARATIVE_CAP = 8;
+/** Points per comparative pattern match */
+const FORESIGHT_OPPORTUNITY_COMPARATIVE_MULTIPLIER = 3;
+/** Total max score for opportunity cost sub-component */
+const FORESIGHT_OPPORTUNITY_MAX = 20;
+
+// Portfolio-Level Thinking (0-20)
+/** Max points from portfolio pattern matches */
+const FORESIGHT_PORTFOLIO_PATTERN_CAP = 12;
+/** Points per portfolio pattern match */
+const FORESIGHT_PORTFOLIO_PATTERN_MULTIPLIER = 4;
+/** Max points from correlation/hedging pattern matches */
+const FORESIGHT_PORTFOLIO_CORRELATION_CAP = 8;
+/** Points per correlation pattern match */
+const FORESIGHT_PORTFOLIO_CORRELATION_MULTIPLIER = 3;
+/** Total max score for portfolio sub-component */
+const FORESIGHT_PORTFOLIO_MAX = 20;
+
+// Multi-Timeframe Integration (0-20)
+/** Points for using all 3 timeframes (short/medium/long) */
+const FORESIGHT_TIMEFRAME_ALL_THREE = 14;
+/** Points for using 2 timeframes */
+const FORESIGHT_TIMEFRAME_TWO = 10;
+/** Points for using 1 timeframe */
+const FORESIGHT_TIMEFRAME_ONE = 5;
+/** Max points from timeframe integration patterns */
+const FORESIGHT_TIMEFRAME_INTEGRATION_CAP = 6;
+/** Points per integration pattern match */
+const FORESIGHT_TIMEFRAME_INTEGRATION_MULTIPLIER = 3;
+/** Total max score for timeframe sub-component */
+const FORESIGHT_TIMEFRAME_MAX = 20;
+
+// Bonus
+/** Points per strategic source (strategy, outlook, forecast keywords) */
+const FORESIGHT_BONUS_SOURCE_MULTIPLIER = 3;
+/** Max bonus points from strategic sources */
+const FORESIGHT_BONUS_SOURCE_CAP = 5;
+
+// ---------------------------------------------------------------------------
 // Types for the 34 dimensions
 // ---------------------------------------------------------------------------
 
@@ -232,21 +442,21 @@ const DIMENSION_WEIGHTS: Record<keyof V37DimensionScores, number> = {
 // ---------------------------------------------------------------------------
 
 function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
-  if (composite >= 85) return "S";
-  if (composite >= 70) return "A";
-  if (composite >= 55) return "B";
-  if (composite >= 40) return "C";
+  if (composite >= TIER_S_THRESHOLD) return "S";
+  if (composite >= TIER_A_THRESHOLD) return "A";
+  if (composite >= TIER_B_THRESHOLD) return "B";
+  if (composite >= TIER_C_THRESHOLD) return "C";
   return "D";
 }
 
 function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
-  if (score >= 95) return "A+";
-  if (score >= 85) return "A";
-  if (score >= 75) return "B+";
-  if (score >= 65) return "B";
-  if (score >= 55) return "C+";
-  if (score >= 45) return "C";
-  if (score >= 30) return "D";
+  if (score >= GRADE_A_PLUS_THRESHOLD) return "A+";
+  if (score >= GRADE_A_THRESHOLD) return "A";
+  if (score >= GRADE_B_PLUS_THRESHOLD) return "B+";
+  if (score >= GRADE_B_THRESHOLD) return "B";
+  if (score >= GRADE_C_PLUS_THRESHOLD) return "C+";
+  if (score >= GRADE_C_THRESHOLD) return "C";
+  if (score >= GRADE_D_THRESHOLD) return "D";
   return "F";
 }
 
@@ -285,19 +495,19 @@ export function scoreReasoningComposability(
 
   const independencePatterns = /\b(?:independently|separately|on its own|in isolation|standalone|self[- ]contained|distinct(?:ly)?|each factor|taken alone)\b/gi;
   const independenceMatches = reasoning.match(independencePatterns) ?? [];
-  modularityScore += Math.min(8, independenceMatches.length * 4);
+  modularityScore += Math.min(COMPOSABILITY_MODULARITY_INDEPENDENCE_CAP, independenceMatches.length * COMPOSABILITY_MODULARITY_INDEPENDENCE_MULTIPLIER);
 
   // Sequential/numbered arguments
   const sequentialPatterns = /\b(?:first(?:ly)?[,:]|second(?:ly)?[,:]|third(?:ly)?[,:]|fourth(?:ly)?[,:]|1[\.\)]\s|2[\.\)]\s|3[\.\)]\s|4[\.\)]\s|point\s+(?:one|two|three|four)|argument\s+\d|reason\s+\d)\b/gi;
   const sequentialMatches = reasoning.match(sequentialPatterns) ?? [];
-  modularityScore += Math.min(8, sequentialMatches.length * 3);
+  modularityScore += Math.min(COMPOSABILITY_MODULARITY_SEQUENTIAL_CAP, sequentialMatches.length * COMPOSABILITY_MODULARITY_SEQUENTIAL_MULTIPLIER);
 
   // Bullet-style or list-style reasoning
   const bulletPatterns = /(?:^|\n)\s*[-*>]\s+\S/gm;
   const bulletMatches = reasoning.match(bulletPatterns) ?? [];
-  modularityScore += Math.min(4, bulletMatches.length * 2);
+  modularityScore += Math.min(COMPOSABILITY_MODULARITY_BULLET_CAP, bulletMatches.length * COMPOSABILITY_MODULARITY_BULLET_MULTIPLIER);
 
-  score += Math.min(20, modularityScore);
+  score += Math.min(COMPOSABILITY_MODULARITY_MAX, modularityScore);
 
   // 2. Cross-Trade Reasoning Reuse (0-20)
   // Detect callbacks to previous analysis like "consistent with my thesis",
@@ -306,7 +516,7 @@ export function scoreReasoningComposability(
 
   const callbackPatterns = /\b(?:consistent with (?:my|our|the) (?:thesis|view|analysis|prior)|as I (?:noted|mentioned|observed|argued)|building on (?:my|our|the|previous)|reaffirming (?:my|our|the)|updating (?:my|our) (?:view|thesis|model|outlook)|in line with (?:my|our) (?:previous|earlier|prior)|confirms? (?:my|our) (?:earlier|previous|prior)|reinforc(?:es?|ing) (?:my|our) (?:thesis|view|conviction)|as previously (?:discussed|noted|analyzed|stated))\b/gi;
   const callbackMatches = reasoning.match(callbackPatterns) ?? [];
-  reuseScore += Math.min(12, callbackMatches.length * 4);
+  reuseScore += Math.min(COMPOSABILITY_REUSE_CALLBACK_CAP, callbackMatches.length * COMPOSABILITY_REUSE_CALLBACK_MULTIPLIER);
 
   // Cross-reference with actual previous reasonings
   if (previousReasonings.length > 0) {
@@ -316,15 +526,15 @@ export function scoreReasoningComposability(
       const prevWords = prev.toLowerCase().split(/\s+/).filter((w) => w.length > 5);
       const currentWords = new Set(reasoning.toLowerCase().split(/\s+/));
       const overlap = prevWords.filter((w) => currentWords.has(w)).length;
-      if (overlap >= 3) sharedConcepts++;
+      if (overlap >= COMPOSABILITY_REUSE_OVERLAP_THRESHOLD) sharedConcepts++;
     }
-    reuseScore += Math.min(8, sharedConcepts * 4);
+    reuseScore += Math.min(COMPOSABILITY_REUSE_SHARED_CONCEPTS_CAP, sharedConcepts * COMPOSABILITY_REUSE_SHARED_CONCEPTS_MULTIPLIER);
   } else {
     // No previous reasoning to compare — partial credit for self-referential structure
-    reuseScore += 3;
+    reuseScore += COMPOSABILITY_REUSE_NO_PREVIOUS_CREDIT;
   }
 
-  score += Math.min(20, reuseScore);
+  score += Math.min(COMPOSABILITY_REUSE_MAX, reuseScore);
 
   // 3. Hierarchical Structure (0-20)
   // Detect thesis -> sub-claims -> evidence structure.
@@ -333,17 +543,17 @@ export function scoreReasoningComposability(
 
   const thesisPatterns = /\b(?:my thesis (?:is|remains)|(?:core|central|main|overall) (?:thesis|argument|claim|view)|I (?:believe|argue|contend|maintain) that|the (?:key|main) (?:point|takeaway) is)\b/gi;
   const thesisMatches = reasoning.match(thesisPatterns) ?? [];
-  hierarchyScore += Math.min(6, thesisMatches.length * 3);
+  hierarchyScore += Math.min(COMPOSABILITY_HIERARCHY_THESIS_CAP, thesisMatches.length * COMPOSABILITY_HIERARCHY_THESIS_MULTIPLIER);
 
   const subClaimPatterns = /\b(?:supporting this[,:]|sub-?claim|in support|additional(?:ly)?[,:]|furthermore[,:]|moreover[,:]|another (?:factor|reason|point)|a (?:key|second|further) (?:factor|point|consideration))\b/gi;
   const subClaimMatches = reasoning.match(subClaimPatterns) ?? [];
-  hierarchyScore += Math.min(6, subClaimMatches.length * 3);
+  hierarchyScore += Math.min(COMPOSABILITY_HIERARCHY_SUBCLAIM_CAP, subClaimMatches.length * COMPOSABILITY_HIERARCHY_SUBCLAIM_MULTIPLIER);
 
   const evidencePatterns = /\b(?:evidence[:\s]|the data (?:shows?|suggests?|indicates?)|because\b|therefore\b|this is (?:supported|evidenced|shown) by|as (?:shown|demonstrated|indicated) by|proof (?:of|that)|specifically[,:])\b/gi;
   const evidenceMatches = reasoning.match(evidencePatterns) ?? [];
-  hierarchyScore += Math.min(8, evidenceMatches.length * 3);
+  hierarchyScore += Math.min(COMPOSABILITY_HIERARCHY_EVIDENCE_CAP, evidenceMatches.length * COMPOSABILITY_HIERARCHY_EVIDENCE_MULTIPLIER);
 
-  score += Math.min(20, hierarchyScore);
+  score += Math.min(COMPOSABILITY_HIERARCHY_MAX, hierarchyScore);
 
   // 4. Transferable Insights (0-20)
   // Detect general principles the agent articulates that apply beyond this trade.
@@ -352,14 +562,14 @@ export function scoreReasoningComposability(
 
   const generalPrinciplePatterns = /\b(?:sectors? with .{3,30} tend to|when (?:interest rates?|inflation|the Fed|GDP|earnings|volatility) .{3,30}(?:stocks?|equities|bonds?|crypto|assets?)|historically[,:]|as a (?:general )?rule|in (?:general|principle)|this pattern (?:suggests|indicates|shows)|a broader (?:trend|pattern|lesson)|the (?:lesson|takeaway|implication) (?:here )?is|this (?:applies|extends|generalizes) (?:to|beyond)|more (?:broadly|generally))\b/gi;
   const generalPrincipleMatches = reasoning.match(generalPrinciplePatterns) ?? [];
-  transferScore += Math.min(12, generalPrincipleMatches.length * 4);
+  transferScore += Math.min(COMPOSABILITY_TRANSFER_PRINCIPLE_CAP, generalPrincipleMatches.length * COMPOSABILITY_TRANSFER_PRINCIPLE_MULTIPLIER);
 
   // Framework-level thinking
   const frameworkPatterns = /\b(?:framework|mental model|heuristic|rule of thumb|first principles?|structural(?:ly)?|systematic(?:ally)?|paradigm|regime[- ]dependent|cycle[- ](?:dependent|aware)|macro (?:framework|lens|perspective))\b/gi;
   const frameworkMatches = reasoning.match(frameworkPatterns) ?? [];
-  transferScore += Math.min(8, frameworkMatches.length * 3);
+  transferScore += Math.min(COMPOSABILITY_TRANSFER_FRAMEWORK_CAP, frameworkMatches.length * COMPOSABILITY_TRANSFER_FRAMEWORK_MULTIPLIER);
 
-  score += Math.min(20, transferScore);
+  score += Math.min(COMPOSABILITY_TRANSFER_MAX, transferScore);
 
   // 5. Synthesis Quality (0-20)
   // Are sub-arguments combined coherently? Reward "combining these factors",
@@ -368,18 +578,18 @@ export function scoreReasoningComposability(
 
   const synthesisPatterns = /\b(?:combining these (?:factors|arguments|points|considerations)|on balance|weighing .{3,30} against|net assessment|all (?:things )?considered|taking (?:everything|all) (?:into account|together)|in (?:sum|summary|aggregate|total)|the (?:combined|cumulative|overall|net) (?:effect|impact|picture|view)|pulling (?:it|this|these) (?:all )?together|synthesizing|the (?:bottom line|upshot) is)\b/gi;
   const synthesisMatches = reasoning.match(synthesisPatterns) ?? [];
-  synthesisScore += Math.min(12, synthesisMatches.length * 4);
+  synthesisScore += Math.min(COMPOSABILITY_SYNTHESIS_PATTERN_CAP, synthesisMatches.length * COMPOSABILITY_SYNTHESIS_PATTERN_MULTIPLIER);
 
   // Connective tissue between arguments
   const connectivePatterns = /\b(?:this (?:combined|coupled|paired) with|together (?:with|these)|in conjunction (?:with)?|alongside|coupled with|layered on top|in addition to the (?:above|previous)|building on (?:this|the above))\b/gi;
   const connectiveMatches = reasoning.match(connectivePatterns) ?? [];
-  synthesisScore += Math.min(8, connectiveMatches.length * 3);
+  synthesisScore += Math.min(COMPOSABILITY_SYNTHESIS_CONNECTIVE_CAP, connectiveMatches.length * COMPOSABILITY_SYNTHESIS_CONNECTIVE_MULTIPLIER);
 
-  score += Math.min(20, synthesisScore);
+  score += Math.min(COMPOSABILITY_SYNTHESIS_MAX, synthesisScore);
 
   // Bonus: high source count suggests modular research
-  if (sources.length >= 4) {
-    score += Math.min(5, (sources.length - 3) * 2);
+  if (sources.length >= COMPOSABILITY_BONUS_SOURCE_THRESHOLD) {
+    score += Math.min(COMPOSABILITY_BONUS_SOURCE_CAP, (sources.length - COMPOSABILITY_BONUS_SOURCE_OFFSET) * COMPOSABILITY_BONUS_SOURCE_MULTIPLIER);
   }
 
   return Math.round(Math.min(maxScore, Math.max(0, score)));
@@ -423,17 +633,17 @@ export function scoreStrategicForesight(
 
   const causalChainPatterns = /\b(?:(?:which|this) (?:will|would|could|should|may) (?:lead|cause|trigger|result|drive|push|pull|force|spark|prompt) .{3,60}(?:which|that|causing|leading|resulting|driving|pushing)|if .{5,60} then .{5,60}(?:and then|which then|subsequently|in turn)|(?:first|initially) .{5,60}(?:then|next|subsequently|afterwards)|chain (?:of events|reaction)|domino effect|knock[- ]on effect|second[- ]order (?:effect|consequence|impact)|cascad(?:e|ing)|ripple (?:effect|through))\b/gi;
   const causalChainMatches = fullText.match(causalChainPatterns) ?? [];
-  chainScore += Math.min(12, causalChainMatches.length * 4);
+  chainScore += Math.min(FORESIGHT_CHAIN_PATTERN_CAP, causalChainMatches.length * FORESIGHT_CHAIN_PATTERN_MULTIPLIER);
 
   // Multi-step "leads to" chains
   const leadsToPatterns = /\b(?:leads? to|results? in|causes?|triggers?|drives?)\b/gi;
   const leadsToMatches = fullText.match(leadsToPatterns) ?? [];
   // More "leads to" connectors = longer causal chains
-  if (leadsToMatches.length >= 3) chainScore += 8;
-  else if (leadsToMatches.length >= 2) chainScore += 5;
-  else if (leadsToMatches.length >= 1) chainScore += 2;
+  if (leadsToMatches.length >= FORESIGHT_CHAIN_LEADS_TO_HIGH_THRESHOLD) chainScore += FORESIGHT_CHAIN_LEADS_TO_HIGH;
+  else if (leadsToMatches.length >= FORESIGHT_CHAIN_LEADS_TO_MEDIUM_THRESHOLD) chainScore += FORESIGHT_CHAIN_LEADS_TO_MEDIUM;
+  else if (leadsToMatches.length >= FORESIGHT_CHAIN_LEADS_TO_LOW_THRESHOLD) chainScore += FORESIGHT_CHAIN_LEADS_TO_LOW;
 
-  score += Math.min(20, chainScore);
+  score += Math.min(FORESIGHT_CHAIN_MAX, chainScore);
 
   // 2. Scenario Branching (0-20)
   // Detect if/then/else reasoning: "If Fed holds rates, growth stocks rally.
@@ -442,18 +652,18 @@ export function scoreStrategicForesight(
 
   const ifThenPatterns = /\b(?:if .{5,80}(?:then|,\s*(?:I|we|the|this))|in (?:the )?(?:case|event|scenario) (?:that|of|where)|should .{3,40}(?:then|,\s*(?:I|we))|assuming .{3,40}(?:then|,))\b/gi;
   const ifThenMatches = fullText.match(ifThenPatterns) ?? [];
-  branchScore += Math.min(8, ifThenMatches.length * 3);
+  branchScore += Math.min(FORESIGHT_BRANCH_IF_THEN_CAP, ifThenMatches.length * FORESIGHT_BRANCH_IF_THEN_MULTIPLIER);
 
   const elsePatterns = /\b(?:(?:else|otherwise|alternatively|conversely|on the other hand|if (?:instead|not|however))[,:]?\s+.{5,}|(?:bull|bear|base)\s+(?:case|scenario)|(?:upside|downside|base)\s+(?:case|scenario)|scenario (?:1|2|3|one|two|three|A|B|C))\b/gi;
   const elseMatches = fullText.match(elsePatterns) ?? [];
-  branchScore += Math.min(8, elseMatches.length * 3);
+  branchScore += Math.min(FORESIGHT_BRANCH_ELSE_CAP, elseMatches.length * FORESIGHT_BRANCH_ELSE_MULTIPLIER);
 
   // Explicit scenario analysis
   const scenarioPatterns = /\b(?:scenario analysis|decision tree|contingent on|probability[- ]weighted|range of outcomes|multiple scenarios|best[- ]case .{3,30} worst[- ]case)\b/gi;
   const scenarioMatches = fullText.match(scenarioPatterns) ?? [];
-  branchScore += Math.min(4, scenarioMatches.length * 2);
+  branchScore += Math.min(FORESIGHT_BRANCH_SCENARIO_CAP, scenarioMatches.length * FORESIGHT_BRANCH_SCENARIO_MULTIPLIER);
 
-  score += Math.min(20, branchScore);
+  score += Math.min(FORESIGHT_BRANCH_MAX, branchScore);
 
   // 3. Opportunity Cost Awareness (0-20)
   // Detect what agent considered but rejected: "Chose X over Y because",
@@ -462,14 +672,14 @@ export function scoreStrategicForesight(
 
   const rejectionPatterns = /\b(?:(?:chose|choosing|picked|selected|prefer(?:red)?) .{3,40} (?:over|instead of|rather than)|could (?:have|alternatively) (?:bought|sold|traded|invested|chosen)|opportunity cost|(?:trade|trading)[- ]off|alternative(?:ly|s)?[,:]?\s+(?:I|we) could|instead of .{3,40}(?:I|we) (?:chose|opted|decided)|passed on|opted (?:not to|against)|decided against|the (?:alternative|other option) (?:was|would be))\b/gi;
   const rejectionMatches = fullText.match(rejectionPatterns) ?? [];
-  opportunityScore += Math.min(12, rejectionMatches.length * 4);
+  opportunityScore += Math.min(FORESIGHT_OPPORTUNITY_REJECTION_CAP, rejectionMatches.length * FORESIGHT_OPPORTUNITY_REJECTION_MULTIPLIER);
 
   // Comparative analysis
   const comparativePatterns = /\b(?:compared to|relative to|versus|vs\.?\s+|better (?:risk[- ]reward|opportunity) in|more attractive than|less compelling than|higher (?:conviction|upside) in .{3,30} than)\b/gi;
   const comparativeMatches = fullText.match(comparativePatterns) ?? [];
-  opportunityScore += Math.min(8, comparativeMatches.length * 3);
+  opportunityScore += Math.min(FORESIGHT_OPPORTUNITY_COMPARATIVE_CAP, comparativeMatches.length * FORESIGHT_OPPORTUNITY_COMPARATIVE_MULTIPLIER);
 
-  score += Math.min(20, opportunityScore);
+  score += Math.min(FORESIGHT_OPPORTUNITY_MAX, opportunityScore);
 
   // 4. Portfolio-Level Thinking (0-20)
   // Detect reasoning about how this trade fits the overall portfolio:
@@ -478,14 +688,14 @@ export function scoreStrategicForesight(
 
   const portfolioPatterns = /\b(?:(?:this )?diversif(?:ies|ying|ication)|reduces? (?:my|our|portfolio) (?:correlation|risk|exposure)|complements? (?:my|our) (?:position|holding|exposure|portfolio)|portfolio[- ]level|overall (?:portfolio|allocation|exposure|position)|position sizing|risk budget|(?:adds?|adding) (?:to (?:my|our) )?(?:exposure|allocation)|(?:overweight|underweight|neutral)[- ]?(?:ing)?|rebalanc(?:e|ing)|concentration risk|sector (?:exposure|allocation|balance))\b/gi;
   const portfolioMatches = fullText.match(portfolioPatterns) ?? [];
-  portfolioScore += Math.min(12, portfolioMatches.length * 4);
+  portfolioScore += Math.min(FORESIGHT_PORTFOLIO_PATTERN_CAP, portfolioMatches.length * FORESIGHT_PORTFOLIO_PATTERN_MULTIPLIER);
 
   // Correlation/hedging awareness
   const correlationPatterns = /\b(?:correlat(?:ed|ion)|hedge(?:d|s|ing)?|offset(?:s|ting)?|uncorrelated|negative(?:ly)? correlated|tail[- ]risk|(?:beta|delta)[- ](?:neutral|adjusted)|risk[- ]adjusted (?:return|exposure)|Sharpe[- ]optimal)\b/gi;
   const correlationMatches = fullText.match(correlationPatterns) ?? [];
-  portfolioScore += Math.min(8, correlationMatches.length * 3);
+  portfolioScore += Math.min(FORESIGHT_PORTFOLIO_CORRELATION_CAP, correlationMatches.length * FORESIGHT_PORTFOLIO_CORRELATION_MULTIPLIER);
 
-  score += Math.min(20, portfolioScore);
+  score += Math.min(FORESIGHT_PORTFOLIO_MAX, portfolioScore);
 
   // 5. Multi-Timeframe Integration (0-20)
   // Detect explicit mention of different time horizons:
@@ -508,23 +718,23 @@ export function scoreStrategicForesight(
   ].reduce((a, b) => a + b, 0);
 
   // Multiple timeframes = high score
-  if (timeframesUsed >= 3) timeframeScore += 14;
-  else if (timeframesUsed === 2) timeframeScore += 10;
-  else if (timeframesUsed === 1) timeframeScore += 5;
+  if (timeframesUsed >= 3) timeframeScore += FORESIGHT_TIMEFRAME_ALL_THREE;
+  else if (timeframesUsed === 2) timeframeScore += FORESIGHT_TIMEFRAME_TWO;
+  else if (timeframesUsed === 1) timeframeScore += FORESIGHT_TIMEFRAME_ONE;
 
   // Explicit integration across timeframes
   const integrationPatterns = /\b(?:short[- ]term .{5,60} (?:but|while|whereas) .{5,60} long[- ]term|near[- ]term .{5,60} (?:but|while) .{5,60} (?:medium|long)[- ]term|across (?:time )?(?:horizons|frames|periods)|time[- ]horizon (?:analysis|integration|alignment)|(?:tactically|strategically) .{5,30} (?:but|while) (?:strategically|tactically))\b/gi;
   const integrationMatches = fullText.match(integrationPatterns) ?? [];
-  timeframeScore += Math.min(6, integrationMatches.length * 3);
+  timeframeScore += Math.min(FORESIGHT_TIMEFRAME_INTEGRATION_CAP, integrationMatches.length * FORESIGHT_TIMEFRAME_INTEGRATION_MULTIPLIER);
 
-  score += Math.min(20, timeframeScore);
+  score += Math.min(FORESIGHT_TIMEFRAME_MAX, timeframeScore);
 
   // Bonus: sources that span multiple timeframes or strategic content
   const strategicSources = sources.filter((s) =>
     /strategy|outlook|forecast|scenario|macro|allocation|portfolio/i.test(s),
   );
   if (strategicSources.length > 0) {
-    score += Math.min(5, strategicSources.length * 3);
+    score += Math.min(FORESIGHT_BONUS_SOURCE_CAP, strategicSources.length * FORESIGHT_BONUS_SOURCE_MULTIPLIER);
   }
 
   return Math.round(Math.min(maxScore, Math.max(0, score)));
