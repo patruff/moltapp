@@ -50,6 +50,31 @@ interface AlphaVantageResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/** Sentiment score threshold for positive classification */
+const SENTIMENT_POSITIVE_THRESHOLD = 0.15;
+
+/** Sentiment score threshold for negative classification */
+const SENTIMENT_NEGATIVE_THRESHOLD = -0.15;
+
+/** Maximum articles to fetch per API query */
+const ARTICLES_PER_QUERY = 10;
+
+/** API request timeout in milliseconds */
+const FETCH_TIMEOUT_MS = 10000;
+
+/** Maximum length for article summary truncation */
+const SUMMARY_MAX_LENGTH = 400;
+
+/** Maximum symbols to fetch per batch (conserves API quota) */
+const MAX_SYMBOLS_PER_BATCH = 5;
+
+/** Rate limit delay between requests in milliseconds (5 req/min = 12s spacing) */
+const RATE_LIMIT_DELAY_MS = 12000;
+
+// ---------------------------------------------------------------------------
 // Cache
 // ---------------------------------------------------------------------------
 
@@ -73,11 +98,11 @@ async function fetchAlphaVantageNews(
     const url = new URL("https://www.alphavantage.co/query");
     url.searchParams.set("function", "NEWS_SENTIMENT");
     url.searchParams.set("tickers", ticker);
-    url.searchParams.set("limit", "10"); // Get 10 most recent articles
+    url.searchParams.set("limit", String(ARTICLES_PER_QUERY));
     url.searchParams.set("apikey", apiKey);
 
     const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -102,8 +127,8 @@ async function fetchAlphaVantageNews(
       // Parse sentiment score to sentiment label
       const sentimentScore = article.overall_sentiment_score ?? 0;
       let sentiment: NewsItem["sentiment"] = "neutral";
-      if (sentimentScore > 0.15) sentiment = "positive";
-      else if (sentimentScore < -0.15) sentiment = "negative";
+      if (sentimentScore > SENTIMENT_POSITIVE_THRESHOLD) sentiment = "positive";
+      else if (sentimentScore < SENTIMENT_NEGATIVE_THRESHOLD) sentiment = "negative";
 
       // Parse published date
       const timePublished = article.time_published ?? "";
@@ -125,7 +150,7 @@ async function fetchAlphaVantageNews(
 
       items.push({
         title: article.title,
-        summary: (article.summary ?? "").slice(0, 400),
+        summary: (article.summary ?? "").slice(0, SUMMARY_MAX_LENGTH),
         source: article.source ?? "Alpha Vantage",
         url: article.url,
         publishedAt,
@@ -166,8 +191,8 @@ export async function alphaVantageSearchProvider(
   const now = Date.now();
   const allItems: NewsItem[] = [];
 
-  // Limit to 5 symbols to conserve API quota (500/day = ~20/hour)
-  const topSymbols = symbols.slice(0, 5);
+  // Limit to MAX_SYMBOLS_PER_BATCH to conserve API quota (500/day = ~20/hour)
+  const topSymbols = symbols.slice(0, MAX_SYMBOLS_PER_BATCH);
 
   for (const symbol of topSymbols) {
     const ticker = XSTOCK_TO_TICKER[symbol];
@@ -188,10 +213,10 @@ export async function alphaVantageSearchProvider(
       allItems.push(...items);
     }
 
-    // Rate limiting: wait 12 seconds between requests (5 per minute)
+    // Rate limiting: wait between requests to stay under API limits
     // Free tier allows 500/day = ~20/hour = ~1 every 3 min sustained
     // But we can burst 5/min, so 12s spacing is safe
-    await new Promise((resolve) => setTimeout(resolve, 12000));
+    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
   }
 
   console.log(
