@@ -427,6 +427,42 @@ const proxyCoherenceFromConf = (c: number) => c * 0.6 + 0.3;
 /** Proxy for composite score (v15): broad blend */
 const proxyCompositeFromConf = (c: number) => c * 0.4 + 0.4;
 
+// ---------------------------------------------------------------------------
+// Benchmark Scoring Weights
+// ---------------------------------------------------------------------------
+// Tuning parameters for weighted score calculations across benchmark versions.
+// Extracting these constants enables reproducibility and easier experimentation.
+
+/** v15 composite score: confidence component weight */
+const V15_COMPOSITE_CONFIDENCE_WEIGHT = 0.35;
+
+/** v15 composite score: baseline offset */
+const V15_COMPOSITE_BASELINE = 0.45;
+
+/** v17 metacognition score: confidence component weight */
+const V17_METACOGNITION_CONFIDENCE_WEIGHT = 0.4;
+
+/** v17 metacognition score: baseline offset */
+const V17_METACOGNITION_BASELINE = 0.3;
+
+/** v17 Elo composite: confidence weight for normalized confidence path (conf <= 1) */
+const V17_ELO_CONFIDENCE_WEIGHT = 0.4;
+
+/** v17 Elo composite: baseline offset for normalized confidence path (conf <= 1) */
+const V17_ELO_BASELINE = 0.3;
+
+/** v17 Elo composite: divisor for high confidence path (conf > 1) */
+const V17_ELO_HIGH_CONF_DIVISOR = 200;
+
+/** v18 agent score: confidence component weight in 3-part aggregate */
+const V18_AGENT_SCORE_CONFIDENCE_WEIGHT = 0.4;
+
+/** v18 agent score: coherence component weight in 3-part aggregate */
+const V18_AGENT_SCORE_COHERENCE_WEIGHT = 0.3;
+
+/** v18 agent score: adversarial robustness component weight in 3-part aggregate */
+const V18_AGENT_SCORE_ADVERSARIAL_WEIGHT = 0.3;
+
 export async function getMarketData(): Promise<MarketData[]> {
   // Check cache first
   const now = Date.now();
@@ -2124,7 +2160,7 @@ async function executeTradingRound(
         reasoningStability: 0.7,
         provenanceIntegrity: reproProof.deterministic ? 1.0 : 0.5,
         modelComparison: 1 - crossModelResult.herdingScore,
-        composite: normConf * 0.35 + 0.45,
+        composite: normConf * V15_COMPOSITE_CONFIDENCE_WEIGHT + V15_COMPOSITE_BASELINE,
         grade: normConf >= 0.7 ? "B+" : normConf >= 0.5 ? "C+" : "C",
         tradeCount: 1,
         lastUpdated: new Date().toISOString(),
@@ -2315,7 +2351,7 @@ async function executeTradingRound(
           reasoning_stability: 0.7,
           provenance_integrity: 0.8,
           model_comparison: 0.5,
-          metacognition: normConf * 0.4 + 0.3,
+          metacognition: normConf * V17_METACOGNITION_CONFIDENCE_WEIGHT + V17_METACOGNITION_BASELINE,
           reasoning_efficiency: Math.min(1, countWords(r.decision.reasoning) / 150),
           forensic_ledger: ledgerEntry ? 0.9 : 0.3,
           strategy_genome: genomePillarScore,
@@ -2331,7 +2367,9 @@ async function executeTradingRound(
     // 5. Update Elo rankings
     const eloInputs = results.map((r) => ({
       agentId: r.agentId,
-      composite: r.decision.confidence > 1 ? r.decision.confidence / 200 + 0.3 : r.decision.confidence * 0.4 + 0.3,
+      composite: r.decision.confidence > 1
+        ? r.decision.confidence / V17_ELO_HIGH_CONF_DIVISOR + V17_ELO_BASELINE
+        : r.decision.confidence * V17_ELO_CONFIDENCE_WEIGHT + V17_ELO_BASELINE,
     }));
     updateV17Elo(eloInputs);
 
@@ -2428,7 +2466,7 @@ async function executeTradingRound(
       });
 
       // Accumulate for health snapshot
-      agentScores[r.agentId] = normConf * 0.4 + coherenceEst * 0.3 + adversarial.overallScore * 0.3;
+      agentScores[r.agentId] = normConf * V18_AGENT_SCORE_CONFIDENCE_WEIGHT + coherenceEst * V18_AGENT_SCORE_COHERENCE_WEIGHT + adversarial.overallScore * V18_AGENT_SCORE_ADVERSARIAL_WEIGHT;
       coherenceSum += coherenceEst;
       reasoningLengthSum += reasoningWords;
 
