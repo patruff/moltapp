@@ -21,6 +21,55 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Signal strength weights for sentiment classification.
+ * Higher weight = stronger indicator of directional bias in reasoning.
+ */
+const SIGNAL_WEIGHT_STRONG = 0.9;      // Perfect indicators (e.g., "bullish", "bearish")
+const SIGNAL_WEIGHT_HIGH = 0.8;        // Very strong indicators (e.g., "undervalued", "overvalued")
+const SIGNAL_WEIGHT_MEDIUM = 0.7;      // Strong indicators (e.g., "upside", "downside", "growth potential")
+const SIGNAL_WEIGHT_MODERATE = 0.6;    // Moderate indicators (e.g., "fundamentals", "recovery", "cheap")
+const SIGNAL_WEIGHT_MILD = 0.5;        // Mild indicators (e.g., "rising", "support level", "distribute")
+const SIGNAL_WEIGHT_WEAK = 0.4;        // Weak indicators (e.g., "increase", "decrease", "monitor")
+
+/**
+ * Coherence scoring thresholds for action-sentiment alignment.
+ * Used to classify reasoning as supporting, ambiguous, or contradicting the action.
+ */
+const COHERENCE_SENTIMENT_THRESHOLD_BUY = 0.3;   // netSentiment > 0.3 = strong buy support
+const COHERENCE_SENTIMENT_THRESHOLD_SELL = -0.3; // netSentiment < -0.3 = strong sell support
+const COHERENCE_AMBIGUOUS_THRESHOLD = 0.1;       // |netSentiment| < 0.1 = ambiguous (low directional signal)
+const COHERENCE_CONTRARIAN_BONUS = 0.35;         // Bonus for valid contrarian/profit-taking justification
+const COHERENCE_HOLD_SENTIMENT_MAX = 0.3;        // |netSentiment| < 0.3 for hold = reasonable neutrality
+
+/**
+ * Hallucination detection thresholds.
+ * Used to identify fabricated or impossible market data claims.
+ */
+const HALLUCINATION_PRICE_TOLERANCE = 0.20;      // ±20% price deviation allowed (rounding tolerance)
+const HALLUCINATION_EXTREME_PCT_THRESHOLD = 50;  // Daily moves >50% flagged as implausible for major stocks
+const HALLUCINATION_SEVERITY_MULTIPLIER = 0.25;  // Each flag adds 0.25 to severity (capped at 1.0)
+
+/**
+ * Instruction discipline thresholds.
+ * Used to validate agent compliance with trading rules.
+ */
+const DISCIPLINE_SELL_QUANTITY_TOLERANCE = 1.01; // 1% rounding tolerance for sell quantity validation
+const DISCIPLINE_CONSERVATIVE_MIN_CONF = 0.3;    // Conservative agents require ≥30% confidence to trade
+const DISCIPLINE_VIOLATION_PENALTY = 0.25;       // Each violation reduces discipline score by 0.25
+
+/**
+ * Aggregate benchmark scoring weights.
+ * Combined score = coherence (40%) + hallucination-free (30%) + discipline (30%).
+ */
+const AGGREGATE_WEIGHT_COHERENCE = 0.4;          // 40% - logical consistency is primary quality indicator
+const AGGREGATE_WEIGHT_HALLUCINATION = 0.3;      // 30% - factual accuracy is critical
+const AGGREGATE_WEIGHT_DISCIPLINE = 0.3;         // 30% - rule compliance ensures fair benchmark
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -66,67 +115,67 @@ export interface AgentTradeConfig {
 
 /** Words/phrases indicating bullish sentiment in reasoning */
 const BULLISH_SIGNALS: [RegExp, number][] = [
-  [/\bundervalued\b/i, 0.8],
-  [/\bupside\b/i, 0.7],
-  [/\bbullish\b/i, 0.9],
-  [/\bgrowth\s+potential\b/i, 0.7],
-  [/\bbuying\s+opportunity\b/i, 0.8],
-  [/\bpositive\s+momentum\b/i, 0.7],
-  [/\bstrong\s+fundamentals?\b/i, 0.6],
-  [/\bbreakout\b/i, 0.7],
-  [/\brally\b/i, 0.6],
-  [/\baccumulate\b/i, 0.7],
-  [/\bsupport\s+level\b/i, 0.5],
-  [/\brecovery\b/i, 0.6],
-  [/\boptimistic\b/i, 0.7],
-  [/\bfavorable\b/i, 0.5],
-  [/\bcheap\b/i, 0.6],
-  [/\bdiscount\b/i, 0.6],
-  [/\bappreciat/i, 0.6],
-  [/\bincrease\b/i, 0.4],
-  [/\brise\b|\brising\b/i, 0.5],
-  [/\bgain\b|\bgains\b/i, 0.5],
+  [/\bundervalued\b/i, SIGNAL_WEIGHT_HIGH],
+  [/\bupside\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bbullish\b/i, SIGNAL_WEIGHT_STRONG],
+  [/\bgrowth\s+potential\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bbuying\s+opportunity\b/i, SIGNAL_WEIGHT_HIGH],
+  [/\bpositive\s+momentum\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bstrong\s+fundamentals?\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bbreakout\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\brally\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\baccumulate\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bsupport\s+level\b/i, SIGNAL_WEIGHT_MILD],
+  [/\brecovery\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\boptimistic\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bfavorable\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bcheap\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bdiscount\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bappreciat/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bincrease\b/i, SIGNAL_WEIGHT_WEAK],
+  [/\brise\b|\brising\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bgain\b|\bgains\b/i, SIGNAL_WEIGHT_MILD],
 ];
 
 /** Words/phrases indicating bearish sentiment in reasoning */
 const BEARISH_SIGNALS: [RegExp, number][] = [
-  [/\bovervalued\b/i, 0.8],
-  [/\bdownside\b/i, 0.7],
-  [/\bbearish\b/i, 0.9],
-  [/\brisk\s+of\s+decline\b/i, 0.7],
-  [/\bselling\s+pressure\b/i, 0.7],
-  [/\bnegative\s+momentum\b/i, 0.7],
-  [/\bweak\s+fundamentals?\b/i, 0.6],
-  [/\bbreakdown\b/i, 0.7],
-  [/\bcorrection\b/i, 0.6],
-  [/\bdistribute\b/i, 0.5],
-  [/\bresistance\s+level\b/i, 0.5],
-  [/\bdeclining\b/i, 0.6],
-  [/\bpessimistic\b/i, 0.7],
-  [/\bunfavorable\b/i, 0.5],
-  [/\bexpensive\b/i, 0.6],
-  [/\boverheated\b/i, 0.6],
-  [/\bdepreciat/i, 0.6],
-  [/\bdecrease\b/i, 0.4],
-  [/\bfall\b|\bfalling\b/i, 0.5],
-  [/\bloss\b|\blosses\b/i, 0.5],
-  [/\btake\s+profits?\b/i, 0.6],
-  [/\boverexposed\b/i, 0.6],
-  [/\btrim\s+position\b/i, 0.5],
+  [/\bovervalued\b/i, SIGNAL_WEIGHT_HIGH],
+  [/\bdownside\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bbearish\b/i, SIGNAL_WEIGHT_STRONG],
+  [/\brisk\s+of\s+decline\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bselling\s+pressure\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bnegative\s+momentum\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bweak\s+fundamentals?\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bbreakdown\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bcorrection\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bdistribute\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bresistance\s+level\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bdeclining\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bpessimistic\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bunfavorable\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bexpensive\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\boverheated\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bdepreciat/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bdecrease\b/i, SIGNAL_WEIGHT_WEAK],
+  [/\bfall\b|\bfalling\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bloss\b|\blosses\b/i, SIGNAL_WEIGHT_MILD],
+  [/\btake\s+profits?\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\boverexposed\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\btrim\s+position\b/i, SIGNAL_WEIGHT_MILD],
 ];
 
 /** Hold/caution signals */
 const NEUTRAL_SIGNALS: [RegExp, number][] = [
-  [/\buncertain\b/i, 0.6],
-  [/\bwait\b|\bwaiting\b/i, 0.5],
-  [/\bsidelines?\b/i, 0.7],
-  [/\bcaution\b|\bcautious\b/i, 0.6],
-  [/\bmixed\s+signals?\b/i, 0.7],
-  [/\bno\s+clear\b/i, 0.6],
-  [/\binsufficient\s+data\b/i, 0.7],
-  [/\bpatien/i, 0.5],
-  [/\bmonitor\b/i, 0.4],
-  [/\bobserv/i, 0.4],
+  [/\buncertain\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bwait\b|\bwaiting\b/i, SIGNAL_WEIGHT_MILD],
+  [/\bsidelines?\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bcaution\b|\bcautious\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\bmixed\s+signals?\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bno\s+clear\b/i, SIGNAL_WEIGHT_MODERATE],
+  [/\binsufficient\s+data\b/i, SIGNAL_WEIGHT_MEDIUM],
+  [/\bpatien/i, SIGNAL_WEIGHT_MILD],
+  [/\bmonitor\b/i, SIGNAL_WEIGHT_WEAK],
+  [/\bobserv/i, SIGNAL_WEIGHT_WEAK],
 ];
 
 // ---------------------------------------------------------------------------
@@ -205,10 +254,10 @@ export function analyzeCoherence(
   let explanation: string;
 
   if (action === "buy") {
-    if (netSentiment > 0.3) {
+    if (netSentiment > COHERENCE_SENTIMENT_THRESHOLD_BUY) {
       score = 0.7 + netSentiment * 0.3; // 0.79 to 1.0
       explanation = "Bullish reasoning supports buy action";
-    } else if (netSentiment > -0.1) {
+    } else if (netSentiment > -COHERENCE_AMBIGUOUS_THRESHOLD) {
       score = 0.5 + netSentiment * 0.2;
       explanation = "Reasoning is ambiguous but not contradictory for buy";
     } else {
@@ -217,15 +266,15 @@ export function analyzeCoherence(
 
       // Check for contrarian / mean_reversion justification
       if (/contrarian|mean\s+reversion|oversold|bounce|bottom/i.test(reasoning)) {
-        score = Math.min(1, score + 0.35);
+        score = Math.min(1, score + COHERENCE_CONTRARIAN_BONUS);
         explanation = "Bearish context with contrarian/mean-reversion justification for buy";
       }
     }
   } else if (action === "sell") {
-    if (netSentiment < -0.3) {
+    if (netSentiment < COHERENCE_SENTIMENT_THRESHOLD_SELL) {
       score = 0.7 + Math.abs(netSentiment) * 0.3;
       explanation = "Bearish reasoning supports sell action";
-    } else if (netSentiment < 0.1) {
+    } else if (netSentiment < COHERENCE_AMBIGUOUS_THRESHOLD) {
       score = 0.5 + Math.abs(netSentiment) * 0.2;
       explanation = "Reasoning is ambiguous but not contradictory for sell";
     } else {
@@ -234,13 +283,13 @@ export function analyzeCoherence(
 
       // Check for profit-taking justification
       if (/profit|take\s+gains|overexposed|rebalance|trim/i.test(reasoning)) {
-        score = Math.min(1, score + 0.35);
+        score = Math.min(1, score + COHERENCE_CONTRARIAN_BONUS);
         explanation = "Bullish context with profit-taking/rebalancing justification for sell";
       }
     }
   } else {
     // Hold
-    if (neutralScore > 0 || (Math.abs(netSentiment) < 0.3 && totalSignals > 0)) {
+    if (neutralScore > 0 || (Math.abs(netSentiment) < COHERENCE_HOLD_SENTIMENT_MAX && totalSignals > 0)) {
       score = 0.7 + (1 - Math.abs(netSentiment)) * 0.3;
       explanation = "Neutral/cautious reasoning supports hold action";
     } else if (totalSignals === 0) {
@@ -329,7 +378,7 @@ export function detectHallucinations(
       const realPrice = realPrices.get(symbol);
       if (realPrice !== undefined && claimedPrice > 0) {
         const deviation = Math.abs(claimedPrice - realPrice) / realPrice;
-        if (deviation > 0.20) {
+        if (deviation > HALLUCINATION_PRICE_TOLERANCE) {
           flags.push(
             `Price hallucination: claimed ${symbol.toUpperCase()} at $${claimedPrice.toFixed(2)}, actual $${realPrice.toFixed(2)} (${(deviation * 100).toFixed(0)}% off)`,
           );
@@ -363,7 +412,7 @@ export function detectHallucinations(
   const percentMatches = reasoning.match(/[+-]?\d+\.?\d*%/g) ?? [];
   for (const pctStr of percentMatches) {
     const pct = parseFloat(pctStr);
-    if (Math.abs(pct) > 50) {
+    if (Math.abs(pct) > HALLUCINATION_EXTREME_PCT_THRESHOLD) {
       // 24h change > 50% is extremely unusual for major stocks
       if (/24h|daily|today|change/i.test(reasoning)) {
         flags.push(`Implausible 24h change: ${pctStr} — major stocks rarely move this much in a day`);
@@ -382,7 +431,7 @@ export function detectHallucinations(
   // Calculate severity
   const severity = flags.length === 0
     ? 0
-    : Math.min(1, flags.length * 0.25);
+    : Math.min(1, flags.length * HALLUCINATION_SEVERITY_MULTIPLIER);
 
   return { flags, severity };
 }
@@ -444,7 +493,7 @@ export function checkInstructionDiscipline(
     );
     if (!position) {
       violations.push(`Trying to sell ${trade.symbol} but no position held`);
-    } else if (trade.quantity > position.quantity * 1.01) {
+    } else if (trade.quantity > position.quantity * DISCIPLINE_SELL_QUANTITY_TOLERANCE) {
       // 1% tolerance for rounding
       violations.push(
         `Trying to sell ${trade.quantity} shares of ${trade.symbol} but only holds ${position.quantity}`,
@@ -453,7 +502,7 @@ export function checkInstructionDiscipline(
   }
 
   // Check 4: Conservative agents shouldn't trade with low confidence
-  if (agentConfig.riskTolerance === "conservative" && trade.confidence < 0.3) {
+  if (agentConfig.riskTolerance === "conservative" && trade.confidence < DISCIPLINE_CONSERVATIVE_MIN_CONF) {
     violations.push(
       `Conservative agent trading with very low confidence (${(trade.confidence * 100).toFixed(0)}%)`,
     );
@@ -499,10 +548,10 @@ export function runFullAnalysis(
   // Aggregate score: weighted combination
   // Coherence: 40%, Hallucination-free: 30%, Discipline: 30%
   const hallucinationScore = 1 - hallucinations.severity;
-  const disciplineScore = discipline.passed ? 1.0 : Math.max(0, 1 - discipline.violations.length * 0.25);
+  const disciplineScore = discipline.passed ? 1.0 : Math.max(0, 1 - discipline.violations.length * DISCIPLINE_VIOLATION_PENALTY);
 
   const aggregateScore = round2(
-    coherence.score * 0.4 + hallucinationScore * 0.3 + disciplineScore * 0.3,
+    coherence.score * AGGREGATE_WEIGHT_COHERENCE + hallucinationScore * AGGREGATE_WEIGHT_HALLUCINATION + disciplineScore * AGGREGATE_WEIGHT_DISCIPLINE,
   );
 
   return {
