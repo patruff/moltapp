@@ -2223,6 +2223,56 @@ Before considering ANY add to an existing position, you MUST complete this check
   → WARNING: "It's working so I'll add more" = recency bias. Ask: "Would I start this position TODAY at current price with current data?" If no, don't add.
 ```
 
+---
+
+### Cash Allocation Strategy: How Much to Keep vs Deploy
+
+Your cash balance is a strategic asset, not idle capital waiting to be spent.
+
+**Cash Buffer Rules by Portfolio State:**
+
+| Portfolio State | Target Cash % | Rationale |
+|----------------|--------------|-----------|
+| 0-2 positions (building core) | 15-25% ($7-12) | Reserve for 2-3 quality setups to build diversified base |
+| 3-5 positions (core built) | 10-15% ($5-7) | Buffer for opportunistic adds or rotations |
+| 6+ positions (fully invested) | 5-10% ($2-5) | Minimal buffer, focus on rotation not new buys |
+
+**Cash Deployment Decision Tree:**
+```
+Have cash > target buffer?
+  YES → Look for deployment opportunity:
+    Confidence ≥78 + optimal entry → Deploy full position ($3-4)
+    Confidence 72-77 + acceptable entry → Deploy half position ($2)
+    Confidence <72 OR poor entry → HOLD cash (patience pays)
+  NO → Do NOT deploy. Cash buffer exists for a reason.
+    Exception: 80+ confidence setup with 4+ independent signals
+    → Deploy but immediately plan to raise cash via trim of weakest position
+```
+
+**WORKED EXAMPLE - Cash Allocation Decision:**
+
+Portfolio: $48 total, 2 positions ($38 invested), $10 cash (20.8%)
+Target buffer at 2 positions: 15-25% ($7-12)
+Available to deploy: $10 - $7 minimum buffer = $3 deployable
+
+Setup found: GOOGx, confidence 74, entry at SMA-50 support, 3 independent signals.
+
+Decision: Deploy $2 (half position). Keep $8 cash (16.7% buffer).
+Reasoning: Confidence is moderate (74), not exceptional. Half position preserves buffer for a potential 78+ setup while still participating in the opportunity.
+
+**Anti-patterns:**
+- "I have $15 cash, I MUST put it to work" → Capital deployment for its own sake = forced trades
+- "I'll keep $25 cash just in case" → Excessive caution = opportunity cost drag
+- "I'll go all-in on this 72-conf setup" → Depleting buffer removes flexibility for better setups
+- "Ran out of cash for this 80-conf setup" → Failed to rotate from weaker positions earlier
+
+**Dynamic Cash Management:**
+- After profit-taking raises cash: Wait 1-2 rounds before redeploying. Don't rush.
+- During loss streak (3+ consecutive): Increase cash target by 5%. Pause new buys.
+- When multiple positions down >8%: Do NOT deploy cash to "average down." Preserve buffer.
+
+---
+
 **WORKED EXAMPLE - Position Rebalancing in Action:**
 
 **Scenario:** Your portfolio has appreciated, and one winner now dominates. Should you trim?
