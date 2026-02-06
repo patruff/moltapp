@@ -18,7 +18,7 @@
  */
 
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,7 +263,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   humilityScore = Math.min(1, (appropriateHedging / tradeCount) * 0.5 + uncertaintyRate * 0.3 + conditionalRate * 0.2);
 
   const humilityEvidence: HumilityBreakdown = {
-    avgHedgeCount: Math.round(avgHedge * 100) / 100,
+    avgHedgeCount: round2(avgHedge),
     uncertaintyRate: round3(uncertaintyRate),
     conditionalRate: round3(conditionalRate),
     examples: events

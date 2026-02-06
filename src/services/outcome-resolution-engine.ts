@@ -28,6 +28,7 @@ import {
   computeGrade,
   normalizeMetric,
 } from "../schemas/benchmark-v23.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -312,10 +313,10 @@ export function computeCalibration(
     buckets.push({
       bucket: def.label,
       tradeCount: inBucket.length,
-      winRate: Math.round(winRate * 100) / 100,
-      avgPnl: Math.round(avgPnl * 100) / 100,
-      expectedWinRate: Math.round(expectedWinRate * 100) / 100,
-      ece: Math.round(ece * 100) / 100,
+      winRate: round2(winRate),
+      avgPnl: round2(avgPnl),
+      expectedWinRate: round2(expectedWinRate),
+      ece: round2(ece),
     });
   }
 
@@ -330,8 +331,8 @@ export function computeCalibration(
   return {
     agentId,
     totalResolved: resolutions.length,
-    overallAccuracy: Math.round(overallAccuracy * 100) / 100,
-    overallEce: Math.round(overallEce * 100) / 100,
+    overallAccuracy: round2(overallAccuracy),
+    overallEce: round2(overallEce),
     buckets,
     overconfidentCount: overconfident,
     underconfidentCount: underconfident,
@@ -376,12 +377,12 @@ export function computeV23CompositeScore(metrics: {
     score: Math.max(0, Math.min(100, score)),
     grade: computeGrade(score),
     breakdown: {
-      pnl: Math.round(pnlNorm * 100) / 100,
-      coherence: Math.round(coherenceNorm * 100) / 100,
-      hallucinationFree: Math.round(hallucinationNorm * 100) / 100,
-      discipline: Math.round(disciplineNorm * 100) / 100,
-      calibration: Math.round(calibrationNorm * 100) / 100,
-      predictionAccuracy: Math.round(predictionNorm * 100) / 100,
+      pnl: round2(pnlNorm),
+      coherence: round2(coherenceNorm),
+      hallucinationFree: round2(hallucinationNorm),
+      discipline: round2(disciplineNorm),
+      calibration: round2(calibrationNorm),
+      predictionAccuracy: round2(predictionNorm),
     },
   };
 }
@@ -582,8 +583,8 @@ export function getResolutionStats(): {
     totalRegistered: predictionStore.length,
     totalResolved: resolved.length,
     pendingCount: predictionStore.filter((p) => !p.resolved).length,
-    directionAccuracy: resolved.length > 0 ? Math.round((correct / resolved.length) * 100) / 100 : 0,
-    avgPnl: Math.round(avgPnl * 100) / 100,
+    directionAccuracy: resolved.length > 0 ? round2(correct / resolved.length) : 0,
+    avgPnl: round2(avgPnl),
   };
 }
 
@@ -618,7 +619,7 @@ export function buildAgentPredictionProfile(agentId: string): {
   }
   for (const sym of Object.keys(bySymbol)) {
     if (bySymbol[sym].count > 0) {
-      bySymbol[sym].accuracy = Math.round((bySymbol[sym].accuracy / bySymbol[sym].count) * 100) / 100;
+      bySymbol[sym].accuracy = round2(bySymbol[sym].accuracy / bySymbol[sym].count);
     }
   }
 
@@ -627,9 +628,9 @@ export function buildAgentPredictionProfile(agentId: string): {
     totalPredictions: agentPredictions.length,
     resolved: resolved.length,
     pending: agentPredictions.filter((p) => !p.resolved).length,
-    accuracy: resolved.length > 0 ? Math.round((correct / resolved.length) * 100) / 100 : 0,
-    avgConfidence: Math.round(avgConf * 100) / 100,
-    avgPnl: Math.round(avgPnl * 100) / 100,
+    accuracy: resolved.length > 0 ? round2(correct / resolved.length) : 0,
+    avgConfidence: round2(avgConf),
+    avgPnl: round2(avgPnl),
     bySymbol,
   };
 }

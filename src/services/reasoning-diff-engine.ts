@@ -15,6 +15,8 @@
  * differently — which is exactly what makes AI trading interesting.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -195,11 +197,11 @@ export function generateRoundDiffs(roundId: string): RoundDiffReport | null {
     timestamp: snapshots[0].timestamp,
     diffs,
     stats: {
-      avgDivergence: Math.round(avgDivergence * 100) / 100,
+      avgDivergence: round2(avgDivergence),
       actionConflictRate: diffs.length > 0
-        ? Math.round((actionConflicts / diffs.length) * 100) / 100
+        ? round2(actionConflicts / diffs.length)
         : 0,
-      avgConfidenceSpread: Math.round(avgConfidenceSpread * 100) / 100,
+      avgConfidenceSpread: round2(avgConfidenceSpread),
       mostDisagreedSymbol,
       consensusSymbols,
     },
@@ -243,7 +245,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
   const lenB = b.reasoning.length;
   const deeperReasoningAgent = lenA >= lenB ? a.agentId : b.agentId;
   const reasoningLengthRatio = Math.min(lenA, lenB) > 0
-    ? Math.round((Math.max(lenA, lenB) / Math.min(lenA, lenB)) * 100) / 100
+    ? round2(Math.max(lenA, lenB) / Math.min(lenA, lenB))
     : 1;
 
   // Coherence comparison
@@ -288,7 +290,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
 
   const analysis: DiffAnalysis = {
     actionConflict,
-    confidenceSpread: Math.round(confidenceSpread * 100) / 100,
+    confidenceSpread: round2(confidenceSpread),
     intentMatch,
     sharedSources,
     uniqueSourcesA,
@@ -296,7 +298,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
     deeperReasoningAgent,
     reasoningLengthRatio,
     higherCoherenceAgent,
-    divergenceScore: Math.round(divergence * 100) / 100,
+    divergenceScore: round2(divergence),
     summary: summaryParts.join(". "),
   };
 
@@ -381,16 +383,16 @@ export function getAgentDiffProfile(agentId: string): AgentDiffProfile {
   return {
     agentId,
     avgDivergenceScore: totalDiffs > 0
-      ? Math.round((totalDivergence / totalDiffs) * 100) / 100
+      ? round2(totalDivergence / totalDiffs)
       : 0,
     contrarianRate: totalDiffs > 0
-      ? Math.round((contrarianCount / totalDiffs) * 100) / 100
+      ? round2(contrarianCount / totalDiffs)
       : 0,
     relativeConfidence: totalDiffs > 0
-      ? Math.round((totalRelativeConfidence / totalDiffs) * 100) / 100
+      ? round2(totalRelativeConfidence / totalDiffs)
       : 0,
     relativeReasoningDepth: totalDiffs > 0
-      ? Math.round((totalRelativeDepth / totalDiffs) * 100) / 100
+      ? round2(totalRelativeDepth / totalDiffs)
       : 0,
     disagreementIntent,
     roundsAnalyzed: diffHistory.filter((r) =>
@@ -442,9 +444,9 @@ export function getDiffAggregateStats(): {
   return {
     totalRounds: diffHistory.length,
     totalDiffs,
-    avgDivergence: Math.round(avgDivergence * 100) / 100,
-    avgActionConflictRate: Math.round(avgActionConflictRate * 100) / 100,
-    avgConfidenceSpread: Math.round(avgConfidenceSpread * 100) / 100,
+    avgDivergence: round2(avgDivergence),
+    avgActionConflictRate: round2(avgActionConflictRate),
+    avgConfidenceSpread: round2(avgConfidenceSpread),
     mostCommonConflictSymbol,
   };
 }

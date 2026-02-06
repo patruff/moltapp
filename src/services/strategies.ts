@@ -30,6 +30,7 @@ import type {
 } from "../db/schema/strategies.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -666,7 +667,7 @@ export async function getStrategyLeaderboard() {
       timeframe: strategy.timeframe,
       avgRating: strategy.avgRating,
       totalAdopters: strategy.totalAdopters,
-      avgPerformance: Math.round(avgPerf * 100) / 100,
+      avgPerformance: round2(avgPerf),
       bestPerformance:
         performances.length > 0
           ? Math.round(Math.max(...performances) * 100) / 100
@@ -1001,7 +1002,7 @@ export async function getStrategyPerformance(
     strategyName: strategy.name,
     totalAdopters: adoptions.length,
     activeAdopters: activeAdoptions.length,
-    avgPerformance: Math.round(avgPerf * 100) / 100,
+    avgPerformance: round2(avgPerf),
     bestPerformance:
       performances.length > 0
         ? Math.round(Math.max(...performances) * 100) / 100
@@ -1010,7 +1011,7 @@ export async function getStrategyPerformance(
       performances.length > 0
         ? Math.round(Math.min(...performances) * 100) / 100
         : 0,
-    medianPerformance: Math.round(medianPerf * 100) / 100,
+    medianPerformance: round2(medianPerf),
     totalTradesExecuted: totalTrades,
     signalsGenerated: allSignals.length,
     recentSignals,
@@ -1178,7 +1179,7 @@ export async function getStrategyComparison(
       timeframe: strategy.timeframe,
       avgRating: strategy.avgRating,
       totalAdopters: strategy.totalAdopters,
-      avgPerformance: Math.round(avgPerf * 100) / 100,
+      avgPerformance: round2(avgPerf),
       totalSignals: allSignals.length,
       recentSignalStrength: Math.round(recentStrength),
     });

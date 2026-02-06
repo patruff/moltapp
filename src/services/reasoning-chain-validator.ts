@@ -13,7 +13,7 @@
  * 6. AGGREGATED CHAIN QUALITY SCORE: Overall chain integrity metric
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -751,7 +751,7 @@ export function validateReasoningChain(
     defects,
     chainQualityScore,
     stepCount: steps.length,
-    avgStepEvidence: Math.round(avgStepEvidence * 100) / 100,
+    avgStepEvidence: round2(avgStepEvidence),
     longestLogicalChain: longestChain,
     hasCircularReasoning: defects.some((d) => d.type === "circular_reasoning"),
     hasMajorGaps: defects.some((d) => d.type === "evidence_gap" && d.severity > 0.5),
@@ -823,9 +823,9 @@ export function getAllChainProfiles(): Record<
     const defectRate = totalSteps > 0 ? totalDefects / totalSteps : 0;
 
     profiles[agentId] = {
-      avgQuality: Math.round(avgQuality * 100) / 100,
-      avgEvidence: Math.round(avgEvidence * 100) / 100,
-      defectRate: Math.round(defectRate * 100) / 100,
+      avgQuality: round2(avgQuality),
+      avgEvidence: round2(avgEvidence),
+      defectRate: round2(defectRate),
       totalChains: history.length,
     };
   }

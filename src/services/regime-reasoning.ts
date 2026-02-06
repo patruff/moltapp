@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -155,9 +155,9 @@ export function detectMarketRegime(
 
   const snapshot: RegimeSnapshot = {
     regime,
-    avgChange: Math.round(avgChange * 100) / 100,
-    maxChange: Math.round(maxChange * 100) / 100,
-    changeStdDev: Math.round(changeStdDev * 100) / 100,
+    avgChange: round2(avgChange),
+    maxChange: round2(maxChange),
+    changeStdDev: round2(changeStdDev),
     stocksUp,
     stocksDown,
     timestamp: new Date().toISOString(),

@@ -16,6 +16,7 @@
  */
 
 import { recordBenchmarkReturn } from "./risk-adjusted-leaderboard.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -322,10 +323,10 @@ function computeAgentComparison(
   return {
     agentId,
     agentName,
-    agentReturn: Math.round(agentCumulativeReturn * 100) / 100,
-    spyReturn: Math.round(spyCumulativeReturn * 100) / 100,
+    agentReturn: round2(agentCumulativeReturn),
+    spyReturn: round2(spyCumulativeReturn),
     alpha,
-    beta: Math.round(beta * 100) / 100,
+    beta: round2(beta),
     informationRatio,
     trackingError: Math.round(trackingError * 10000) / 10000,
     outperforming: agentCumulativeReturn > spyCumulativeReturn,
@@ -397,8 +398,8 @@ function calculateRollingComparisons(
 
     results.push({
       period: period.label,
-      agentReturn: Math.round(agentReturn * 100) / 100,
-      spyReturn: Math.round(spyReturn * 100) / 100,
+      agentReturn: round2(agentReturn),
+      spyReturn: round2(spyReturn),
       alpha: Math.round((agentReturn - spyReturn) * 100) / 100,
     });
   }
@@ -428,8 +429,8 @@ function buildEquityCurve(
 
     curve.push({
       date: ar.date,
-      agentValue: Math.round(ar.portfolioValue * 100) / 100,
-      benchmarkValue: Math.round(benchmarkValue * 100) / 100,
+      agentValue: round2(ar.portfolioValue),
+      benchmarkValue: round2(benchmarkValue),
     });
   }
 

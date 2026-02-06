@@ -18,7 +18,7 @@
  * Rankings are updated in real-time as trades are scored.
  */
 
-import { mean, round3 } from "../lib/math-utils.ts";
+import { mean, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -405,13 +405,13 @@ export function getLeaderboard(options?: {
       compositeScore: round3(avgComposite),
       grade,
       metrics: {
-        pnlPercent: Math.round(avgPnl * 100) / 100,
-        sharpeRatio: Math.round(sharpe * 100) / 100,
-        coherence: Math.round(avgCoherence * 100) / 100,
-        hallucinationRate: Math.round(halRate * 100) / 100,
-        disciplineRate: Math.round(discRate * 100) / 100,
-        calibrationScore: Math.round(avgCalibration * 100) / 100,
-        winRate: Math.round(winRate * 100) / 100,
+        pnlPercent: round2(avgPnl),
+        sharpeRatio: round2(sharpe),
+        coherence: round2(avgCoherence),
+        hallucinationRate: round2(halRate),
+        disciplineRate: round2(discRate),
+        calibrationScore: round2(avgCalibration),
+        winRate: round2(winRate),
       },
       ratings: {
         elo: state.elo,

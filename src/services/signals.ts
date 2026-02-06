@@ -15,7 +15,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,10 +334,10 @@ function calculateBollingerBands(
   const squeeze = bandwidth < 4;
 
   return {
-    upper: Math.round(upper * 100) / 100,
-    middle: Math.round(middle * 100) / 100,
-    lower: Math.round(lower * 100) / 100,
-    bandwidth: Math.round(bandwidth * 100) / 100,
+    upper: round2(upper),
+    middle: round2(middle),
+    lower: round2(lower),
+    bandwidth: round2(bandwidth),
     percentB: round3(percentB),
     squeeze,
   };
@@ -356,7 +356,7 @@ function calculateVolumeProfile(
   return {
     current: decisionCount,
     average: avgDecisionCount,
-    ratio: Math.round(ratio * 100) / 100,
+    ratio: round2(ratio),
     spike,
     trend,
   };
@@ -388,10 +388,10 @@ function calculateMomentum(prices: number[]): MomentumData {
   const acceleration = shortTerm - mediumTerm;
 
   return {
-    shortTerm: Math.round(shortTerm * 100) / 100,
-    mediumTerm: Math.round(mediumTerm * 100) / 100,
-    longTerm: Math.round(longTerm * 100) / 100,
-    acceleration: Math.round(acceleration * 100) / 100,
+    shortTerm: round2(shortTerm),
+    mediumTerm: round2(mediumTerm),
+    longTerm: round2(longTerm),
+    acceleration: round2(acceleration),
   };
 }
 
@@ -1012,9 +1012,7 @@ export async function getSignalDashboard(): Promise<SignalDashboard> {
     .map((m) => Math.abs(m.change24h!));
   const volatilityIndex =
     changes.length > 0
-      ? Math.round(
-          (changes.reduce((s, c) => s + c, 0) / changes.length) * 100,
-        ) / 100
+      ? round2(changes.reduce((s, c) => s + c, 0) / changes.length)
       : 0;
 
   // Trending stocks (most signals)

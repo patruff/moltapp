@@ -406,7 +406,7 @@ function analyzeStrategyAlignment(
   // Score: higher dominant share = more consistent
   const score = Math.min(1, dominantIntentShare + 0.2); // Give some base credit
 
-  return { score: Math.round(score * 100) / 100 };
+  return { score: round2(score) };
 }
 
 // ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ function analyzeReasoningEvolution(
   const avgCoherence = allCoherences.reduce((s, v) => s + v, 0) / allCoherences.length;
   if (avgCoherence > 0.7) score = Math.min(1, score + 0.1);
 
-  return { score: Math.round(score * 100) / 100, trend };
+  return { score: round2(score), trend };
 }
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@
  * 7. VOCABULARY SOPHISTICATION: Financial vocabulary diversity and precision
  */
 
-import { countWords, splitSentences } from "../lib/math-utils.ts";
+import { countWords, round2, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -223,7 +223,7 @@ function measureAnalyticalBreadth(reasoning: string): { breadth: number; angleCo
   }
   // Normalize: using 6+ out of 12 angles = 1.0
   const breadth = Math.min(1, angleCount / 6);
-  return { breadth: Math.round(breadth * 100) / 100, angleCount };
+  return { breadth: round2(breadth), angleCount };
 }
 
 function measureCausalDepth(reasoning: string): number {
@@ -257,7 +257,7 @@ function measureCausalDepth(reasoning: string): number {
   const sentences = splitSentences(reasoning);
   if (sentences.length >= 3) score += 0.1;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 function measureUncertaintyModeling(reasoning: string): number {
@@ -291,7 +291,7 @@ function measureUncertaintyModeling(reasoning: string): number {
   if (/\bscenario\b/i.test(reasoning)) score += 0.1;
   if (/\bbest case\b|\bworst case\b|\bbase case\b/i.test(reasoning)) score += 0.15;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 function measureTemporalAwareness(reasoning: string): number {
@@ -324,7 +324,7 @@ function measureTemporalAwareness(reasoning: string): number {
   // Bonus for covering all three temporal dimensions
   if (dimensions >= 3) score += 0.1;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 function measureCounterfactualReasoning(reasoning: string): number {
@@ -355,7 +355,7 @@ function measureCounterfactualReasoning(reasoning: string): number {
     score += 0.15;
   }
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 function measureCrossAssetAwareness(reasoning: string): number {
@@ -386,7 +386,7 @@ function measureCrossAssetAwareness(reasoning: string): number {
   // Hedge discussion
   if (/\bhedge\b|\boffset\b|\bbalance\b/i.test(reasoning)) score += 0.1;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, round2(score));
 }
 
 function measureVocabularySophistication(reasoning: string): number {
@@ -401,7 +401,7 @@ function measureVocabularySophistication(reasoning: string): number {
 
   // Normalize: using 5+ sophisticated terms = 1.0
   const score = Math.min(1, sophisticatedTermCount / 5);
-  return Math.round(score * 100) / 100;
+  return round2(score);
 }
 
 // ---------------------------------------------------------------------------

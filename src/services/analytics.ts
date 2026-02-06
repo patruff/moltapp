@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, round3 } from "../lib/math-utils.ts";
+import { calculateAverage, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -544,7 +544,7 @@ function computePerformance(
     avgConfidenceOnLosses: Math.round(lossesConf * 10) / 10,
     bestDecision: best ? { id: best.id, action: best.action, symbol: best.symbol, confidence: best.confidence, reasoning: best.reasoning, timestamp: best.createdAt } : null,
     worstDecision: worst ? { id: worst.id, action: worst.action, symbol: worst.symbol, confidence: worst.confidence, reasoning: worst.reasoning, timestamp: worst.createdAt } : null,
-    profitFactor: Math.round(profitFactor * 100) / 100,
+    profitFactor: round2(profitFactor),
   };
 }
 
@@ -619,15 +619,15 @@ function computeRiskMetrics(
     : 0;
 
   return {
-    sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+    sharpeRatio: round2(sharpeRatio),
     maxDrawdown: Math.round(maxDrawdown * 10000) / 10000,
     maxDrawdownPercent: Math.round(maxDrawdown * 10000) / 100,
     volatility: Math.round(volatility * 10000) / 10000,
     downsideDeviation: Math.round(downsideDeviation * 10000) / 10000,
-    sortinoRatio: Math.round(sortinoRatio * 100) / 100,
-    calmarRatio: Math.round(calmarRatio * 100) / 100,
+    sortinoRatio: round2(sortinoRatio),
+    calmarRatio: round2(calmarRatio),
     valueAtRisk95: Math.round(valueAtRisk95 * 10000) / 10000,
-    avgPositionSize: Math.round(avgPositionSize * 100) / 100,
+    avgPositionSize: round2(avgPositionSize),
     maxPositionConcentration: Math.round(maxPositionConcentration * 10) / 10,
   };
 }
@@ -937,7 +937,7 @@ async function computeSocialMetrics(decisionIds: number[]): Promise<SocialMetric
     bullishReactions,
     bearishReactions,
     totalComments,
-    avgReactionsPerDecision: Math.round(avgReactionsPerDecision * 100) / 100,
+    avgReactionsPerDecision: round2(avgReactionsPerDecision),
     communityAgreement: Math.round(communityAgreement * 10) / 10,
   };
 }
@@ -1036,7 +1036,7 @@ function computeComparisonEntry(
     totalDecisions: decisions.length,
     winRate: Math.round(winRate * 10) / 10,
     avgConfidence: Math.round(avgConf * 10) / 10,
-    sharpeRatio: Math.round(sharpe * 100) / 100,
+    sharpeRatio: round2(sharpe),
     maxDrawdown: Math.round(maxDD * 10000) / 10000,
     favoriteStock,
     riskTolerance: config.riskTolerance,
@@ -1205,7 +1205,7 @@ function computeMarketConditions(marketData: MarketData[]): MarketConditions {
   const volatility: "high" | "medium" | "low" = avgAbsChange > 3 ? "high" : avgAbsChange > 1.5 ? "medium" : "low";
 
   return {
-    avgChange24h: Math.round(avgChange * 100) / 100,
+    avgChange24h: round2(avgChange),
     topGainer,
     topLoser,
     overallSentiment,

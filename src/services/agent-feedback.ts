@@ -15,7 +15,7 @@
  * - Cross-agent comparison signals
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -224,8 +224,8 @@ export function resolveOutcome(
       outcome.entryPrice > 0
         ? ((exitPrice - outcome.entryPrice) / outcome.entryPrice) * 100
         : 0;
-    outcome.realizedPnl = Math.round(pnl * 100) / 100;
-    outcome.realizedPnlPercent = Math.round(pnlPercent * 100) / 100;
+    outcome.realizedPnl = round2(pnl);
+    outcome.realizedPnlPercent = round2(pnlPercent);
     outcome.profitable = pnl > 0;
   } else if (outcome.action === "sell") {
     // For sells, profit is entry - exit (sold at entry, price dropped = good)
@@ -234,8 +234,8 @@ export function resolveOutcome(
       outcome.entryPrice > 0
         ? ((outcome.entryPrice - exitPrice) / outcome.entryPrice) * 100
         : 0;
-    outcome.realizedPnl = Math.round(pnl * 100) / 100;
-    outcome.realizedPnlPercent = Math.round(pnlPercent * 100) / 100;
+    outcome.realizedPnl = round2(pnl);
+    outcome.realizedPnlPercent = round2(pnlPercent);
     outcome.profitable = pnl > 0;
   } else {
     // Hold — no PnL
@@ -278,7 +278,7 @@ export function updateUnrealizedPnL(
     totalUnrealized += outcome.unrealizedPnl;
   }
 
-  return Math.round(totalUnrealized * 100) / 100;
+  return round2(totalUnrealized);
 }
 
 // ---------------------------------------------------------------------------
@@ -334,10 +334,10 @@ export function getPerformanceProfile(
     totalOutcomes: outcomes.length,
     resolvedOutcomes: resolved.length,
     winRate: round3(winRate),
-    averagePnl: Math.round(averagePnl * 100) / 100,
-    averageWin: Math.round(averageWin * 100) / 100,
-    averageLoss: Math.round(averageLoss * 100) / 100,
-    profitFactor: profitFactor === Infinity ? 999 : Math.round(profitFactor * 100) / 100,
+    averagePnl: round2(averagePnl),
+    averageWin: round2(averageWin),
+    averageLoss: round2(averageLoss),
+    profitFactor: profitFactor === Infinity ? 999 : round2(profitFactor),
     currentStreak,
     bestStreak,
     worstStreak,
@@ -431,10 +431,10 @@ function calculateSymbolPerformance(
       trades: trades.length,
       wins: wins.length,
       winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
-      totalPnl: Math.round(totalPnl * 100) / 100,
-      averagePnl: trades.length > 0 ? Math.round((totalPnl / trades.length) * 100) / 100 : 0,
-      bestTrade: pnls.length > 0 ? Math.round(Math.max(...pnls) * 100) / 100 : 0,
-      worstTrade: pnls.length > 0 ? Math.round(Math.min(...pnls) * 100) / 100 : 0,
+      totalPnl: round2(totalPnl),
+      averagePnl: trades.length > 0 ? round2(totalPnl / trades.length) : 0,
+      bestTrade: pnls.length > 0 ? round2(Math.max(...pnls)) : 0,
+      worstTrade: pnls.length > 0 ? round2(Math.min(...pnls)) : 0,
     };
   }
 
@@ -472,7 +472,7 @@ function calculateActionPerformance(
       trades: trades.length,
       wins: wins.length,
       winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
-      averagePnl: trades.length > 0 ? Math.round((totalPnl / trades.length) * 100) / 100 : 0,
+      averagePnl: trades.length > 0 ? round2(totalPnl / trades.length) : 0,
       averageConfidence: Math.round(avgConfidence),
     };
   }
@@ -678,7 +678,7 @@ export function generateCrossAgentComparison(
 
   return sorted.map((entry, index) => {
     const p = entry.profile;
-    const totalPnl = Math.round(p.averagePnl * p.resolvedOutcomes * 100) / 100;
+    const totalPnl = round2(p.averagePnl * p.resolvedOutcomes);
 
     let comparisonNote: string;
     if (index === 0) {

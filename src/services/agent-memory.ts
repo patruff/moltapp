@@ -23,6 +23,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -417,7 +418,7 @@ function updatePriceLevels(profile: StockProfile, trade: TradeMemory): void {
   } else {
     profile.priceLevels.push({
       type: trade.action === "buy" ? "support" : "resistance",
-      price: Math.round(price * 100) / 100,
+      price: round2(price),
       strength: 1,
       lastTested: trade.timestamp,
     });
@@ -995,7 +996,7 @@ export function getAgentMemory(agentId: string): {
     totalMemories: memory.tradeMemories.length,
     totalPatterns: memory.patterns.length,
     totalStockProfiles: memory.stockProfiles.size,
-    overallWinRate: Math.round(memory.overallWinRate * 100) / 100,
+    overallWinRate: round2(memory.overallWinRate),
     bestSector: memory.bestSector,
     worstSector: memory.worstSector,
     keyLessons: memory.keyLessons,
@@ -1043,7 +1044,7 @@ export function getMemorySystemStatus(): {
       agentId,
       memories: memory.tradeMemories.length,
       patterns: memory.patterns.length,
-      winRate: Math.round(memory.overallWinRate * 100) / 100,
+      winRate: round2(memory.overallWinRate),
       lastUpdated: memory.lastUpdated,
     });
   }

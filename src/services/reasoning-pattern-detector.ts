@@ -13,7 +13,7 @@
  * This feeds into the benchmark's qualitative scoring pillar.
  */
 
-import { normalize, round3 } from "../lib/math-utils.ts";
+import { normalize, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -283,7 +283,7 @@ export function analyzeReasoningPatterns(
     uniqueWords,
     typeTokenRatio: round3(typeTokenRatio),
     financeTerms,
-    sophisticationScore: Math.round(sophisticationScore * 100) / 100,
+    sophisticationScore: round2(sophisticationScore),
   };
 
   // 4. Template probability (high similarity if very low type-token ratio)
@@ -325,7 +325,7 @@ export function analyzeReasoningPatterns(
     fallacies,
     depth,
     vocabulary,
-    templateProbability: Math.round(templateProbability * 100) / 100,
+    templateProbability: round2(templateProbability),
     hedgeRatio,
     quantitativeRatio: Math.min(1, quantitativeRatio),
     qualityScore,
@@ -387,8 +387,8 @@ export function detectQualityTrend(agentId: string): {
 
   return {
     trend,
-    recentAvg: Math.round(recentAvg * 100) / 100,
-    historicalAvg: Math.round(historicalAvg * 100) / 100,
+    recentAvg: round2(recentAvg),
+    historicalAvg: round2(historicalAvg),
     sampleCount: history.length,
   };
 }

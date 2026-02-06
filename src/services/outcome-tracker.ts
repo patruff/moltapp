@@ -17,6 +17,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, isNull, and, lte, sql, desc } from "drizzle-orm";
 import type { MarketData } from "../agents/base-agent.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -296,8 +297,8 @@ export function calculateConfidenceCalibration(
     return {
       confidenceRange: bucket.label,
       tradeCount: inBucket.length,
-      winRate: Math.round(winRate * 100) / 100,
-      avgPnl: Math.round(avgPnl * 100) / 100,
+      winRate: round2(winRate),
+      avgPnl: round2(avgPnl),
     };
   });
 
@@ -324,7 +325,7 @@ export function calculateConfidenceCalibration(
   }
 
   return {
-    score: Math.round(score * 100) / 100,
+    score: round2(score),
     buckets: bucketResults,
     totalTrades: withPnl.length,
   };
@@ -364,8 +365,8 @@ export function getOutcomeTrackerStats(agentId?: string): OutcomeTrackerStats {
     lossCount,
     breakevenCount,
     pendingCount,
-    avgPnlPercent: Math.round(avgPnlPercent * 100) / 100,
-    calibrationScore: Math.round(calibrationScore * 100) / 100,
+    avgPnlPercent: round2(avgPnlPercent),
+    calibrationScore: round2(calibrationScore),
     lastRun: trackerState.lastRun,
   };
 }

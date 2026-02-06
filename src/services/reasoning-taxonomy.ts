@@ -20,7 +20,7 @@
  * - Build structured datasets for reasoning quality research
  */
 
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -386,7 +386,7 @@ export function classifyReasoning(reasoning: string, action: string): TaxonomyCl
     sophisticationLevel,
     themes,
     fingerprint,
-    classificationConfidence: Math.round(classificationConfidence * 100) / 100,
+    classificationConfidence: round2(classificationConfidence),
   };
 }
 

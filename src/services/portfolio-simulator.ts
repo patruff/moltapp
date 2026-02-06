@@ -20,6 +20,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, lte, and, InferSelectModel } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type AgentDecision = InferSelectModel<typeof agentDecisions>;
@@ -366,9 +367,9 @@ export async function runSimulation(config: SimulationConfig): Promise<Simulatio
   // Build summary
   const summary: SimulationSummary = {
     startingCapital: config.startingCapital,
-    endingValue: Math.round(finalValue * 100) / 100,
-    totalReturn: Math.round(totalReturn * 100) / 100,
-    totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
+    endingValue: round2(finalValue),
+    totalReturn: round2(totalReturn),
+    totalReturnPercent: round2(totalReturnPercent),
     totalTrades: tradesFollowed + tradesSkipped,
     tradesFollowed,
     tradesSkipped,
@@ -446,8 +447,8 @@ export async function quickSimulation(
     agentId,
     agentName: config.name,
     startingCapital,
-    estimatedReturn: Math.round(estimatedReturn * 100) / 100,
-    estimatedReturnPercent: Math.round((estimatedReturn / startingCapital) * 10000) / 100,
+    estimatedReturn: round2(estimatedReturn),
+    estimatedReturnPercent: round2((estimatedReturn / startingCapital) * 100),
     totalDecisions: decisions.length,
     decisionsFollowed: actionDecisions.length,
     avgConfidence: Math.round(avgConfidence * 10) / 10,
@@ -573,15 +574,15 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   const var95 = sortedReturns[varIdx] ?? 0;
 
   return {
-    annualizedReturn: Math.round(annualizedReturn * 10000) / 100,
-    annualizedVolatility: Math.round(annualizedVol * 10000) / 100,
-    sharpeRatio: Math.round(sharpe * 100) / 100,
-    sortinoRatio: Math.round(sortino * 100) / 100,
-    maxDrawdown: Math.round(maxDD * 100) / 100,
-    maxDrawdownPercent: Math.round(maxDDPercent * 100) / 100,
+    annualizedReturn: round2(annualizedReturn * 100),
+    annualizedVolatility: round2(annualizedVol * 100),
+    sharpeRatio: round2(sharpe),
+    sortinoRatio: round2(sortino),
+    maxDrawdown: round2(maxDD),
+    maxDrawdownPercent: round2(maxDDPercent),
     maxDrawdownDuration: maxDDDuration,
-    calmarRatio: Math.round(calmar * 100) / 100,
-    valueAtRisk95: Math.round(var95 * 10000) / 100,
+    calmarRatio: round2(calmar),
+    valueAtRisk95: round2(var95 * 100),
     beta: 1, // Placeholder — would need SPYx correlation data
   };
 }
@@ -605,7 +606,7 @@ function buildAgentBreakdown(
       weight: weights[idx],
       tradesGenerated: agentTrades.length,
       tradesFollowed: followed.length,
-      estimatedContribution: Math.round(weights[idx] * config.startingCapital * 100) / 100,
+      estimatedContribution: round2(weights[idx] * config.startingCapital),
       avgConfidence: Math.round(avgConf * 10) / 10,
     };
   });
@@ -642,7 +643,7 @@ function findBestDay(snapshots: DailySnapshot[]): { date: string; returnPercent:
   const best = snapshots.reduce((prev, curr) =>
     curr.dailyReturnPercent > prev.dailyReturnPercent ? curr : prev,
   );
-  return { date: best.date, returnPercent: Math.round(best.dailyReturnPercent * 100) / 100 };
+  return { date: best.date, returnPercent: round2(best.dailyReturnPercent) };
 }
 
 function findWorstDay(snapshots: DailySnapshot[]): { date: string; returnPercent: number } | null {
@@ -650,5 +651,5 @@ function findWorstDay(snapshots: DailySnapshot[]): { date: string; returnPercent
   const worst = snapshots.reduce((prev, curr) =>
     curr.dailyReturnPercent < prev.dailyReturnPercent ? curr : prev,
   );
-  return { date: worst.date, returnPercent: Math.round(worst.dailyReturnPercent * 100) / 100 };
+  return { date: worst.date, returnPercent: round2(worst.dailyReturnPercent) };
 }

@@ -18,6 +18,8 @@
  * 5. ORIGINALITY — who brought novel analysis vs templated responses?
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -216,12 +218,12 @@ function scoreAgent(
     originality * 0.15;
 
   return {
-    evidenceWeight: Math.round(evidence * 100) / 100,
-    logicalConsistency: Math.round(logicalConsistency * 100) / 100,
-    calibrationAccuracy: Math.round(calibrationAccuracy * 100) / 100,
-    riskDisclosure: Math.round(riskDisclosure * 100) / 100,
-    originality: Math.round(originality * 100) / 100,
-    composite: Math.round(composite * 100) / 100,
+    evidenceWeight: round2(evidence),
+    logicalConsistency: round2(logicalConsistency),
+    calibrationAccuracy: round2(calibrationAccuracy),
+    riskDisclosure: round2(riskDisclosure),
+    originality: round2(originality),
+    composite: round2(composite),
   };
 }
 
@@ -245,22 +247,22 @@ export function arbitrate(
 
   // Recalculate originality as pairwise
   const [origA, origB] = computeOriginality(reasoningA, reasoningB);
-  scoresA.originality = Math.round(origA * 100) / 100;
-  scoresB.originality = Math.round(origB * 100) / 100;
-  scoresA.composite = Math.round((
+  scoresA.originality = round2(origA);
+  scoresB.originality = round2(origB);
+  scoresA.composite = round2(
     scoresA.evidenceWeight * 0.25 +
     scoresA.logicalConsistency * 0.25 +
     scoresA.calibrationAccuracy * 0.20 +
     scoresA.riskDisclosure * 0.15 +
     scoresA.originality * 0.15
-  ) * 100) / 100;
-  scoresB.composite = Math.round((
+  );
+  scoresB.composite = round2(
     scoresB.evidenceWeight * 0.25 +
     scoresB.logicalConsistency * 0.25 +
     scoresB.calibrationAccuracy * 0.20 +
     scoresB.riskDisclosure * 0.15 +
     scoresB.originality * 0.15
-  ) * 100) / 100;
+  );
 
   const diff = scoresA.composite - scoresB.composite;
   const margin = Math.abs(diff);
@@ -312,7 +314,7 @@ export function arbitrate(
     scoresA,
     scoresB,
     winner,
-    margin: Math.round(margin * 100) / 100,
+    margin: round2(margin),
     ruling,
     isDisagreement,
     timestamp: new Date().toISOString(),
@@ -402,7 +404,7 @@ export function getAgentArbitrationProfile(agentId: string): AgentArbitrationPro
   const total = cases.length || 1;
   const avgDimensions: Record<string, number> = {};
   for (const [dim, sum] of Object.entries(dimensionSums)) {
-    avgDimensions[dim] = Math.round((sum / total) * 100) / 100;
+    avgDimensions[dim] = round2(sum / total);
   }
 
   const sortedDims = Object.entries(avgDimensions).sort((a, b) => b[1] - a[1]);
@@ -433,13 +435,13 @@ export function getAgentArbitrationProfile(agentId: string): AgentArbitrationPro
     wins,
     losses,
     ties,
-    winRate: cases.length > 0 ? Math.round((wins / cases.length) * 100) / 100 : 0,
-    avgComposite: Math.round((compositeSum / total) * 100) / 100,
+    winRate: cases.length > 0 ? round2(wins / cases.length) : 0,
+    avgComposite: round2(compositeSum / total),
     strengthDimension: strength,
     weaknessDimension: weakness,
     disagreementRecord: { wins: disagreementWins, losses: disagreementLosses },
     outcomeAccuracy: outcomeTotal > 0
-      ? Math.round((outcomeCorrect / outcomeTotal) * 100) / 100
+      ? round2(outcomeCorrect / outcomeTotal)
       : 0,
     recentTrend: trend,
   };
@@ -470,12 +472,12 @@ export function getArbitrationPillarScore(agentId: string): number {
   const trendScore = profile.recentTrend === "improving" ? 0.8
     : profile.recentTrend === "stable" ? 0.5 : 0.2;
 
-  return Math.round((
+  return round2(
     profile.winRate * 0.40 +
     profile.avgComposite * 0.30 +
     profile.outcomeAccuracy * 0.20 +
     trendScore * 0.10
-  ) * 100) / 100;
+  );
 }
 
 export function getCaseById(caseId: string): ArbitrationCase | undefined {
@@ -498,10 +500,10 @@ export function getArbitrationStats(): {
     totalCases: arbitrationCases.length,
     disagreements,
     avgMargin: arbitrationCases.length > 0
-      ? Math.round((marginSum / arbitrationCases.length) * 100) / 100
+      ? round2(marginSum / arbitrationCases.length)
       : 0,
     tieRate: arbitrationCases.length > 0
-      ? Math.round((ties / arbitrationCases.length) * 100) / 100
+      ? round2(ties / arbitrationCases.length)
       : 0,
     resolvedOutcomes: resolved,
   };

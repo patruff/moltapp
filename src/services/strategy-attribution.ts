@@ -14,6 +14,7 @@
  */
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -171,8 +172,8 @@ export function generateAttributionReport(): StrategyAttributionReport {
       totalTrades: tradeRecords.length,
       totalWithOutcomes: withOutcomes.length,
       uniqueIntents,
-      overallWinRate: Math.round(overallWinRate * 100) / 100,
-      overallAvgPnl: Math.round(overallAvgPnl * 100) / 100,
+      overallWinRate: round2(overallWinRate),
+      overallAvgPnl: round2(overallAvgPnl),
     },
     generatedAt: new Date().toISOString(),
   };
@@ -220,19 +221,19 @@ function computeIntentRankings(
     rankings.push({
       intent,
       tradeCount: intentTrades.length,
-      avgPnlPercent: Math.round(avgPnl * 100) / 100,
-      winRate: Math.round(winRate * 100) / 100,
-      avgConfidence: Math.round(
-        (intentTrades.reduce((s, t) => s + t.confidence, 0) / intentTrades.length) * 100,
-      ) / 100,
-      avgCoherence: Math.round(
-        (intentTrades.reduce((s, t) => s + t.coherenceScore, 0) / intentTrades.length) * 100,
-      ) / 100,
-      avgHallucinations: Math.round(
-        (intentTrades.reduce((s, t) => s + t.hallucinationCount, 0) / intentTrades.length) * 100,
-      ) / 100,
-      bestTradePnl: pnls.length > 0 ? Math.round(pnls[0] * 100) / 100 : 0,
-      worstTradePnl: pnls.length > 0 ? Math.round(pnls[pnls.length - 1] * 100) / 100 : 0,
+      avgPnlPercent: round2(avgPnl),
+      winRate: round2(winRate),
+      avgConfidence: round2(
+        intentTrades.reduce((s, t) => s + t.confidence, 0) / intentTrades.length,
+      ),
+      avgCoherence: round2(
+        intentTrades.reduce((s, t) => s + t.coherenceScore, 0) / intentTrades.length,
+      ),
+      avgHallucinations: round2(
+        intentTrades.reduce((s, t) => s + t.hallucinationCount, 0) / intentTrades.length,
+      ),
+      bestTradePnl: pnls.length > 0 ? round2(pnls[0]) : 0,
+      worstTradePnl: pnls.length > 0 ? round2(pnls[pnls.length - 1]) : 0,
       dominantAction,
       topSymbols,
     });
@@ -284,20 +285,20 @@ function computeAgentIntentMatrix(
       intents.push({
         intent,
         tradeCount: trades.length,
-        avgPnl: Math.round(avgPnl * 100) / 100,
-        winRate: Math.round(winRate * 100) / 100,
-        avgConfidence: Math.round(
-          (trades.reduce((s, t) => s + t.confidence, 0) / trades.length) * 100,
-        ) / 100,
-        avgCoherence: Math.round(
-          (trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length) * 100,
-        ) / 100,
+        avgPnl: round2(avgPnl),
+        winRate: round2(winRate),
+        avgConfidence: round2(
+          trades.reduce((s, t) => s + t.confidence, 0) / trades.length,
+        ),
+        avgCoherence: round2(
+          trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length,
+        ),
       });
     }
 
     // Strategy diversity: what fraction of all possible intents does this agent use?
     const strategyDiversity = allIntents.length > 0
-      ? Math.round((agentIntents.size / allIntents.length) * 100) / 100
+      ? round2(agentIntents.size / allIntents.length)
       : 0;
 
     matrix.push({
@@ -333,7 +334,7 @@ function findBestCombinations(
       return {
         agentId,
         intent,
-        avgPnl: Math.round(avgPnl * 100) / 100,
+        avgPnl: round2(avgPnl),
         tradeCount: data.count,
       };
     })
@@ -395,14 +396,14 @@ export function getAgentIntentProfile(agentId: string): AgentIntentMatrix | null
     intents.push({
       intent,
       tradeCount: trades.length,
-      avgPnl: Math.round(avgPnl * 100) / 100,
-      winRate: Math.round(winRate * 100) / 100,
-      avgConfidence: Math.round(
-        (trades.reduce((s, t) => s + t.confidence, 0) / trades.length) * 100,
-      ) / 100,
-      avgCoherence: Math.round(
-        (trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length) * 100,
-      ) / 100,
+      avgPnl: round2(avgPnl),
+      winRate: round2(winRate),
+      avgConfidence: round2(
+        trades.reduce((s, t) => s + t.confidence, 0) / trades.length,
+      ),
+      avgCoherence: round2(
+        trades.reduce((s, t) => s + t.coherenceScore, 0) / trades.length,
+      ),
     });
   }
 
@@ -412,7 +413,7 @@ export function getAgentIntentProfile(agentId: string): AgentIntentMatrix | null
     bestIntent,
     worstIntent,
     strategyDiversity: allIntents.length > 0
-      ? Math.round((agentIntents.size / allIntents.length) * 100) / 100
+      ? round2(agentIntents.size / allIntents.length)
       : 0,
   };
 }

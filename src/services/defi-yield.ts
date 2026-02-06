@@ -23,6 +23,7 @@
  */
 
 import { nowISO } from "../lib/format-utils.ts";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -419,9 +420,9 @@ function accrueYield(position: YieldPosition): void {
   // Continuous compounding: V = P * e^(r*t)
   const growthFactor = Math.exp((currentApy / 100) * elapsedYears);
   position.currentValue =
-    Math.round(position.depositedAmount * growthFactor * 100) / 100;
+    round2(position.depositedAmount * growthFactor);
   position.yieldEarned =
-    Math.round((position.currentValue - position.depositedAmount) * 100) / 100;
+    round2(position.currentValue - position.depositedAmount);
   position.lastUpdated = nowISO();
 }
 
@@ -539,20 +540,16 @@ export function calculateOptimalAllocation(
       : 0;
 
   const expectedDailyYield =
-    Math.round(
-      (totalAllocated * (expectedBlendedApy / 100) / 365) * 100,
-    ) / 100;
+    round2(totalAllocated * (expectedBlendedApy / 100) / 365);
   const expectedMonthlyYield =
-    Math.round(
-      (totalAllocated * (expectedBlendedApy / 100) / 12) * 100,
-    ) / 100;
+    round2(totalAllocated * (expectedBlendedApy / 100) / 12);
 
   return {
     agentId,
     totalIdleCash: idleCashUsdc,
     maxDeployable,
     allocations,
-    expectedBlendedApy: Math.round(expectedBlendedApy * 100) / 100,
+    expectedBlendedApy: round2(expectedBlendedApy),
     expectedDailyYield,
     expectedMonthlyYield,
   };
@@ -621,16 +618,16 @@ export function getYieldSummary(): YieldSummary {
       : 0;
 
   return {
-    totalDeposited: Math.round(totalDeposited * 100) / 100,
-    totalCurrentValue: Math.round(totalCurrentValue * 100) / 100,
-    totalYieldEarned: Math.round(totalYieldEarned * 100) / 100,
-    blendedApy: Math.round(blendedApy * 100) / 100,
+    totalDeposited: round2(totalDeposited),
+    totalCurrentValue: round2(totalCurrentValue),
+    totalYieldEarned: round2(totalYieldEarned),
+    blendedApy: round2(blendedApy),
     activePositions: activePositions.length,
     byAgent: Array.from(byAgentMap.entries()).map(([agentId, stats]) => ({
       agentId,
-      deposited: Math.round(stats.deposited * 100) / 100,
-      currentValue: Math.round(stats.currentValue * 100) / 100,
-      yieldEarned: Math.round(stats.yieldEarned * 100) / 100,
+      deposited: round2(stats.deposited),
+      currentValue: round2(stats.currentValue),
+      yieldEarned: round2(stats.yieldEarned),
       positionCount: stats.count,
     })),
     byProtocol: Array.from(byProtocolMap.entries()).map(
@@ -639,7 +636,7 @@ export function getYieldSummary(): YieldSummary {
         return {
           protocolId,
           protocolName: stats.name,
-          totalDeposited: Math.round(stats.deposited * 100) / 100,
+          totalDeposited: round2(stats.deposited),
           currentApy: protocol?.apy ?? 0,
           positionCount: stats.count,
         };

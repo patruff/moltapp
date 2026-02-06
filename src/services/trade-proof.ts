@@ -22,6 +22,7 @@
  */
 
 import { createHash } from "crypto";
+import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -390,11 +391,11 @@ export function generatePerformanceProof(params: {
     periodEnd: params.periodEnd,
     startingValue: params.startingValue,
     endingValue: params.endingValue,
-    totalPnlUsdc: Math.round(totalPnlUsdc * 100) / 100,
-    totalPnlPercent: Math.round(totalPnlPercent * 100) / 100,
+    totalPnlUsdc: round2(totalPnlUsdc),
+    totalPnlPercent: round2(totalPnlPercent),
     tradeCount: params.trades.length,
     winRate: Math.round(winRate * 10) / 10,
-    sharpeApprox: Math.round(sharpeApprox * 100) / 100,
+    sharpeApprox: round2(sharpeApprox),
     txSignatures,
     explorerUrls,
     hash,

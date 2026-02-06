@@ -22,6 +22,7 @@ import {
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte, type InferSelectModel } from "drizzle-orm";
+import { round2 } from "../lib/math-utils.ts";
 
 type PortfolioSnapshotRow = InferSelectModel<typeof portfolioSnapshots>;
 
@@ -406,12 +407,12 @@ export function analyzeDrawdown(curve: EquityCurvePoint[]): DrawdownAnalysis {
   }
 
   return {
-    currentDrawdown: Math.round(currentDrawdown * 100) / 100,
-    maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+    currentDrawdown: round2(currentDrawdown),
+    maxDrawdown: round2(maxDrawdown),
     maxDrawdownDate,
-    peakValue: Math.round(peakValue * 100) / 100,
+    peakValue: round2(peakValue),
     peakDate,
-    troughValue: Math.round(troughValue * 100) / 100,
+    troughValue: round2(troughValue),
     troughDate,
     recoveryDays,
     drawdownPeriods: drawdownPeriods.slice(-20), // Keep last 20 periods
@@ -544,10 +545,10 @@ function computeSummary(
 
   for (let i = 0; i < returns.length; i++) {
     if (bestDay === null || returns[i] > bestDay.return_) {
-      bestDay = { date: returnDates[i], return_: Math.round(returns[i] * 100) / 100 };
+      bestDay = { date: returnDates[i], return_: round2(returns[i]) };
     }
     if (worstDay === null || returns[i] < worstDay.return_) {
-      worstDay = { date: returnDates[i], return_: Math.round(returns[i] * 100) / 100 };
+      worstDay = { date: returnDates[i], return_: round2(returns[i]) };
     }
   }
 
@@ -571,14 +572,14 @@ function computeSummary(
   const annualizationFactor = Math.sqrt(252 * 48); // 48 half-hour periods per day
   const sharpeRatio =
     volatility > 0
-      ? Math.round(((avgDailyReturn / volatility) * annualizationFactor) * 100) / 100
+      ? round2((avgDailyReturn / volatility) * annualizationFactor)
       : null;
 
   return {
-    startValue: Math.round(startValue * 100) / 100,
-    endValue: Math.round(endValue * 100) / 100,
-    totalReturn: Math.round(totalReturn * 100) / 100,
-    totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
+    startValue: round2(startValue),
+    endValue: round2(endValue),
+    totalReturn: round2(totalReturn),
+    totalReturnPercent: round2(totalReturnPercent),
     bestDay,
     worstDay,
     avgDailyReturn: Math.round(avgDailyReturn * 10000) / 10000,

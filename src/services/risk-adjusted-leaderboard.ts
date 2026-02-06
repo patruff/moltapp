@@ -16,6 +16,8 @@
  * ranks higher than one returning 25% with 40% drawdown.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -270,13 +272,13 @@ function computeLeaderboard(): RiskAdjustedLeaderboard {
       rank: 0, // assigned after sorting
       agentId,
       agentName: series.agentName,
-      compositeScore: Math.round(compositeScore * 100) / 100,
-      totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
+      compositeScore: round2(compositeScore),
+      totalReturnPercent: round2(totalReturnPercent),
       riskMetrics,
       scoreBreakdown: breakdown,
       tier: assignTier(compositeScore),
       tradeCount: series.trades.length,
-      portfolioValue: Math.round(portfolioValue * 100) / 100,
+      portfolioValue: round2(portfolioValue),
     });
   }
 
@@ -299,7 +301,7 @@ function computeLeaderboard(): RiskAdjustedLeaderboard {
       `- ${WEIGHTS.maxDrawdown * 100}% Max Drawdown Penalty. ` +
       `Risk-free rate: ${(RISK_FREE_RATE * 100).toFixed(1)}%. Annualized over ${TRADING_DAYS_PER_YEAR} trading days.`,
     computedAt: new Date().toISOString(),
-    benchmarkReturn: Math.round(benchmarkReturn * 100) / 100,
+    benchmarkReturn: round2(benchmarkReturn),
     riskFreeRate: RISK_FREE_RATE,
     aggregateStats,
   };
@@ -383,12 +385,12 @@ function calculateRiskMetrics(
   return {
     sharpeRatio: clampRatio(sharpeRatio),
     sortinoRatio: clampRatio(sortinoRatio),
-    maxDrawdownPercent: Math.round(maxDrawdownPercent * 100) / 100,
+    maxDrawdownPercent: round2(maxDrawdownPercent),
     volatilityPercent:
-      Math.round(annualizedVolatility * 100 * 100) / 100,
-    downsideDeviation: Math.round(annualizedDownside * 100 * 100) / 100,
+      round2(annualizedVolatility * 100),
+    downsideDeviation: round2(annualizedDownside * 100),
     calmarRatio: clampRatio(calmarRatio),
-    winRate: Math.round(winRate * 100) / 100,
+    winRate: round2(winRate),
     profitFactor: clampRatio(profitFactor),
     payoffRatio: clampRatio(payoffRatio),
     tradingDays: dailyReturns.length,
@@ -416,7 +418,7 @@ function calculateMaxDrawdown(dailyReturns: DailyReturn[]): number {
 
 function clampRatio(value: number): number {
   if (!isFinite(value)) return 0;
-  return Math.round(Math.max(-10, Math.min(10, value)) * 100) / 100;
+  return round2(Math.max(-10, Math.min(10, value)));
 }
 
 // ---------------------------------------------------------------------------
@@ -441,15 +443,15 @@ function calculateScoreBreakdown(
 
   return {
     sharpeComponent:
-      Math.round(normalizedSharpe * WEIGHTS.sharpe * 100) / 100,
+      round2(normalizedSharpe * WEIGHTS.sharpe),
     returnComponent:
-      Math.round(normalizedReturn * WEIGHTS.totalReturn * 100) / 100,
+      round2(normalizedReturn * WEIGHTS.totalReturn),
     sortinoComponent:
-      Math.round(normalizedSortino * WEIGHTS.sortino * 100) / 100,
+      round2(normalizedSortino * WEIGHTS.sortino),
     winRateComponent:
-      Math.round(normalizedWinRate * WEIGHTS.winRate * 100) / 100,
+      round2(normalizedWinRate * WEIGHTS.winRate),
     drawdownPenalty:
-      Math.round(normalizedDrawdown * WEIGHTS.maxDrawdown * 100) / 100,
+      round2(normalizedDrawdown * WEIGHTS.maxDrawdown),
   };
 }
 
@@ -579,28 +581,25 @@ function computeAggregateStats(
   }
 
   const avgSharpe =
-    Math.round(
-      (entries.reduce((sum, e) => sum + e.riskMetrics.sharpeRatio, 0) /
-        entries.length) *
-        100,
-    ) / 100;
+    round2(
+      entries.reduce((sum, e) => sum + e.riskMetrics.sharpeRatio, 0) /
+        entries.length,
+    );
 
   const avgReturn =
-    Math.round(
-      (entries.reduce((sum, e) => sum + e.totalReturnPercent, 0) /
-        entries.length) *
-        100,
-    ) / 100;
+    round2(
+      entries.reduce((sum, e) => sum + e.totalReturnPercent, 0) /
+        entries.length,
+    );
 
   const avgDrawdown =
-    Math.round(
-      (entries.reduce(
+    round2(
+      entries.reduce(
         (sum, e) => sum + e.riskMetrics.maxDrawdownPercent,
         0,
       ) /
-        entries.length) *
-        100,
-    ) / 100;
+        entries.length,
+    );
 
   let bestSharpe: { agentId: string; value: number } | null = null;
   let worstDrawdown: { agentId: string; value: number } | null = null;
@@ -661,7 +660,7 @@ export function getAgentRiskDetail(agentId: string): {
     benchmarkComparison: {
       agentReturn,
       benchmarkReturn: benchReturn,
-      alpha: Math.round((agentReturn - benchReturn) * 100) / 100,
+      alpha: round2(agentReturn - benchReturn),
       outperforming: agentReturn > benchReturn,
     },
   };

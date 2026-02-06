@@ -18,6 +18,8 @@
  * Storage: In-memory ring buffer capped at 5000 entries.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -244,7 +246,7 @@ export function getFlowSummary(symbol: string): FlowSummary {
   for (const [agentId, net] of Object.entries(netFlows)) {
     if (net > maxAccumulated) {
       maxAccumulated = net;
-      dominantBuyer = { agentId, usdcAccumulated: Math.round(net * 100) / 100 };
+      dominantBuyer = { agentId, usdcAccumulated: round2(net) };
     }
   }
 
@@ -254,22 +256,22 @@ export function getFlowSummary(symbol: string): FlowSummary {
   for (const [agentId, net] of Object.entries(netFlows)) {
     if (net < 0 && Math.abs(net) > maxDistributed) {
       maxDistributed = Math.abs(net);
-      dominantSeller = { agentId, usdcDistributed: Math.round(Math.abs(net) * 100) / 100 };
+      dominantSeller = { agentId, usdcDistributed: round2(Math.abs(net)) };
     }
   }
 
   // Round net flows for cleanliness
   const roundedNetFlows: Record<string, number> = {};
   for (const [agentId, net] of Object.entries(netFlows)) {
-    roundedNetFlows[agentId] = Math.round(net * 100) / 100;
+    roundedNetFlows[agentId] = round2(net);
   }
 
   return {
     symbol,
     netFlows: roundedNetFlows,
-    totalVolume: Math.round(totalVolume * 100) / 100,
-    buyVolume: Math.round(buyVolume * 100) / 100,
-    sellVolume: Math.round(sellVolume * 100) / 100,
+    totalVolume: round2(totalVolume),
+    buyVolume: round2(buyVolume),
+    sellVolume: round2(sellVolume),
     dominantBuyer,
     dominantSeller,
     flowCount: symbolFlows.length,
@@ -344,7 +346,7 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
   // Average portfolio value approximated as (totalBought - totalSold) / 2, floored at totalBought * 0.1
   const avgPortfolioValue = Math.max(Math.abs(totalBought - totalSold) / 2, totalBought * 0.1);
   const turnoverRate = avgPortfolioValue > 0
-    ? Math.round((totalVolume / avgPortfolioValue) * 100) / 100
+    ? round2(totalVolume / avgPortfolioValue)
     : 0;
 
   // Holding period estimate based on flow frequency
@@ -355,7 +357,7 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
   const timeSpanHours = Math.max((maxTs - minTs) / (1000 * 60 * 60), 1);
   const roundTrips = Math.min(totalBought, totalSold) / Math.max(totalBought * 0.5, 1);
   const holdingPeriodEstimate = roundTrips > 0
-    ? Math.round((timeSpanHours / Math.max(roundTrips, 1)) * 100) / 100
+    ? round2(timeSpanHours / Math.max(roundTrips, 1))
     : timeSpanHours;
 
   // Concentration by symbol
@@ -363,7 +365,7 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
     .map(([symbol, vol]) => ({
       symbol,
       percentOfFlow: totalVolume > 0
-        ? Math.round((vol / totalVolume) * 10000) / 100
+        ? round2((vol / totalVolume) * 100)
         : 0,
     }))
     .sort((a, b) => b.percentOfFlow - a.percentOfFlow);
@@ -373,13 +375,13 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
 
   // Flow velocity: flows per hour
   const flowVelocity = timeSpanHours > 0
-    ? Math.round((agentFlows.length / timeSpanHours) * 100) / 100
+    ? round2(agentFlows.length / timeSpanHours)
     : agentFlows.length;
 
   return {
     agentId,
-    totalBought: Math.round(totalBought * 100) / 100,
-    totalSold: Math.round(totalSold * 100) / 100,
+    totalBought: round2(totalBought),
+    totalSold: round2(totalSold),
     turnoverRate,
     holdingPeriodEstimate,
     concentrationBySymbol,
@@ -458,7 +460,7 @@ export function getFlowHeatmap(): FlowHeatmap {
       symbol,
       intensity,
       netDirection,
-      totalUsdcVolume: Math.round(totalVol * 100) / 100,
+      totalUsdcVolume: round2(totalVol),
       flowCount: data.count,
     });
   }
@@ -564,9 +566,9 @@ export function getMarketImpact(): MarketImpactEstimate[] {
     const avgFlowSize = flowSizes.length > 0
       ? flowSizes.reduce((s, v) => s + v, 0) / flowSizes.length
       : 0;
-    const estimatedSlippage = Math.round(
-      (avgFlowSize / 1000) * SLIPPAGE_BPS_PER_1000_USDC * 100,
-    ) / 100;
+    const estimatedSlippage = round2(
+      (avgFlowSize / 1000) * SLIPPAGE_BPS_PER_1000_USDC,
+    );
 
     // Market share by symbol
     const symMap = agentSymbolVolume.get(agentId) ?? new Map();
@@ -576,7 +578,7 @@ export function getMarketImpact(): MarketImpactEstimate[] {
       const totalSymVol = symbolTotalVolume.get(symbol) ?? 1;
       marketShareBySymbol.push({
         symbol,
-        sharePercent: Math.round((agentVol / totalSymVol) * 10000) / 100,
+        sharePercent: round2((agentVol / totalSymVol) * 100),
       });
     }
 
@@ -586,7 +588,7 @@ export function getMarketImpact(): MarketImpactEstimate[] {
       agentId,
       estimatedSlippage,
       marketShareBySymbol,
-      totalVolume: Math.round(totalVol * 100) / 100,
+      totalVolume: round2(totalVol),
     });
   }
 

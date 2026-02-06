@@ -19,7 +19,7 @@
  *   - Integration: Are source data points used in the logical argument?
  */
 
-import { splitSentences, normalize } from "../lib/math-utils.ts";
+import { splitSentences, normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -252,7 +252,7 @@ export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResul
     const matches = reasoning.match(new RegExp(pattern.source, "gi"));
     if (matches) connectiveCount += matches.length;
   }
-  const connectiveDensity = Math.round((connectiveCount / sentenceCount) * 100) / 100;
+  const connectiveDensity = round2(connectiveCount / sentenceCount);
 
   // 3. Evidence anchoring
   let evidenceCount = 0;
@@ -281,29 +281,29 @@ export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResul
   // 6. Vocabulary richness (type-token ratio)
   const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/[^a-z]/g, "")));
   const vocabularyRichness = wordCount > 0
-    ? Math.round((uniqueWords.size / wordCount) * 100) / 100
+    ? round2(uniqueWords.size / wordCount)
     : 0;
 
   // 7. Detect reasoning pattern
   const reasoningPattern = detectReasoningPattern(reasoning);
 
   // Calculate composite depth score with sub-dimension weights
-  const depthScore = Math.round((
+  const depthScore = round2(
     normalizeStepCount(stepCount) * 0.20 +
     Math.min(1, connectiveDensity / 0.8) * 0.15 +
     evidenceAnchoringScore * 0.25 +
     counterArgumentScore * 0.15 +
     conclusionClarity * 0.15 +
     Math.min(1, vocabularyRichness / 0.6) * 0.10
-  ) * 100) / 100;
+  );
 
   return {
     depthScore,
     stepCount,
     connectiveDensity,
-    evidenceAnchoringScore: Math.round(evidenceAnchoringScore * 100) / 100,
-    counterArgumentScore: Math.round(counterArgumentScore * 100) / 100,
-    conclusionClarity: Math.round(conclusionClarity * 100) / 100,
+    evidenceAnchoringScore: round2(evidenceAnchoringScore),
+    counterArgumentScore: round2(counterArgumentScore),
+    conclusionClarity: round2(conclusionClarity),
     wordCount,
     vocabularyRichness,
     reasoningPattern,
@@ -368,21 +368,21 @@ export function analyzeSourceQualityV24(
   const integrationScore = Math.min(1, integrationCount / 2);
 
   // Calculate composite source quality score
-  const qualityScore = Math.round((
+  const qualityScore = round2(
     Math.min(1, sourceCount / 3) * 0.15 +
     diversityScore * 0.25 +
     specificityScore * 0.25 +
     crossReferenceScore * 0.15 +
     integrationScore * 0.20
-  ) * 100) / 100;
+  );
 
   return {
     qualityScore,
     sourceCount,
-    diversityScore: Math.round(diversityScore * 100) / 100,
-    specificityScore: Math.round(specificityScore * 100) / 100,
-    crossReferenceScore: Math.round(crossReferenceScore * 100) / 100,
-    integrationScore: Math.round(integrationScore * 100) / 100,
+    diversityScore: round2(diversityScore),
+    specificityScore: round2(specificityScore),
+    crossReferenceScore: round2(crossReferenceScore),
+    integrationScore: round2(integrationScore),
     sourceCategories: allCategories,
   };
 }
@@ -397,9 +397,9 @@ export function runV24Analysis(
   const depth = analyzeReasoningDepthV24(reasoning);
   const sourceQuality = analyzeSourceQualityV24(reasoning, declaredSources);
 
-  const v24Score = Math.round(
-    ((depth.depthScore + sourceQuality.qualityScore) / 2) * 100,
-  ) / 100;
+  const v24Score = round2(
+    (depth.depthScore + sourceQuality.qualityScore) / 2,
+  );
 
   return { depth, sourceQuality, v24Score };
 }
@@ -461,14 +461,14 @@ export function computeV24CompositeScore(input: V24CompositeInput): {
     const weighted = Math.round(dim.score * dim.weight * 10000) / 10000;
     composite += weighted;
     breakdown[name] = {
-      score: Math.round(dim.score * 100) / 100,
+      score: round2(dim.score),
       weight: dim.weight,
       weighted,
     };
   }
 
   // Scale to 0-100
-  composite = Math.round(composite * 100 * 100) / 100;
+  composite = round2(composite * 100);
 
   // Assign grade
   let grade: string;

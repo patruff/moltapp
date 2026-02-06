@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp, countWords, getFilteredWords, round3, splitSentences } from "../lib/math-utils.ts";
+import { clamp, countWords, getFilteredWords, round2, round3, splitSentences } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -156,13 +156,13 @@ export function analyzeForensics(
   agentHistory.set(agentId, history);
 
   // Composite: weighted average of 5 forensic dimensions (see FORENSIC_COMPONENT_WEIGHTS)
-  const compositeScore = Math.round(
-    (structural.structureScore * FORENSIC_COMPONENT_WEIGHTS.structure +
+  const compositeScore = round2(
+    structural.structureScore * FORENSIC_COMPONENT_WEIGHTS.structure +
       depth.depthScore * FORENSIC_COMPONENT_WEIGHTS.depth +
       originality.originalityScore * FORENSIC_COMPONENT_WEIGHTS.originality +
       clarity.clarityScore * FORENSIC_COMPONENT_WEIGHTS.clarity +
-      (1 - (crossTrade.flags.length * 0.15)) * FORENSIC_COMPONENT_WEIGHTS.cross_trade) * 100,
-  ) / 100;
+      (1 - (crossTrade.flags.length * 0.15)) * FORENSIC_COMPONENT_WEIGHTS.cross_trade,
+  );
 
   const clampedScore = clamp(compositeScore, 0, 1);
 
@@ -331,10 +331,10 @@ function analyzeClarity(reasoning: string): ClarityAnalysis {
   const clarityScore = clamp(readabilityScore, 0, 1);
 
   return {
-    readabilityScore: Math.round(readabilityScore * 100) / 100,
+    readabilityScore: round2(readabilityScore),
     avgWordLength: Math.round(avgWordLength * 10) / 10,
     jargonRatio: round3(jargonRatio),
-    clarityScore: Math.round(clarityScore * 100) / 100,
+    clarityScore: round2(clarityScore),
   };
 }
 
@@ -456,9 +456,9 @@ export function getAgentForensicHealth(agentId: string): {
     const trend = delta > 0.05 ? "improving" : delta < -0.05 ? "degrading" : "stable";
     return {
       tradeCount: history.length,
-      avgDepth: Math.round(avgDepth * 100) / 100,
-      avgOriginality: Math.round(avgOriginality * 100) / 100,
-      avgClarity: Math.round(avgClarity * 100) / 100,
+      avgDepth: round2(avgDepth),
+      avgOriginality: round2(avgOriginality),
+      avgClarity: round2(avgClarity),
       integrityViolations: totalViolations,
       trend,
     };
@@ -466,9 +466,9 @@ export function getAgentForensicHealth(agentId: string): {
 
   return {
     tradeCount: history.length,
-    avgDepth: Math.round(avgDepth * 100) / 100,
-    avgOriginality: Math.round(avgOriginality * 100) / 100,
-    avgClarity: Math.round(avgClarity * 100) / 100,
+    avgDepth: round2(avgDepth),
+    avgOriginality: round2(avgOriginality),
+    avgClarity: round2(avgClarity),
     integrityViolations: totalViolations,
     trend: "stable",
   };

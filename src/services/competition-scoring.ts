@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { competitionScores } from "../db/schema/portfolio-snapshots.ts";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import type { TradingRoundResult } from "../agents/base-agent.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -169,7 +169,7 @@ function scorePnL(
     } else {
       // Linear interpolation 0-100
       const normalized = ((pnl - minPnl) / range) * 100;
-      scores.set(agentId, Math.round(normalized * 100) / 100);
+      scores.set(agentId, round2(normalized));
     }
   }
 
@@ -376,18 +376,18 @@ export async function scoreRound(
     // Computed after all scores
 
     const breakdown: ScoreBreakdown = {
-      pnlScore: Math.round(pnlScore * 100) / 100,
+      pnlScore: round2(pnlScore),
       pnlWeight: WEIGHTS.pnl,
-      riskAdjustedScore: Math.round(riskScore * 100) / 100,
+      riskAdjustedScore: round2(riskScore),
       riskAdjustedWeight: WEIGHTS.riskAdjusted,
-      consistencyScore: Math.round(consistencyScore * 100) / 100,
+      consistencyScore: round2(consistencyScore),
       consistencyWeight: WEIGHTS.consistency,
-      decisionQualityScore: Math.round(qualityScore * 100) / 100,
+      decisionQualityScore: round2(qualityScore),
       decisionQualityWeight: WEIGHTS.decisionQuality,
       bonuses,
       penalties,
-      rawTotal: Math.round(rawTotal * 100) / 100,
-      finalScore: Math.round(finalScore * 100) / 100,
+      rawTotal: round2(rawTotal),
+      finalScore: round2(finalScore),
     };
 
     roundScores.push({

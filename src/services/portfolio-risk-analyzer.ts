@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, gte, asc } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -256,7 +256,7 @@ export async function analyzePortfolioRisk(
     riskLevel,
     warnings,
     generatedAt: new Date().toISOString(),
-    portfolioValue: Math.round(portfolioValue * 100) / 100,
+    portfolioValue: round2(portfolioValue),
   };
 }
 
@@ -283,8 +283,8 @@ function computeVaR(returns: number[]): { var95: number; cvar95: number } {
     : var95 * 1.4;
 
   return {
-    var95: Math.round(var95 * 100) / 100,
-    cvar95: Math.round(cvar95 * 100) / 100,
+    var95: round2(var95),
+    cvar95: round2(cvar95),
   };
 }
 
@@ -320,7 +320,7 @@ function computeBeta(agentId: string, portfolioReturns: number[]): number {
   if (marketVariance === 0) return 1.0;
 
   const beta = covariance / marketVariance;
-  return Math.round(clamp(beta, -3, 3) * 100) / 100;
+  return round2(clamp(beta, -3, 3));
 }
 
 // ---------------------------------------------------------------------------
@@ -361,7 +361,7 @@ function computeSectorConcentration(
       sector,
       symbols: data.symbols,
       allocation: Math.round(allocation * 10) / 10,
-      value: Math.round(data.value * 100) / 100,
+      value: round2(data.value),
       hhiContribution: Math.round(hhiContribution),
     });
   }
@@ -400,7 +400,7 @@ function computePositionRisk(
     return {
       symbol: pos.symbol,
       weight: Math.round(weight * 10) / 10,
-      varContribution: Math.round(varContribution * 100) / 100,
+      varContribution: round2(varContribution),
       volatility: stockVol,
       unrealizedPnl: 0, // Would need current price for real P&L
       maxDrawdown: stockVol * 2.5, // Rough estimate
@@ -459,16 +459,16 @@ function computeDrawdownAnalysis(agentId: string, currentValue: number): Drawdow
   const durationHours = durationMs / 3_600_000;
 
   return {
-    currentDrawdown: Math.round(currentDrawdown * 100) / 100,
+    currentDrawdown: round2(currentDrawdown),
     currentDrawdownPercent: currentPeak > 0
       ? Math.round((currentDrawdown / currentPeak) * 10000) / 100
       : 0,
-    maxDrawdown: Math.round(maxDrawdownFinal * 100) / 100,
+    maxDrawdown: round2(maxDrawdownFinal),
     maxDrawdownPercent: maxDrawdownPeak > 0
       ? Math.round((maxDrawdownFinal / maxDrawdownPeak) * 10000) / 100
       : 0,
-    peakValue: Math.round(currentPeak * 100) / 100,
-    troughValue: Math.round(Math.min(maxDrawdownTrough, currentValue) * 100) / 100,
+    peakValue: round2(currentPeak),
+    troughValue: round2(Math.min(maxDrawdownTrough, currentValue)),
     drawdownDurationHours: Math.round(durationHours * 10) / 10,
     recovered: currentValue >= maxDrawdownPeak,
   };
@@ -568,7 +568,7 @@ function runStressTests(
       if (Math.abs(posImpact) > 1) {
         affected.push({
           symbol: pos.symbol,
-          impact: Math.round(posImpact * 100) / 100,
+          impact: round2(posImpact),
         });
       }
     }
@@ -576,11 +576,11 @@ function runStressTests(
     return {
       scenario: scenario.name,
       description: scenario.description,
-      portfolioImpact: Math.round(totalImpact * 100) / 100,
+      portfolioImpact: round2(totalImpact),
       portfolioImpactPercent: portfolioValue > 0
         ? Math.round((totalImpact / portfolioValue) * 10000) / 100
         : 0,
-      newPortfolioValue: Math.round((portfolioValue + totalImpact) * 100) / 100,
+      newPortfolioValue: round2(portfolioValue + totalImpact),
       affectedPositions: affected.sort(
         (a, b) => Math.abs(b.impact) - Math.abs(a.impact),
       ),
@@ -714,7 +714,7 @@ function computeVolatility(returns: number[]): number {
 
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
   const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / (returns.length - 1);
-  return Math.round(Math.sqrt(variance) * 100) / 100;
+  return round2(Math.sqrt(variance));
 }
 
 function estimateStockVolatility(symbol: string): number {

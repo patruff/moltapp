@@ -17,6 +17,8 @@
  * Production would persist to DynamoDB.
  */
 
+import { round2 } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -304,7 +306,7 @@ export function getSlippageStats(since?: Date): SlippageStats {
     minSlippageBps: bpsValues[0],
     p95SlippageBps: percentile(bpsValues, 95),
     p99SlippageBps: percentile(bpsValues, 99),
-    totalSlippageCostUsd: Math.round(totalSlippageCostUsd * 100) / 100,
+    totalSlippageCostUsd: round2(totalSlippageCostUsd),
     favorableTradesPercent: Math.round(
       (favorableCount / filtered.length) * 100,
     ),
@@ -359,7 +361,7 @@ export function getAgentSlippageProfiles(): AgentSlippageProfile[] {
       agentName: data.agentName,
       totalTrades: agentRecords.length,
       avgSlippageBps: Math.round(avgBps),
-      totalSlippageCostUsd: Math.round(totalCost * 100) / 100,
+      totalSlippageCostUsd: round2(totalCost),
       favorablePercent: Math.round(
         (favorableCount / agentRecords.length) * 100,
       ),
@@ -443,7 +445,7 @@ export function getStockSlippageProfiles(): StockSlippageProfile[] {
       totalTrades: stockRecords.length,
       avgSlippageBps: Math.round(avgBps),
       maxSlippageBps: maxBps,
-      totalSlippageCostUsd: Math.round(totalCost * 100) / 100,
+      totalSlippageCostUsd: round2(totalCost),
       buySlippageBps: Math.round(buyBps),
       sellSlippageBps: Math.round(sellBps),
       byHour: byHourAvg,
