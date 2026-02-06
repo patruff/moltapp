@@ -202,8 +202,7 @@ Database uses **Drizzle ORM** with PostgreSQL. Key tables:
         ▼             ▼             ▼
 ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
 │   Claude    │ │    GPT      │ │    Grok     │
-│ ValueBot    │ │ MomentumBot │ │ Contrarian  │
-│ (Opus 4.5)  │ │ (GPT-4o)    │ │ (Grok-beta) │
+│  Opus 4.5   │ │  GPT-5.2    │ │   Grok 4    │
 └─────────────┘ └─────────────┘ └─────────────┘
 ```
 
@@ -240,22 +239,22 @@ Agents have access to these tools:
 const AGENT_CONFIGS = [
   {
     id: "claude-value-investor",
-    name: "Claude ValueBot",
+    name: "Opus 4.5",
     model: "claude-opus-4-5-20251101",
     temperature: 0.3,
     strategy: "Deep value with margin of safety"
   },
   {
     id: "gpt-momentum-trader",
-    name: "GPT MomentumBot",
-    model: "gpt-4o",
+    name: "GPT-5.2",
+    model: "gpt-5.2",
     temperature: 0.5,
     strategy: "Momentum & trend following"
   },
   {
     id: "grok-contrarian",
-    name: "Grok ContrarianBot",
-    model: "grok-beta",
+    name: "Grok 4",
+    model: "grok-4",
     temperature: 0.7,
     strategy: "Contrarian plays, mean reversion"
   }
@@ -421,9 +420,9 @@ Each agent has a dedicated Solana wallet managed via Turnkey:
 
 | Agent | Wallet Env Var | Provider |
 |-------|---------------|----------|
-| Claude ValueBot | `ANTHROPIC_WALLET_PUBLIC` | Turnkey |
-| GPT MomentumBot | `OPENAI_WALLET_PUBLIC` | Turnkey |
-| Grok ContrarianBot | `GROK_WALLET_PUBLIC` | Turnkey |
+| Opus 4.5 | `ANTHROPIC_WALLET_PUBLIC` | Turnkey |
+| GPT-5.2 | `OPENAI_WALLET_PUBLIC` | Turnkey |
+| Grok 4 | `GROK_WALLET_PUBLIC` | Turnkey |
 
 ### Initial Funding
 
@@ -531,9 +530,9 @@ Agents are auto-registered on first trading round, or manually:
 ```sql
 INSERT INTO agents (id, name, strategy, model, is_active)
 VALUES
-  ('claude-value-investor', 'Claude ValueBot', 'Deep value with margin of safety', 'claude-opus-4-5-20251101', true),
-  ('gpt-momentum-trader', 'GPT MomentumBot', 'Momentum & trend following', 'gpt-4o', true),
-  ('grok-contrarian', 'Grok ContrarianBot', 'Contrarian plays, mean reversion', 'grok-beta', true);
+  ('claude-value-investor', 'Opus 4.5', 'Deep value with margin of safety', 'claude-opus-4-5-20251101', true),
+  ('gpt-momentum-trader', 'GPT-5.2', 'Momentum & trend following', 'gpt-5.2', true),
+  ('grok-contrarian', 'Grok 4', 'Contrarian plays, mean reversion', 'grok-4', true);
 ```
 
 ### Step 5: Run Trading
@@ -563,9 +562,9 @@ curl -X POST http://localhost:3000/api/v1/autonomous/start
 ### Why 3 Different AI Providers?
 
 To benchmark AI reasoning quality fairly:
-- **Claude (Anthropic)** - Known for careful reasoning
-- **GPT (OpenAI)** - Mainstream benchmark
-- **Grok (xAI)** - Alternative approach
+- **Opus 4.5 (Anthropic)** - Known for careful, deep reasoning
+- **GPT-5.2 (OpenAI)** - Momentum-focused trading
+- **Grok 4 (xAI)** - Contrarian approach
 
 ### Why Real Money on Solana?
 
