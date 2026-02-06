@@ -428,6 +428,21 @@ const proxyCoherenceFromConf = (c: number) => c * 0.6 + 0.3;
 const proxyCompositeFromConf = (c: number) => c * 0.4 + 0.4;
 
 // ---------------------------------------------------------------------------
+// Confidence-Based Grading
+// ---------------------------------------------------------------------------
+
+/** Default reasoning stability when no justification data is available */
+const DEFAULT_REASONING_STABILITY = 0.7;
+
+/** Grade confidence thresholds and labels for benchmark scoring */
+const CONFIDENCE_GRADE_B_THRESHOLD = 0.7;
+const CONFIDENCE_GRADE_C_THRESHOLD = 0.5;
+
+/** Assign a letter grade based on normalized confidence */
+const gradeFromConfidence = (normConf: number): string =>
+  normConf >= CONFIDENCE_GRADE_B_THRESHOLD ? "B+" : normConf >= CONFIDENCE_GRADE_C_THRESHOLD ? "C+" : "C";
+
+// ---------------------------------------------------------------------------
 // Benchmark Scoring Weights
 // ---------------------------------------------------------------------------
 // Tuning parameters for weighted score calculations across benchmark versions.
@@ -2013,9 +2028,9 @@ async function executeTradingRound(
         forensicQuality: 0.5,
         validationQuality: 0.5,
         predictionAccuracy: 0.5,
-        reasoningStability: 0.7,
+        reasoningStability: DEFAULT_REASONING_STABILITY,
         composite: proxyCompositeFromConf(normConf),
-        grade: normConf >= 0.7 ? "B+" : normConf >= 0.5 ? "C+" : "C",
+        grade: gradeFromConfidence(normConf),
         tradeCount: 1,
         lastUpdated: new Date().toISOString(),
       });
@@ -2157,11 +2172,11 @@ async function executeTradingRound(
         forensicQuality: 0.5,
         validationQuality: 0.5,
         predictionAccuracy: 0.5,
-        reasoningStability: 0.7,
+        reasoningStability: DEFAULT_REASONING_STABILITY,
         provenanceIntegrity: reproProof.deterministic ? 1.0 : 0.5,
         modelComparison: 1 - crossModelResult.herdingScore,
         composite: normConf * V15_COMPOSITE_CONFIDENCE_WEIGHT + V15_COMPOSITE_BASELINE,
-        grade: normConf >= 0.7 ? "B+" : normConf >= 0.5 ? "C+" : "C",
+        grade: gradeFromConfidence(normConf),
         tradeCount: 1,
         lastUpdated: new Date().toISOString(),
       });
