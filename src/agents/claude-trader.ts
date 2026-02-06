@@ -66,6 +66,10 @@ export class ClaudeTrader extends BaseTradingAgent {
     return [{ role: "user", content: userMessage }];
   }
 
+  appendUserMessage(messages: MessageParam[], text: string): MessageParam[] {
+    return [...messages, { role: "user", content: text }];
+  }
+
   appendToolResults(
     messages: MessageParam[],
     turn: AgentTurn,
@@ -115,7 +119,7 @@ export class ClaudeTrader extends BaseTradingAgent {
       max_tokens: 16000, // Extended for Opus 4.6 deep reasoning
       system,
       messages,
-      tools,
+      ...(tools.length > 0 ? { tools } : {}),
       temperature: this.config.temperature,
     });
 

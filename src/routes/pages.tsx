@@ -1047,7 +1047,7 @@ pages.get("/agent/:id", async (c) => {
                   <ActionBadge action={d.action} size="xs" />
                   {d.symbol && <span class="text-white text-sm font-semibold">{d.symbol}</span>}
                   {d.confidence != null && (
-                    <span class="text-gray-500 text-xs">Confidence: {d.confidence}%</span>
+                    <span class="text-gray-500 text-xs">Confidence: {Math.round(d.confidence * 100)}%</span>
                   )}
                   <span class="text-gray-600 text-xs ml-auto">
                     {d.createdAt ? formatTimeAgo(new Date(d.createdAt)) : "—"}
@@ -1167,7 +1167,7 @@ pages.get("/rounds", async (c) => {
                       {d.symbol && <span class="text-gray-300 text-sm">{d.symbol}</span>}
                       {d.quantity && <span class="text-gray-500 text-xs">${d.quantity}</span>}
                       <span class="text-gray-500 text-xs ml-auto">
-                        {d.confidence}% confidence
+                        {Math.round(d.confidence * 100)}% confidence
                       </span>
                     </div>
                     <p class="text-gray-400 text-xs leading-relaxed">{truncatedReasoning}</p>
@@ -1265,7 +1265,7 @@ pages.get("/round/:id", async (c) => {
                 </div>
                 <div class="text-right">
                   <div class="text-gray-400 text-sm">Confidence</div>
-                  <div class="text-white font-bold text-lg">{j.confidence}%</div>
+                  <div class="text-white font-bold text-lg">{Math.round(j.confidence * 100)}%</div>
                 </div>
               </div>
 

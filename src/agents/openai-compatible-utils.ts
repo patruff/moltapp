@@ -131,7 +131,7 @@ export function createOpenAICompatibleCaller(
       model,
       temperature,
       messages: [{ role: "system", content: system }, ...messages],
-      tools,
+      ...(tools.length > 0 ? { tools } : {}),
     };
 
     // GPT-5.x models use max_completion_tokens instead of max_tokens

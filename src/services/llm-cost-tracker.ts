@@ -19,12 +19,14 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "claude-haiku-4-5-20251101": { input: 0.25, output: 1.25 },
 
   // OpenAI GPT models
+  "gpt-5.2": { input: 30, output: 120 },
   "gpt-5.2-mini": { input: 10, output: 30 },
   "gpt-5-mini": { input: 5, output: 15 },
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
   "gpt-4o": { input: 2.5, output: 10 },
 
   // xAI Grok models
+  "grok-4": { input: 10, output: 30 },
   "grok-3-beta": { input: 5, output: 15 },
   "grok-beta": { input: 5, output: 15 },
   "grok-4-fast": { input: 5, output: 15 },

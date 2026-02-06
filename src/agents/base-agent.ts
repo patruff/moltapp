@@ -249,6 +249,9 @@ export abstract class BaseTradingAgent {
     results: ToolResult[],
   ): unknown[];
 
+  /** Append a user message to the conversation (for forced decision prompts) */
+  abstract appendUserMessage(messages: unknown[], text: string): unknown[];
+
   // -------------------------------------------------------------------------
   // Public API — analyze() delegates to the tool-calling loop
   // -------------------------------------------------------------------------
@@ -354,8 +357,15 @@ export abstract class BaseTradingAgent {
         // Check if we're at the tool call limit
         if (totalToolCalls + agentTurn.toolCalls.length >= MAX_TOOL_CALLS) {
           console.log(
-            `[${this.config.name}] Tool call limit reached (${totalToolCalls}/${MAX_TOOL_CALLS}). Forcing decision.`,
+            `[${this.config.name}] Tool call limit reached (${totalToolCalls}/${MAX_TOOL_CALLS}). Forcing final decision.`,
           );
+          // Give the agent one last chance to decide with data gathered so far
+          const forced = await this.forceDecisionTurn(system, messages);
+          if (forced) {
+            forced.toolTrace = toolTrace;
+            await recordUsage();
+            return forced;
+          }
           const fallback = this.fallbackHold(
             `Tool call limit reached (${MAX_TOOL_CALLS}). Based on data gathered, holding position.`,
           );
@@ -429,7 +439,14 @@ export abstract class BaseTradingAgent {
       }
     }
 
-    // Exhausted all turns without a decision
+    // Exhausted all turns without a decision — try one forced decision
+    console.log(`[${this.config.name}] Max turns exceeded (${MAX_TURNS}). Forcing final decision.`);
+    const forced = await this.forceDecisionTurn(system, messages);
+    if (forced) {
+      forced.toolTrace = toolTrace;
+      await recordUsage();
+      return forced;
+    }
     const fallback = this.fallbackHold(`Max turns exceeded (${MAX_TURNS})`);
     fallback.toolTrace = toolTrace;
     await recordUsage();
@@ -505,6 +522,29 @@ export abstract class BaseTradingAgent {
       predictedOutcome,
       thesisStatus,
     };
+  }
+
+  /**
+   * Force the agent to make a final decision with no tools available.
+   * Used when the agent exhausts tool call limits or max turns.
+   * Returns null if the forced turn also fails (caller should fallback to hold).
+   */
+  protected async forceDecisionTurn(
+    system: string,
+    messages: unknown[],
+  ): Promise<TradingDecision | null> {
+    const forceMsg =
+      "IMPORTANT: You have used all available tool calls. You MUST now make your final trading decision based on ALL the data you have already gathered. Output ONLY a valid JSON object with: action (buy/sell/hold), symbol, quantity, reasoning, confidence (0-100). Do NOT call any more tools.";
+    const forcedMessages = this.appendUserMessage(messages, forceMsg);
+    try {
+      const turn = await this.callWithTools(system, forcedMessages, []);
+      if (turn.textResponse) {
+        return this.parseLLMResponse(turn.textResponse);
+      }
+    } catch (err) {
+      console.warn(`[${this.config.name}] Forced decision turn failed: ${errorMessage(err)}`);
+    }
+    return null;
   }
 
   /**

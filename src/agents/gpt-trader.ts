@@ -79,6 +79,10 @@ export class GPTTrader extends BaseTradingAgent {
     return buildOpenAIMessages(userMessage);
   }
 
+  appendUserMessage(messages: ChatCompletionMessageParam[], text: string): ChatCompletionMessageParam[] {
+    return [...messages, { role: "user", content: text }];
+  }
+
   appendToolResults(
     messages: ChatCompletionMessageParam[],
     turn: AgentTurn,
