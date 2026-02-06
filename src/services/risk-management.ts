@@ -27,6 +27,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
+import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -304,9 +305,9 @@ export function calculateVaR(portfolio: PortfolioContext): VaRResult {
       : var95;
 
   return {
-    var95: Math.round(var95 * 100) / 100,
-    var99: Math.round(var99 * 100) / 100,
-    cvar95: Math.round(cvar95 * 100) / 100,
+    var95: round2(var95),
+    var99: round2(var99),
+    cvar95: round2(cvar95),
     method: "historical",
     observations: numSimulations,
     lookbackDays,
@@ -364,12 +365,12 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
   return {
     hhi,
     level,
-    largestPositionPercent: Math.round(weights[0].weight * 10000) / 100,
+    largestPositionPercent: round2(weights[0].weight * 100),
     largestPositionSymbol: weights[0].symbol,
-    top3Percent: Math.round(
-      weights.slice(0, 3).reduce((s, w) => s + w.weight, 0) * 10000,
-    ) / 100,
-    techExposurePercent: Math.round(techExposure * 10000) / 100,
+    top3Percent: round2(
+      weights.slice(0, 3).reduce((s, w) => s + w.weight, 0) * 100,
+    ),
+    techExposurePercent: round2(techExposure * 100),
   };
 }
 
@@ -438,14 +439,14 @@ export function calculateDrawdown(
         : 1;
 
   return {
-    currentDrawdown: Math.round(currentDrawdown * 100) / 100,
-    maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+    currentDrawdown: round2(currentDrawdown),
+    maxDrawdown: round2(maxDrawdown),
     peakDate,
-    peakValue: Math.round(peakValue * 100) / 100,
-    currentValue: Math.round(portfolio.totalValue * 100) / 100,
+    peakValue: round2(peakValue),
+    currentValue: round2(portfolio.totalValue),
     circuitBreakerTriggered,
     circuitBreakerThreshold: threshold,
-    recoveryRatio: Math.round(recoveryRatio * 1000) / 1000,
+    recoveryRatio: round3(recoveryRatio),
   };
 }
 
@@ -582,17 +583,17 @@ export function calculateRiskAdjustedMetrics(
   }
 
   return {
-    sortinoRatio: Math.round(sortinoRatio * 100) / 100,
-    calmarRatio: Math.round(calmarRatio * 100) / 100,
-    informationRatio: Math.round(informationRatio * 100) / 100,
-    omegaRatio: Math.round(omegaRatio * 100) / 100,
-    treynorRatio: Math.round(treynorRatio * 100) / 100,
-    beta: Math.round(beta * 100) / 100,
-    alpha: Math.round(alpha * 100) / 100,
-    trackingError: Math.round(trackingError * 10000) / 100,
+    sortinoRatio: round2(sortinoRatio),
+    calmarRatio: round2(calmarRatio),
+    informationRatio: round2(informationRatio),
+    omegaRatio: round2(omegaRatio),
+    treynorRatio: round2(treynorRatio),
+    beta: round2(beta),
+    alpha: round2(alpha),
+    trackingError: round2(trackingError * 100),
     maxConsecutiveLosses,
-    winLossRatio: Math.round(winLossRatio * 100) / 100,
-    profitFactor: Math.round(profitFactor * 100) / 100,
+    winLossRatio: round2(winLossRatio),
+    profitFactor: round2(profitFactor),
   };
 }
 
@@ -660,7 +661,7 @@ export function calculateCorrelationMatrix(
       pairs.push({
         symbolA: symbols[i],
         symbolB: symbols[j],
-        correlation: Math.round(correlation * 1000) / 1000,
+        correlation: round3(correlation),
         direction,
         strength,
       });
@@ -863,8 +864,8 @@ export function runStressTests(portfolio: PortfolioContext): StressTestResult[] 
         worstLoss = impact;
         worstHit = {
           symbol: pos.symbol,
-          loss: Math.round(Math.abs(impact) * 100) / 100,
-          lossPercent: Math.round(posMove * 10000) / 100,
+          loss: round2(Math.abs(impact)),
+          lossPercent: round2(posMove * 100),
         };
       }
     }
@@ -878,8 +879,8 @@ export function runStressTests(portfolio: PortfolioContext): StressTestResult[] 
       scenario: scenario.name,
       description: scenario.description,
       marketMove: scenario.move,
-      portfolioImpact: Math.round(totalImpact * 100) / 100,
-      portfolioImpactPercent: Math.round(portfolioImpactPercent * 100) / 100,
+      portfolioImpact: round2(totalImpact),
+      portfolioImpactPercent: round2(portfolioImpactPercent),
       worstHitPosition: worstHit,
       survivable: portfolio.totalValue + totalImpact > 0,
     };
@@ -1018,8 +1019,8 @@ export async function getPlatformRiskSummary() {
     timestamp: new Date().toISOString(),
     agentCount: configs.length,
     averageRiskScore: avgRiskScore,
-    platformVaR95: Math.round(totalVar95 * 100) / 100,
-    platformVaR99: Math.round(totalVar99 * 100) / 100,
+    platformVaR95: round2(totalVar95),
+    platformVaR99: round2(totalVar99),
     activeCircuitBreakers: circuitBreakers.length,
     criticalAlerts: criticalAlerts.length,
     agents: dashboards.map((d) => ({

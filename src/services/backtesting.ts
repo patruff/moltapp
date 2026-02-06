@@ -17,6 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { round2, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -242,7 +243,7 @@ function generateHistoricalPrices(
     const dayOfWeek = current.getDay();
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       const dateKey = current.toISOString().slice(0, 10);
-      prices.set(dateKey, Math.round(currentPrice * 100) / 100);
+      prices.set(dateKey, round2(currentPrice));
 
       // Geometric Brownian Motion step
       const shock = nextGaussian();
@@ -442,9 +443,9 @@ export async function runBacktest(params: {
 
     equityCurve.push({
       date: dateKey,
-      equity: Math.round(portfolioValue * 100) / 100,
-      drawdown: Math.round(drawdown * 100) / 100,
-      highWaterMark: Math.round(highWaterMark * 100) / 100,
+      equity: round2(portfolioValue),
+      drawdown: round2(drawdown),
+      highWaterMark: round2(highWaterMark),
     });
 
     // Track daily returns
@@ -480,9 +481,9 @@ export async function runBacktest(params: {
   const bestTrade = sortedByPnl[0]
     ? {
         symbol: sortedByPnl[0].symbol,
-        pnl: Math.round(sortedByPnl[0].pnl * 100) / 100,
+        pnl: round2(sortedByPnl[0].pnl),
         pnlPercent: sortedByPnl[0].price > 0
-          ? Math.round((sortedByPnl[0].pnl / (sortedByPnl[0].quantity * sortedByPnl[0].price)) * 10000) / 100
+          ? round2((sortedByPnl[0].pnl / (sortedByPnl[0].quantity * sortedByPnl[0].price)) * 100)
           : 0,
         date: sortedByPnl[0].date,
       }
@@ -490,9 +491,9 @@ export async function runBacktest(params: {
   const worstTrade = sortedByPnl[sortedByPnl.length - 1]
     ? {
         symbol: sortedByPnl[sortedByPnl.length - 1].symbol,
-        pnl: Math.round(sortedByPnl[sortedByPnl.length - 1].pnl * 100) / 100,
+        pnl: round2(sortedByPnl[sortedByPnl.length - 1].pnl),
         pnlPercent: sortedByPnl[sortedByPnl.length - 1].price > 0
-          ? Math.round((sortedByPnl[sortedByPnl.length - 1].pnl / (sortedByPnl[sortedByPnl.length - 1].quantity * sortedByPnl[sortedByPnl.length - 1].price)) * 10000) / 100
+          ? round2((sortedByPnl[sortedByPnl.length - 1].pnl / (sortedByPnl[sortedByPnl.length - 1].quantity * sortedByPnl[sortedByPnl.length - 1].price)) * 100)
           : 0,
         date: sortedByPnl[sortedByPnl.length - 1].date,
       }
@@ -506,10 +507,10 @@ export async function runBacktest(params: {
     agentName,
     period: { start: startDate, end: endDate, tradingDays: tradingDaysCount },
     initialCapital,
-    finalCapital: Math.round(finalCapital * 100) / 100,
-    totalReturn: Math.round(totalReturn * 100) / 100,
-    totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
-    annualizedReturn: Math.round(annualizedReturn * 100) / 100,
+    finalCapital: round2(finalCapital),
+    totalReturn: round2(totalReturn),
+    totalReturnPercent: round2(totalReturnPercent),
+    annualizedReturn: round2(annualizedReturn),
     metrics,
     equityCurve,
     tradeLog,
