@@ -20,7 +20,7 @@
  * 7. VOCABULARY SOPHISTICATION: Financial vocabulary diversity and precision
  */
 
-import { countWords, round2, splitSentences } from "../lib/math-utils.ts";
+import { countWords, round2, sortEntriesDescending, splitSentences } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -454,7 +454,7 @@ export function getAgentDepthProfile(agentId: string): AgentDepthProfile {
     vocabularySophistication: avgDimension(scores, "vocabularySophistication"),
   };
 
-  const sortedDims = Object.entries(dimensionAvgs).sort((a, b) => b[1] - a[1]);
+  const sortedDims = sortEntriesDescending(dimensionAvgs);
   const strongestDimension = sortedDims[0][0];
   const weakestDimension = sortedDims[sortedDims.length - 1][0];
 

@@ -15,7 +15,7 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
-import { splitSentences, countWords, round2, round3 } from "../lib/math-utils.ts";
+import { splitSentences, countWords, round2, round3, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -582,7 +582,7 @@ export function getAgentDebateProfile(agentId: string): AgentDebateProfile {
     avgDims[dim] = round2(sum / total);
   }
 
-  const sortedDims = Object.entries(avgDims).sort((a, b) => b[1] - a[1]);
+  const sortedDims = sortEntriesDescending(avgDims);
 
   return {
     agentId,

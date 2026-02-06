@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, getTopKey, round2, round3, sortDescending } from "../lib/math-utils.ts";
+import { calculateAverage, getTopKey, round2, round3, sortDescending, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -662,7 +662,7 @@ function computeTradingPatterns(
   for (const d of actionDecisions) {
     symbolCounts[d.symbol] = (symbolCounts[d.symbol] || 0) + 1;
   }
-  const sortedSymbols = Object.entries(symbolCounts).sort(([, a], [, b]) => b - a);
+  const sortedSymbols = sortEntriesDescending(symbolCounts);
   const mostTradedSymbol = sortedSymbols[0]?.[0] ?? null;
   const mostTradedSymbolCount = sortedSymbols[0]?.[1] ?? 0;
   const leastTradedSymbol = sortedSymbols[sortedSymbols.length - 1]?.[0] ?? null;

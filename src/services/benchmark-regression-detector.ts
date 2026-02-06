@@ -13,7 +13,7 @@
  * 5. CALIBRATION DECAY: Is confidence calibration getting worse over time?
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round3, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -227,8 +227,9 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   if (pillarVals.length >= 3) {
     const pillarStdDev = computeStdDev(pillarVals);
     if (pillarStdDev > 0.25) {
-      const highest = Object.entries(snapshot.pillarAverages).sort((a, b) => b[1] - a[1])[0];
-      const lowest = Object.entries(snapshot.pillarAverages).sort((a, b) => a[1] - b[1])[0];
+      const sortedPillars = sortEntriesDescending(snapshot.pillarAverages);
+      const highest = sortedPillars[0];
+      const lowest = sortedPillars[sortedPillars.length - 1];
       alerts.push({
         id: `reg_${Date.now()}_imb`,
         type: "pillar_imbalance",

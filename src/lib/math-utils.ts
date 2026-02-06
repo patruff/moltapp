@@ -428,6 +428,33 @@ export function getTopEntry(record: Record<string, number>): [string, number] | 
   return topEntry;
 }
 
+/**
+ * Sorts a record's entries in descending order by numeric value (highest first).
+ *
+ * Replaces verbose pattern: `Object.entries(record).sort(([, a], [, b]) => b - a)`
+ *
+ * Complements getTopKey() and getTopEntry():
+ * - getTopKey() → returns just the top key
+ * - getTopEntry() → returns just the top [key, value] pair
+ * - sortEntriesDescending() → returns ALL entries sorted descending
+ *
+ * @param record - A record mapping string keys to numeric values
+ * @returns Array of [key, value] tuples sorted by value (highest to lowest)
+ *
+ * @example
+ * const actionCounts = { buy: 2, sell: 1, hold: 5 };
+ * sortEntriesDescending(actionCounts)
+ * // returns [["hold", 5], ["buy", 2], ["sell", 1]]
+ *
+ * // Get top 3 symbols by frequency:
+ * const top3 = sortEntriesDescending(symbolCounts).slice(0, 3);
+ *
+ * sortEntriesDescending({}) // returns []
+ */
+export function sortEntriesDescending(record: Record<string, number>): [string, number][] {
+  return Object.entries(record).sort(([, a], [, b]) => b - a);
+}
+
 export function sortDescending<T extends Record<string, any>>(
   items: T[],
   key: keyof T & string,

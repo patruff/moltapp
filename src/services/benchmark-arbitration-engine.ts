@@ -18,7 +18,7 @@
  * 5. ORIGINALITY — who brought novel analysis vs templated responses?
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -407,7 +407,7 @@ export function getAgentArbitrationProfile(agentId: string): AgentArbitrationPro
     avgDimensions[dim] = round2(sum / total);
   }
 
-  const sortedDims = Object.entries(avgDimensions).sort((a, b) => b[1] - a[1]);
+  const sortedDims = sortEntriesDescending(avgDimensions);
   const strength = sortedDims[0]?.[0] ?? "none";
   const weakness = sortedDims[sortedDims.length - 1]?.[0] ?? "none";
 
