@@ -90,6 +90,27 @@ const MIN_DATA_POINTS = 10;
 /** Maximum history entries per agent to prevent unbounded growth */
 const MAX_HISTORY = 500;
 
+/**
+ * Percentile floor for adaptive threshold calculation (0.25 = 25th percentile).
+ * Means new thresholds are set at the agent's own bottom 25% quality level.
+ * Example: If agent's coherence scores are [0.3, 0.4, 0.5, 0.6], threshold = 0.4.
+ */
+const ADAPTIVE_PERCENTILE_FLOOR = 0.25;
+
+/**
+ * Percentile ceiling for hallucination severity threshold (0.75 = 75th percentile).
+ * Higher percentile for severity as we want to allow agent's WORST hallucination cases.
+ * Example: If agent's severities are [0.1, 0.2, 0.3, 0.4], threshold = 0.3.
+ */
+const ADAPTIVE_PERCENTILE_CEILING = 0.75;
+
+/**
+ * Drift detection threshold for composite score changes.
+ * If composite score changes by more than ±0.02, thresholds are "tightening" or "loosening".
+ * Set at 2% to avoid noise from small fluctuations while catching meaningful shifts.
+ */
+const THRESHOLD_DRIFT_DELTA = 0.02;
+
 /** Default thresholds for agents with insufficient history */
 const DEFAULT_THRESHOLDS: Omit<AdaptiveThresholds, "agentId" | "dataPoints" | "lastUpdated"> = {
   minCoherence: 0.2,
@@ -140,10 +161,11 @@ export function computeAdaptiveThresholds(agentId: string): AdaptiveThresholds {
   const severities = history.map((h) => h.hallucinationSeverity).sort((a, b) => a - b);
   const composites = history.map((h) => h.compositeScore).sort((a, b) => a - b);
 
-  const p25Index = Math.floor(history.length * 0.25);
-  const adaptiveCoherence = coherences[p25Index];
-  const adaptiveSeverity = severities[Math.floor(history.length * 0.75)]; // 75th pctl for severity (higher = worse)
-  const adaptiveComposite = composites[p25Index];
+  const floorIndex = Math.floor(history.length * ADAPTIVE_PERCENTILE_FLOOR);
+  const ceilingIndex = Math.floor(history.length * ADAPTIVE_PERCENTILE_CEILING);
+  const adaptiveCoherence = coherences[floorIndex];
+  const adaptiveSeverity = severities[ceilingIndex]; // 75th pctl for severity (higher = worse)
+  const adaptiveComposite = composites[floorIndex];
 
   return {
     agentId,
@@ -283,8 +305,8 @@ export function getAdaptiveGateStats(): AdaptiveGateStats {
     let thresholdTrend: "tightening" | "stable" | "loosening" = "stable";
     if (prevComposite !== undefined) {
       const delta = currentThresholds.minCompositeScore - prevComposite;
-      if (delta > 0.02) thresholdTrend = "tightening";
-      else if (delta < -0.02) thresholdTrend = "loosening";
+      if (delta > THRESHOLD_DRIFT_DELTA) thresholdTrend = "tightening";
+      else if (delta < -THRESHOLD_DRIFT_DELTA) thresholdTrend = "loosening";
     }
     previousThresholds.set(agentId, currentThresholds.minCompositeScore);
 

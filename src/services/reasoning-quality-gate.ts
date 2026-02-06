@@ -65,6 +65,102 @@ export interface QualityGateConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Composite Score Weights
+// ---------------------------------------------------------------------------
+
+/**
+ * Weight for reasoning length score in composite calculation.
+ * Lower weight (10%) as length alone doesn't guarantee quality.
+ */
+const COMPOSITE_WEIGHT_LENGTH = 0.1;
+
+/**
+ * Weight for data reference score in composite calculation.
+ * Medium weight (20%) - important that reasoning references actual market data.
+ */
+const COMPOSITE_WEIGHT_DATA_REFERENCE = 0.2;
+
+/**
+ * Weight for coherence score in composite calculation.
+ * Highest weight (35%) - logical consistency is the primary quality indicator.
+ */
+const COMPOSITE_WEIGHT_COHERENCE = 0.35;
+
+/**
+ * Weight for hallucination-free score in composite calculation.
+ * Medium weight (20%) - critical to avoid fabricated data.
+ */
+const COMPOSITE_WEIGHT_HALLUCINATION_FREE = 0.2;
+
+/**
+ * Weight for structural completeness score in composite calculation.
+ * Lower weight (15%) - nice-to-have but not essential for quality.
+ */
+const COMPOSITE_WEIGHT_STRUCTURAL = 0.15;
+
+// ---------------------------------------------------------------------------
+// Data Reference Scoring Weights
+// ---------------------------------------------------------------------------
+
+/**
+ * Score bonus for mentioning actual stock symbols from market data.
+ * Largest single bonus (0.4) as symbol mention proves reasoning is grounded.
+ */
+const DATA_REFERENCE_SYMBOL_BONUS = 0.4;
+
+/**
+ * Score bonus for mentioning specific prices (e.g., "$125.50").
+ * Medium bonus (0.2) as price data shows quantitative grounding.
+ */
+const DATA_REFERENCE_PRICE_BONUS = 0.2;
+
+/**
+ * Score bonus for mentioning percentages or changes (e.g., "up 3%").
+ * Medium bonus (0.2) as change data shows market awareness.
+ */
+const DATA_REFERENCE_CHANGE_BONUS = 0.2;
+
+/**
+ * Score bonus for using analysis keywords (because, therefore, given that).
+ * Medium bonus (0.2) as keywords indicate logical reasoning structure.
+ */
+const DATA_REFERENCE_ANALYSIS_BONUS = 0.2;
+
+/**
+ * Minimum data reference score required to pass quality gate.
+ * Set at 0.3 to require at least 2 types of references (symbol + price, etc.).
+ */
+const DATA_REFERENCE_MIN_SCORE = 0.3;
+
+// ---------------------------------------------------------------------------
+// Structural Completeness Weights
+// ---------------------------------------------------------------------------
+
+/**
+ * Score contribution for including sources array with at least one entry.
+ * Largest weight (0.4) as sources enable verification and accountability.
+ */
+const STRUCTURAL_WEIGHT_SOURCES = 0.4;
+
+/**
+ * Score contribution for including intent classification.
+ * Medium weight (0.3) as intent shows understanding of trade purpose.
+ */
+const STRUCTURAL_WEIGHT_INTENT = 0.3;
+
+/**
+ * Score contribution for including predicted outcome.
+ * Medium weight (0.3) as outcome shows forward-looking thesis.
+ */
+const STRUCTURAL_WEIGHT_PREDICTED_OUTCOME = 0.3;
+
+/**
+ * Minimum structural completeness score required to pass quality gate.
+ * Set at 0.5 to require at least 2 of 3 fields (sources, intent, outcome).
+ */
+const STRUCTURAL_MIN_SCORE = 0.5;
+
+// ---------------------------------------------------------------------------
 // Default Config
 // ---------------------------------------------------------------------------
 
@@ -154,7 +250,7 @@ export function checkReasoningQuality(
   // ----- Check 2: Data Reference -----
   // Does the reasoning reference actual market data (prices, symbols, changes)?
   const dataReferenceScore = scoreDataReferences(decision.reasoning, marketData);
-  if (dataReferenceScore < 0.3) {
+  if (dataReferenceScore < DATA_REFERENCE_MIN_SCORE) {
     rejectionReasons.push(
       `Reasoning doesn't reference market data (score: ${dataReferenceScore.toFixed(2)})`,
     );
@@ -179,7 +275,7 @@ export function checkReasoningQuality(
 
   // ----- Check 5: Structural Completeness -----
   const structuralScore = scoreStructuralCompleteness(decision);
-  if (structuralScore < 0.5) {
+  if (structuralScore < STRUCTURAL_MIN_SCORE) {
     rejectionReasons.push(
       `Reasoning structurally incomplete (score: ${structuralScore.toFixed(2)}). Missing sources or intent.`,
     );
@@ -188,11 +284,11 @@ export function checkReasoningQuality(
   // ----- Composite Score -----
   const compositeScore =
     Math.round(
-      (lengthScore * 0.1 +
-        dataReferenceScore * 0.2 +
-        coherence.score * 0.35 +
-        hallucinationFreeScore * 0.2 +
-        structuralScore * 0.15) *
+      (lengthScore * COMPOSITE_WEIGHT_LENGTH +
+        dataReferenceScore * COMPOSITE_WEIGHT_DATA_REFERENCE +
+        coherence.score * COMPOSITE_WEIGHT_COHERENCE +
+        hallucinationFreeScore * COMPOSITE_WEIGHT_HALLUCINATION_FREE +
+        structuralScore * COMPOSITE_WEIGHT_STRUCTURAL) *
         100,
     ) / 100;
 
@@ -281,17 +377,17 @@ function scoreDataReferences(
   const symbolsFound = marketData.filter((md) =>
     lower.includes(md.symbol.toLowerCase()),
   );
-  if (symbolsFound.length > 0) score += 0.4;
+  if (symbolsFound.length > 0) score += DATA_REFERENCE_SYMBOL_BONUS;
 
   // Check for price mentions (any dollar amount)
-  if (/\$\d+\.?\d*/i.test(reasoning)) score += 0.2;
+  if (/\$\d+\.?\d*/i.test(reasoning)) score += DATA_REFERENCE_PRICE_BONUS;
 
   // Check for percentage/change mentions
-  if (/[\d.]+%|percent|change|up\s+\d|down\s+\d/i.test(reasoning)) score += 0.2;
+  if (/[\d.]+%|percent|change|up\s+\d|down\s+\d/i.test(reasoning)) score += DATA_REFERENCE_CHANGE_BONUS;
 
   // Check for analysis keywords
   if (/because|therefore|given that|based on|considering|analysis/i.test(reasoning)) {
-    score += 0.2;
+    score += DATA_REFERENCE_ANALYSIS_BONUS;
   }
 
   return Math.min(1, score);
@@ -305,13 +401,13 @@ function scoreStructuralCompleteness(decision: TradingDecision): number {
   let score = 0;
 
   // Has sources array with at least one entry
-  if (decision.sources && decision.sources.length > 0) score += 0.4;
+  if (decision.sources && decision.sources.length > 0) score += STRUCTURAL_WEIGHT_SOURCES;
 
   // Has intent classification
-  if (decision.intent) score += 0.3;
+  if (decision.intent) score += STRUCTURAL_WEIGHT_INTENT;
 
   // Has predicted outcome
-  if (decision.predictedOutcome) score += 0.3;
+  if (decision.predictedOutcome) score += STRUCTURAL_WEIGHT_PREDICTED_OUTCOME;
 
   return score;
 }
