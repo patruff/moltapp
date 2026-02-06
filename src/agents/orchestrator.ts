@@ -1564,11 +1564,12 @@ async function executeTradingRound(
   }
 
   // --- Meeting of Minds: Post-Trade Deliberation ---
+  let meetingResult: Awaited<ReturnType<typeof runMeetingOfMinds>> | null = null;
   if (process.env.MEETING_OF_MINDS_ENABLED !== "false") {
     try {
-      const meeting = await runMeetingOfMinds(results, ALL_AGENTS, marketData, roundId);
+      meetingResult = await runMeetingOfMinds(results, ALL_AGENTS, marketData, roundId);
       console.log(
-        `[Round] Meeting of Minds: ${meeting.consensus.type} — ${meeting.consensus.summary}`,
+        `[Round] Meeting of Minds: ${meetingResult.consensus.type} — ${meetingResult.consensus.summary}`,
       );
     } catch (err) {
       console.error(`[Round] Meeting of Minds failed: ${errorMessage(err)}`);
@@ -1680,6 +1681,7 @@ async function executeTradingRound(
       lockSkipped: false,
       consensus: computeRoundConsensus(results),
       summary: buildRoundSummaryText(results, errors),
+      meetingOfMinds: meetingResult ? JSON.stringify(meetingResult) : undefined,
       ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
     };
 
@@ -1696,6 +1698,7 @@ async function executeTradingRound(
       errors,
       circuitBreakerActivations: allCircuitBreakerActivations,
       lockSkipped: false,
+      meetingOfMinds: meetingResult ? JSON.stringify(meetingResult) : undefined,
     }).catch((err) =>
       console.warn(`[Orchestrator] DynamoDB persist failed: ${errorMessage(err)}`),
     );

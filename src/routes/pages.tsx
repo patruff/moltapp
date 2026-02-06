@@ -38,6 +38,7 @@ import { trades, agentDecisions, agentTheses, positions } from "../db/schema/ind
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
 import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
+import { getLatestMeetingFromDynamo, getMeetingFromDynamo } from "../services/dynamo-round-persister.ts";
 import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
 // Type aliases for database query results and computed types
@@ -333,7 +334,15 @@ pages.get("/", async (c) => {
     data = { entries: [], aggregateStats: { totalAgents: 0, totalVolume: "0" }, computedAt: new Date() };
   }
 
-  const latestMeeting = getLatestMeeting();
+  // Try in-memory first, fall back to DynamoDB for cross-Lambda persistence
+  let latestMeeting = getLatestMeeting();
+  if (!latestMeeting) {
+    try {
+      latestMeeting = (await getLatestMeetingFromDynamo()) as MeetingResult | undefined;
+    } catch {
+      // Non-critical — meeting widget just won't show
+    }
+  }
 
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
@@ -813,52 +822,82 @@ pages.get("/agent/:id", async (c) => {
       )}
 
       {/* Positions */}
-      <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-bold text-white mb-4">Current Positions</h2>
-        {portfolio.positions.length === 0 ? (
-          <p class="text-gray-500 text-sm">No positions yet. Agent is holding cash.</p>
-        ) : (
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-                  <th class="py-2 px-2 text-left">Stock</th>
-                  <th class="py-2 px-2 text-right">Qty</th>
-                  <th class="py-2 px-2 text-right">Avg Cost</th>
-                  <th class="py-2 px-2 text-right">Price</th>
-                  <th class="py-2 px-2 text-right">Value</th>
-                  <th class="py-2 px-2 text-right">P&amp;L</th>
-                </tr>
-              </thead>
-              <tbody>
-                {portfolio.positions.map((p: AgentPosition) => {
-                  const value = p.currentPrice * p.quantity;
-                  const stockName = getStockName(p.symbol);
-                  const stockDesc = getStockDescription(p.symbol);
-                  return (
-                    <tr class="border-b border-gray-900/50">
-                      <td class="py-2 px-2">
-                        <div class="text-white font-semibold">{stockName}</div>
-                        <div class="text-xs text-gray-500">{p.symbol} · {stockDesc || "Stock"}</div>
-                      </td>
-                      <td class="py-2 px-2 text-right text-gray-300">{formatQuantity(p.quantity)}</td>
-                      <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(p.averageCostBasis)}</td>
-                      <td class="py-2 px-2 text-right text-gray-300">${formatCurrency(p.currentPrice)}</td>
-                      <td class="py-2 px-2 text-right text-gray-200">${formatCurrency(value)}</td>
-                      <td class={`py-2 px-2 text-right font-semibold ${pnlColor(p.unrealizedPnlPercent)}`}>
-                        {formatPercentage(p.unrealizedPnlPercent, 2)}
-                        <span class={`text-xs ml-1 ${pnlColor(p.unrealizedPnl)}`}>
-                          ({pnlSign(p.unrealizedPnl)}${formatCurrency(Math.abs(p.unrealizedPnl))})
-                        </span>
-                      </td>
+      {(() => {
+        // Build symbol → latest active thesis map for inline justifications
+        const thesisBySymbol = new Map<string, Thesis>();
+        for (const t of thesisHistory) {
+          if (t.status === "active" && !thesisBySymbol.has(t.symbol)) {
+            thesisBySymbol.set(t.symbol, t);
+          }
+        }
+
+        return (
+          <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-bold text-white mb-4">Current Positions</h2>
+            {portfolio.positions.length === 0 ? (
+              <p class="text-gray-500 text-sm">No positions yet. Agent is holding cash.</p>
+            ) : (
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
+                      <th class="py-2 px-2 text-left">Stock</th>
+                      <th class="py-2 px-2 text-right">Qty</th>
+                      <th class="py-2 px-2 text-right">Avg Cost</th>
+                      <th class="py-2 px-2 text-right">Price</th>
+                      <th class="py-2 px-2 text-right">Value</th>
+                      <th class="py-2 px-2 text-right">P&amp;L</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {portfolio.positions.map((p: AgentPosition) => {
+                      const value = p.currentPrice * p.quantity;
+                      const stockName = getStockName(p.symbol);
+                      const stockDesc = getStockDescription(p.symbol);
+                      const thesis = thesisBySymbol.get(p.symbol);
+                      return (
+                        <>
+                          <tr class="border-b border-gray-900/50">
+                            <td class="py-2 px-2">
+                              <div class="text-white font-semibold">{stockName}</div>
+                              <div class="text-xs text-gray-500">{p.symbol} · {stockDesc || "Stock"}</div>
+                            </td>
+                            <td class="py-2 px-2 text-right text-gray-300">{formatQuantity(p.quantity)}</td>
+                            <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(p.averageCostBasis)}</td>
+                            <td class="py-2 px-2 text-right text-gray-300">${formatCurrency(p.currentPrice)}</td>
+                            <td class="py-2 px-2 text-right text-gray-200">${formatCurrency(value)}</td>
+                            <td class={`py-2 px-2 text-right font-semibold ${pnlColor(p.unrealizedPnlPercent)}`}>
+                              {formatPercentage(p.unrealizedPnlPercent, 2)}
+                              <span class={`text-xs ml-1 ${pnlColor(p.unrealizedPnl)}`}>
+                                ({pnlSign(p.unrealizedPnl)}${formatCurrency(Math.abs(p.unrealizedPnl))})
+                              </span>
+                            </td>
+                          </tr>
+                          {thesis && (
+                            <tr class="border-b border-gray-900/50">
+                              <td colspan={6} class="py-1 px-2 pb-2">
+                                <div class="flex items-start gap-1 ml-2 text-xs text-gray-500">
+                                  <span class="text-gray-600 shrink-0">{"\u2514"}</span>
+                                  <span class="text-gray-400">
+                                    {truncateText(thesis.thesis, 150)}
+                                  </span>
+                                  <span class={`shrink-0 ml-1 ${thesis.direction === "bullish" ? "text-green-500" : thesis.direction === "bearish" ? "text-red-500" : "text-gray-500"}`}>
+                                    ({thesis.direction}{thesis.conviction != null ? `, ${thesis.conviction}/10` : ""})
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* Investment Theses History */}
       {thesisHistory.length > 0 && (() => {
@@ -2204,9 +2243,17 @@ const AGENT_NAME_COLORS: Record<string, string> = {
   "grok-contrarian": "text-orange-400",
 };
 
-pages.get("/meeting/:roundId", (c) => {
+pages.get("/meeting/:roundId", async (c) => {
   const roundId = c.req.param("roundId");
-  const meeting = getMeetingByRoundId(roundId);
+  // Try in-memory first, fall back to DynamoDB
+  let meeting: MeetingResult | undefined = getMeetingByRoundId(roundId);
+  if (!meeting) {
+    try {
+      meeting = (await getMeetingFromDynamo(roundId)) as MeetingResult | undefined;
+    } catch {
+      // Non-critical
+    }
+  }
 
   if (!meeting) {
     return c.render(

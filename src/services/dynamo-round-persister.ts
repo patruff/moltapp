@@ -22,6 +22,7 @@ import {
   QueryCommand,
   UpdateItemCommand,
   BatchWriteItemCommand,
+  ScanCommand,
   type AttributeValue,
 } from "@aws-sdk/client-dynamodb";
 import type {
@@ -48,6 +49,8 @@ export interface PersistedRound {
   consensus: "unanimous" | "majority" | "split" | "no_trades";
   /** Round summary for quick display */
   summary: string;
+  /** Serialized MeetingResult JSON from Meeting of Minds deliberation */
+  meetingOfMinds?: string;
   /** TTL for DynamoDB auto-expiry (90 days) */
   ttl: number;
 }
@@ -169,6 +172,8 @@ export async function persistRound(params: {
   circuitBreakerActivations: CircuitBreakerActivation[];
   lockSkipped: boolean;
   portfolioSnapshots?: Map<string, { value: number; cash: number; positionsCount: number; pnlPercent: number }>;
+  /** Serialized MeetingResult JSON from Meeting of Minds */
+  meetingOfMinds?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!isDynamoConfigured()) {
     return { success: true }; // Silently skip when not configured
@@ -212,6 +217,7 @@ export async function persistRound(params: {
       lockSkipped: params.lockSkipped,
       consensus,
       summary,
+      meetingOfMinds: params.meetingOfMinds,
       ttl,
     };
 
@@ -426,6 +432,58 @@ export async function getRecentRounds(limit: number = 20): Promise<PersistedRoun
   }
 }
 
+/**
+ * Get the latest meeting of minds from DynamoDB.
+ * Scans recent rounds for one with non-empty meetingOfMinds, returns parsed JSON.
+ */
+export async function getLatestMeetingFromDynamo(): Promise<unknown | null> {
+  if (!isDynamoConfigured()) return null;
+
+  try {
+    const db = getClient();
+
+    // Scan recent rounds filtering for ones with meetingOfMinds attribute
+    const result = await db.send(
+      new ScanCommand({
+        TableName: ROUNDS_TABLE,
+        FilterExpression: "attribute_exists(meetingOfMinds) AND meetingOfMinds <> :empty",
+        ExpressionAttributeValues: { ":empty": { S: "" } },
+        Limit: 50, // Scan up to 50 items to find one with meeting data
+      }),
+    );
+
+    if (!result.Items || result.Items.length === 0) return null;
+
+    // Sort by timestamp descending to get the most recent
+    const rounds = result.Items.map(unmarshalRound)
+      .filter((r) => r.meetingOfMinds)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+    if (rounds.length === 0 || !rounds[0].meetingOfMinds) return null;
+
+    return JSON.parse(rounds[0].meetingOfMinds);
+  } catch (err) {
+    console.error(`[DynamoPersister] Failed to get latest meeting: ${errorMessage(err)}`);
+    return null;
+  }
+}
+
+/**
+ * Get meeting of minds for a specific round from DynamoDB.
+ */
+export async function getMeetingFromDynamo(roundId: string): Promise<unknown | null> {
+  if (!isDynamoConfigured()) return null;
+
+  try {
+    const round = await getRound(roundId);
+    if (!round?.meetingOfMinds) return null;
+    return JSON.parse(round.meetingOfMinds);
+  } catch (err) {
+    console.error(`[DynamoPersister] Failed to get meeting for round ${roundId}: ${errorMessage(err)}`);
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Marshalling — DynamoDB attribute format
 // ---------------------------------------------------------------------------
@@ -442,6 +500,7 @@ function marshalRound(round: PersistedRound): Record<string, AttributeValue> {
     lockSkipped: { BOOL: round.lockSkipped },
     consensus: { S: round.consensus },
     summary: { S: round.summary },
+    ...(round.meetingOfMinds ? { meetingOfMinds: { S: round.meetingOfMinds } } : {}),
     ttl: { N: String(round.ttl) },
   };
 }
@@ -459,6 +518,7 @@ function unmarshalRound(item: Record<string, AttributeValue>): PersistedRound {
     lockSkipped: item.lockSkipped?.BOOL ?? false,
     consensus: (item.consensus?.S ?? "no_trades") as PersistedRound["consensus"],
     summary: item.summary?.S ?? "",
+    meetingOfMinds: item.meetingOfMinds?.S,
     ttl: Number(item.ttl?.N ?? 0),
   };
 }
