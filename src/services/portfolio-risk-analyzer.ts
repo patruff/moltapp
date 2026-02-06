@@ -205,6 +205,88 @@ const RISK_LEVEL_HIGH_THRESHOLD = 50; // score ≥ 50 = HIGH
 const RISK_LEVEL_MODERATE_THRESHOLD = 25; // score ≥ 25 = MODERATE
 // score < 25 = LOW
 
+/**
+ * Stock Volatility Estimates (% daily)
+ * Heuristic volatility estimates for individual stocks based on historical behavior.
+ * These are used when insufficient return history exists for statistical volatility calculation.
+ * Values represent approximate daily volatility percentage (standard deviation of daily returns).
+ *
+ * Categories:
+ * - High Volatility (3.5%+): Tech/crypto stocks with high beta, growth stocks
+ * - Moderate Volatility (2.0-3.5%): Large-cap tech, established growth companies
+ * - Low Volatility (1.5-2.0%): Mega-cap tech, stable blue chips
+ * - Market Volatility (1.2-1.5%): Index funds like SPYx, QQQx
+ */
+
+// High Volatility Stocks (3.5%+ daily volatility)
+/** NVIDIA - Semiconductor leader, high growth premium, options-driven volatility */
+const VOL_NVDAx = 3.5;
+/** Tesla - EV pioneer, high retail sentiment, earnings volatility */
+const VOL_TSLAx = 3.8;
+/** GameStop - Meme stock, extreme retail participation, sentiment-driven */
+const VOL_GMEx = 4.5;
+/** Coinbase - Crypto proxy, correlated with BTC volatility, regulatory risk */
+const VOL_COINx = 4.0;
+/** MicroStrategy - Bitcoin treasury play, leveraged BTC exposure */
+const VOL_MSTRx = 4.2;
+/** Robinhood - Fintech, trading volume volatility, retail sentiment */
+const VOL_HOODx = 3.5;
+/** Palantir - Government contracts, AI narrative, growth stock volatility */
+const VOL_PLTRx = 3.2;
+
+// Moderate Volatility Stocks (2.0-3.5% daily volatility)
+/** Amazon - E-commerce/cloud leader, large cap with growth premium */
+const VOL_AMZNx = 2.2;
+/** Meta - Social media leader, advertising cyclicality, regulatory risk */
+const VOL_METAx = 2.5;
+/** Alphabet/Google - Search monopoly, advertising revenue, AI investments */
+const VOL_GOOGLx = 2.0;
+/** Eli Lilly - Pharma, GLP-1 obesity drugs, clinical trial risk */
+const VOL_LLYx = 2.0;
+/** Salesforce - Enterprise SaaS, cloud growth, economic sensitivity */
+const VOL_CRMx = 2.3;
+/** Netflix - Streaming leader, subscriber growth volatility, content costs */
+const VOL_NFLXx = 2.8;
+/** Broadcom - Semiconductor/software, M&A activity, enterprise cycles */
+const VOL_AVGOx = 2.5;
+/** Carnival Cruise - Travel/leisure, economic sensitivity, fuel costs */
+const VOL_CRCLx = 2.0;
+
+// Low Volatility Stocks (1.5-2.0% daily volatility)
+/** Apple - Mega-cap tech, iPhone cycles, services growth, low beta */
+const VOL_AAPLx = 1.8;
+/** Microsoft - Enterprise software/cloud, stable revenue, Azure growth */
+const VOL_MSFTx = 1.7;
+/** JPMorgan - Banking leader, interest rate sensitivity, stable dividend */
+const VOL_JPMx = 1.9;
+
+// Market Index Funds (1.2-1.5% daily volatility)
+/** S&P 500 ETF - Market proxy, diversified large-cap exposure */
+const VOL_SPYx = 1.2;
+/** Nasdaq-100 ETF - Tech-heavy index, growth stock concentration */
+const VOL_QQQx = 1.5;
+
+/** Default volatility estimate when stock not in catalog (moderate baseline) */
+const VOL_DEFAULT = 2.5;
+
+/**
+ * Synthetic Return Generation Parameters
+ * Used when insufficient portfolio history exists for statistical analysis.
+ * These control fallback data generation for risk calculations.
+ */
+
+/** Maximum number of trade records to use for synthetic return generation */
+const SYNTHETIC_RETURNS_MAX_TRADES = 30;
+
+/** Random return center offset (0.48 centers random() - 0.48 around -0.02 bias) */
+const SYNTHETIC_RETURNS_RANDOM_OFFSET = 0.48;
+
+/** Fallback return series when no trade history or portfolio history exists */
+const DEFAULT_RETURN_SERIES = [0.5, -0.3, 0.2, -0.1, 0.4] as const;
+
+/** Default volatility estimate (%) when insufficient return data for computation */
+const VOLATILITY_DEFAULT = 2.0;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -906,13 +988,13 @@ function computeDailyReturns(
   if (history.length < 2) {
     // Generate synthetic returns from trade history
     const returns: number[] = [];
-    for (let i = 0; i < Math.min(tradeRecords.length, 30); i++) {
+    for (let i = 0; i < Math.min(tradeRecords.length, SYNTHETIC_RETURNS_MAX_TRADES); i++) {
       // Simplified: each trade contributes a small random return
       const usdcAmt = parseFloat(tradeRecords[i].usdcAmount);
-      const returnPct = ((Math.random() - 0.48) * usdcAmt) / (currentValue || 10000) * 100;
+      const returnPct = ((Math.random() - SYNTHETIC_RETURNS_RANDOM_OFFSET) * usdcAmt) / (currentValue || 10000) * 100;
       returns.push(returnPct);
     }
-    return returns.length > 0 ? returns : [0.5, -0.3, 0.2, -0.1, 0.4]; // Default data
+    return returns.length > 0 ? returns : [...DEFAULT_RETURN_SERIES]; // Default data
   }
 
   // Compute returns from portfolio value history
@@ -937,7 +1019,7 @@ function computeDailyReturns(
 }
 
 function computeVolatility(returns: number[]): number {
-  if (returns.length < 2) return 2.0; // Default estimate
+  if (returns.length < 2) return VOLATILITY_DEFAULT; // Default estimate
 
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
   const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / (returns.length - 1);
@@ -947,15 +1029,15 @@ function computeVolatility(returns: number[]): number {
 function estimateStockVolatility(symbol: string): number {
   // Heuristic volatility estimates based on stock type
   const volatilityMap: Record<string, number> = {
-    NVDAx: 3.5, TSLAx: 3.8, GMEx: 4.5, COINx: 4.0,
-    MSTRx: 4.2, HOODx: 3.5, PLTRx: 3.2,
-    AMZNx: 2.2, METAx: 2.5, GOOGLx: 2.0,
-    AAPLx: 1.8, MSFTx: 1.7, JPMx: 1.9,
-    SPYx: 1.2, QQQx: 1.5,
-    LLYx: 2.0, CRMx: 2.3, NFLXx: 2.8,
-    AVGOx: 2.5, CRCLx: 2.0,
+    NVDAx: VOL_NVDAx, TSLAx: VOL_TSLAx, GMEx: VOL_GMEx, COINx: VOL_COINx,
+    MSTRx: VOL_MSTRx, HOODx: VOL_HOODx, PLTRx: VOL_PLTRx,
+    AMZNx: VOL_AMZNx, METAx: VOL_METAx, GOOGLx: VOL_GOOGLx,
+    AAPLx: VOL_AAPLx, MSFTx: VOL_MSFTx, JPMx: VOL_JPMx,
+    SPYx: VOL_SPYx, QQQx: VOL_QQQx,
+    LLYx: VOL_LLYx, CRMx: VOL_CRMx, NFLXx: VOL_NFLXx,
+    AVGOx: VOL_AVGOx, CRCLx: VOL_CRCLx,
   };
-  return volatilityMap[symbol] ?? 2.5;
+  return volatilityMap[symbol] ?? VOL_DEFAULT;
 }
 
 // ---------------------------------------------------------------------------
