@@ -22,6 +22,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round3 } from "../lib/math-utils.ts";
+import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -589,7 +590,7 @@ export async function generateRebalanceProposal(
     }>;
   },
 ): Promise<RebalanceProposal> {
-  const now = new Date().toISOString();
+  const now = nowISO();
 
   // Calculate total portfolio value
   const positionsValue = currentPortfolio.positions.reduce(
@@ -858,7 +859,7 @@ export function recordRebalanceExecution(
   rebalanceHistory.push({
     proposal,
     executed: true,
-    executedAt: new Date().toISOString(),
+    executedAt: nowISO(),
     actualAdjustments,
     postRebalanceValue,
   });

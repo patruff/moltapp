@@ -19,6 +19,7 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { agents, decisionQualitySnapshots } from "../db/schema/index.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
+import { nowISO } from "../lib/format-utils.ts";
 
 // Quality service imports
 import { analyzeCalibration } from "./confidence-calibration-analyzer.ts";
@@ -124,7 +125,7 @@ const DIMENSION_WEIGHTS = {
 export async function generateDecisionQualityReport(
   agentId: string,
 ): Promise<DecisionQualityReport> {
-  const timestamp = new Date().toISOString();
+  const timestamp = nowISO();
 
   // Call all services in parallel
   const [calibrationResult, integrityResult, accountabilityResult, memoryResult, toolUseResult] =

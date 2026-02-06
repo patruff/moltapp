@@ -28,6 +28,7 @@ import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -298,7 +299,7 @@ function hashSeed(input: string): number {
  * but remain stable within the same hour.
  */
 function seededRandom(seed: string, min: number, max: number): number {
-  const hourKey = new Date().toISOString().slice(0, 13); // YYYY-MM-DDTHH
+  const hourKey = nowISO().slice(0, 13); // YYYY-MM-DDTHH
   const h = hashSeed(seed + hourKey);
   const normalized = (h % 10000) / 10000; // 0..1
   return min + normalized * (max - min);
@@ -464,7 +465,7 @@ function computeSocialSentiment(symbol: string, marketData: MarketData): { score
   score = Math.max(-100, Math.min(100, score));
 
   const mentionCount = Math.round(seededRandom(`mentions-${symbol}`, 50, 5000));
-  const buzzWord = keywords.length > 0 ? keywords[hashSeed(symbol + new Date().toISOString().slice(0, 13)) % keywords.length] : symbol;
+  const buzzWord = keywords.length > 0 ? keywords[hashSeed(symbol + nowISO().slice(0, 13)) % keywords.length] : symbol;
 
   return {
     score,
@@ -660,7 +661,7 @@ export async function getStockSentiment(symbol: string): Promise<SentimentScore 
       signal: classifySignal(clampedOverall),
       confidence,
       drivers,
-      generatedAt: new Date().toISOString(),
+      generatedAt: nowISO(),
     };
   } catch (error) {
     console.error(`[Sentiment] Error computing sentiment for ${symbol}:`, error);
@@ -778,7 +779,7 @@ export async function detectSentimentShifts(): Promise<SentimentShift[]> {
       direction,
       significance,
       triggers,
-      detectedAt: new Date().toISOString(),
+      detectedAt: nowISO(),
     });
   }
 
@@ -1223,7 +1224,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
 
       // Headline 4: Sector/keyword based
       if (headlineCount >= 4 && keywords.length > 0) {
-        const keyword = keywords[hashSeed(stock.symbol + "kw" + new Date().toISOString().slice(0, 13)) % keywords.length];
+        const keyword = keywords[hashSeed(stock.symbol + "kw" + nowISO().slice(0, 13)) % keywords.length];
         const sectorSentiment = seededRandom(`sector-news-${stock.symbol}`, -0.5, 0.5);
         const category = selectCategory(stock.symbol, sector);
 
@@ -1472,7 +1473,7 @@ export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
         classification: "neutral",
         components: { agentMood: 0, priceMomentum: 0, volumeTrend: 0, breadth: 50 },
         description: "Insufficient data to compute market mood.",
-        generatedAt: new Date().toISOString(),
+        generatedAt: nowISO(),
       };
     }
 
@@ -1527,7 +1528,7 @@ export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
         breadth: Math.round(breadth),
       },
       description: descriptionMap[classification] ?? "Unable to classify market mood.",
-      generatedAt: new Date().toISOString(),
+      generatedAt: nowISO(),
     };
   } catch (error) {
     console.error("[Sentiment] Market mood error:", error);
@@ -1537,7 +1538,7 @@ export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
       classification: "neutral",
       components: { agentMood: 0, priceMomentum: 0, volumeTrend: 0, breadth: 50 },
       description: "Error computing market mood index.",
-      generatedAt: new Date().toISOString(),
+      generatedAt: nowISO(),
     };
   }
 }

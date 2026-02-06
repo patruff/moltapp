@@ -372,3 +372,76 @@ export function calculatePnlUsd(totalValue: number, pnlPercent: number): number 
   const initialValue = totalValue / (1 + pnlPercent / 100);
   return totalValue - initialValue;
 }
+
+/**
+ * Get current timestamp as ISO string
+ * Centralized helper for consistent timestamp creation across services
+ *
+ * @returns ISO 8601 timestamp string like "2026-02-06T12:34:56.789Z"
+ *
+ * @example
+ * nowISO() // "2026-02-06T12:34:56.789Z"
+ * // Use for: lastUpdated, createdAt, executedAt fields
+ */
+export function nowISO(): string {
+  return new Date().toISOString();
+}
+
+/**
+ * Get current timestamp in milliseconds
+ * Centralized helper for performance timing and unique ID generation
+ *
+ * @returns Unix timestamp in milliseconds
+ *
+ * @example
+ * nowTimestamp() // 1707225296789
+ * // Use for: performance timing, unique IDs, cutoff calculations
+ */
+export function nowTimestamp(): number {
+  return Date.now();
+}
+
+/**
+ * Create a Date object for current time
+ * Centralized helper for consistency (mostly use nowISO() or nowTimestamp() instead)
+ *
+ * @returns Current Date object
+ *
+ * @example
+ * now() // Date { 2026-02-06T12:34:56.789Z }
+ */
+export function now(): Date {
+  return new Date();
+}
+
+/**
+ * Calculate timestamp for N days in the past
+ * Useful for creating cutoff times for filtering historical data
+ *
+ * @param days - Number of days to subtract from current time
+ * @returns Unix timestamp in milliseconds
+ *
+ * @example
+ * daysAgoTimestamp(7) // timestamp for 7 days ago
+ * daysAgoTimestamp(30) // timestamp for 30 days ago
+ * // Use for: filtering trades/decisions within time windows
+ */
+export function daysAgoTimestamp(days: number): number {
+  return Date.now() - days * 24 * 60 * 60 * 1000;
+}
+
+/**
+ * Calculate timestamp for N hours in the past
+ * Useful for creating cutoff times for recent data filtering
+ *
+ * @param hours - Number of hours to subtract from current time
+ * @returns Unix timestamp in milliseconds
+ *
+ * @example
+ * hoursAgoTimestamp(24) // timestamp for 24 hours ago
+ * hoursAgoTimestamp(6) // timestamp for 6 hours ago
+ * // Use for: recent activity filtering, cache expiration
+ */
+export function hoursAgoTimestamp(hours: number): number {
+  return Date.now() - hours * 60 * 60 * 1000;
+}

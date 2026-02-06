@@ -22,6 +22,8 @@
  * transaction construction (implemented as pluggable executors).
  */
 
+import { nowISO } from "../lib/format-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -169,7 +171,7 @@ const protocols: YieldProtocol[] = [
     minDeposit: 0.1,
     withdrawalDelaySeconds: 0,
     programAddress: "MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: nowISO(),
   },
   {
     id: "marginfi-usdc",
@@ -182,7 +184,7 @@ const protocols: YieldProtocol[] = [
     minDeposit: 10,
     withdrawalDelaySeconds: 0,
     programAddress: "MFv2hWf31Z9kbCa1snEPYctwafyhdvnV7FZnsebVacA",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: nowISO(),
   },
   {
     id: "drift-usdc-vault",
@@ -195,7 +197,7 @@ const protocols: YieldProtocol[] = [
     minDeposit: 50,
     withdrawalDelaySeconds: 300, // 5 min cooldown
     programAddress: "dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: nowISO(),
   },
   {
     id: "jlp-vault",
@@ -208,7 +210,7 @@ const protocols: YieldProtocol[] = [
     minDeposit: 100,
     withdrawalDelaySeconds: 0,
     programAddress: "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: nowISO(),
   },
 ];
 
@@ -219,7 +221,7 @@ export function updateProtocolApy(protocolId: string, newApy: number): void {
   const protocol = protocols.find((p) => p.id === protocolId);
   if (protocol) {
     protocol.apy = newApy;
-    protocol.lastUpdated = new Date().toISOString();
+    protocol.lastUpdated = nowISO();
   }
 }
 
@@ -234,7 +236,7 @@ export function updateProtocolStatus(
   if (protocol) {
     const oldStatus = protocol.status;
     protocol.status = status;
-    protocol.lastUpdated = new Date().toISOString();
+    protocol.lastUpdated = nowISO();
     console.log(
       `[DeFiYield] Protocol ${protocolId} status: ${oldStatus} -> ${status}`,
     );
@@ -304,8 +306,8 @@ export function depositToYield(
     yieldEarned: 0,
     depositApy: protocol.apy,
     currentApy: protocol.apy,
-    depositedAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString(),
+    depositedAt: nowISO(),
+    lastUpdated: nowISO(),
     status: "active",
   };
 
@@ -343,7 +345,7 @@ export function withdrawFromYield(
 
   // Move to closed
   position.status = "closed";
-  position.lastUpdated = new Date().toISOString();
+  position.lastUpdated = nowISO();
   closedPositions.push(position);
   activePositions.splice(posIndex, 1);
 
@@ -420,7 +422,7 @@ function accrueYield(position: YieldPosition): void {
     Math.round(position.depositedAmount * growthFactor * 100) / 100;
   position.yieldEarned =
     Math.round((position.currentValue - position.depositedAmount) * 100) / 100;
-  position.lastUpdated = new Date().toISOString();
+  position.lastUpdated = nowISO();
 }
 
 /**
@@ -644,7 +646,7 @@ export function getYieldSummary(): YieldSummary {
       },
     ),
     protocols: protocols.map((p) => ({ ...p })),
-    lastUpdated: new Date().toISOString(),
+    lastUpdated: nowISO(),
   };
 }
 
