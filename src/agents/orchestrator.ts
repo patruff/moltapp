@@ -412,6 +412,21 @@ const BENCHMARK_RISK_CONSTRAINTS = { maxPositionSize: 25, maxPortfolioAllocation
 /** Standard portfolio baseline used across all benchmark scoring versions */
 const BENCHMARK_PORTFOLIO_BASELINE = { cashBalance: 10000, totalValue: 10000, positions: [] as never[] };
 
+// ---------------------------------------------------------------------------
+// Scoring Proxy Formulas
+// ---------------------------------------------------------------------------
+// When full justification data isn't available yet, these linear transforms
+// of normalizedConfidence approximate various quality dimensions.
+
+/** Proxy for reasoning quality (v9-v15): moderate slope, low floor */
+const proxyReasoningFromConf = (c: number) => c * 0.8 + 0.1;
+
+/** Proxy for coherence estimate (v17+): gentle slope, higher floor */
+const proxyCoherenceFromConf = (c: number) => c * 0.6 + 0.3;
+
+/** Proxy for composite score (v15): broad blend */
+const proxyCompositeFromConf = (c: number) => c * 0.4 + 0.4;
+
 export async function getMarketData(): Promise<MarketData[]> {
   // Check cache first
   const now = Date.now();
@@ -1776,7 +1791,7 @@ async function executeTradingRound(
         reasoning: r.decision.reasoning,
         confidence: normConf,
         intent: r.decision.intent ?? "value",
-        coherenceScore: normConf * 0.8 + 0.1, // Will be enriched from justification
+        coherenceScore: proxyReasoningFromConf(normConf), // Will be enriched from justification
         hallucinationCount: 0, // Will be enriched
         disciplinePass: true, // Will be enriched
         pnlPercent: 0, // Will be enriched by financial tracker
@@ -1884,7 +1899,7 @@ async function executeTradingRound(
       }
 
       // Record calibration data point
-      const coherenceForCalib = normConf * 0.8 + 0.1; // Proxy until justification is available
+      const coherenceForCalib = proxyReasoningFromConf(normConf); // Proxy until justification is available
       const qualityOutcome = inferOutcomeFromCoherence(coherenceForCalib, 0, true);
       recordCalibrationPoint({
         agentId: r.agentId,
@@ -1938,7 +1953,7 @@ async function executeTradingRound(
         symbol: r.decision.symbol,
         confidence: normConf,
         reasoning: r.decision.reasoning,
-        coherenceScore: normConf * 0.8 + 0.1,
+        coherenceScore: proxyReasoningFromConf(normConf),
       };
     });
     const consensusSnapshot = recordRoundConsensus(roundId, consensusAgents);
@@ -1954,7 +1969,7 @@ async function executeTradingRound(
       const normConf = normalizeConfidence(r.decision.confidence);
       recordV14AgentMetrics(r.agentId, {
         financial: 0.5,
-        reasoning: normConf * 0.8 + 0.1,
+        reasoning: proxyReasoningFromConf(normConf),
         safety: 0.8,
         calibration: 0.5,
         patterns: 0.5,
@@ -1963,7 +1978,7 @@ async function executeTradingRound(
         validationQuality: 0.5,
         predictionAccuracy: 0.5,
         reasoningStability: 0.7,
-        composite: normConf * 0.4 + 0.4,
+        composite: proxyCompositeFromConf(normConf),
         grade: normConf >= 0.7 ? "B+" : normConf >= 0.5 ? "C+" : "C",
         tradeCount: 1,
         lastUpdated: new Date().toISOString(),
@@ -2070,7 +2085,7 @@ async function executeTradingRound(
     const scoringOutputs: Record<string, unknown> = {};
     for (const r of results) {
       const normConf = normalizeConfidence(r.decision.confidence);
-      scoringOutputs[r.agentId] = { composite: normConf * 0.4 + 0.4 };
+      scoringOutputs[r.agentId] = { composite: proxyCompositeFromConf(normConf) };
     }
 
     recordScoringRun({
@@ -2098,7 +2113,7 @@ async function executeTradingRound(
       const normConf = normalizeConfidence(r.decision.confidence);
       recordV15AgentMetrics(r.agentId, {
         financial: 0.5,
-        reasoning: normConf * 0.8 + 0.1,
+        reasoning: proxyReasoningFromConf(normConf),
         safety: 0.8,
         calibration: 0.5,
         patterns: 0.5,
@@ -2157,14 +2172,14 @@ async function executeTradingRound(
         symbol: r.decision.symbol,
         confidence: normConf,
         intent,
-        coherenceScore: normConf * 0.6 + 0.3,
+        coherenceScore: proxyCoherenceFromConf(normConf),
         roundId,
         timestamp: new Date().toISOString(),
       });
 
       // 4. Feed unified 14-pillar scoring engine
       recordV16Metrics(r.agentId, {
-        coherence: normConf * 0.6 + 0.3,
+        coherence: proxyCoherenceFromConf(normConf),
         hallucinationFree: 0.9,
         discipline: true,
         confidence: normConf,
@@ -2251,7 +2266,7 @@ async function executeTradingRound(
         sources,
         predictedOutcome: r.decision.predictedOutcome ?? null,
         marketPrices: v17PriceMap,
-        coherenceScore: normConf * 0.6 + 0.3,
+        coherenceScore: proxyCoherenceFromConf(normConf),
         hallucinationFlags: [],
         disciplinePass: true,
         depthScore: Math.min(1, countWords(r.decision.reasoning) / 100),
@@ -2267,7 +2282,7 @@ async function executeTradingRound(
         symbol: r.decision.symbol,
         quantity: r.decision.quantity,
         confidence: normConf,
-        coherenceScore: normConf * 0.6 + 0.3,
+        coherenceScore: proxyCoherenceFromConf(normConf),
         hallucinationCount: 0,
         intent,
         reasoning: r.decision.reasoning,
@@ -2289,7 +2304,7 @@ async function executeTradingRound(
         agentConfig?.model ?? "unknown",
         {
           financial: 0.5,
-          reasoning: normConf * 0.6 + 0.3,
+          reasoning: proxyCoherenceFromConf(normConf),
           safety: 0.8,
           calibration: 0.5,
           patterns: 0.5,
@@ -2349,7 +2364,7 @@ async function executeTradingRound(
     for (const r of results) {
       const normConf = normalizeConfidence(r.decision.confidence);
       const intent = r.decision.intent ?? classifyIntent(r.decision.reasoning, r.decision.action);
-      const coherenceEst = normConf * 0.6 + 0.3;
+      const coherenceEst = proxyCoherenceFromConf(normConf);
       const reasoningWords = countWords(r.decision.reasoning);
 
       // 1. Adversarial robustness analysis
