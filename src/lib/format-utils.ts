@@ -3,6 +3,22 @@
  */
 
 /**
+ * Convert string or number to number type
+ * Centralizes string-to-number parsing logic used throughout formatting functions
+ *
+ * @param value - The value to convert (string or number)
+ * @returns Parsed number value
+ *
+ * @example
+ * toNumber("123.45") // 123.45
+ * toNumber(67.89) // 67.89
+ * toNumber("invalid") // NaN (caller should check with isNaN())
+ */
+export function toNumber(value: string | number): number {
+  return typeof value === "string" ? parseFloat(value) : value;
+}
+
+/**
  * Format a percentage value with optional sign prefix and custom decimal places
  * @param value - The percentage value (e.g., 5.67 for 5.67%)
  * @param decimals - Number of decimal places (default: 1)
@@ -14,7 +30,7 @@
  * formatPercentage(0.5, 2) // "+0.50%"
  */
 export function formatPercentage(value: string | number, decimals: number = 1): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
+  const num = toNumber(value);
   if (isNaN(num)) return "0.0%";
 
   const sign = num > 0 ? "+" : "";
@@ -37,8 +53,8 @@ export function calculateTargetMovePercent(
   entryPrice: string | number,
   decimals: number = 1
 ): string {
-  const target = typeof targetPrice === "string" ? parseFloat(targetPrice) : targetPrice;
-  const entry = typeof entryPrice === "string" ? parseFloat(entryPrice) : entryPrice;
+  const target = toNumber(targetPrice);
+  const entry = toNumber(entryPrice);
 
   if (isNaN(target) || isNaN(entry) || entry === 0) return "0.0%";
 
@@ -58,8 +74,8 @@ export function calculateTargetMoveValue(
   targetPrice: string | number,
   entryPrice: string | number
 ): number {
-  const target = typeof targetPrice === "string" ? parseFloat(targetPrice) : targetPrice;
-  const entry = typeof entryPrice === "string" ? parseFloat(entryPrice) : entryPrice;
+  const target = toNumber(targetPrice);
+  const entry = toNumber(entryPrice);
 
   if (isNaN(target) || isNaN(entry) || entry === 0) return 0;
 
@@ -110,7 +126,7 @@ export function truncateText(text: string, maxLength: number = 200): string {
  * formatCurrency("invalid") // "0.00"
  */
 export function formatCurrency(value: string | number): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
+  const num = toNumber(value);
   if (isNaN(num)) return "0.00";
   return num.toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -152,7 +168,7 @@ export function formatTimeAgo(date: Date | null): string {
  * pnlColor(0) // "text-gray-400"
  */
 export function pnlColor(pnlPercent: string | number): string {
-  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
+  const num = toNumber(pnlPercent);
   if (num > 0) return "text-profit";
   if (num < 0) return "text-loss";
   return "text-gray-400";
@@ -169,7 +185,7 @@ export function pnlColor(pnlPercent: string | number): string {
  * pnlSign(0) // ""
  */
 export function pnlSign(pnlPercent: string | number): string {
-  const num = typeof pnlPercent === "string" ? parseFloat(pnlPercent) : pnlPercent;
+  const num = toNumber(pnlPercent);
   if (num > 0) return "+";
   return "";
 }
@@ -299,7 +315,7 @@ export function formatPnlDisplay(value: number): string {
  * formatQuantity("invalid") // "0.0000"
  */
 export function formatQuantity(value: string | number): string {
-  const num = typeof value === "string" ? parseFloat(value) : value;
+  const num = toNumber(value);
   if (isNaN(num)) return "0.0000";
   return num.toFixed(4);
 }
