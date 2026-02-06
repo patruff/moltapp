@@ -14,6 +14,7 @@
  */
 
 import { clamp } from "../lib/math-utils.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
@@ -176,7 +177,7 @@ export function analyzeForensics(
     clarity,
     crossTrade,
     compositeScore: clampedScore,
-    grade: scoreToGrade(clampedScore),
+    grade: computeGrade(clampedScore),
   };
 }
 
@@ -414,21 +415,6 @@ function extractNGrams(text: string, n: number): Set<string> {
   return ngrams;
 }
 
-function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
-  return "F";
-}
 
 // ---------------------------------------------------------------------------
 // Aggregate & Query Functions

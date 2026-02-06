@@ -18,6 +18,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -228,7 +229,7 @@ export function analyzeDeepCoherence(
 
   return {
     overallScore: finalScore,
-    grade: scoreToGrade(finalScore),
+    grade: computeGrade(finalScore),
     dimensions: {
       logicalStructure,
       evidenceGrounding,
@@ -409,21 +410,6 @@ function computeTextMetrics(reasoning: string): TextMetrics {
   };
 }
 
-function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
-  return "F";
-}
 
 // ---------------------------------------------------------------------------
 // Aggregate Analysis
@@ -490,7 +476,7 @@ export function getAgentDeepCoherenceStats(agentId: string) {
     agentId,
     totalAnalyzed: history.length,
     avgOverallScore: Math.round(avgScore * 100) / 100,
-    avgGrade: scoreToGrade(avgScore),
+    avgGrade: computeGrade(avgScore),
     dimensionAverages: dimAvgs,
     strengthFrequency: Array.from(strengthCounts.entries())
       .sort(([, a], [, b]) => b - a)

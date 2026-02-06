@@ -27,6 +27,8 @@ export function computeGrade(score: number): string {
   if (score >= 0.65) return "C+";
   if (score >= 0.60) return "C";
   if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D";
+  if (score >= 0.50) return "D+";
+  if (score >= 0.45) return "D";
+  if (score >= 0.40) return "D-";
   return "F";
 }

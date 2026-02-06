@@ -17,6 +17,8 @@
  * - ADAPTIVE STRATEGY: Does the agent change approach when failing?
  */
 
+import { computeGrade } from "../lib/grade-calculator.ts";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -234,21 +236,6 @@ export function recordMetacognitionEvent(event: Omit<MetacognitionEvent, "hedgeC
 // Report Generation
 // ---------------------------------------------------------------------------
 
-function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
-  return "F";
-}
 
 /**
  * Generate a full metacognition report for an agent.
@@ -428,7 +415,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     tradeCount,
     lastUpdated: new Date().toISOString(),
     overallScore: Math.round(overallScore * 1000) / 1000,
-    grade: scoreToGrade(overallScore),
+    grade: computeGrade(overallScore),
     epistemicHumility: Math.round(humilityScore * 1000) / 1000,
     calibrationAwareness: Math.round(calibrationScore * 1000) / 1000,
     errorRecognition: Math.round(errorRecognition * 1000) / 1000,
