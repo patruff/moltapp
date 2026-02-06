@@ -35,6 +35,7 @@ import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
 import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
+import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
 
 // Type aliases for database query results and computed types
 type Trade = typeof trades.$inferSelect;
@@ -734,7 +735,7 @@ pages.get("/agent/:id", async (c) => {
             <table class="w-full text-sm">
               <thead>
                 <tr class="border-b border-gray-800 text-gray-400 text-xs uppercase tracking-wider">
-                  <th class="py-2 px-2 text-left">Symbol</th>
+                  <th class="py-2 px-2 text-left">Stock</th>
                   <th class="py-2 px-2 text-right">Qty</th>
                   <th class="py-2 px-2 text-right">Avg Cost</th>
                   <th class="py-2 px-2 text-right">Price</th>
@@ -745,9 +746,14 @@ pages.get("/agent/:id", async (c) => {
               <tbody>
                 {portfolio.positions.map((p: AgentPosition) => {
                   const value = p.currentPrice * p.quantity;
+                  const stockName = getStockName(p.symbol);
+                  const stockDesc = getStockDescription(p.symbol);
                   return (
                     <tr class="border-b border-gray-900/50">
-                      <td class="py-2 px-2 text-white font-semibold">{p.symbol}</td>
+                      <td class="py-2 px-2">
+                        <div class="text-white font-semibold">{stockName}</div>
+                        <div class="text-xs text-gray-500">{p.symbol} · {stockDesc || "Stock"}</div>
+                      </td>
                       <td class="py-2 px-2 text-right text-gray-300">{formatQuantity(p.quantity)}</td>
                       <td class="py-2 px-2 text-right text-gray-400">${formatCurrency(p.averageCostBasis)}</td>
                       <td class="py-2 px-2 text-right text-gray-300">${formatCurrency(p.currentPrice)}</td>
