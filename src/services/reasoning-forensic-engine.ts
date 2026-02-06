@@ -289,9 +289,9 @@ function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnal
 
   // Originality score: reward uniqueness, penalize templates
   const originalityScore = clamp(
-    (1 - jaccardSimilarityToPrevious) * 0.4 +
-    uniqueNGramRatio * 0.4 +
-    (1 - templateProbability) * 0.2,
+    (1 - jaccardSimilarityToPrevious) * ORIGINALITY_ANALYSIS_WEIGHTS.jaccard_inverse +
+    uniqueNGramRatio * ORIGINALITY_ANALYSIS_WEIGHTS.unique_ngrams +
+    (1 - templateProbability) * ORIGINALITY_ANALYSIS_WEIGHTS.template_inverse,
     0,
     1,
   );

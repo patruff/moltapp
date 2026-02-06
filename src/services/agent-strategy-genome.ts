@@ -19,7 +19,7 @@
  */
 
 import { clamp } from "../lib/math-utils.ts";
-import { GENOME_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
+import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,7 +112,11 @@ function scoreRiskAppetite(obs: TradeObservation[]): Gene {
   const highConfTrades = nonHold.filter((o) => o.confidence > 0.7).length;
 
   // Higher = more risk-taking
-  const score = Math.min(1, (1 - holdRate) * 0.4 + Math.min(1, avgQuantity / 2000) * 0.3 + (highConfTrades / Math.max(1, nonHold.length)) * 0.3);
+  const score = Math.min(1,
+    (1 - holdRate) * GENE_SCORING_WEIGHTS.risk_appetite.hold_rate_inverse +
+    Math.min(1, avgQuantity / 2000) * GENE_SCORING_WEIGHTS.risk_appetite.avg_trade_size +
+    (highConfTrades / Math.max(1, nonHold.length)) * GENE_SCORING_WEIGHTS.risk_appetite.high_conf_trades,
+  );
 
   const evidence: string[] = [];
   evidence.push(`Hold rate: ${(holdRate * 100).toFixed(0)}%`);
@@ -220,7 +224,11 @@ function scoreInformationProcessing(obs: TradeObservation[]): Gene {
   const hallRate = obs.filter((o) => o.hallucinationCount > 0).length / Math.max(1, obs.length);
   const avgReasoningLength = obs.reduce((s, o) => s + o.reasoning.split(/\s+/).length, 0) / Math.max(1, obs.length);
 
-  const score = Math.min(1, avgCoherence * 0.4 + (1 - hallRate) * 0.3 + Math.min(1, avgReasoningLength / 100) * 0.3);
+  const score = Math.min(1,
+    avgCoherence * GENE_SCORING_WEIGHTS.information_processing.avg_coherence +
+    (1 - hallRate) * GENE_SCORING_WEIGHTS.information_processing.hallucination_free +
+    Math.min(1, avgReasoningLength / 100) * GENE_SCORING_WEIGHTS.information_processing.reasoning_length,
+  );
 
   const evidence: string[] = [];
   evidence.push(`Avg coherence: ${avgCoherence.toFixed(2)}`);

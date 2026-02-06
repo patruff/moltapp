@@ -421,7 +421,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "76aa54fdda5fae69be9ee97ff670a1ff2a2a73fc2d62239764eaa8222a7852b7.zip"
+     "S3Key": "65149c9016eaa0a8b4f115d4c86517c1f9d66251f22f373b95fca85331bdba6e.zip"
     },
     "Environment": {
      "Variables": {
@@ -457,7 +457,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/ApiFunction/Resource",
-    "aws:asset:path": "asset.76aa54fdda5fae69be9ee97ff670a1ff2a2a73fc2d62239764eaa8222a7852b7",
+    "aws:asset:path": "asset.65149c9016eaa0a8b4f115d4c86517c1f9d66251f22f373b95fca85331bdba6e",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
@@ -699,7 +699,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "bb4062fb6fbbb0c67fd8dae6b81ecce7cea423887571e0c6a4e5e9de52b36f00.zip"
+     "S3Key": "7a0ae83bac117adb5d915ce185ad3f9c868c6e3fcbb22dcc51b9faabc16d747e.zip"
     },
     "Environment": {
      "Variables": {
@@ -735,7 +735,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/TradingFunction/Resource",
-    "aws:asset:path": "asset.bb4062fb6fbbb0c67fd8dae6b81ecce7cea423887571e0c6a4e5e9de52b36f00",
+    "aws:asset:path": "asset.7a0ae83bac117adb5d915ce185ad3f9c868c6e3fcbb22dcc51b9faabc16d747e",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
@@ -743,9 +743,9 @@
   "TradingScheduleFDC8B174": {
    "Type": "AWS::Events::Rule",
    "Properties": {
-    "Description": "Trigger AI trading round every 30 minutes — 3 agents compete",
+    "Description": "Trigger AI trading round daily at 5 AM EST — 3 agents compete on 24/7 xStocks",
     "Name": "moltapp-trading-round",
-    "ScheduleExpression": "cron(0,30 * * * ? *)",
+    "ScheduleExpression": "cron(0 10 * * ? *)",
     "State": "ENABLED",
     "Targets": [
      {
