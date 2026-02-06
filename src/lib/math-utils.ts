@@ -293,6 +293,67 @@ export function findMin<T extends Record<string, any>>(
 }
 
 /**
+ * Calculates the sum of a property across an array of objects.
+ * Optionally applies a transform function before summing.
+ *
+ * Replaces verbose pattern: `items.reduce((sum, item) => sum + item.property, 0)`
+ *
+ * @param items - Array of objects to sum
+ * @param key - Property name to sum
+ * @param getterFn - Optional transform function (e.g., Math.abs for absolute values)
+ * @returns Sum of the property values
+ *
+ * @example
+ * const trades = [{pnl: 100}, {pnl: -50}, {pnl: 200}];
+ * sumByKey(trades, 'pnl') // returns 250
+ *
+ * const slippage = [{bps: -15}, {bps: 10}, {bps: -20}];
+ * sumByKey(slippage, 'bps', Math.abs) // returns 45
+ *
+ * sumByKey([], 'pnl') // returns 0
+ */
+export function sumByKey<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+  getterFn?: (val: number) => number,
+): number {
+  return items.reduce((sum, item) => {
+    const value = item[key] as number;
+    return sum + (getterFn ? getterFn(value) : value);
+  }, 0);
+}
+
+/**
+ * Calculates the average (arithmetic mean) of a property across an array of objects.
+ * Optionally applies a transform function before averaging.
+ * Returns 0 for empty arrays.
+ *
+ * Replaces verbose pattern: `items.reduce((sum, item) => sum + item.property, 0) / items.length`
+ *
+ * @param items - Array of objects to average
+ * @param key - Property name to average
+ * @param getterFn - Optional transform function (e.g., Math.abs for absolute values)
+ * @returns Average of the property values, or 0 if array is empty
+ *
+ * @example
+ * const agents = [{winRate: 0.65}, {winRate: 0.58}, {winRate: 0.72}];
+ * averageByKey(agents, 'winRate') // returns 0.65
+ *
+ * const trades = [{slippageBps: -15}, {slippageBps: 10}, {slippageBps: -20}];
+ * averageByKey(trades, 'slippageBps', Math.abs) // returns 15
+ *
+ * averageByKey([], 'winRate') // returns 0
+ */
+export function averageByKey<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+  getterFn?: (val: number) => number,
+): number {
+  if (items.length === 0) return 0;
+  return sumByKey(items, key, getterFn) / items.length;
+}
+
+/**
  * Sorts an array of objects in descending order by a numeric property.
  * Creates a shallow copy to avoid mutating the original array.
  *

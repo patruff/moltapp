@@ -16,7 +16,7 @@
  * ranks higher than one returning 25% with 40% drawdown.
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -364,22 +364,12 @@ function calculateRiskMetrics(
   const winRate =
     trades.length > 0 ? (wins.length / trades.length) * 100 : 50;
 
-  const grossProfit = wins.reduce((sum, t) => sum + t.pnlAbsolute, 0);
-  const grossLoss = Math.abs(
-    losses.reduce((sum, t) => sum + t.pnlAbsolute, 0),
-  );
+  const grossProfit = sumByKey(wins, "pnlAbsolute");
+  const grossLoss = Math.abs(sumByKey(losses, "pnlAbsolute"));
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
-  const avgWin =
-    wins.length > 0
-      ? wins.reduce((sum, t) => sum + t.pnlAbsolute, 0) / wins.length
-      : 0;
-  const avgLoss =
-    losses.length > 0
-      ? Math.abs(
-          losses.reduce((sum, t) => sum + t.pnlAbsolute, 0) / losses.length,
-        )
-      : 0;
+  const avgWin = averageByKey(wins, "pnlAbsolute");
+  const avgLoss = Math.abs(averageByKey(losses, "pnlAbsolute"));
   const payoffRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0;
 
   return {
@@ -560,7 +550,7 @@ export function recordBenchmarkReturn(
 
 function computeBenchmarkReturn(): number {
   if (spyDailyReturns.length === 0) return 0;
-  return spyDailyReturns.reduce((sum, r) => sum + r.returnPercent, 0);
+  return sumByKey(spyDailyReturns, "returnPercent");
 }
 
 // ---------------------------------------------------------------------------
@@ -586,11 +576,7 @@ function computeAggregateStats(
         entries.length,
     );
 
-  const avgReturn =
-    round2(
-      entries.reduce((sum, e) => sum + e.totalReturnPercent, 0) /
-        entries.length,
-    );
+  const avgReturn = round2(averageByKey(entries, "totalReturnPercent"));
 
   const avgDrawdown =
     round2(
