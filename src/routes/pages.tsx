@@ -90,6 +90,37 @@ const MAX_TRADING_ROUNDS = 20;      // Trading rounds shown in timeline
 const JUSTIFICATIONS_FETCH_BUFFER = 100; // Fetch buffer for filtering rounds
 
 // ---------------------------------------------------------------------------
+// Agent Slug System (cleaner URLs)
+// ---------------------------------------------------------------------------
+
+/** Map from friendly URL slugs to internal agent IDs */
+const AGENT_SLUG_TO_ID: Record<string, string> = {
+  "opus45": "claude-value-investor",
+  "gpt52": "gpt-momentum-trader",
+  "grok4": "grok-contrarian",
+};
+
+/** Map from internal agent IDs to friendly slugs (reverse lookup) */
+const AGENT_ID_TO_SLUG: Record<string, string> = Object.fromEntries(
+  Object.entries(AGENT_SLUG_TO_ID).map(([slug, id]) => [id, slug])
+);
+
+/** Resolve a slug or ID to the canonical agent ID */
+function resolveAgentId(slugOrId: string): string {
+  // Check if it's a friendly slug first
+  if (AGENT_SLUG_TO_ID[slugOrId]) {
+    return AGENT_SLUG_TO_ID[slugOrId];
+  }
+  // Otherwise assume it's already an agent ID
+  return slugOrId;
+}
+
+/** Get the friendly slug for an agent ID (for display/URLs) */
+function getAgentSlug(agentId: string): string {
+  return AGENT_ID_TO_SLUG[agentId] ?? agentId;
+}
+
+// ---------------------------------------------------------------------------
 // Layout middleware
 // ---------------------------------------------------------------------------
 
@@ -334,7 +365,7 @@ pages.get("/", async (c) => {
                 <span class="text-2xl font-bold text-gray-500">#{entry.rank}</span>
                 <div>
                   <a
-                    href={`/agent/${entry.agentId}`}
+                    href={`/agent/${getAgentSlug(entry.agentId)}`}
                     class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
                   >
                     {entry.agentName}
@@ -416,7 +447,7 @@ pages.get("/", async (c) => {
             {/* View Full Profile Link */}
             <div class="mt-4 pt-3 border-t border-gray-800 text-right">
               <a
-                href={`/agent/${entry.agentId}`}
+                href={`/agent/${getAgentSlug(entry.agentId)}`}
                 class="text-xs text-blue-400 hover:text-blue-300 hover:underline"
               >
                 View full portfolio, theses &amp; trade history →
@@ -452,7 +483,8 @@ pages.get("/", async (c) => {
 // ---------------------------------------------------------------------------
 
 pages.get("/agent/:id", async (c) => {
-  const agentId = c.req.param("id");
+  const slugOrId = c.req.param("id");
+  const agentId = resolveAgentId(slugOrId);
 
   // Fetch leaderboard entry for rank/summary
   const data = await getLeaderboard();
@@ -1141,7 +1173,7 @@ pages.get("/round/:id", async (c) => {
               <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3">
                   <a
-                    href={`/agent/${j.agentId}`}
+                    href={`/agent/${getAgentSlug(j.agentId)}`}
                     class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
                   >
                     {agentName}
@@ -1404,7 +1436,7 @@ pages.get("/economics", async (c) => {
             {agentEconomics.map((agent, i) => (
               <tr class={i % 2 === 0 ? "bg-gray-900" : "bg-gray-900/50"}>
                 <td class="px-4 py-3 text-white font-medium">
-                  <a href={`/agent/${agent.agentId}`} class="hover:text-blue-400">
+                  <a href={`/agent/${getAgentSlug(agent.agentId)}`} class="hover:text-blue-400">
                     {agent.name}
                   </a>
                 </td>
@@ -1572,7 +1604,7 @@ pages.get("/decision-quality", async (c) => {
               <div class="flex items-center justify-between mb-3">
                 <div>
                   <a
-                    href={`/agent/${report.agentId}`}
+                    href={`/agent/${getAgentSlug(report.agentId)}`}
                     class="text-lg font-bold text-blue-400 hover:text-blue-300 hover:underline"
                   >
                     {agentName}
@@ -1682,7 +1714,7 @@ pages.get("/decision-quality", async (c) => {
               {/* Link to agent profile */}
               <div class="mt-4 pt-3 border-t border-gray-800">
                 <a
-                  href={`/agent/${report.agentId}`}
+                  href={`/agent/${getAgentSlug(report.agentId)}`}
                   class="text-xs text-blue-400 hover:text-blue-300 hover:underline"
                 >
                   View full agent profile &rarr;
