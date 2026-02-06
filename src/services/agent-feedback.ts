@@ -18,6 +18,65 @@
 import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Confidence bucket boundaries for calibration analysis.
+ * Agents are grouped into 5 confidence ranges to measure if high-confidence
+ * trades actually win more often than low-confidence trades.
+ */
+const CONFIDENCE_BUCKET_0_MIN = 0;
+const CONFIDENCE_BUCKET_1_MIN = 20;
+const CONFIDENCE_BUCKET_2_MIN = 40;
+const CONFIDENCE_BUCKET_3_MIN = 60;
+const CONFIDENCE_BUCKET_4_MIN = 80;
+
+/**
+ * Calibration tolerance threshold (0-1 scale).
+ * If |actual win rate - expected win rate| < 0.2, the agent is considered
+ * well-calibrated for that confidence bucket.
+ * Example: 60-80% confidence bucket expects 70% win rate; if actual is 65-75%,
+ * agent is calibrated (difference < 20 percentage points).
+ */
+const CALIBRATION_TOLERANCE = 0.2;
+
+/**
+ * Calibration normalization divisor for expected win rate calculation.
+ * Expected win rate = (bucket min + bucket max) / 200
+ * Example: 60-80% bucket → (60 + 80) / 200 = 0.70 (70% expected win rate)
+ */
+const CALIBRATION_NORMALIZATION_DIVISOR = 200;
+
+/**
+ * Minimum trades required in a confidence bucket to assess calibration.
+ * Buckets with < 3 trades are excluded from calibration scoring to prevent
+ * statistical noise from small samples.
+ */
+const CALIBRATION_MIN_TRADES_PER_BUCKET = 3;
+
+/**
+ * Calibration assessment thresholds (0-1 scale).
+ * Determines the verbal assessment of overall calibration quality.
+ */
+const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.8; // ≥80% of buckets calibrated = "Well-calibrated"
+const CALIBRATION_MODERATE_THRESHOLD = 0.6; // ≥60% = "Moderately calibrated"
+const CALIBRATION_POOR_THRESHOLD = 0.3; // ≥30% = "Poorly calibrated", <30% = "Not calibrated"
+
+/**
+ * Win rate thresholds for feedback generation (0-1 scale).
+ * Used to provide actionable advice based on agent's win rate performance.
+ */
+const FEEDBACK_WIN_RATE_LOW_THRESHOLD = 0.4; // <40% = poor performance, suggest selectivity
+const FEEDBACK_WIN_RATE_HIGH_THRESHOLD = 0.6; // >60% = strong performance, positive reinforcement
+
+/**
+ * Minimum resolved outcomes required for calibration feedback.
+ * Prevents premature calibration warnings when agent is still building history.
+ */
+const FEEDBACK_MIN_RESOLVED_FOR_CALIBRATION = 10;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -359,11 +418,11 @@ function calculateConfidenceCalibration(
   resolved: TradeOutcome[],
 ): ConfidenceCalibration {
   const buckets = [
-    { range: "0-20", minConfidence: 0, maxConfidence: 20 },
-    { range: "20-40", minConfidence: 20, maxConfidence: 40 },
-    { range: "40-60", minConfidence: 40, maxConfidence: 60 },
-    { range: "60-80", minConfidence: 60, maxConfidence: 80 },
-    { range: "80-100", minConfidence: 80, maxConfidence: 100 },
+    { range: "0-20", minConfidence: CONFIDENCE_BUCKET_0_MIN, maxConfidence: CONFIDENCE_BUCKET_1_MIN },
+    { range: "20-40", minConfidence: CONFIDENCE_BUCKET_1_MIN, maxConfidence: CONFIDENCE_BUCKET_2_MIN },
+    { range: "40-60", minConfidence: CONFIDENCE_BUCKET_2_MIN, maxConfidence: CONFIDENCE_BUCKET_3_MIN },
+    { range: "60-80", minConfidence: CONFIDENCE_BUCKET_3_MIN, maxConfidence: CONFIDENCE_BUCKET_4_MIN },
+    { range: "80-100", minConfidence: CONFIDENCE_BUCKET_4_MIN, maxConfidence: 100 },
   ].map((b) => {
     const trades = resolved.filter(
       (o) => o.confidence >= b.minConfidence && o.confidence < b.maxConfidence + 1,
@@ -372,8 +431,8 @@ function calculateConfidenceCalibration(
     const winRate = trades.length > 0 ? wins.length / trades.length : 0;
 
     // A well-calibrated agent should have higher win rates at higher confidence
-    const expectedWinRate = (b.minConfidence + b.maxConfidence) / 200;
-    const calibrated = Math.abs(winRate - expectedWinRate) < 0.2;
+    const expectedWinRate = (b.minConfidence + b.maxConfidence) / CALIBRATION_NORMALIZATION_DIVISOR;
+    const calibrated = Math.abs(winRate - expectedWinRate) < CALIBRATION_TOLERANCE;
 
     return {
       ...b,
@@ -386,18 +445,18 @@ function calculateConfidenceCalibration(
 
   // Calculate calibration score
   const calibratedBuckets = buckets.filter(
-    (b) => b.totalTrades >= 3 && b.calibrated,
+    (b) => b.totalTrades >= CALIBRATION_MIN_TRADES_PER_BUCKET && b.calibrated,
   );
-  const scorableBuckets = buckets.filter((b) => b.totalTrades >= 3);
+  const scorableBuckets = buckets.filter((b) => b.totalTrades >= CALIBRATION_MIN_TRADES_PER_BUCKET);
   const calibrationScore =
     scorableBuckets.length > 0
       ? calibratedBuckets.length / scorableBuckets.length
       : 0;
 
   let assessment: string;
-  if (calibrationScore >= 0.8) assessment = "Well-calibrated: confidence matches outcomes";
-  else if (calibrationScore >= 0.6) assessment = "Moderately calibrated: some confidence-accuracy gaps";
-  else if (calibrationScore >= 0.3) assessment = "Poorly calibrated: confidence doesn't predict outcomes well";
+  if (calibrationScore >= CALIBRATION_WELL_CALIBRATED_THRESHOLD) assessment = "Well-calibrated: confidence matches outcomes";
+  else if (calibrationScore >= CALIBRATION_MODERATE_THRESHOLD) assessment = "Moderately calibrated: some confidence-accuracy gaps";
+  else if (calibrationScore >= CALIBRATION_POOR_THRESHOLD) assessment = "Poorly calibrated: confidence doesn't predict outcomes well";
   else assessment = "Not calibrated: confidence is essentially random";
 
   return { buckets, calibrationScore, assessment };
@@ -553,9 +612,9 @@ export function generateFeedbackPrompt(agentId: string): FeedbackPrompt {
   const winRatePct = (profile.winRate * 100).toFixed(1);
   insights.push(`Win rate: ${winRatePct}% (${profile.resolvedOutcomes} resolved trades)`);
 
-  if (profile.winRate < 0.4) {
-    advice.push("Your win rate is below 40%. Consider being more selective — only trade with high conviction.");
-  } else if (profile.winRate > 0.6) {
+  if (profile.winRate < FEEDBACK_WIN_RATE_LOW_THRESHOLD) {
+    advice.push(`Your win rate is below ${FEEDBACK_WIN_RATE_LOW_THRESHOLD * 100}%. Consider being more selective — only trade with high conviction.`);
+  } else if (profile.winRate > FEEDBACK_WIN_RATE_HIGH_THRESHOLD) {
     insights.push("Strong win rate! Your analysis has been accurate.");
   }
 
@@ -585,7 +644,7 @@ export function generateFeedbackPrompt(agentId: string): FeedbackPrompt {
 
   // Confidence calibration
   const cal = profile.confidenceCalibration;
-  if (cal.calibrationScore < 0.4 && profile.resolvedOutcomes >= 10) {
+  if (cal.calibrationScore < FEEDBACK_WIN_RATE_LOW_THRESHOLD && profile.resolvedOutcomes >= FEEDBACK_MIN_RESOLVED_FOR_CALIBRATION) {
     advice.push("Your confidence levels don't correlate with outcomes. Recalibrate — high confidence should mean higher win probability.");
   }
 
