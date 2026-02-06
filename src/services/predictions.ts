@@ -25,6 +25,7 @@ import {
 } from "../db/schema/predictions.ts";
 import { eq, desc, and, lte, sql, gte, asc, ne } from "drizzle-orm";
 import { getMarketData } from "../agents/orchestrator.ts";
+import { calculateAverage } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -817,21 +818,9 @@ export async function getAgentPredictionStats(
     resolved.length > 0 ? correct.length / resolved.length : 0;
 
   // Average confidence
-  const avgConfidence =
-    agentPredictions.length > 0
-      ? agentPredictions.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) /
-        agentPredictions.length
-      : 0;
-
-  const avgConfidenceWhenCorrect =
-    correct.length > 0
-      ? correct.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) / correct.length
-      : 0;
-
-  const avgConfidenceWhenIncorrect =
-    incorrect.length > 0
-      ? incorrect.reduce((sum: number, p: Prediction) => sum + p.confidence, 0) / incorrect.length
-      : 0;
+  const avgConfidence = calculateAverage(agentPredictions, 'confidence');
+  const avgConfidenceWhenCorrect = calculateAverage(correct, 'confidence');
+  const avgConfidenceWhenIncorrect = calculateAverage(incorrect, 'confidence');
 
   // Calibration score: how close is confidence to actual accuracy?
   // Perfect calibration = 0, higher = worse calibration

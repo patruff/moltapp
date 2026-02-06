@@ -17,6 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { calculateAverage } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -514,18 +515,11 @@ function computePerformance(
   const highConfidence = actionDecisions.filter((d) => d.confidence >= 50);
   const winRate = actionDecisions.length > 0 ? (highConfidence.length / actionDecisions.length) * 100 : 0;
 
-  const avgConfidence = total > 0
-    ? decisions.reduce((sum, d) => sum + d.confidence, 0) / total
-    : 0;
-
-  const winsConf = highConfidence.length > 0
-    ? highConfidence.reduce((sum, d) => sum + d.confidence, 0) / highConfidence.length
-    : 0;
+  const avgConfidence = calculateAverage(decisions, 'confidence');
+  const winsConf = calculateAverage(highConfidence, 'confidence');
 
   const losses = actionDecisions.filter((d) => d.confidence < 50);
-  const lossesConf = losses.length > 0
-    ? losses.reduce((sum, d) => sum + d.confidence, 0) / losses.length
-    : 0;
+  const lossesConf = calculateAverage(losses, 'confidence');
 
   // Best and worst decisions by confidence
   const sorted = [...decisions].sort((a, b) => b.confidence - a.confidence);

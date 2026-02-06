@@ -80,3 +80,25 @@ export function round3(value: number): number {
 export function round4(value: number): number {
   return roundToDecimals(value, 4);
 }
+
+/**
+ * Calculates the average of a numeric property across an array of objects.
+ * Returns 0 for empty arrays (safe division-by-zero handling).
+ *
+ * @param items - Array of objects containing the numeric property
+ * @param key - The property name to average
+ * @returns The average value, or 0 if array is empty
+ *
+ * @example
+ * calculateAverage([{confidence: 75}, {confidence: 80}], 'confidence') // returns 77.5
+ * calculateAverage([], 'confidence') // returns 0
+ * calculateAverage([{score: 100}], 'score') // returns 100
+ */
+export function calculateAverage<T extends Record<string, any>>(
+  items: T[],
+  key: keyof T & string,
+): number {
+  return items.length > 0
+    ? items.reduce((sum, item) => sum + (item[key] as number), 0) / items.length
+    : 0;
+}
