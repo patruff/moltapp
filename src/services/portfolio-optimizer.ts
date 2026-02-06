@@ -20,7 +20,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4 } from "../lib/math-utils.ts";
+import { round2, round4, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -315,7 +315,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
 
   // Normalize weights to sum to max allocation
   const maxAllocation = config.maxPortfolioAllocation / 100 || 0.80;
-  const totalWeight = recommendedAllocation.reduce((s, a) => s + a.weight, 0);
+  const totalWeight = sumByKey(recommendedAllocation, 'weight');
   if (totalWeight > 0) {
     const scale = maxAllocation / totalWeight;
     for (const alloc of recommendedAllocation) {

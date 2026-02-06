@@ -23,6 +23,7 @@ import {
   type V28CompositeScore,
 } from "../services/v28-benchmark-engine.ts";
 import { V28_DIMENSIONS } from "../schemas/benchmark-v28.ts";
+import { sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV28Routes = new Hono();
 
@@ -212,7 +213,7 @@ benchmarkV28Routes.get("/", async (c) => {
   }
 
   // Build dimension cards grouped by category
-  const totalWeight = V28_DIMENSIONS.reduce((sum, d) => sum + d.weight, 0);
+  const totalWeight = sumByKey(V28_DIMENSIONS, 'weight');
   const dimensionCards = categoryOrder
     .filter((cat) => (grouped.get(cat) ?? []).length > 0)
     .map((cat) => {

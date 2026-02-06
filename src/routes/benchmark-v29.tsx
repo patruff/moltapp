@@ -20,6 +20,7 @@ import {
   getV29Leaderboard,
   type V29BenchmarkScore,
 } from "../services/v29-benchmark-engine.ts";
+import { sumByKey } from "../lib/math-utils.ts";
 
 export const benchmarkV29Routes = new Hono();
 
@@ -210,7 +211,7 @@ benchmarkV29Routes.get("/", async (c) => {
   }
 
   // Build dimension cards grouped by category
-  const totalWeight = V29_DIMENSIONS.reduce((sum, d) => sum + d.weight, 0);
+  const totalWeight = sumByKey(V29_DIMENSIONS, 'weight');
   const dimensionCards = categoryOrder
     .filter((cat) => (grouped.get(cat) ?? []).length > 0)
     .map((cat) => {
