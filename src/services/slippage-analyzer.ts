@@ -20,6 +20,98 @@
 import { round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Slippage Analyzer Configuration Constants
+ *
+ * These constants control anomaly detection thresholds, data retention limits,
+ * and statistical analysis parameters for execution quality monitoring.
+ *
+ * Tuning these constants enables systematic experimentation with slippage
+ * detection sensitivity and data retention policies.
+ */
+
+// 1. Anomaly Detection Thresholds
+/**
+ * Warning-level slippage threshold in basis points (1% = 100bps).
+ *
+ * Trades with slippage exceeding this threshold are flagged as "warning" severity.
+ * Set to 100bps (1%) to catch moderately high slippage events.
+ *
+ * Example: A trade with 150bps (1.5%) slippage triggers a warning alert.
+ */
+const ANOMALY_THRESHOLD_BPS = 100;
+
+/**
+ * Critical-level slippage threshold in basis points (3% = 300bps).
+ *
+ * Trades with slippage exceeding this threshold are flagged as "critical" severity.
+ * Set to 300bps (3%) to catch extreme slippage events requiring investigation.
+ *
+ * Example: A trade with 350bps (3.5%) slippage triggers a critical alert.
+ */
+const CRITICAL_THRESHOLD_BPS = 300;
+
+// 2. Data Retention Limits
+/**
+ * Maximum number of slippage records retained in memory.
+ *
+ * Older records are evicted when this limit is reached. Set to 10,000 to
+ * balance memory usage with historical analysis depth (~1-2 weeks of data
+ * at typical trading volumes).
+ */
+const MAX_SLIPPAGE_RECORDS = 10_000;
+
+/**
+ * Maximum number of anomaly records retained in memory.
+ *
+ * Older anomalies are evicted when this limit is reached. Set to 500 to
+ * maintain a reasonable anomaly history without unbounded growth.
+ */
+const MAX_ANOMALY_RECORDS = 500;
+
+// 3. Display/Query Limits
+/**
+ * Default maximum number of records returned by getSlippageAnomalies().
+ *
+ * Limits API response size to prevent overwhelming consumers. Set to 50
+ * to show ~1 day of anomalies at typical trading volumes.
+ */
+const ANOMALIES_DISPLAY_LIMIT = 50;
+
+/**
+ * Default maximum number of records returned by getRecentSlippage().
+ *
+ * Limits API response size for recent slippage queries. Set to 100 to
+ * show ~1-2 days of recent trades at typical trading volumes.
+ */
+const RECENT_SLIPPAGE_LIMIT = 100;
+
+// 4. Statistical Analysis Parameters
+/**
+ * Percentile level for median calculation (50th percentile).
+ *
+ * Used in getSlippageStats() to compute median slippage.
+ */
+const PERCENTILE_MEDIAN = 50;
+
+/**
+ * Percentile level for 95th percentile calculation.
+ *
+ * Used in getSlippageStats() to identify high-end slippage outliers.
+ */
+const PERCENTILE_95 = 95;
+
+/**
+ * Percentile level for 99th percentile calculation.
+ *
+ * Used in getSlippageStats() to identify extreme slippage outliers.
+ */
+const PERCENTILE_99 = 99;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -128,9 +220,9 @@ const records: SlippageRecord[] = [];
 const anomalies: SlippageAnomaly[] = [];
 
 let analyzerConfig: SlippageAnalyzerConfig = {
-  maxRecords: 10_000,
-  anomalyThresholdBps: 100, // 1% slippage = warning
-  criticalThresholdBps: 300, // 3% slippage = critical
+  maxRecords: MAX_SLIPPAGE_RECORDS,
+  anomalyThresholdBps: ANOMALY_THRESHOLD_BPS,
+  criticalThresholdBps: CRITICAL_THRESHOLD_BPS,
   anomalyDetectionEnabled: true,
 };
 
@@ -289,11 +381,11 @@ export function getSlippageStats(since?: Date): SlippageStats {
     avgSlippageBps: Math.round(
       bpsValues.reduce((a, b) => a + b, 0) / bpsValues.length,
     ),
-    medianSlippageBps: percentile(bpsValues, 50),
+    medianSlippageBps: percentile(bpsValues, PERCENTILE_MEDIAN),
     maxSlippageBps: bpsValues[bpsValues.length - 1],
     minSlippageBps: bpsValues[0],
-    p95SlippageBps: percentile(bpsValues, 95),
-    p99SlippageBps: percentile(bpsValues, 99),
+    p95SlippageBps: percentile(bpsValues, PERCENTILE_95),
+    p99SlippageBps: percentile(bpsValues, PERCENTILE_99),
     totalSlippageCostUsd: round2(totalSlippageCostUsd),
     favorableTradesPercent: Math.round(
       (favorableCount / filtered.length) * 100,
@@ -465,8 +557,8 @@ function detectAnomalies(record: SlippageRecord): void {
   }
 
   // Keep anomalies bounded
-  if (anomalies.length > 500) {
-    anomalies.length = 500;
+  if (anomalies.length > MAX_ANOMALY_RECORDS) {
+    anomalies.length = MAX_ANOMALY_RECORDS;
   }
 }
 
@@ -474,7 +566,7 @@ function detectAnomalies(record: SlippageRecord): void {
  * Get recent slippage anomalies.
  */
 export function getSlippageAnomalies(
-  limit = 50,
+  limit = ANOMALIES_DISPLAY_LIMIT,
   severity?: "warning" | "critical",
 ): SlippageAnomaly[] {
   const filtered = severity
@@ -514,7 +606,7 @@ export function getRecentSlippage(params?: {
     );
   }
 
-  return filtered.slice(0, params?.limit ?? 100);
+  return filtered.slice(0, params?.limit ?? RECENT_SLIPPAGE_LIMIT);
 }
 
 // ---------------------------------------------------------------------------
