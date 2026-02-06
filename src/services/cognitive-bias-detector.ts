@@ -36,6 +36,234 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { countWords, getTopEntry, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Anchoring Bias Detection Thresholds
+ */
+
+/** Minimum price reference repetitions to trigger anchoring detection */
+const ANCHORING_PRICE_REPETITION_THRESHOLD = 3;
+
+/** Price repetition count that classifies anchoring as high severity */
+const ANCHORING_HIGH_SEVERITY_THRESHOLD = 4;
+
+/** Baseline confidence for anchoring detection */
+const ANCHORING_BASE_CONFIDENCE = 0.3;
+
+/** Confidence increment per additional price repetition */
+const ANCHORING_CONFIDENCE_PER_REPETITION = 0.15;
+
+/** Maximum confidence for anchoring detection */
+const ANCHORING_MAX_CONFIDENCE = 0.9;
+
+/** Minimum number of market data symbols for single-symbol anchoring check */
+const ANCHORING_MIN_SYMBOLS_FOR_CHECK = 3;
+
+/** Minimum price references when only one symbol is mentioned */
+const ANCHORING_MIN_PRICE_REFS_SINGLE_SYMBOL = 2;
+
+/** Confidence for single-symbol anchoring detection */
+const ANCHORING_SINGLE_SYMBOL_CONFIDENCE = 0.5;
+
+/**
+ * Confirmation Bias Detection Thresholds
+ */
+
+/** Minimum positive signals for buy confirmation bias */
+const CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD = 3;
+
+/** Zero negative signals required for confirmation bias detection */
+const CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED = 0;
+
+/** Market data change threshold for identifying negative stocks (%) */
+const CONFIRMATION_NEGATIVE_STOCK_CHANGE_THRESHOLD = -2;
+
+/** Minimum number of negative stocks to trigger confirmation bias */
+const CONFIRMATION_MIN_NEGATIVE_STOCKS = 2;
+
+/** Confidence for confirmation bias with ignored negative data */
+const CONFIRMATION_IGNORED_DATA_CONFIDENCE = 0.7;
+
+/** Minimum positive signals for strong one-sided confirmation bias */
+const CONFIRMATION_STRONG_ONE_SIDED_THRESHOLD = 4;
+
+/** Confidence for strong one-sided confirmation bias */
+const CONFIRMATION_ONE_SIDED_CONFIDENCE = 0.6;
+
+/**
+ * Recency Bias Detection Thresholds
+ */
+
+/** Minimum recency term count to trigger recency bias */
+const RECENCY_TERM_COUNT_THRESHOLD = 3;
+
+/** Zero long-term indicators required for recency bias detection */
+const RECENCY_LONG_TERM_REQUIRED = 0;
+
+/** Recency term count that classifies bias as high severity */
+const RECENCY_HIGH_SEVERITY_THRESHOLD = 4;
+
+/** Base confidence for recency bias detection */
+const RECENCY_BASE_CONFIDENCE = 0.4;
+
+/** Confidence increment per additional recency term */
+const RECENCY_CONFIDENCE_PER_TERM = 0.15;
+
+/** Maximum confidence for recency bias detection */
+const RECENCY_MAX_CONFIDENCE = 0.85;
+
+/**
+ * Sunk Cost Fallacy Detection Thresholds
+ */
+
+/** Minimum sunk cost pattern matches to trigger detection */
+const SUNK_COST_PATTERN_THRESHOLD = 2;
+
+/** Pattern count that classifies sunk cost as high severity */
+const SUNK_COST_HIGH_SEVERITY_THRESHOLD = 3;
+
+/** Base confidence for sunk cost detection */
+const SUNK_COST_BASE_CONFIDENCE = 0.4;
+
+/** Confidence increment per additional sunk cost pattern */
+const SUNK_COST_CONFIDENCE_PER_PATTERN = 0.15;
+
+/** Maximum confidence for sunk cost detection */
+const SUNK_COST_MAX_CONFIDENCE = 0.9;
+
+/** Minimum pattern matches for hold/buy on losing position */
+const SUNK_COST_LOSING_POSITION_MIN_PATTERNS = 1;
+
+/** Confidence for sunk cost on losing position */
+const SUNK_COST_LOSING_POSITION_CONFIDENCE = 0.6;
+
+/**
+ * Overconfidence Bias Detection Thresholds
+ */
+
+/** Confidence threshold for overconfidence detection */
+const OVERCONFIDENCE_CONFIDENCE_THRESHOLD = 0.8;
+
+/** Minimum certainty expression count for overconfidence */
+const OVERCONFIDENCE_MIN_CERTAINTY_TERMS = 2;
+
+/** Zero hedging language required for overconfidence detection */
+const OVERCONFIDENCE_HEDGING_REQUIRED = 0;
+
+/** Base confidence for overconfidence detection */
+const OVERCONFIDENCE_BASE_CONFIDENCE = 0.5;
+
+/** Confidence increment per certainty expression */
+const OVERCONFIDENCE_CONFIDENCE_PER_TERM = 0.1;
+
+/** Multiplier for confidence above threshold */
+const OVERCONFIDENCE_CONFIDENCE_MULTIPLIER = 2;
+
+/** Maximum confidence for overconfidence detection */
+const OVERCONFIDENCE_MAX_CONFIDENCE = 0.9;
+
+/** Very high confidence threshold for severity classification */
+const OVERCONFIDENCE_VERY_HIGH_THRESHOLD = 0.9;
+
+/** Very high confidence threshold for short reasoning check */
+const OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE = 0.85;
+
+/** Maximum word count for short reasoning overconfidence */
+const OVERCONFIDENCE_SHORT_REASONING_WORD_LIMIT = 20;
+
+/** Confidence for short reasoning overconfidence */
+const OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE_VALUE = 0.6;
+
+/**
+ * Herding Bias Detection Thresholds
+ */
+
+/** Minimum explicit herding pattern matches to trigger detection */
+const HERDING_EXPLICIT_PATTERN_THRESHOLD = 1;
+
+/** Pattern count that classifies herding as high severity */
+const HERDING_HIGH_SEVERITY_THRESHOLD = 2;
+
+/** Base confidence for explicit herding detection */
+const HERDING_BASE_CONFIDENCE = 0.5;
+
+/** Confidence increment per additional herding pattern */
+const HERDING_CONFIDENCE_PER_PATTERN = 0.15;
+
+/** Maximum confidence for explicit herding detection */
+const HERDING_MAX_CONFIDENCE = 0.85;
+
+/** Minimum other agents for implicit herding check */
+const HERDING_MIN_AGENTS_FOR_IMPLICIT = 2;
+
+/** Minimum word length for keyword extraction */
+const HERDING_MIN_KEYWORD_LENGTH = 4;
+
+/** Keyword overlap threshold for implicit herding (%) */
+const HERDING_KEYWORD_OVERLAP_THRESHOLD = 0.6;
+
+/** Confidence for implicit herding detection */
+const HERDING_IMPLICIT_CONFIDENCE = 0.5;
+
+/**
+ * Loss Aversion Detection Thresholds
+ */
+
+/** Minimum loss aversion term count to trigger detection */
+const LOSS_AVERSION_TERM_COUNT_THRESHOLD = 3;
+
+/** Maximum gain-seeking term count for loss aversion */
+const LOSS_AVERSION_MAX_GAIN_TERMS = 1;
+
+/** Loss term count that classifies as high severity */
+const LOSS_AVERSION_HIGH_SEVERITY_THRESHOLD = 4;
+
+/** Base confidence for loss aversion detection */
+const LOSS_AVERSION_BASE_CONFIDENCE = 0.4;
+
+/** Confidence increment per loss aversion term */
+const LOSS_AVERSION_CONFIDENCE_PER_TERM = 0.12;
+
+/** Maximum confidence for loss aversion detection */
+const LOSS_AVERSION_MAX_CONFIDENCE = 0.85;
+
+/** Minimum unrealized P&L % to classify as big loser */
+const LOSS_AVERSION_BIG_LOSER_THRESHOLD = -5;
+
+/** Minimum unrealized P&L % to classify as winner */
+const LOSS_AVERSION_WINNER_THRESHOLD = 0;
+
+/** Confidence for disposition effect detection */
+const LOSS_AVERSION_DISPOSITION_CONFIDENCE = 0.5;
+
+/**
+ * Severity Weighting and Normalization
+ */
+
+/** Weight multiplier for high severity biases */
+const SEVERITY_WEIGHT_HIGH = 1.0;
+
+/** Weight multiplier for medium severity biases */
+const SEVERITY_WEIGHT_MEDIUM = 0.6;
+
+/** Weight multiplier for low severity biases */
+const SEVERITY_WEIGHT_LOW = 0.3;
+
+/** Expected maximum weighted sum for "very biased" normalization */
+const BIAS_SCORE_NORMALIZATION_DIVISOR = 3;
+
+/** Maximum bias score (capped at 1.0) */
+const BIAS_SCORE_MAX = 1.0;
+
+/** Bias score threshold for "minor" assessment */
+const BIAS_SCORE_MINOR_THRESHOLD = 0.2;
+
+/** Bias score threshold for "moderate" assessment */
+const BIAS_SCORE_MODERATE_THRESHOLD = 0.5;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -120,21 +348,21 @@ function detectAnchoring(reasoning: string, marketData: MarketData[]): BiasDetec
     priceCounts.set(p, (priceCounts.get(p) || 0) + 1);
   }
 
-  const repeatedPrices = Array.from(priceCounts.entries()).filter(([_, count]) => count >= 3);
+  const repeatedPrices = Array.from(priceCounts.entries()).filter(([_, count]) => count >= ANCHORING_PRICE_REPETITION_THRESHOLD);
 
   if (repeatedPrices.length > 0) {
     const anchor = repeatedPrices[0][0];
     return {
       type: "anchoring",
-      confidence: Math.min(0.9, 0.3 + repeatedPrices[0][1] * 0.15),
+      confidence: Math.min(ANCHORING_MAX_CONFIDENCE, ANCHORING_BASE_CONFIDENCE + repeatedPrices[0][1] * ANCHORING_CONFIDENCE_PER_REPETITION),
       evidence: `Price ${anchor} mentioned ${repeatedPrices[0][1]} times — reasoning appears anchored to this value`,
-      severity: repeatedPrices[0][1] >= 4 ? "high" : "medium",
+      severity: repeatedPrices[0][1] >= ANCHORING_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers: repeatedPrices.map(([p]) => p),
     };
   }
 
   // Anchoring: reasoning references only one stock's data despite having multiple
-  if (marketData.length >= 3) {
+  if (marketData.length >= ANCHORING_MIN_SYMBOLS_FOR_CHECK) {
     const symbolsInReasoning = new Set<string>();
     for (const d of marketData) {
       const lower = d.symbol.toLowerCase();
@@ -147,10 +375,10 @@ function detectAnchoring(reasoning: string, marketData: MarketData[]): BiasDetec
       }
     }
 
-    if (symbolsInReasoning.size === 1 && priceRefs.length >= 2) {
+    if (symbolsInReasoning.size === 1 && priceRefs.length >= ANCHORING_MIN_PRICE_REFS_SINGLE_SYMBOL) {
       return {
         type: "anchoring",
-        confidence: 0.5,
+        confidence: ANCHORING_SINGLE_SYMBOL_CONFIDENCE,
         evidence: `Only references one symbol despite ${marketData.length} available — may be anchored to that stock's data`,
         severity: "low",
         triggers: Array.from(symbolsInReasoning),
@@ -185,23 +413,23 @@ function detectConfirmation(
 
     // Check if negative data exists but is ignored
     const negativeStocks = marketData.filter(
-      (d) => d.change24h !== null && d.change24h < -2,
+      (d) => d.change24h !== null && d.change24h < CONFIRMATION_NEGATIVE_STOCK_CHANGE_THRESHOLD,
     );
 
-    if (positiveSignals >= 3 && negativeSignals === 0 && negativeStocks.length >= 2) {
+    if (positiveSignals >= CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD && negativeSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED && negativeStocks.length >= CONFIRMATION_MIN_NEGATIVE_STOCKS) {
       return {
         type: "confirmation",
-        confidence: 0.7,
+        confidence: CONFIRMATION_IGNORED_DATA_CONFIDENCE,
         evidence: `Buy reasoning cites ${positiveSignals} positive signals but ignores ${negativeStocks.length} stocks with significant losses (>2% down)`,
         severity: "medium",
         triggers: negativeStocks.map((s) => `${s.symbol}: ${s.change24h?.toFixed(1)}%`),
       };
     }
 
-    if (positiveSignals >= 4 && negativeSignals === 0) {
+    if (positiveSignals >= CONFIRMATION_STRONG_ONE_SIDED_THRESHOLD && negativeSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED) {
       return {
         type: "confirmation",
-        confidence: 0.6,
+        confidence: CONFIRMATION_ONE_SIDED_CONFIDENCE,
         evidence: `Reasoning cites ${positiveSignals} positive signals with zero counterarguments — one-sided analysis`,
         severity: "medium",
         triggers: ["all_positive_no_counterarguments"],
@@ -220,10 +448,10 @@ function detectConfirmation(
       /loss/i, /overexposed/i, /correction/i, /weakness/i,
     ].filter((p) => p.test(lower)).length;
 
-    if (negativeSignals >= 3 && positiveSignals === 0) {
+    if (negativeSignals >= CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD && positiveSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED) {
       return {
         type: "confirmation",
-        confidence: 0.6,
+        confidence: CONFIRMATION_ONE_SIDED_CONFIDENCE,
         evidence: `Sell reasoning cites ${negativeSignals} negative signals with zero positive counterpoints — one-sided analysis`,
         severity: "medium",
         triggers: ["all_negative_no_counterarguments"],
@@ -266,7 +494,7 @@ function detectRecency(reasoning: string): BiasDetection | null {
   const recencyCount = recencyIndicators.filter((p) => p.test(lower)).length;
   const longTermCount = longTermIndicators.filter((p) => p.test(lower)).length;
 
-  if (recencyCount >= 3 && longTermCount === 0) {
+  if (recencyCount >= RECENCY_TERM_COUNT_THRESHOLD && longTermCount === RECENCY_LONG_TERM_REQUIRED) {
     const triggers = recencyIndicators
       .filter((p) => p.test(lower))
       .map((p) => {
@@ -277,9 +505,9 @@ function detectRecency(reasoning: string): BiasDetection | null {
 
     return {
       type: "recency",
-      confidence: Math.min(0.85, 0.4 + recencyCount * 0.15),
+      confidence: Math.min(RECENCY_MAX_CONFIDENCE, RECENCY_BASE_CONFIDENCE + recencyCount * RECENCY_CONFIDENCE_PER_TERM),
       evidence: `Reasoning uses ${recencyCount} recency terms ("just", "recently", "right now") with zero references to historical or long-term data`,
-      severity: recencyCount >= 4 ? "high" : "medium",
+      severity: recencyCount >= RECENCY_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
     };
   }
@@ -313,7 +541,7 @@ function detectSunkCost(
 
   const matchedPatterns = sunkCostPatterns.filter((p) => p.test(lower));
 
-  if (matchedPatterns.length >= 2) {
+  if (matchedPatterns.length >= SUNK_COST_PATTERN_THRESHOLD) {
     const triggers = matchedPatterns.map((p) => {
       const m = lower.match(p);
       return m ? m[0] : "";
@@ -321,9 +549,9 @@ function detectSunkCost(
 
     return {
       type: "sunk_cost",
-      confidence: Math.min(0.9, 0.4 + matchedPatterns.length * 0.15),
+      confidence: Math.min(SUNK_COST_MAX_CONFIDENCE, SUNK_COST_BASE_CONFIDENCE + matchedPatterns.length * SUNK_COST_CONFIDENCE_PER_PATTERN),
       evidence: `Reasoning references prior investment ${matchedPatterns.length} times — decision may be influenced by sunk costs rather than current merit`,
-      severity: matchedPatterns.length >= 3 ? "high" : "medium",
+      severity: matchedPatterns.length >= SUNK_COST_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
     };
   }
@@ -333,10 +561,10 @@ function detectSunkCost(
     for (const pos of portfolio.positions) {
       if (pos.unrealizedPnl < 0) {
         const symLower = pos.symbol.toLowerCase();
-        if (lower.includes(symLower.replace(/x$/i, "")) && matchedPatterns.length >= 1) {
+        if (lower.includes(symLower.replace(/x$/i, "")) && matchedPatterns.length >= SUNK_COST_LOSING_POSITION_MIN_PATTERNS) {
           return {
             type: "sunk_cost",
-            confidence: 0.6,
+            confidence: SUNK_COST_LOSING_POSITION_CONFIDENCE,
             evidence: `Holding/adding to losing position (${pos.symbol}) with sunk cost language`,
             severity: "medium",
             triggers: matchedPatterns.map((p) => {
@@ -394,7 +622,7 @@ function detectOverconfidence(
   const hedgingCount = hedgingPatterns.filter((p) => p.test(reasoning)).length;
 
   // Overconfidence: high confidence + certainty language + no hedging
-  if (confidence > 0.8 && certaintyCount >= 2 && hedgingCount === 0) {
+  if (confidence > OVERCONFIDENCE_CONFIDENCE_THRESHOLD && certaintyCount >= OVERCONFIDENCE_MIN_CERTAINTY_TERMS && hedgingCount === OVERCONFIDENCE_HEDGING_REQUIRED) {
     const triggers = certaintyPatterns
       .filter((p) => p.test(reasoning))
       .map((p) => {
@@ -405,18 +633,18 @@ function detectOverconfidence(
 
     return {
       type: "overconfidence",
-      confidence: Math.min(0.9, 0.5 + certaintyCount * 0.1 + (confidence - 0.8) * 2),
+      confidence: Math.min(OVERCONFIDENCE_MAX_CONFIDENCE, OVERCONFIDENCE_BASE_CONFIDENCE + certaintyCount * OVERCONFIDENCE_CONFIDENCE_PER_TERM + (confidence - OVERCONFIDENCE_CONFIDENCE_THRESHOLD) * OVERCONFIDENCE_CONFIDENCE_MULTIPLIER),
       evidence: `Confidence ${(confidence * 100).toFixed(0)}% with ${certaintyCount} certainty expressions and zero hedging — overconfidence likely`,
-      severity: confidence > 0.9 ? "high" : "medium",
+      severity: confidence > OVERCONFIDENCE_VERY_HIGH_THRESHOLD ? "high" : "medium",
       triggers,
     };
   }
 
   // Overconfidence: very high confidence with very short reasoning
-  if (confidence > 0.85 && wordCount < 20 && action !== "hold") {
+  if (confidence > OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE && wordCount < OVERCONFIDENCE_SHORT_REASONING_WORD_LIMIT && action !== "hold") {
     return {
       type: "overconfidence",
-      confidence: 0.6,
+      confidence: OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE_VALUE,
       evidence: `Confidence ${(confidence * 100).toFixed(0)}% with only ${wordCount} words of reasoning — insufficient evidence for high confidence`,
       severity: "medium",
       triggers: [`confidence: ${confidence}`, `words: ${wordCount}`],
@@ -450,7 +678,7 @@ function detectHerding(
 
   const matchedPatterns = herdingPatterns.filter((p) => p.test(lower));
 
-  if (matchedPatterns.length >= 1) {
+  if (matchedPatterns.length >= HERDING_EXPLICIT_PATTERN_THRESHOLD) {
     const triggers = matchedPatterns.map((p) => {
       const m = lower.match(p);
       return m ? m[0] : "";
@@ -458,21 +686,21 @@ function detectHerding(
 
     return {
       type: "herding",
-      confidence: Math.min(0.85, 0.5 + matchedPatterns.length * 0.15),
+      confidence: Math.min(HERDING_MAX_CONFIDENCE, HERDING_BASE_CONFIDENCE + matchedPatterns.length * HERDING_CONFIDENCE_PER_PATTERN),
       evidence: `Reasoning explicitly references other agents' decisions — herding behavior`,
-      severity: matchedPatterns.length >= 2 ? "high" : "medium",
+      severity: matchedPatterns.length >= HERDING_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
     };
   }
 
   // Implicit herding: all agents take same action with very similar reasoning
   const sameAction = otherAgents.filter((a) => a.action === action);
-  if (sameAction.length === otherAgents.length && otherAgents.length >= 2) {
+  if (sameAction.length === otherAgents.length && otherAgents.length >= HERDING_MIN_AGENTS_FOR_IMPLICIT) {
     // Check reasoning similarity (keyword overlap)
     const myKeywords = new Set(
       lower
         .split(/\s+/)
-        .filter((w) => w.length > 4)
+        .filter((w) => w.length > HERDING_MIN_KEYWORD_LENGTH)
         .map((w) => w.replace(/[^a-z]/g, "")),
     );
 
@@ -481,7 +709,7 @@ function detectHerding(
       const otherKeywords = new Set(
         other.reasoning.toLowerCase()
           .split(/\s+/)
-          .filter((w) => w.length > 4)
+          .filter((w) => w.length > HERDING_MIN_KEYWORD_LENGTH)
           .map((w) => w.replace(/[^a-z]/g, "")),
       );
 
@@ -494,10 +722,10 @@ function detectHerding(
       if (overlapRate > maxOverlap) maxOverlap = overlapRate;
     }
 
-    if (maxOverlap > 0.6) {
+    if (maxOverlap > HERDING_KEYWORD_OVERLAP_THRESHOLD) {
       return {
         type: "herding",
-        confidence: 0.5,
+        confidence: HERDING_IMPLICIT_CONFIDENCE,
         evidence: `All agents took the same action (${action}) with ${(maxOverlap * 100).toFixed(0)}% reasoning keyword overlap — potential implicit herding`,
         severity: "low",
         triggers: [`keyword_overlap: ${(maxOverlap * 100).toFixed(0)}%`],
@@ -542,7 +770,7 @@ function detectLossAversion(
   const gainCount = gainSeekingPatterns.filter((p) => p.test(lower)).length;
 
   // Strong loss aversion: much more loss language than gain language
-  if (lossCount >= 3 && gainCount <= 1) {
+  if (lossCount >= LOSS_AVERSION_TERM_COUNT_THRESHOLD && gainCount <= LOSS_AVERSION_MAX_GAIN_TERMS) {
     const triggers = lossAversionPatterns
       .filter((p) => p.test(lower))
       .map((p) => {
@@ -553,17 +781,17 @@ function detectLossAversion(
 
     return {
       type: "loss_aversion",
-      confidence: Math.min(0.85, 0.4 + lossCount * 0.12),
+      confidence: Math.min(LOSS_AVERSION_MAX_CONFIDENCE, LOSS_AVERSION_BASE_CONFIDENCE + lossCount * LOSS_AVERSION_CONFIDENCE_PER_TERM),
       evidence: `${lossCount} loss-avoidance references vs ${gainCount} gain-seeking — asymmetric risk perception`,
-      severity: lossCount >= 4 ? "high" : "medium",
+      severity: lossCount >= LOSS_AVERSION_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
     };
   }
 
   // Selling small winners too early while holding big losers
   if (action === "sell" && portfolio) {
-    const winners = portfolio.positions.filter((p) => p.unrealizedPnlPercent > 0);
-    const losers = portfolio.positions.filter((p) => p.unrealizedPnlPercent < -5);
+    const winners = portfolio.positions.filter((p) => p.unrealizedPnlPercent > LOSS_AVERSION_WINNER_THRESHOLD);
+    const losers = portfolio.positions.filter((p) => p.unrealizedPnlPercent < LOSS_AVERSION_BIG_LOSER_THRESHOLD);
 
     if (winners.length > 0 && losers.length > 0) {
       // Check if selling a small winner while holding a big loser
@@ -573,7 +801,7 @@ function detectLossAversion(
       if (sellingWinner && losers.length > 0) {
         return {
           type: "loss_aversion",
-          confidence: 0.5,
+          confidence: LOSS_AVERSION_DISPOSITION_CONFIDENCE,
           evidence: `Selling winning position while holding ${losers.length} losing position(s) — classic disposition effect (loss aversion)`,
           severity: "low",
           triggers: losers.map((l) => `${l.symbol}: ${l.unrealizedPnlPercent.toFixed(1)}%`),
@@ -642,9 +870,9 @@ export function analyzeBiases(
 
   // Calculate overall bias score
   const severityWeights: Record<string, number> = {
-    high: 1.0,
-    medium: 0.6,
-    low: 0.3,
+    high: SEVERITY_WEIGHT_HIGH,
+    medium: SEVERITY_WEIGHT_MEDIUM,
+    low: SEVERITY_WEIGHT_LOW,
   };
 
   let biasScore = 0;
@@ -654,7 +882,7 @@ export function analyzeBiases(
       0,
     );
     // Normalize: more biases = higher score, but cap at 1.0
-    biasScore = Math.min(1.0, weightedSum / 3); // 3 = expected max for "very biased"
+    biasScore = Math.min(BIAS_SCORE_MAX, weightedSum / BIAS_SCORE_NORMALIZATION_DIVISOR);
   }
   biasScore = round3(biasScore);
 
@@ -672,9 +900,9 @@ export function analyzeBiases(
   let assessment: string;
   if (detections.length === 0) {
     assessment = "No cognitive biases detected — reasoning appears balanced and evidence-based";
-  } else if (biasScore < 0.2) {
+  } else if (biasScore < BIAS_SCORE_MINOR_THRESHOLD) {
     assessment = `Minor bias indicators: ${detections.map((d) => d.type).join(", ")}. Generally balanced reasoning.`;
-  } else if (biasScore < 0.5) {
+  } else if (biasScore < BIAS_SCORE_MODERATE_THRESHOLD) {
     assessment = `Moderate cognitive bias detected: ${dominantBias}. Reasoning is partially biased by cognitive shortcuts.`;
   } else {
     assessment = `Significant cognitive bias: ${dominantBias}. Decision may be driven by bias rather than evidence.`;
