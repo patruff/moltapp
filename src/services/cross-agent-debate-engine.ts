@@ -229,6 +229,54 @@ const PROFILE_WEIGHT_REBUTTAL = 0.20;
 /** Weight for average debate quality (20%) */
 const PROFILE_WEIGHT_QUALITY = 0.20;
 
+/**
+ * Thesis Extraction Parameters
+ *
+ * Controls how thesis statements are identified from reasoning text.
+ */
+
+/** Minimum sentence length for thesis extraction (characters) */
+const THESIS_EXTRACTION_MIN_SENTENCE_LENGTH = 10;
+
+/** Maximum number of sentences to search for actionable thesis (first N sentences) */
+const THESIS_EXTRACTION_MAX_SEARCH_SENTENCES = 3;
+
+/**
+ * Supporting Points Extraction
+ *
+ * Controls how supporting evidence is identified from reasoning.
+ */
+
+/** Minimum sentence length for supporting points extraction (characters) */
+const SUPPORTING_POINTS_MIN_SENTENCE_LENGTH = 15;
+
+/** Maximum number of supporting points to extract and score */
+const SUPPORTING_POINTS_MAX_COUNT = 5;
+
+/**
+ * Weakness Detection Thresholds
+ *
+ * Parameters for identifying reasoning weaknesses (excessive hedging, lack of quantification).
+ */
+
+/** Hedge word count threshold for flagging excessive hedging */
+const WEAKNESS_HEDGE_COUNT_THRESHOLD = 3;
+
+/** Word count threshold below which hedge rate is considered problematic */
+const WEAKNESS_WORD_COUNT_THRESHOLD = 100;
+
+/**
+ * Thesis Word Count Validation
+ *
+ * Optimal thesis length range for clarity scoring.
+ */
+
+/** Minimum thesis word count for clarity bonus (too short = vague) */
+const THESIS_WORD_COUNT_MIN = 5;
+
+/** Maximum thesis word count for clarity bonus (too long = unfocused) */
+const THESIS_WORD_COUNT_MAX = 30;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -320,11 +368,11 @@ const MAX_DEBATES = 1500;
 // ---------------------------------------------------------------------------
 
 function extractThesis(reasoning: string): string {
-  const sentences = splitSentences(reasoning, 10);
+  const sentences = splitSentences(reasoning, THESIS_EXTRACTION_MIN_SENTENCE_LENGTH);
   if (sentences.length === 0) return reasoning.slice(0, 100);
 
   // The thesis is usually the first actionable sentence
-  for (const s of sentences.slice(0, 3)) {
+  for (const s of sentences.slice(0, THESIS_EXTRACTION_MAX_SEARCH_SENTENCES)) {
     if (/should|recommend|bullish|bearish|buy|sell|hold|position|undervalued|overvalued/i.test(s)) {
       return s.trim();
     }
@@ -334,7 +382,7 @@ function extractThesis(reasoning: string): string {
 
 function extractSupportingPoints(reasoning: string): string[] {
   const points: string[] = [];
-  const sentences = splitSentences(reasoning, 15);
+  const sentences = splitSentences(reasoning, SUPPORTING_POINTS_MIN_SENTENCE_LENGTH);
 
   for (const s of sentences) {
     if (/because|due\s+to|driven\s+by|supported\s+by|evidence|data\s+shows/i.test(s)) {
@@ -351,7 +399,7 @@ function extractSupportingPoints(reasoning: string): string[] {
     }
   }
 
-  return points.slice(0, 5);
+  return points.slice(0, SUPPORTING_POINTS_MAX_COUNT);
 }
 
 function extractWeaknesses(reasoning: string): string[] {
@@ -360,7 +408,7 @@ function extractWeaknesses(reasoning: string): string[] {
   // Check for hedging without substance
   const hedgeCount = (reasoning.match(/\b(perhaps|maybe|might|possibly|could be)\b/gi) ?? []).length;
   const wordCount = countWords(reasoning);
-  if (hedgeCount > 3 && wordCount < 100) {
+  if (hedgeCount > WEAKNESS_HEDGE_COUNT_THRESHOLD && wordCount < WEAKNESS_WORD_COUNT_THRESHOLD) {
     weaknesses.push("Excessive hedging relative to reasoning length");
   }
 
@@ -513,8 +561,8 @@ function analyzeLogicalChain(
   reasoningA: string,
   reasoningB: string,
 ): LogicalChainResult {
-  const sentencesA = splitSentences(reasoningA, 10);
-  const sentencesB = splitSentences(reasoningB, 10);
+  const sentencesA = splitSentences(reasoningA, THESIS_EXTRACTION_MIN_SENTENCE_LENGTH);
+  const sentencesB = splitSentences(reasoningB, THESIS_EXTRACTION_MIN_SENTENCE_LENGTH);
 
   let connectorsA = 0;
   let connectorsB = 0;
@@ -575,7 +623,7 @@ function scoreDebateParticipant(
   const thesisHasAction = /buy|sell|hold|bullish|bearish/i.test(participant.thesisStatement);
   const thesisClarity = Math.min(1,
     (thesisHasAction ? THESIS_CLARITY_ACTION_BONUS : THESIS_CLARITY_NO_ACTION_PENALTY) +
-    (thesisWords > 5 && thesisWords < 30 ? THESIS_CLARITY_LENGTH_BONUS : THESIS_CLARITY_LENGTH_PENALTY) +
+    (thesisWords > THESIS_WORD_COUNT_MIN && thesisWords < THESIS_WORD_COUNT_MAX ? THESIS_CLARITY_LENGTH_BONUS : THESIS_CLARITY_LENGTH_PENALTY) +
     (participant.supportingPoints.length > 0 ? THESIS_CLARITY_SUPPORT_BONUS : 0)
   );
 
@@ -837,10 +885,10 @@ export function getDebatePillarScore(agentId: string): number {
   if (profile.totalDebates === 0) return 0.5;
 
   return round2(
-    profile.winRate * 0.30 +
-    profile.avgScore * 0.30 +
-    profile.rebuttalWinRate * 0.20 +
-    profile.avgDebateQuality * 0.20,
+    profile.winRate * PROFILE_WEIGHT_WIN_RATE +
+    profile.avgScore * PROFILE_WEIGHT_AVG_SCORE +
+    profile.rebuttalWinRate * PROFILE_WEIGHT_REBUTTAL +
+    profile.avgDebateQuality * PROFILE_WEIGHT_QUALITY,
   );
 }
 
