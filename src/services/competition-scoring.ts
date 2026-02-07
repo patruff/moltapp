@@ -305,6 +305,12 @@ const MOMENTUM_RISING_MULTIPLIER = 1.1;
 /** Falling momentum threshold (recent avg < 0.9× previous avg) */
 const MOMENTUM_FALLING_MULTIPLIER = 0.9;
 
+/** Momentum window size for recent period comparison (last N rounds) */
+const MOMENTUM_RECENT_WINDOW = 3;
+
+/** Default limit for agent score history queries */
+const HISTORY_DEFAULT_LIMIT = 100;
+
 // ---------------------------------------------------------------------------
 // In-Memory State
 // ---------------------------------------------------------------------------
@@ -694,10 +700,10 @@ export function getLeaderboard(): LeaderboardEntry[] {
     // Momentum: compare last 3 rounds to previous 3
     let currentMomentum: "rising" | "falling" | "stable" = "stable";
     if (state.roundScores.length >= MOMENTUM_MIN_ROUNDS_LONG) {
-      const recent3 = state.roundScores.slice(-3).reduce((a, b) => a + b, 0) / 3;
-      const prev3 = state.roundScores.slice(-6, -3).reduce((a, b) => a + b, 0) / 3;
-      if (recent3 > prev3 * MOMENTUM_RISING_MULTIPLIER) currentMomentum = "rising";
-      else if (recent3 < prev3 * MOMENTUM_FALLING_MULTIPLIER) currentMomentum = "falling";
+      const recentWindow = state.roundScores.slice(-MOMENTUM_RECENT_WINDOW).reduce((a, b) => a + b, 0) / MOMENTUM_RECENT_WINDOW;
+      const prevWindow = state.roundScores.slice(-MOMENTUM_RECENT_WINDOW * 2, -MOMENTUM_RECENT_WINDOW).reduce((a, b) => a + b, 0) / MOMENTUM_RECENT_WINDOW;
+      if (recentWindow > prevWindow * MOMENTUM_RISING_MULTIPLIER) currentMomentum = "rising";
+      else if (recentWindow < prevWindow * MOMENTUM_FALLING_MULTIPLIER) currentMomentum = "falling";
     } else if (state.roundScores.length >= MOMENTUM_MIN_ROUNDS_SHORT) {
       const last = state.roundScores[state.roundScores.length - 1];
       const prev = state.roundScores[state.roundScores.length - 2];
@@ -763,7 +769,7 @@ export function getHeadToHead(agentA: string, agentB: string): HeadToHeadRecord 
  */
 export async function getAgentScoreHistory(
   agentId: string,
-  limit = 100,
+  limit = HISTORY_DEFAULT_LIMIT,
 ): Promise<Array<{
   roundId: string;
   roundScore: number;
