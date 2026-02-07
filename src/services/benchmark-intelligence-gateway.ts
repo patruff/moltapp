@@ -97,6 +97,73 @@ export const V17_PILLAR_WEIGHTS: Record<string, number> = {
 };
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Grade Boundaries for Score-to-Grade Conversion
+ *
+ * These thresholds control how composite/pillar scores map to letter grades.
+ * Scores are normalized to [0, 1] range before grading.
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95;   // ≥0.95 = A+ (exceptional performance)
+const GRADE_THRESHOLD_A = 0.90;        // ≥0.90 = A (excellent)
+const GRADE_THRESHOLD_A_MINUS = 0.85;  // ≥0.85 = A- (very good)
+const GRADE_THRESHOLD_B_PLUS = 0.80;   // ≥0.80 = B+ (good)
+const GRADE_THRESHOLD_B = 0.75;        // ≥0.75 = B (above average)
+const GRADE_THRESHOLD_B_MINUS = 0.70;  // ≥0.70 = B- (slightly above average)
+const GRADE_THRESHOLD_C_PLUS = 0.65;   // ≥0.65 = C+ (average)
+const GRADE_THRESHOLD_C = 0.60;        // ≥0.60 = C (slightly below average)
+const GRADE_THRESHOLD_C_MINUS = 0.55;  // ≥0.55 = C- (below average)
+const GRADE_THRESHOLD_D_PLUS = 0.50;   // ≥0.50 = D+ (poor)
+const GRADE_THRESHOLD_D = 0.45;        // ≥0.45 = D (very poor)
+const GRADE_THRESHOLD_D_MINUS = 0.40;  // ≥0.40 = D- (failing, <0.40 = F)
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Used by detectTrend() to classify pillar score trends as improving/stable/declining.
+ * Compares recent 5-round average to older 5-round average.
+ */
+const TREND_IMPROVING_THRESHOLD = 0.05;   // Delta > +0.05 = improving trend
+const TREND_DECLINING_THRESHOLD = -0.05;  // Delta < -0.05 = declining trend
+
+/**
+ * Pillar History Management
+ *
+ * Controls how much historical data is retained and used for trend analysis.
+ */
+const PILLAR_HISTORY_MIN_FOR_TREND = 4;       // Minimum records needed to compute trend
+const PILLAR_HISTORY_RECENT_WINDOW = 5;      // Recent 5 rounds for trend comparison
+const PILLAR_HISTORY_OLDER_WINDOW = 10;      // Older 5 rounds (rounds 6-10) for trend baseline
+const PILLAR_HISTORY_RETENTION_LIMIT = 200;  // Max history records per agent (circular buffer)
+
+/**
+ * Confidence Calculation Parameters
+ *
+ * Confidence indicates how much data backs the pillar score (0 = no data, 1 = full confidence).
+ * Used by UI to show statistical significance of scores.
+ */
+const CONFIDENCE_CALCULATION_DIVISOR = 20;   // history.length / 20 = confidence (20 rounds = 100%)
+const DATA_QUALITY_CALCULATION_DIVISOR = 50; // history.length / 50 = dataQuality (50 rounds = 100%)
+
+/**
+ * Top N Display Limits
+ *
+ * Controls how many top/bottom pillars are shown as strengths/weaknesses in agent profiles.
+ */
+const TOP_STRENGTHS_LIMIT = 3;    // Top 3 pillars shown as strengths
+const TOP_WEAKNESSES_LIMIT = 3;   // Bottom 3 pillars shown as weaknesses
+
+/**
+ * Data Quality Thresholds
+ *
+ * Used by health monitoring to warn about agents with insufficient data.
+ */
+const DATA_QUALITY_LOW_THRESHOLD = 0.3;        // <30% data quality triggers warning
+const PILLAR_CONFIDENCE_MIN_FOR_COVERAGE = 0.3; // Pillar confidence >30% counts as "covered"
+
+// ---------------------------------------------------------------------------
 // In-memory state
 // ---------------------------------------------------------------------------
 
@@ -111,33 +178,33 @@ const startTime = Date.now();
 // ---------------------------------------------------------------------------
 
 function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
 function detectTrend(history: { timestamp: number; scores: Record<string, number> }[], pillar: string): "improving" | "stable" | "declining" {
-  if (history.length < 4) return "stable";
-  const recent = history.slice(-5);
-  const older = history.slice(-10, -5);
+  if (history.length < PILLAR_HISTORY_MIN_FOR_TREND) return "stable";
+  const recent = history.slice(-PILLAR_HISTORY_RECENT_WINDOW);
+  const older = history.slice(-PILLAR_HISTORY_OLDER_WINDOW, -PILLAR_HISTORY_RECENT_WINDOW);
   if (older.length === 0) return "stable";
 
   const recentAvg = recent.reduce((s, h) => s + (h.scores[pillar] ?? 0), 0) / recent.length;
   const olderAvg = older.reduce((s, h) => s + (h.scores[pillar] ?? 0), 0) / older.length;
   const diff = recentAvg - olderAvg;
 
-  if (diff > 0.05) return "improving";
-  if (diff < -0.05) return "declining";
+  if (diff > TREND_IMPROVING_THRESHOLD) return "improving";
+  if (diff < TREND_DECLINING_THRESHOLD) return "declining";
   return "stable";
 }
 
@@ -163,7 +230,7 @@ export function recordV17Scores(
   // Record in history
   const history = pillarHistory.get(agentId) ?? [];
   history.push({ timestamp: Date.now(), scores });
-  if (history.length > 200) history.splice(0, history.length - 200);
+  if (history.length > PILLAR_HISTORY_RETENTION_LIMIT) history.splice(0, history.length - PILLAR_HISTORY_RETENTION_LIMIT);
   pillarHistory.set(agentId, history);
 
   // Build pillar details
@@ -176,7 +243,7 @@ export function recordV17Scores(
       components: { raw: scores[name] ?? 0.5 },
       grade: scoreToGrade(score),
       trend: detectTrend(history, name),
-      confidence: Math.min(1, (history.length / 20)),
+      confidence: Math.min(1, (history.length / CONFIDENCE_CALCULATION_DIVISOR)),
     };
   });
 
@@ -185,8 +252,8 @@ export function recordV17Scores(
 
   // Identify strengths (top 3) and weaknesses (bottom 3)
   const sorted = [...pillars].sort((a, b) => b.score - a.score);
-  const strengths = sorted.slice(0, 3).map((p) => `${p.name}: ${p.score.toFixed(2)} (${p.grade})`);
-  const weaknesses = sorted.slice(-3).map((p) => `${p.name}: ${p.score.toFixed(2)} (${p.grade})`);
+  const strengths = sorted.slice(0, TOP_STRENGTHS_LIMIT).map((p) => `${p.name}: ${p.score.toFixed(2)} (${p.grade})`);
+  const weaknesses = sorted.slice(-TOP_WEAKNESSES_LIMIT).map((p) => `${p.name}: ${p.score.toFixed(2)} (${p.grade})`);
 
   const existing = agentProfiles.get(agentId);
 
@@ -201,7 +268,7 @@ export function recordV17Scores(
     strengths,
     weaknesses,
     tradeCount: (existing?.tradeCount ?? 0) + (tradeCount ?? 1),
-    dataQuality: Math.min(1, (history.length / 50)),
+    dataQuality: Math.min(1, (history.length / DATA_QUALITY_CALCULATION_DIVISOR)),
     lastUpdated: new Date().toISOString(),
     eloRating: existing?.eloRating ?? 1500,
     streak: existing?.streak ?? { type: "neutral", length: 0 },
@@ -278,7 +345,7 @@ export function getV17Health(): BenchmarkHealthReport {
   // Check for stale data
   const stalePillars: string[] = [];
   for (const [name] of Object.entries(V17_PILLAR_WEIGHTS)) {
-    const hasCoverage = profiles.some((p) => p.pillars.find((pl) => pl.name === name && pl.confidence > 0.3));
+    const hasCoverage = profiles.some((p) => p.pillars.find((pl) => pl.name === name && pl.confidence > PILLAR_CONFIDENCE_MIN_FOR_COVERAGE));
     if (!hasCoverage) stalePillars.push(name);
   }
   if (stalePillars.length > 0) {
@@ -287,7 +354,7 @@ export function getV17Health(): BenchmarkHealthReport {
 
   // Check for agent data quality
   for (const p of profiles) {
-    if (p.dataQuality < 0.3) {
+    if (p.dataQuality < DATA_QUALITY_LOW_THRESHOLD) {
       warnings.push(`${p.agentId} has low data quality (${(p.dataQuality * 100).toFixed(0)}%)`);
     }
   }
