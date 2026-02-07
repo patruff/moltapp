@@ -171,6 +171,63 @@ const TRADE_FREQUENCY_DIVERGENCE_THRESHOLD = 0.3;
  */
 const DRIFT_SCORE_THRESHOLD = 0.5;
 
+/**
+ * Summary generation classification thresholds.
+ * Used in generateSummary() to classify agent trading style and behavior.
+ */
+
+/**
+ * Hold percent threshold for "cautious trader" classification.
+ * If >60% of decisions are holds, agent is classified as cautious/defensive.
+ */
+const SUMMARY_HOLD_CAUTIOUS_THRESHOLD = 60;
+
+/**
+ * Buy percent threshold for "aggressive buyer" classification.
+ * If >50% of decisions are buys, agent is classified as aggressive/growth-focused.
+ */
+const SUMMARY_BUY_AGGRESSIVE_THRESHOLD = 50;
+
+/**
+ * Sell percent threshold for "active seller" classification.
+ * If >40% of decisions are sells, agent is classified as active profit-taker.
+ */
+const SUMMARY_SELL_ACTIVE_THRESHOLD = 40;
+
+/**
+ * Sentiment bias positive threshold for "bullish bias" classification.
+ * overallBias >0.3 (30% net bullish) = bullish market view.
+ */
+const SUMMARY_SENTIMENT_BULLISH_THRESHOLD = 0.3;
+
+/**
+ * Sentiment bias negative threshold for "bearish bias" classification.
+ * overallBias <-0.3 (30% net bearish) = bearish market view.
+ */
+const SUMMARY_SENTIMENT_BEARISH_THRESHOLD = -0.3;
+
+/**
+ * Confidence mean high threshold for "high conviction" classification.
+ * mean >70% confidence = high conviction decision maker.
+ */
+const SUMMARY_CONFIDENCE_HIGH_THRESHOLD = 70;
+
+/**
+ * Confidence mean low threshold for "cautious" classification.
+ * mean <40% confidence = cautious/uncertain decision maker.
+ */
+const SUMMARY_CONFIDENCE_LOW_THRESHOLD = 40;
+
+/**
+ * Stock comparison parameters for fingerprint similarity analysis.
+ */
+
+/**
+ * Number of top stocks to compare between agents in compareFingerprints().
+ * Compares top 3 most-traded stocks to assess sector preference overlap.
+ */
+const TOP_STOCKS_COMPARISON_LIMIT = 3;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -747,12 +804,12 @@ function generateDivergenceNotes(
   }
 
   // Compare top stocks
-  const topA = new Set(fpA.topStocks.slice(0, 3).map((s) => s.symbol));
-  const topB = new Set(fpB.topStocks.slice(0, 3).map((s) => s.symbol));
+  const topA = new Set(fpA.topStocks.slice(0, TOP_STOCKS_COMPARISON_LIMIT).map((s) => s.symbol));
+  const topB = new Set(fpB.topStocks.slice(0, TOP_STOCKS_COMPARISON_LIMIT).map((s) => s.symbol));
   const overlap = [...topA].filter((s) => topB.has(s));
   if (overlap.length === 0 && topA.size > 0 && topB.size > 0) {
     notes.push("No overlap in top 3 traded stocks — very different sector preferences");
-  } else if (overlap.length === 3) {
+  } else if (overlap.length === TOP_STOCKS_COMPARISON_LIMIT) {
     notes.push("Same top 3 stocks — converging on similar opportunities");
   }
 
@@ -781,29 +838,29 @@ function generateSummary(
   const parts: string[] = [];
 
   // Style
-  if (actions.holdPercent > 60) {
+  if (actions.holdPercent > SUMMARY_HOLD_CAUTIOUS_THRESHOLD) {
     parts.push("cautious trader (mostly holds)");
-  } else if (actions.buyPercent > 50) {
+  } else if (actions.buyPercent > SUMMARY_BUY_AGGRESSIVE_THRESHOLD) {
     parts.push("aggressive buyer");
-  } else if (actions.sellPercent > 40) {
+  } else if (actions.sellPercent > SUMMARY_SELL_ACTIVE_THRESHOLD) {
     parts.push("active seller / profit-taker");
   } else {
     parts.push("balanced trader");
   }
 
   // Sentiment
-  if (sentiment.overallBias > 0.3) {
+  if (sentiment.overallBias > SUMMARY_SENTIMENT_BULLISH_THRESHOLD) {
     parts.push("bullish bias");
-  } else if (sentiment.overallBias < -0.3) {
+  } else if (sentiment.overallBias < SUMMARY_SENTIMENT_BEARISH_THRESHOLD) {
     parts.push("bearish bias");
   } else {
     parts.push("neutral market view");
   }
 
   // Confidence
-  if (confidence.mean > 70) {
+  if (confidence.mean > SUMMARY_CONFIDENCE_HIGH_THRESHOLD) {
     parts.push("high conviction decisions");
-  } else if (confidence.mean < 40) {
+  } else if (confidence.mean < SUMMARY_CONFIDENCE_LOW_THRESHOLD) {
     parts.push("cautious/uncertain decision maker");
   }
 
