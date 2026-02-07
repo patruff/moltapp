@@ -508,9 +508,6 @@ export function getGenomePillarScore(agentId: string): number {
   const genome = genomes.get(agentId);
   if (!genome) return 0.5;
   // Weighted average of gene scores (weights imported from scoring-weights.ts)
-  return weightedSum(
-    genome.genes,
-    (g) => g.score,
-    (_g, i) => GENOME_WEIGHTS_ARRAY[i] ?? 0.125,
-  );
+  const scores = genome.genes.map(g => g.score);
+  return weightedSum(scores, GENOME_WEIGHTS_ARRAY);
 }

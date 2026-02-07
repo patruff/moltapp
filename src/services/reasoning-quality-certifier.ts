@@ -318,8 +318,9 @@ export function certifyReasoning(
   dimensions.push(actionabilityScore);
 
   // Compute composite score (weights imported from scoring-weights.ts)
+  const scores = dimensions.map(d => d.score);
   const compositeScore = round2(
-    weightedSum(dimensions, (d, i) => d.score, (d, i) => CERTIFICATION_WEIGHTS_ARRAY[i]),
+    weightedSum(scores, CERTIFICATION_WEIGHTS_ARRAY),
   );
 
   // Determine certification level

@@ -978,14 +978,14 @@ export async function generateSwarmPredictions(): Promise<SwarmPrediction[]> {
     if (upVotes.length > downVotes.length) {
       prediction = "up";
       probability = round2(
-        (weightedSum(upVotes, (c) => c.confidence, (c) => c.weight) /
+        (weightedSum(upVotes, "confidence", "weight") /
           sumByKey(upVotes, "weight")) *
           (upVotes.length / configs.length),
       );
     } else if (downVotes.length > upVotes.length) {
       prediction = "down";
       probability = round2(
-        (weightedSum(downVotes, (c) => c.confidence, (c) => c.weight) /
+        (weightedSum(downVotes, "confidence", "weight") /
           sumByKey(downVotes, "weight")) *
           (downVotes.length / configs.length),
       );

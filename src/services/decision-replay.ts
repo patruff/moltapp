@@ -409,7 +409,7 @@ export async function replayRound(roundId: string): Promise<{
   }
 
   // Round summary
-  const actionGroups = groupByKey(roundDecisions, (d) => d.action);
+  const actionGroups = groupByKey(roundDecisions, (d: DecisionRow) => d.action);
   const actionCounts = Object.fromEntries(
     Object.entries(actionGroups).map(([action, items]) => [action, items.length]),
   );
@@ -586,7 +586,7 @@ async function buildRoundContext(
   if (consensus === "unanimous") {
     agreementSummary = `All agents agreed to ${actions[0]}`;
   } else if (consensus === "majority") {
-    const actionGroups = groupByKey(allDecisions, 'action');
+    const actionGroups = groupByKey(allDecisions, (d: typeof allDecisions[0]) => d.action);
     const actionCounts = Object.fromEntries(
       Object.entries(actionGroups).map(([action, items]) => [action, items.length]),
     );
