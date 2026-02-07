@@ -68,13 +68,113 @@ export interface MeetingResult {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Discussion Round Parameters
+ */
+
+/**
+ * Number of discussion phases after opening theses (rounds 1-3).
+ * Each round allows agents to respond to the full transcript and adjust positions.
+ * @default 3 - Provides sufficient deliberation without excessive LLM costs
+ */
 const DISCUSSION_ROUNDS = 3;
+
+/**
+ * LLM Response Generation Parameters
+ */
+
+/**
+ * Maximum tokens per LLM response in the meeting.
+ * Controls response length to keep discussion focused and costs manageable.
+ * @default 300 - Allows 100-200 words, sufficient for substantive arguments
+ */
 const MAX_RESPONSE_TOKENS = 300;
+
+/**
+ * LLM sampling temperature for meeting responses.
+ * Lower temperature = more consistent, focused arguments.
+ * @default 0.3 - Balanced between coherence and slight variation in phrasing
+ */
 const MEETING_TEMPERATURE = 0.3;
+
+/**
+ * Response Length Guidance Parameters
+ */
+
+/**
+ * Minimum recommended word count for concise meeting responses.
+ * Ensures agents provide substantive arguments, not just agreement/disagreement.
+ * @default 100 - Minimum for a complete argument with evidence
+ */
+const RESPONSE_MIN_WORDS = 100;
+
+/**
+ * Maximum recommended word count for concise meeting responses.
+ * Prevents overly verbose responses that slow down deliberation.
+ * @default 200 - Allows detailed reasoning without excessive length
+ */
+const RESPONSE_MAX_WORDS = 200;
+
+/**
+ * Reasoning Truncation Parameters
+ */
+
+/**
+ * Maximum character length for reasoning text in opening thesis.
+ * Longer reasoning is truncated to keep meeting focused on key points.
+ * @default 500 - Allows ~80-100 words, sufficient for thesis summary
+ */
+const REASONING_TRUNCATION_THRESHOLD = 500;
+
+/**
+ * Confidence Parsing Parameters
+ */
+
+/**
+ * Maximum valid confidence value (upper bound clamp).
+ * Ensures confidence stays within 0-100 range after parsing.
+ * @default 100 - Standard percentage upper bound
+ */
+const CONFIDENCE_MAX = 100;
+
+/**
+ * Minimum valid confidence value (lower bound clamp).
+ * Ensures confidence stays within 0-100 range after parsing.
+ * @default 0 - Standard percentage lower bound
+ */
+const CONFIDENCE_MIN = 0;
+
+/**
+ * Minimum absolute confidence change to flag as "significant shift".
+ * Used to detect when agents materially changed their conviction during deliberation.
+ * @default 15 - 15-point shift indicates meaningful opinion change, not just minor adjustment
+ */
+const CONFIDENCE_SHIFT_THRESHOLD = 15;
+
+/**
+ * Meeting History Management
+ */
+
+/**
+ * Maximum number of meeting results stored in memory.
+ * Circular buffer: oldest meetings removed when limit exceeded.
+ * @default 50 - Balances memory usage vs historical analysis depth (~50 trading rounds)
+ */
 const MAX_HISTORY = 50;
+
+/**
+ * Cost Estimation Parameters
+ */
+
+/**
+ * Estimated cost per LLM message in USD.
+ * Used for rough cost tracking (actual costs vary by provider/model).
+ * @default 0.01 - Approximate cost for 300-token response across Claude/GPT/Grok
+ */
+const COST_PER_MESSAGE_USD = 0.01;
 
 // ---------------------------------------------------------------------------
 // In-Memory Storage
@@ -108,7 +208,7 @@ function buildMeetingSystemPrompt(agentConfig: AgentConfig): string {
     `You just completed a trading round. Now you're meeting with the other agents ` +
     `to discuss what happened and whether the right decisions were made.\n\n` +
     `Rules:\n` +
-    `- Keep responses concise (100-200 words)\n` +
+    `- Keep responses concise (${RESPONSE_MIN_WORDS}-${RESPONSE_MAX_WORDS} words)\n` +
     `- Reference specific data points and reasoning from other agents\n` +
     `- Be willing to change your mind if presented with compelling evidence\n` +
     `- Stay in character with your trading personality\n` +
@@ -366,8 +466,8 @@ function formatOpeningThesis(result: TradingRoundResult): string {
   if (d.reasoning) {
     // Truncate long reasoning to keep meeting focused
     const truncated =
-      d.reasoning.length > 500
-        ? d.reasoning.slice(0, 500) + "..."
+      d.reasoning.length > REASONING_TRUNCATION_THRESHOLD
+        ? d.reasoning.slice(0, REASONING_TRUNCATION_THRESHOLD) + "..."
         : d.reasoning;
     parts.push(truncated);
   }
@@ -395,7 +495,7 @@ function parseVote(
     : result.decision.action;
   const symbol = symbolMatch ? symbolMatch[1] : result.decision.symbol;
   const confidence = confMatch
-    ? Math.min(100, Math.max(0, parseInt(confMatch[1], 10)))
+    ? Math.min(CONFIDENCE_MAX, Math.max(CONFIDENCE_MIN, parseInt(confMatch[1], 10)))
     : result.decision.confidence;
   const convincedByRaw = convincedMatch ? convincedMatch[1].trim() : "none";
   const convincedBy =
@@ -527,7 +627,7 @@ function findKeyDiscrepancies(
 
     // Did confidence change significantly?
     const confDiff = Math.abs(original.decision.confidence - vote.confidence);
-    if (confDiff >= 15) {
+    if (confDiff >= CONFIDENCE_SHIFT_THRESHOLD) {
       discrepancies.push(
         `${vote.agentName}'s confidence shifted ${confDiff} points (${original.decision.confidence} → ${vote.confidence})`,
       );
@@ -546,6 +646,6 @@ function findKeyDiscrepancies(
 }
 
 function estimateCost(messageCount: number): number {
-  // Rough estimate: ~$0.01 per LLM call for short responses
-  return Math.round(messageCount * 0.01 * 100) / 100;
+  // Rough estimate based on typical LLM call costs for short responses
+  return Math.round(messageCount * COST_PER_MESSAGE_USD * 100) / 100;
 }
