@@ -154,6 +154,97 @@ interface TimelineEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * VERDICT CONFIDENCE THRESHOLDS
+ *
+ * Control how decision outcomes are classified based on agent confidence level.
+ * Higher thresholds = stricter standards for "correct" verdicts.
+ */
+
+/**
+ * High confidence threshold for verdict classification.
+ * Decisions with confidence >= this value are labeled "correct" (conviction-driven).
+ */
+const VERDICT_CONFIDENCE_CORRECT = 70;
+
+/**
+ * Neutral confidence threshold for verdict classification.
+ * Decisions with confidence >= this value but < CORRECT are labeled "neutral" (cautious approach).
+ */
+const VERDICT_CONFIDENCE_NEUTRAL = 40;
+
+/**
+ * REASONING STRENGTH ANALYSIS THRESHOLDS
+ *
+ * Control how reasoning quality is classified based on confidence and word count.
+ * Used to detect misalignment between conviction and reasoning depth.
+ */
+
+/**
+ * High confidence threshold for reasoning alignment analysis.
+ * Confidence >= this value expects strong reasoning (word count check applied).
+ */
+const REASONING_HIGH_CONFIDENCE_THRESHOLD = 70;
+
+/**
+ * Minimum word count for "strong reasoning" classification.
+ * Reasoning with >= this many words is considered substantive.
+ */
+const REASONING_MIN_WORDS_STRONG = 30;
+
+/**
+ * Low confidence boundary for reasoning alignment.
+ * Confidence < this value with strong reasoning = "low_conf_strong_reasoning" (interesting divergence).
+ */
+const REASONING_LOW_CONFIDENCE_THRESHOLD = 50;
+
+/**
+ * QUERY LIMITS
+ *
+ * Control how many records are fetched from database for context reconstruction.
+ */
+
+/**
+ * Maximum prior trades to fetch when reconstructing portfolio state at decision time.
+ */
+const PORTFOLIO_PRIOR_TRADES_LIMIT = 10;
+
+/**
+ * Maximum decisions to fetch when building decision timeline (2-hour window around target decision).
+ */
+const TIMELINE_DECISIONS_LIMIT = 20;
+
+/**
+ * DISPLAY LIMITS
+ *
+ * Control how many characters/records are shown in UI responses.
+ */
+
+/**
+ * Maximum characters to show in reasoning snippet previews (timeline entries).
+ */
+const REASONING_SNIPPET_LIMIT = 200;
+
+/**
+ * TIME CONVERSION CONSTANTS
+ *
+ * Standard conversion factors for formatting elapsed time.
+ */
+
+/**
+ * Minutes per hour for time formatting.
+ */
+const MINUTES_PER_HOUR = 60;
+
+/**
+ * Hours per day for time formatting.
+ */
+const HOURS_PER_DAY = 24;
+
+// ---------------------------------------------------------------------------
 // Core Functions
 // ---------------------------------------------------------------------------
 
@@ -316,7 +407,7 @@ export async function getDecisionTimeline(
       symbol: d.symbol,
       quantity: d.quantity,
       confidence: d.confidence,
-      reasoning: d.reasoning.slice(0, 200),
+      reasoning: d.reasoning.slice(0, REASONING_SNIPPET_LIMIT),
       roundId: d.roundId,
     },
   }));
@@ -452,7 +543,7 @@ async function buildPortfolioAtTime(
     .from(trades)
     .where(and(eq(trades.agentId, agentId), lte(trades.createdAt, decisionTime)))
     .orderBy(desc(trades.createdAt))
-    .limit(10);
+    .limit(PORTFOLIO_PRIOR_TRADES_LIMIT);
 
   // Estimate cash balance
   const INITIAL_CAPITAL = 10000;
@@ -568,10 +659,10 @@ function buildOutcomeAnalysis(decision: {
     currentPrice: null,
     priceChangeSinceDecision: null,
     priceChangePercent: null,
-    hindsightVerdict: decision.confidence >= 70 ? "correct" : decision.confidence >= 40 ? "neutral" : "incorrect",
-    verdictExplanation: decision.confidence >= 70
+    hindsightVerdict: decision.confidence >= VERDICT_CONFIDENCE_CORRECT ? "correct" : decision.confidence >= VERDICT_CONFIDENCE_NEUTRAL ? "neutral" : "incorrect",
+    verdictExplanation: decision.confidence >= VERDICT_CONFIDENCE_CORRECT
       ? `High confidence (${decision.confidence}%) ${decision.action} — agent was conviction-driven`
-      : decision.confidence >= 40
+      : decision.confidence >= VERDICT_CONFIDENCE_NEUTRAL
         ? `Moderate confidence (${decision.confidence}%) ${decision.action} — cautious approach`
         : `Low confidence (${decision.confidence}%) ${decision.action} — uncertain positioning`,
     timeSinceDecision: formatTimeSince(elapsedMs),
@@ -620,18 +711,18 @@ function analyzeReasoning(reasoning: string, confidence: number): ReasoningBreak
 
   // Confidence alignment
   let confidenceAlignment: ReasoningBreakdown["confidenceAlignment"];
-  if (confidence >= 70 && wordCount >= 30) {
+  if (confidence >= REASONING_HIGH_CONFIDENCE_THRESHOLD && wordCount >= REASONING_MIN_WORDS_STRONG) {
     confidenceAlignment = "high_conf_strong_reasoning";
-  } else if (confidence >= 70 && wordCount < 30) {
+  } else if (confidence >= REASONING_HIGH_CONFIDENCE_THRESHOLD && wordCount < REASONING_MIN_WORDS_STRONG) {
     confidenceAlignment = "high_conf_weak_reasoning";
-  } else if (confidence < 50 && wordCount >= 30) {
+  } else if (confidence < REASONING_LOW_CONFIDENCE_THRESHOLD && wordCount >= REASONING_MIN_WORDS_STRONG) {
     confidenceAlignment = "low_conf_strong_reasoning";
   } else {
     confidenceAlignment = "low_conf_cautious";
   }
 
   return {
-    keyFactors: keyFactors.length > 0 ? keyFactors : [reasoning.slice(0, 200)],
+    keyFactors: keyFactors.length > 0 ? keyFactors : [reasoning.slice(0, REASONING_SNIPPET_LIMIT)],
     sentiment,
     wordCount,
     stockMentions,
@@ -654,7 +745,7 @@ async function buildDecisionTimeline(
     .from(agentDecisions)
     .where(and(gte(agentDecisions.createdAt, startTime), lte(agentDecisions.createdAt, endTime)))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(20);
+    .limit(TIMELINE_DECISIONS_LIMIT);
 
   const configs = getAgentConfigs();
 
@@ -682,9 +773,9 @@ async function buildDecisionTimeline(
 
 function formatTimeSince(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
+  if (minutes < MINUTES_PER_HOUR) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+  if (hours < HOURS_PER_DAY) return `${hours}h ago`;
+  const days = Math.floor(hours / HOURS_PER_DAY);
   return `${days}d ago`;
 }
