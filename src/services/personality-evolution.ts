@@ -123,7 +123,7 @@ export interface EvolutionStory {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
 /** The three competing AI trading agents */
@@ -136,22 +136,120 @@ const AGENT_NAMES: Record<string, string> = {
   "grok-contrarian": "Grok Contrarian",
 };
 
-/** Maximum decisions to keep per agent in the ring buffer */
+/**
+ * Ring Buffer and Capacity Limits
+ *
+ * These constants control memory retention for personality evolution tracking.
+ * Ring buffers prevent unbounded memory growth while maintaining sufficient
+ * history for behavioral analysis.
+ */
+
+/**
+ * Maximum decisions to keep per agent in the ring buffer.
+ *
+ * Oldest decisions are automatically trimmed when this limit is exceeded.
+ * 500 decisions provides ~6-8 weeks of trading history at 10-15 decisions/day.
+ *
+ * @constant {number}
+ */
 const MAX_DECISIONS_PER_AGENT = 500;
 
-/** Maximum personality snapshots to keep per agent */
+/**
+ * Maximum personality snapshots to keep per agent.
+ *
+ * Snapshots are computed periodically (see SNAPSHOT_TRIGGER_INTERVAL).
+ * 200 snapshots × 10 decisions per snapshot = ~2000 decisions of history coverage.
+ *
+ * @constant {number}
+ */
 const MAX_SNAPSHOTS_PER_AGENT = 200;
 
-/** Number of recent decisions used when computing a personality snapshot */
+/**
+ * Personality Snapshot Computation Parameters
+ *
+ * These constants control when and how personality snapshots are computed
+ * from the agent's decision history.
+ */
+
+/**
+ * Number of recent decisions used when computing a personality snapshot.
+ *
+ * Uses a sliding window of the most recent N decisions to compute the
+ * 6-dimensional personality profile (aggressiveness, contrarianism, conviction,
+ * diversification, winSensitivity, lossSensitivity).
+ *
+ * 50 decisions provides ~3-7 days of recent behavior (statistically significant
+ * while still being responsive to personality changes).
+ *
+ * @constant {number}
+ */
 const PERSONALITY_WINDOW = 50;
 
-/** Minimum decisions needed before a snapshot can be computed */
+/**
+ * Minimum decisions needed before a personality snapshot can be computed.
+ *
+ * Below this threshold, insufficient data exists for meaningful personality
+ * analysis (contrarianism requires peer comparisons, diversification requires
+ * multiple symbol trades, etc.).
+ *
+ * @constant {number}
+ */
 const MIN_DECISIONS_FOR_SNAPSHOT = 5;
 
-/** Drift threshold: above this, personality change is considered significant */
+/**
+ * Decision count interval for automatic snapshot computation.
+ *
+ * A new personality snapshot is automatically computed every N decisions
+ * (after MIN_DECISIONS_FOR_SNAPSHOT is reached). For example, with N=10,
+ * snapshots are computed at decisions 10, 20, 30, 40, etc.
+ *
+ * This creates a timeline of personality evolution without overwhelming
+ * the snapshot storage.
+ *
+ * @constant {number}
+ */
+const SNAPSHOT_TRIGGER_INTERVAL = 10;
+
+/**
+ * Personality Drift Detection Thresholds
+ *
+ * These constants control how personality change significance is classified.
+ */
+
+/**
+ * Drift threshold: above this, personality change is considered significant.
+ *
+ * Measures Euclidean distance in the 6-dimensional personality space between
+ * baseline (earliest snapshot) and current (most recent snapshot).
+ *
+ * Drift = sqrt(Σ(dimension_delta²)) for all 6 dimensions.
+ *
+ * Example: If aggressiveness changed by 10 points and contrarianism by 8 points
+ * (other dimensions stable), drift = sqrt(10² + 8²) = 12.8 (not significant).
+ *
+ * @constant {number}
+ */
 const SIGNIFICANT_DRIFT_THRESHOLD = 15;
 
-/** How many recent decisions to use for win/loss sensitivity calculation */
+/**
+ * Sensitivity Analysis Parameters
+ *
+ * These constants control win/loss sensitivity measurement — how much an
+ * agent's behavior changes after profitable or losing trades.
+ */
+
+/**
+ * How many recent decisions to use for win/loss sensitivity calculation.
+ *
+ * Win/loss sensitivity measures behavioral change (confidence and trade frequency)
+ * in the 3 decisions before vs 3 decisions after outcome events.
+ *
+ * 30 decisions provides enough outcome events for statistical reliability while
+ * remaining recent enough to reflect current behavioral patterns (agents may
+ * become more/less reactive to outcomes over time).
+ *
+ * @constant {number}
+ */
 const SENSITIVITY_LOOKBACK = 30;
 
 // ---------------------------------------------------------------------------
@@ -212,8 +310,8 @@ export function recordDecision(
 
   decisionStore.set(agentId, buffer);
 
-  // Auto-compute a new personality snapshot every 10 decisions
-  if (buffer.length >= MIN_DECISIONS_FOR_SNAPSHOT && buffer.length % 10 === 0) {
+  // Auto-compute a new personality snapshot every N decisions
+  if (buffer.length >= MIN_DECISIONS_FOR_SNAPSHOT && buffer.length % SNAPSHOT_TRIGGER_INTERVAL === 0) {
     const snapshot = computePersonality(agentId);
     if (snapshot) {
       const timeline = snapshotTimeline.get(agentId) ?? [];
