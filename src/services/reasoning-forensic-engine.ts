@@ -82,7 +82,182 @@ export interface CrossTradeAnalysis {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Structural Analysis Thresholds
+ *
+ * These control how reasoning structure is scored for clarity and logical flow.
+ */
+
+/**
+ * Ideal sentence count range for trade reasoning (3-12 sentences).
+ * Too few = shallow, too many = rambling.
+ */
+const STRUCTURE_SENTENCE_COUNT_IDEAL_MIN = 3;
+const STRUCTURE_SENTENCE_COUNT_IDEAL_MAX = 12;
+const STRUCTURE_SENTENCE_COUNT_MIN = 1; // Minimum for any structure credit
+
+/**
+ * Sentence count scoring bonuses
+ */
+const STRUCTURE_SCORE_SENTENCE_IDEAL = 0.2; // Reward for 3-12 sentences
+const STRUCTURE_SCORE_SENTENCE_MIN = 0.1; // Reward for any sentences
+
+/**
+ * Ideal average sentence length (8-25 words).
+ * Too short = choppy, too long = run-on sentences.
+ */
+const STRUCTURE_AVG_SENTENCE_LENGTH_IDEAL_MIN = 8;
+const STRUCTURE_AVG_SENTENCE_LENGTH_IDEAL_MAX = 25;
+const STRUCTURE_AVG_SENTENCE_LENGTH_MIN = 5;
+
+/**
+ * Avg sentence length scoring bonuses
+ */
+const STRUCTURE_SCORE_AVG_SENTENCE_IDEAL = 0.15;
+const STRUCTURE_SCORE_AVG_SENTENCE_MIN = 0.08;
+
+/**
+ * Quantitative claims scoring (e.g., "$245", "10%", "2.5x")
+ */
+const STRUCTURE_SCORE_QUANTITATIVE_MAX = 0.25; // Cap for quant claim contribution
+const STRUCTURE_SCORE_QUANTITATIVE_PER_CLAIM = 0.05; // 5% bonus per claim
+
+/**
+ * Causal connector scoring (e.g., "because", "therefore")
+ */
+const STRUCTURE_SCORE_CAUSAL_MAX = 0.2; // Cap for causal connector contribution
+const STRUCTURE_SCORE_CAUSAL_PER_CONNECTOR = 0.05; // 5% bonus per connector
+
+/**
+ * Thesis/evidence/conclusion bonuses
+ */
+const STRUCTURE_SCORE_THESIS_BONUS = 0.08;
+const STRUCTURE_SCORE_EVIDENCE_BONUS = 0.08;
+const STRUCTURE_SCORE_CONCLUSION_BONUS = 0.04;
+
+/**
+ * Hedge word penalty (some hedging = good epistemic humility, too much = indecisive)
+ */
+const STRUCTURE_HEDGE_RATIO_THRESHOLD = 0.05; // 5% hedge words is acceptable
+const STRUCTURE_HEDGE_PENALTY_MULTIPLIER = 2; // Penalty multiplier for excessive hedging
+
+/**
+ * Depth Analysis Thresholds
+ *
+ * Measures how many analytical dimensions the reasoning covers.
+ */
+
+/**
+ * Dimension count targets for depth scoring (out of 10 total dimensions)
+ */
+const DEPTH_MAX_SCORE_DIMENSIONS = 5; // 5+ dimensions = max depth score (1.0)
+const DEPTH_EXCEPTIONAL_THRESHOLD = 7; // 7+ dimensions = exceptional classification
+const DEPTH_DEEP_THRESHOLD = 4; // 4-6 dimensions = deep classification
+const DEPTH_MODERATE_THRESHOLD = 2; // 2-3 dimensions = moderate classification
+// < 2 dimensions = shallow
+
+/**
+ * Originality Analysis Thresholds
+ *
+ * Detects templated/copypasta reasoning vs genuinely novel analysis.
+ */
+
+/**
+ * N-gram size for uniqueness detection (3-word sequences)
+ */
+const ORIGINALITY_NGRAM_SIZE = 3;
+
+/**
+ * History lookback for originality comparison (last 5 trades)
+ */
+const ORIGINALITY_HISTORY_LOOKBACK = 5;
+
+/**
+ * Jaccard similarity threshold for template detection
+ */
+const ORIGINALITY_TEMPLATE_THRESHOLD = 0.7; // >70% similarity = likely templated
+
+/**
+ * Clarity Analysis Thresholds
+ *
+ * Measures readability and appropriate use of technical jargon.
+ */
+
+/**
+ * Word count ranges for readability scoring
+ */
+const CLARITY_WORD_COUNT_IDEAL_MIN = 30; // 30-200 words = ideal
+const CLARITY_WORD_COUNT_IDEAL_MAX = 200;
+const CLARITY_WORD_COUNT_ACCEPTABLE_MIN = 15; // 15-300 words = acceptable
+const CLARITY_WORD_COUNT_ACCEPTABLE_MAX = 300;
+const CLARITY_WORD_COUNT_MIN = 5; // Minimum for any readability credit
+
+/**
+ * Readability scoring bonuses
+ */
+const CLARITY_SCORE_IDEAL = 0.8; // Ideal length range
+const CLARITY_SCORE_ACCEPTABLE = 0.6; // Acceptable length range
+const CLARITY_SCORE_MIN = 0.3; // Minimum length
+
+/**
+ * Average word length (4-7 chars is readable)
+ */
+const CLARITY_AVG_WORD_LENGTH_MIN = 4;
+const CLARITY_AVG_WORD_LENGTH_MAX = 7;
+const CLARITY_SCORE_AVG_WORD_LENGTH_BONUS = 0.1;
+
+/**
+ * Jargon ratio thresholds (some jargon = expertise, too much = obscure)
+ */
+const CLARITY_JARGON_RATIO_GOOD_MAX = 0.08; // ≤8% jargon = good technical depth
+const CLARITY_JARGON_RATIO_EXCESSIVE = 0.15; // >15% jargon = hurts clarity
+const CLARITY_SCORE_JARGON_BONUS = 0.1;
+const CLARITY_SCORE_JARGON_PENALTY = 0.1;
+
+/**
+ * Cross-Trade Analysis Thresholds
+ *
+ * Detects flip-flops, copypasta, and confidence swings.
+ */
+
+/**
+ * Flip-flop detection window (24 hours)
+ */
+const CROSS_TRADE_FLIP_FLOP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Copypasta detection threshold (Jaccard similarity >80% = copypasta)
+ */
+const CROSS_TRADE_COPYPASTA_THRESHOLD = 0.8;
+
+/**
+ * Confidence swing detection (>40% confidence change between consecutive trades)
+ */
+const CROSS_TRADE_CONFIDENCE_SWING_THRESHOLD = 0.4;
+
+/**
+ * Cross-trade flag penalty per violation
+ */
+const CROSS_TRADE_FLAG_PENALTY = 0.15;
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Classifies forensic quality trend over time.
+ */
+
+/**
+ * Composite score delta for trend classification
+ */
+const TREND_IMPROVING_THRESHOLD = 0.05; // +5% = improving
+const TREND_DEGRADING_THRESHOLD = -0.05; // -5% = degrading
+// Within ±5% = stable
+
+// ---------------------------------------------------------------------------
+// Pattern Matching Constants
 // ---------------------------------------------------------------------------
 
 const HEDGE_WORDS = /\b(maybe|perhaps|possibly|might|could|uncertain|unclear|somewhat|relatively|arguably|potentially)\b/gi;
@@ -161,7 +336,7 @@ export function analyzeForensics(
       depth.depthScore * FORENSIC_COMPONENT_WEIGHTS.depth +
       originality.originalityScore * FORENSIC_COMPONENT_WEIGHTS.originality +
       clarity.clarityScore * FORENSIC_COMPONENT_WEIGHTS.clarity +
-      (1 - (crossTrade.flags.length * 0.15)) * FORENSIC_COMPONENT_WEIGHTS.cross_trade,
+      (1 - (crossTrade.flags.length * CROSS_TRADE_FLAG_PENALTY)) * FORENSIC_COMPONENT_WEIGHTS.cross_trade,
   );
 
   const clampedScore = clamp(compositeScore, 0, 1);
@@ -199,30 +374,36 @@ function analyzeStructure(reasoning: string): StructuralAnalysis {
   // Structure score: reward logical flow, quantitative claims, penalize excessive hedging
   let structureScore = 0;
 
-  // Sentence count: 3-8 is ideal for trade reasoning
-  if (sentenceCount >= 3 && sentenceCount <= 12) structureScore += 0.2;
-  else if (sentenceCount >= 1) structureScore += 0.1;
+  // Sentence count: ideal range for trade reasoning
+  if (sentenceCount >= STRUCTURE_SENTENCE_COUNT_IDEAL_MIN && sentenceCount <= STRUCTURE_SENTENCE_COUNT_IDEAL_MAX) {
+    structureScore += STRUCTURE_SCORE_SENTENCE_IDEAL;
+  } else if (sentenceCount >= STRUCTURE_SENTENCE_COUNT_MIN) {
+    structureScore += STRUCTURE_SCORE_SENTENCE_MIN;
+  }
 
-  // Avg sentence length: 8-25 words is clear
-  if (avgSentenceLength >= 8 && avgSentenceLength <= 25) structureScore += 0.15;
-  else if (avgSentenceLength >= 5) structureScore += 0.08;
+  // Avg sentence length: ideal readability range
+  if (avgSentenceLength >= STRUCTURE_AVG_SENTENCE_LENGTH_IDEAL_MIN && avgSentenceLength <= STRUCTURE_AVG_SENTENCE_LENGTH_IDEAL_MAX) {
+    structureScore += STRUCTURE_SCORE_AVG_SENTENCE_IDEAL;
+  } else if (avgSentenceLength >= STRUCTURE_AVG_SENTENCE_LENGTH_MIN) {
+    structureScore += STRUCTURE_SCORE_AVG_SENTENCE_MIN;
+  }
 
   // Quantitative claims add rigor
-  structureScore += Math.min(0.25, quantitativeClaimCount * 0.05);
+  structureScore += Math.min(STRUCTURE_SCORE_QUANTITATIVE_MAX, quantitativeClaimCount * STRUCTURE_SCORE_QUANTITATIVE_PER_CLAIM);
 
   // Causal connectors show logical reasoning
-  structureScore += Math.min(0.2, causalConnectorCount * 0.05);
+  structureScore += Math.min(STRUCTURE_SCORE_CAUSAL_MAX, causalConnectorCount * STRUCTURE_SCORE_CAUSAL_PER_CONNECTOR);
 
   // Thesis + evidence + conclusion = well-structured argument
-  if (hasThesis) structureScore += 0.08;
-  if (hasEvidence) structureScore += 0.08;
-  if (hasConclusion) structureScore += 0.04;
+  if (hasThesis) structureScore += STRUCTURE_SCORE_THESIS_BONUS;
+  if (hasEvidence) structureScore += STRUCTURE_SCORE_EVIDENCE_BONUS;
+  if (hasConclusion) structureScore += STRUCTURE_SCORE_CONCLUSION_BONUS;
 
   // Hedge words: some hedging is good (epistemic humility), too much is bad
   const words = countWords(reasoning);
   const hedgeRatio = words > 0 ? hedgeWordCount / words : 0;
-  if (hedgeRatio > 0.05) {
-    structureScore -= (hedgeRatio - 0.05) * 2; // Penalize excessive hedging
+  if (hedgeRatio > STRUCTURE_HEDGE_RATIO_THRESHOLD) {
+    structureScore -= (hedgeRatio - STRUCTURE_HEDGE_RATIO_THRESHOLD) * STRUCTURE_HEDGE_PENALTY_MULTIPLIER;
   }
 
   return {
@@ -249,12 +430,12 @@ function analyzeDepth(reasoning: string): DepthAnalysis {
   }
 
   const maxDimensions = Object.keys(DIMENSION_PATTERNS).length;
-  const depthScore = Math.min(1, dimensionCount / 5); // 5+ dimensions = max score
+  const depthScore = Math.min(1, dimensionCount / DEPTH_MAX_SCORE_DIMENSIONS);
 
   let classification: "shallow" | "moderate" | "deep" | "exceptional";
-  if (dimensionCount >= 7) classification = "exceptional";
-  else if (dimensionCount >= 4) classification = "deep";
-  else if (dimensionCount >= 2) classification = "moderate";
+  if (dimensionCount >= DEPTH_EXCEPTIONAL_THRESHOLD) classification = "exceptional";
+  else if (dimensionCount >= DEPTH_DEEP_THRESHOLD) classification = "deep";
+  else if (dimensionCount >= DEPTH_MODERATE_THRESHOLD) classification = "moderate";
   else classification = "shallow";
 
   return { dimensions, dimensionCount, maxDimensions, depthScore, classification };
@@ -262,22 +443,22 @@ function analyzeDepth(reasoning: string): DepthAnalysis {
 
 function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnalysis {
   const history = agentHistory.get(agentId) ?? [];
-  const words = new Set(getFilteredWords(reasoning, 3));
+  const words = new Set(getFilteredWords(reasoning, ORIGINALITY_NGRAM_SIZE));
 
   // Jaccard similarity to most recent previous reasoning
   let jaccardSimilarityToPrevious = 0;
   if (history.length > 0) {
-    const prevWords = new Set(getFilteredWords(history[0].reasoning, 3));
+    const prevWords = new Set(getFilteredWords(history[0].reasoning, ORIGINALITY_NGRAM_SIZE));
     const intersection = new Set([...words].filter((w) => prevWords.has(w)));
     const union = new Set([...words, ...prevWords]);
     jaccardSimilarityToPrevious = union.size > 0 ? intersection.size / union.size : 0;
   }
 
-  // N-gram uniqueness: compare 3-grams across recent history
-  const currentNGrams = extractNGrams(reasoning, 3);
+  // N-gram uniqueness: compare n-grams across recent history
+  const currentNGrams = extractNGrams(reasoning, ORIGINALITY_NGRAM_SIZE);
   let totalHistoryNGrams = new Set<string>();
-  for (const prev of history.slice(0, 5)) {
-    const prevNGrams = extractNGrams(prev.reasoning, 3);
+  for (const prev of history.slice(0, ORIGINALITY_HISTORY_LOOKBACK)) {
+    const prevNGrams = extractNGrams(prev.reasoning, ORIGINALITY_NGRAM_SIZE);
     totalHistoryNGrams = new Set([...totalHistoryNGrams, ...prevNGrams]);
   }
 
@@ -286,7 +467,7 @@ function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnal
     : 1;
 
   // Template probability (high similarity = likely templated)
-  const templateProbability = jaccardSimilarityToPrevious > 0.7 ? jaccardSimilarityToPrevious : 0;
+  const templateProbability = jaccardSimilarityToPrevious > ORIGINALITY_TEMPLATE_THRESHOLD ? jaccardSimilarityToPrevious : 0;
 
   // Originality score: reward uniqueness, penalize templates
   const originalityScore = clamp(
@@ -317,16 +498,25 @@ function analyzeClarity(reasoning: string): ClarityAnalysis {
 
   // Readability heuristic: penalize very long or very short, reward moderate length
   let readabilityScore = 0;
-  if (wordCount >= 30 && wordCount <= 200) readabilityScore = 0.8;
-  else if (wordCount >= 15 && wordCount <= 300) readabilityScore = 0.6;
-  else if (wordCount >= 5) readabilityScore = 0.3;
+  if (wordCount >= CLARITY_WORD_COUNT_IDEAL_MIN && wordCount <= CLARITY_WORD_COUNT_IDEAL_MAX) {
+    readabilityScore = CLARITY_SCORE_IDEAL;
+  } else if (wordCount >= CLARITY_WORD_COUNT_ACCEPTABLE_MIN && wordCount <= CLARITY_WORD_COUNT_ACCEPTABLE_MAX) {
+    readabilityScore = CLARITY_SCORE_ACCEPTABLE;
+  } else if (wordCount >= CLARITY_WORD_COUNT_MIN) {
+    readabilityScore = CLARITY_SCORE_MIN;
+  }
 
-  // Average word length: 4-7 chars is readable
-  if (avgWordLength >= 4 && avgWordLength <= 7) readabilityScore += 0.1;
+  // Average word length: ideal readability range
+  if (avgWordLength >= CLARITY_AVG_WORD_LENGTH_MIN && avgWordLength <= CLARITY_AVG_WORD_LENGTH_MAX) {
+    readabilityScore += CLARITY_SCORE_AVG_WORD_LENGTH_BONUS;
+  }
 
   // Some jargon is good (expertise), too much hurts clarity
-  if (jargonRatio > 0 && jargonRatio <= 0.08) readabilityScore += 0.1;
-  else if (jargonRatio > 0.15) readabilityScore -= 0.1;
+  if (jargonRatio > 0 && jargonRatio <= CLARITY_JARGON_RATIO_GOOD_MAX) {
+    readabilityScore += CLARITY_SCORE_JARGON_BONUS;
+  } else if (jargonRatio > CLARITY_JARGON_RATIO_EXCESSIVE) {
+    readabilityScore -= CLARITY_SCORE_JARGON_PENALTY;
+  }
 
   const clarityScore = clamp(readabilityScore, 0, 1);
 
@@ -360,9 +550,9 @@ function analyzeCrossTrade(
     previousSymbol = prev.symbol;
     confidenceDelta = confidence - prev.confidence;
 
-    // Flip-flop detection: opposite action on same symbol within 24 hours
+    // Flip-flop detection: opposite action on same symbol within time window
     const sameSymbolRecent = history.filter(
-      (h) => h.symbol.toLowerCase() === symbol.toLowerCase() && Date.now() - h.timestamp < 24 * 60 * 60 * 1000,
+      (h) => h.symbol.toLowerCase() === symbol.toLowerCase() && Date.now() - h.timestamp < CROSS_TRADE_FLIP_FLOP_WINDOW_MS,
     );
 
     for (const h of sameSymbolRecent) {
@@ -374,19 +564,19 @@ function analyzeCrossTrade(
     }
 
     // Copypasta detection: very similar reasoning to previous trade
-    const prevWords = new Set(getFilteredWords(prev.reasoning, 3));
-    const currWords = new Set(getFilteredWords(reasoning, 3));
+    const prevWords = new Set(getFilteredWords(prev.reasoning, ORIGINALITY_NGRAM_SIZE));
+    const currWords = new Set(getFilteredWords(reasoning, ORIGINALITY_NGRAM_SIZE));
     const intersection = [...currWords].filter((w) => prevWords.has(w)).length;
     const union = new Set([...prevWords, ...currWords]).size;
     const jaccard = union > 0 ? intersection / union : 0;
 
-    if (jaccard > 0.8) {
+    if (jaccard > CROSS_TRADE_COPYPASTA_THRESHOLD) {
       similarToPrevious = true;
       flags.push(`Copypasta: ${(jaccard * 100).toFixed(0)}% similarity to previous reasoning`);
     }
 
-    // Confidence drift: confidence jumps > 0.4 between consecutive trades
-    if (Math.abs(confidenceDelta) > 0.4) {
+    // Confidence drift: large confidence swings between consecutive trades
+    if (Math.abs(confidenceDelta) > CROSS_TRADE_CONFIDENCE_SWING_THRESHOLD) {
       flags.push(`Confidence swing: ${confidenceDelta > 0 ? "+" : ""}${(confidenceDelta * 100).toFixed(0)}% between consecutive trades`);
     }
   }
@@ -453,7 +643,7 @@ export function getAgentForensicHealth(agentId: string): {
     const firstHalf = reports.slice(mid).reduce((s, r) => s + r.compositeScore, 0) / (reports.length - mid);
     const secondHalf = reports.slice(0, mid).reduce((s, r) => s + r.compositeScore, 0) / mid;
     const delta = secondHalf - firstHalf;
-    const trend = delta > 0.05 ? "improving" : delta < -0.05 ? "degrading" : "stable";
+    const trend = delta > TREND_IMPROVING_THRESHOLD ? "improving" : delta < TREND_DEGRADING_THRESHOLD ? "degrading" : "stable";
     return {
       tradeCount: history.length,
       avgDepth: round2(avgDepth),
