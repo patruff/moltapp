@@ -19,6 +19,127 @@
 import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Data Coverage Thresholds
+ *
+ * These thresholds control minimum data coverage requirements for HuggingFace
+ * dataset uploads. Higher coverage = more research value.
+ */
+
+/** Minimum coherence score coverage (50% of records must have coherence scores) */
+const COHERENCE_COVERAGE_THRESHOLD = 0.5;
+
+/** Minimum outcome coverage (20% of records should have actual outcomes for analysis) */
+const OUTCOME_COVERAGE_THRESHOLD = 0.2;
+
+/**
+ * Temporal Validation Thresholds
+ *
+ * Control what timestamp ranges are considered valid/acceptable for research datasets.
+ */
+
+/** Future timestamp tolerance (1 hour in milliseconds) - allows for clock skew */
+const FUTURE_TIMESTAMP_TOLERANCE_MS = 60 * 60 * 1000;
+
+/** Historical data age limit (1 year in milliseconds) - older data flagged as info */
+const HISTORICAL_DATA_AGE_LIMIT_MS = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * Balance Thresholds
+ *
+ * Detect severely imbalanced datasets that would bias research conclusions.
+ */
+
+/** Agent imbalance ratio threshold (max agent trades / min agent trades > 3 = warning) */
+const AGENT_IMBALANCE_RATIO_THRESHOLD = 3;
+
+/** Hold rate warning threshold (>80% holds = agents not actively trading) */
+const HOLD_RATE_WARNING_THRESHOLD = 0.8;
+
+/** Short reasoning rate threshold (>10% short reasoning = data quality issue) */
+const SHORT_REASONING_RATE_THRESHOLD = 0.1;
+
+/**
+ * Reasoning Quality Thresholds
+ *
+ * Minimum standards for reasoning text quality in research datasets.
+ */
+
+/** Minimum reasoning text length (characters) - below this is considered too short */
+const MIN_REASONING_LENGTH = 20;
+
+/** Reasoning outlier threshold (>5x average length = likely error dump) */
+const REASONING_OUTLIER_MULTIPLIER = 5;
+
+/**
+ * Outlier Detection Thresholds
+ *
+ * Statistical thresholds for detecting anomalous patterns in validation data.
+ */
+
+/** Confidence variance threshold (stddev < 0.01 = agents not calibrating) */
+const CONFIDENCE_VARIANCE_THRESHOLD = 0.01;
+
+/** Minimum sample size for confidence variance check */
+const MIN_CONFIDENCE_SAMPLES = 20;
+
+/** Minimum sample size for outlier detection */
+const MIN_OUTLIER_SAMPLES = 10;
+
+/**
+ * Quality Dimension Scoring Weights
+ *
+ * How validation issues are penalized when calculating quality scores.
+ * Higher penalty = more important dimension.
+ */
+
+/** Completeness error penalty (each error reduces score by 20%) */
+const COMPLETENESS_ERROR_PENALTY = 0.2;
+
+/** Completeness warning penalty (each warning reduces score by 5%) */
+const COMPLETENESS_WARNING_PENALTY = 0.05;
+
+/** Consistency error penalty (each error reduces score by 15%) */
+const CONSISTENCY_ERROR_PENALTY = 0.15;
+
+/** Consistency warning penalty (each warning reduces score by 3%) */
+const CONSISTENCY_WARNING_PENALTY = 0.03;
+
+/** Balance issue penalty (each balance issue reduces score by 10%) */
+const BALANCE_ISSUE_PENALTY = 0.1;
+
+/** Reasoning quality issue penalty (each issue reduces score by 15%) */
+const REASONING_QUALITY_PENALTY = 0.15;
+
+/** Temporal error penalty (each error reduces score by 20%) */
+const TEMPORAL_ERROR_PENALTY = 0.2;
+
+/**
+ * Composite Quality Score Weights
+ *
+ * How different quality dimensions are weighted in final quality score calculation.
+ * Must sum to 1.0.
+ */
+
+/** Completeness weight (30% of quality score - most important) */
+const QUALITY_WEIGHT_COMPLETENESS = 0.3;
+
+/** Consistency weight (25% of quality score) */
+const QUALITY_WEIGHT_CONSISTENCY = 0.25;
+
+/** Balance weight (15% of quality score) */
+const QUALITY_WEIGHT_BALANCE = 0.15;
+
+/** Reasoning quality weight (20% of quality score) */
+const QUALITY_WEIGHT_REASONING = 0.2;
+
+/** Temporal integrity weight (10% of quality score - least critical) */
+const QUALITY_WEIGHT_TEMPORAL = 0.1;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -184,7 +305,7 @@ function checkCompleteness(records: BenchmarkRecord[], issues: ValidationIssue[]
 
   // Dataset-level completeness
   const withCoherence = records.filter((r) => r.coherence_score !== null);
-  if (withCoherence.length < records.length * 0.5) {
+  if (withCoherence.length < records.length * COHERENCE_COVERAGE_THRESHOLD) {
     issues.push({
       severity: "warning",
       recordId: null,
@@ -194,7 +315,7 @@ function checkCompleteness(records: BenchmarkRecord[], issues: ValidationIssue[]
   }
 
   const withOutcomes = records.filter((r) => r.actual_outcome !== null);
-  if (withOutcomes.length < records.length * 0.2) {
+  if (withOutcomes.length < records.length * OUTCOME_COVERAGE_THRESHOLD) {
     issues.push({
       severity: "info",
       recordId: null,
@@ -271,7 +392,7 @@ function checkTemporalIntegrity(records: BenchmarkRecord[], issues: ValidationIs
   const now = Date.now();
   const futureTrades = records.filter((r) => {
     const t = new Date(r.timestamp).getTime();
-    return !isNaN(t) && t > now + 60 * 60 * 1000; // >1 hour in future
+    return !isNaN(t) && t > now + FUTURE_TIMESTAMP_TOLERANCE_MS;
   });
 
   if (futureTrades.length > 0) {
@@ -284,7 +405,7 @@ function checkTemporalIntegrity(records: BenchmarkRecord[], issues: ValidationIs
   }
 
   // Check for very old timestamps (>1 year)
-  const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+  const oneYearAgo = now - HISTORICAL_DATA_AGE_LIMIT_MS;
   const oldTrades = records.filter((r) => {
     const t = new Date(r.timestamp).getTime();
     return !isNaN(t) && t < oneYearAgo;
@@ -323,7 +444,7 @@ function checkAgentCoverage(records: BenchmarkRecord[], issues: ValidationIssue[
   const maxCount = Math.max(...counts);
   const minCount = Math.min(...counts);
 
-  if (counts.length > 1 && maxCount > minCount * 3) {
+  if (counts.length > 1 && maxCount > minCount * AGENT_IMBALANCE_RATIO_THRESHOLD) {
     issues.push({
       severity: "warning",
       recordId: null,
@@ -341,7 +462,7 @@ function checkBalance(records: BenchmarkRecord[], issues: ValidationIssue[]): vo
   }
 
   const holdRate = (actionCounts["hold"] ?? 0) / records.length;
-  if (holdRate > 0.8) {
+  if (holdRate > HOLD_RATE_WARNING_THRESHOLD) {
     issues.push({
       severity: "warning",
       recordId: null,
@@ -381,7 +502,7 @@ function checkReasoningQuality(records: BenchmarkRecord[], issues: ValidationIss
   ];
 
   for (const r of records) {
-    if (r.reasoning.length < 20) {
+    if (r.reasoning.length < MIN_REASONING_LENGTH) {
       shortReasoningCount++;
     }
 
@@ -390,12 +511,12 @@ function checkReasoningQuality(records: BenchmarkRecord[], issues: ValidationIss
     }
   }
 
-  if (shortReasoningCount > records.length * 0.1) {
+  if (shortReasoningCount > records.length * SHORT_REASONING_RATE_THRESHOLD) {
     issues.push({
       severity: "warning",
       recordId: null,
       category: "reasoning_quality",
-      message: `${shortReasoningCount}/${records.length} records have very short reasoning (<20 chars)`,
+      message: `${shortReasoningCount}/${records.length} records have very short reasoning (<${MIN_REASONING_LENGTH} chars)`,
     });
   }
 
@@ -454,14 +575,14 @@ function checkDuplicates(records: BenchmarkRecord[], issues: ValidationIssue[]):
 function checkOutliers(records: BenchmarkRecord[], issues: ValidationIssue[]): void {
   // Confidence outliers
   const confidences = records.map((r) => r.confidence).filter((c) => c >= 0 && c <= 1);
-  if (confidences.length > 10) {
+  if (confidences.length > MIN_OUTLIER_SAMPLES) {
     const mean = confidences.reduce((a, b) => a + b, 0) / confidences.length;
     const stdDev = Math.sqrt(
       confidences.reduce((s, c) => s + Math.pow(c - mean, 2), 0) / confidences.length,
     );
 
     // Check if all confidences are the same (agent not varying)
-    if (stdDev < 0.01 && confidences.length > 20) {
+    if (stdDev < CONFIDENCE_VARIANCE_THRESHOLD && confidences.length > MIN_CONFIDENCE_SAMPLES) {
       issues.push({
         severity: "info",
         recordId: null,
@@ -473,15 +594,15 @@ function checkOutliers(records: BenchmarkRecord[], issues: ValidationIssue[]): v
 
   // Reasoning length outliers
   const lengths = records.map((r) => r.reasoning.length);
-  if (lengths.length > 10) {
+  if (lengths.length > MIN_OUTLIER_SAMPLES) {
     const meanLen = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-    const veryLong = lengths.filter((l) => l > meanLen * 5).length;
+    const veryLong = lengths.filter((l) => l > meanLen * REASONING_OUTLIER_MULTIPLIER).length;
     if (veryLong > 0) {
       issues.push({
         severity: "info",
         recordId: null,
         category: "outliers",
-        message: `${veryLong} records have reasoning >5x average length — may contain error dumps`,
+        message: `${veryLong} records have reasoning >${REASONING_OUTLIER_MULTIPLIER}x average length — may contain error dumps`,
       });
     }
   }
@@ -501,22 +622,22 @@ function buildResult(
 
   // Quality dimensions (0-1)
   const completenessIssues = issues.filter((i) => i.category === "completeness");
-  const completeness = Math.max(0, 1 - completenessIssues.filter((i) => i.severity === "error").length * 0.2 - completenessIssues.filter((i) => i.severity === "warning").length * 0.05);
+  const completeness = Math.max(0, 1 - completenessIssues.filter((i) => i.severity === "error").length * COMPLETENESS_ERROR_PENALTY - completenessIssues.filter((i) => i.severity === "warning").length * COMPLETENESS_WARNING_PENALTY);
 
   const consistencyIssues = issues.filter((i) => i.category === "consistency");
-  const consistency = Math.max(0, 1 - consistencyIssues.filter((i) => i.severity === "error").length * 0.15 - consistencyIssues.filter((i) => i.severity === "warning").length * 0.03);
+  const consistency = Math.max(0, 1 - consistencyIssues.filter((i) => i.severity === "error").length * CONSISTENCY_ERROR_PENALTY - consistencyIssues.filter((i) => i.severity === "warning").length * CONSISTENCY_WARNING_PENALTY);
 
   const balanceIssues = issues.filter((i) => i.category === "balance" || i.category === "coverage");
-  const balance = Math.max(0, 1 - balanceIssues.length * 0.1);
+  const balance = Math.max(0, 1 - balanceIssues.length * BALANCE_ISSUE_PENALTY);
 
   const rqIssues = issues.filter((i) => i.category === "reasoning_quality");
-  const reasoningQuality = Math.max(0, 1 - rqIssues.length * 0.15);
+  const reasoningQuality = Math.max(0, 1 - rqIssues.length * REASONING_QUALITY_PENALTY);
 
   const temporalIssues = issues.filter((i) => i.category === "temporal");
-  const temporalIntegrity = Math.max(0, 1 - temporalIssues.filter((i) => i.severity === "error").length * 0.2);
+  const temporalIntegrity = Math.max(0, 1 - temporalIssues.filter((i) => i.severity === "error").length * TEMPORAL_ERROR_PENALTY);
 
   const qualityScore = round2(
-    completeness * 0.3 + consistency * 0.25 + balance * 0.15 + reasoningQuality * 0.2 + temporalIntegrity * 0.1,
+    completeness * QUALITY_WEIGHT_COMPLETENESS + consistency * QUALITY_WEIGHT_CONSISTENCY + balance * QUALITY_WEIGHT_BALANCE + reasoningQuality * QUALITY_WEIGHT_REASONING + temporalIntegrity * QUALITY_WEIGHT_TEMPORAL,
   );
 
   // Stats
