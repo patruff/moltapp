@@ -97,6 +97,154 @@ const KNOWN_SOURCE_TYPES = [
   "earnings",
 ];
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Confidence threshold for high-confidence classification.
+ * Trades with confidence >= 0.7 are considered high-conviction.
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.7;
+
+/**
+ * Confidence threshold for low-confidence classification.
+ * Trades with confidence <= 0.3 are considered low-conviction.
+ */
+const CONFIDENCE_LOW_THRESHOLD = 0.3;
+
+/**
+ * Trend detection threshold: delta > 0.05 = improving trend.
+ * Used to classify dimension score evolution over time.
+ */
+const TREND_IMPROVING_THRESHOLD = 0.05;
+
+/**
+ * Trend detection threshold: delta < -0.05 = declining trend.
+ * Used to classify dimension score evolution over time.
+ */
+const TREND_DECLINING_THRESHOLD = -0.05;
+
+/**
+ * Default score assigned when insufficient data for analysis.
+ * Neutral 0.5 prevents bias toward high or low scores.
+ */
+const SCORE_DEFAULT_INSUFFICIENT_DATA = 0.5;
+
+/**
+ * Alignment score when high confidence (>= 0.7) but agent holds position.
+ * Represents misalignment between stated conviction and action.
+ */
+const ALIGNMENT_HIGH_CONF_HOLD = 0.2;
+
+/**
+ * Alignment score when low confidence (<= 0.3) but agent trades actively.
+ * Represents misalignment between stated caution and action.
+ */
+const ALIGNMENT_LOW_CONF_ACTIVE = 0.3;
+
+/**
+ * Alignment score when confidence is in moderate range (0.3-0.7).
+ * Any action is reasonable in this range.
+ */
+const ALIGNMENT_MODERATE_CONF = 0.7;
+
+/**
+ * Risk awareness: divisor for depth score calculation.
+ * depthScore = min(1, totalHits / RISK_DEPTH_DIVISOR) — normalizes risk mentions per trade.
+ */
+const RISK_DEPTH_DIVISOR = 4;
+
+/**
+ * Risk awareness: divisor for breadth score calculation.
+ * breadthScore = min(1, uniqueHits / 5) — normalizes unique risk concepts.
+ */
+const RISK_BREADTH_DIVISOR = 5;
+
+/**
+ * Risk awareness: weight for depth component in combined score.
+ * tradeScore = depthScore * 0.4 + breadthScore * 0.6
+ */
+const RISK_WEIGHT_DEPTH = 0.4;
+
+/**
+ * Risk awareness: weight for breadth component in combined score.
+ * tradeScore = depthScore * 0.4 + breadthScore * 0.6
+ */
+const RISK_WEIGHT_BREADTH = 0.6;
+
+/**
+ * Risk awareness: threshold for classifying trade as risk-aware.
+ * Trades with score > 0.1 are counted as mentioning risk concepts.
+ */
+const RISK_MENTION_THRESHOLD = 0.1;
+
+/**
+ * Market sensitivity: divisor for keyword breadth normalization.
+ * keywordScore = min(1, uniqueHits / 6) — normalizes market data types.
+ */
+const MARKET_KEYWORD_DIVISOR = 6;
+
+/**
+ * Market sensitivity: divisor for numeric reference normalization.
+ * numericScore = min(1, numericRefs / 3) — normalizes price/percentage mentions.
+ */
+const MARKET_NUMERIC_DIVISOR = 3;
+
+/**
+ * Market sensitivity: weight for keyword component in combined score.
+ * combinedScore = keywordScore * 0.4 + numericScore * 0.35 + symbolRef * 0.25
+ */
+const MARKET_WEIGHT_KEYWORD = 0.4;
+
+/**
+ * Market sensitivity: weight for numeric component in combined score.
+ * combinedScore = keywordScore * 0.4 + numericScore * 0.35 + symbolRef * 0.25
+ */
+const MARKET_WEIGHT_NUMERIC = 0.35;
+
+/**
+ * Market sensitivity: weight for symbol reference in combined score.
+ * combinedScore = keywordScore * 0.4 + numericScore * 0.35 + symbolRef * 0.25
+ */
+const MARKET_WEIGHT_SYMBOL = 0.25;
+
+/**
+ * Market sensitivity: threshold for high-sensitivity classification.
+ * Trades with score > 0.5 are counted as showing strong market data engagement.
+ */
+const MARKET_HIGH_SENSITIVITY_THRESHOLD = 0.5;
+
+/**
+ * Strategic adaptability: divergence normalization divisor.
+ * adaptabilityScore = min(1, divergence / 1.5) — normalizes intent distribution shift.
+ */
+const ADAPTABILITY_DIVERGENCE_DIVISOR = 1.5;
+
+/**
+ * Strategic adaptability: weight for intent distribution shift component.
+ * combinedScore = adaptabilityScore * 0.7 + confShiftScore * 0.3
+ */
+const ADAPTABILITY_WEIGHT_INTENT = 0.7;
+
+/**
+ * Strategic adaptability: multiplier for confidence shift normalization.
+ * confShiftScore = min(1, confShift * 3) — scales confidence evolution to 0-1 range.
+ */
+const ADAPTABILITY_CONF_SHIFT_MULTIPLIER = 3;
+
+/**
+ * Strategic adaptability: weight for confidence shift component.
+ * combinedScore = adaptabilityScore * 0.7 + confShiftScore * 0.3
+ */
+const ADAPTABILITY_WEIGHT_CONF = 0.3;
+
+/**
+ * Strategic adaptability: divisor for unique intent normalization in windows.
+ * windowScore = min(1, intents.size / 3) — normalizes intent diversity.
+ */
+const ADAPTABILITY_INTENT_DIVERSITY_DIVISOR = 3;
+
 /** Keywords that signal risk-aware reasoning. */
 const RISK_KEYWORDS = [
   "hedge",
@@ -208,8 +356,8 @@ function detectTrend(
   const avgFirst = firstHalf.reduce((s, v) => s + v, 0) / firstHalf.length;
   const avgSecond = secondHalf.reduce((s, v) => s + v, 0) / secondHalf.length;
   const delta = avgSecond - avgFirst;
-  if (delta > 0.05) return "improving";
-  if (delta < -0.05) return "declining";
+  if (delta > TREND_IMPROVING_THRESHOLD) return "improving";
+  if (delta < TREND_DECLINING_THRESHOLD) return "declining";
   return "stable";
 }
 
@@ -245,7 +393,7 @@ function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
   if (trades.length < 3) {
     return {
       name: "conviction_consistency",
-      score: 0.5,
+      score: SCORE_DEFAULT_INSUFFICIENT_DATA,
       evidence: "Insufficient data (fewer than 3 trades)",
       trendDirection: "stable",
     };
@@ -257,21 +405,21 @@ function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
     const isActive = t.action === "buy" || t.action === "sell";
     const isHold = t.action === "hold";
 
-    if (t.confidence >= 0.7 && isActive) {
+    if (t.confidence >= CONFIDENCE_HIGH_THRESHOLD && isActive) {
       // High confidence + active trade = aligned
       alignmentScores.push(1.0);
-    } else if (t.confidence >= 0.7 && isHold) {
+    } else if (t.confidence >= CONFIDENCE_HIGH_THRESHOLD && isHold) {
       // High confidence but holding = misaligned
-      alignmentScores.push(0.2);
-    } else if (t.confidence <= 0.3 && isHold) {
+      alignmentScores.push(ALIGNMENT_HIGH_CONF_HOLD);
+    } else if (t.confidence <= CONFIDENCE_LOW_THRESHOLD && isHold) {
       // Low confidence + hold = aligned (prudent)
       alignmentScores.push(1.0);
-    } else if (t.confidence <= 0.3 && isActive) {
+    } else if (t.confidence <= CONFIDENCE_LOW_THRESHOLD && isActive) {
       // Low confidence but trading actively = misaligned
-      alignmentScores.push(0.3);
+      alignmentScores.push(ALIGNMENT_LOW_CONF_ACTIVE);
     } else {
       // Medium confidence range: any action is reasonable
-      alignmentScores.push(0.7);
+      alignmentScores.push(ALIGNMENT_MODERATE_CONF);
     }
   }
 
@@ -279,10 +427,10 @@ function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
   const trend = detectTrend(alignmentScores);
 
   const highConfActive = trades.filter(
-    (t) => t.confidence >= 0.7 && (t.action === "buy" || t.action === "sell"),
+    (t) => t.confidence >= CONFIDENCE_HIGH_THRESHOLD && (t.action === "buy" || t.action === "sell"),
   ).length;
   const lowConfHold = trades.filter(
-    (t) => t.confidence <= 0.3 && t.action === "hold",
+    (t) => t.confidence <= CONFIDENCE_LOW_THRESHOLD && t.action === "hold",
   ).length;
 
   return {
@@ -321,7 +469,7 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
       RISK_KEYWORDS,
     );
     // Depth component: how many risk mentions per trade (diminishing returns)
-    const depthScore = Math.min(1, totalHits / 4);
+    const depthScore = Math.min(1, totalHits / RISK_DEPTH_DIVISOR);
     // Breadth component: how many unique risk concepts
     const breadthScore = Math.min(1, uniqueHits / 5);
     const tradeScore = depthScore * 0.4 + breadthScore * 0.6;
