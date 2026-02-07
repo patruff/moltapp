@@ -774,3 +774,217 @@ export function averageByCondition<T>(
 
   return count > 0 ? sum / count : 0;
 }
+
+/**
+ * Counts items in an array that match a condition.
+ * Replaces the common .filter(predicate).length pattern with a more efficient single-pass approach.
+ *
+ * Common use cases:
+ * - Count buy decisions: countWhere(decisions, d => d.action === "buy")
+ * - Count profitable trades: countWhere(trades, t => t.pnl > 0)
+ * - Count high-confidence signals: countWhere(signals, s => s.confidence > 70)
+ *
+ * Performance: Single-pass O(n) vs filter().length which creates intermediate array
+ * Memory: O(1) vs O(n) for filtered array
+ *
+ * @param items - Array of items to count
+ * @param predicate - Function that returns true for items to count
+ * @returns Count of items matching the condition
+ *
+ * @example
+ * const decisions = [
+ *   { action: "buy", confidence: 80 },
+ *   { action: "sell", confidence: 60 },
+ *   { action: "buy", confidence: 90 }
+ * ];
+ *
+ * // Old pattern (creates intermediate array):
+ * // decisions.filter(d => d.action === "buy").length
+ *
+ * // New pattern (single pass, no intermediate array):
+ * countWhere(decisions, d => d.action === "buy")
+ * // returns 2
+ *
+ * countWhere(decisions, d => d.confidence > 70)
+ * // returns 2
+ *
+ * countWhere(decisions, d => d.action === "hold")
+ * // returns 0
+ */
+export function countWhere<T>(
+  items: readonly T[],
+  predicate: (item: T) => boolean
+): number {
+  let count = 0;
+  for (const item of items) {
+    if (predicate(item)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Counts words in a string by splitting on whitespace.
+ *
+ * @param text - The string to count words in
+ * @returns Number of words in the text
+ *
+ * @example
+ * countWords("Hello world") // returns 2
+ * countWords("") // returns 0
+ * countWords("  multiple   spaces  ") // returns 2
+ */
+export function countWords(text: string): number {
+  if (!text || text.trim().length === 0) return 0;
+  return text.trim().split(/\s+/).length;
+}
+
+/**
+ * Splits text into sentences based on sentence-ending punctuation.
+ * Optionally filters out very short sentences.
+ *
+ * @param text - The text to split into sentences
+ * @param minLength - Minimum character length for a sentence (default: 1)
+ * @returns Array of sentences
+ *
+ * @example
+ * splitSentences("Hello world. How are you?")
+ * // returns ["Hello world", "How are you"]
+ *
+ * splitSentences("A. B. C.", 3)
+ * // returns [] (all sentences too short)
+ */
+export function splitSentences(text: string, minLength: number = 1): string[] {
+  if (!text) return [];
+  return text
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length >= minLength);
+}
+
+/**
+ * Returns the key with the highest value from a Record.
+ *
+ * @param record - Record mapping strings to numbers
+ * @returns Key with the highest value, or empty string if record is empty
+ *
+ * @example
+ * getTopKey({ buy: 10, sell: 5, hold: 3 }) // returns "buy"
+ * getTopKey({}) // returns ""
+ */
+export function getTopKey(record: Record<string, number>): string {
+  const entries = Object.entries(record);
+  if (entries.length === 0) return "";
+
+  let topKey = entries[0][0];
+  let topValue = entries[0][1];
+
+  for (let i = 1; i < entries.length; i++) {
+    if (entries[i][1] > topValue) {
+      topValue = entries[i][1];
+      topKey = entries[i][0];
+    }
+  }
+
+  return topKey;
+}
+
+/**
+ * Normalizes a value to a 0-1 range given a min and max.
+ *
+ * @param value - The value to normalize
+ * @param min - Minimum of the range
+ * @param max - Maximum of the range
+ * @returns Normalized value between 0 and 1, clamped
+ *
+ * @example
+ * normalize(5, 0, 10) // returns 0.5
+ * normalize(15, 0, 10) // returns 1 (clamped)
+ * normalize(-5, 0, 10) // returns 0 (clamped)
+ */
+export function normalize(value: number, min: number, max: number): number {
+  if (max === min) return 0;
+  const normalized = (value - min) / (max - min);
+  return clamp(normalized, 0, 1);
+}
+
+/**
+ * Calculates a weighted sum of values.
+ *
+ * @param values - Array of numbers to sum
+ * @param weights - Array of weights (must be same length as values)
+ * @returns Weighted sum
+ *
+ * @example
+ * weightedSum([10, 20, 30], [0.2, 0.3, 0.5])
+ * // returns 10*0.2 + 20*0.3 + 30*0.5 = 23
+ */
+export function weightedSum(values: readonly number[], weights: readonly number[]): number {
+  if (values.length !== weights.length) {
+    throw new Error(`weightedSum: values length (${values.length}) must equal weights length (${weights.length})`);
+  }
+
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i] * weights[i];
+  }
+  return sum;
+}
+
+/**
+ * Filters words from text, removing common filler words.
+ * Returns array of meaningful words.
+ *
+ * @param text - The text to filter
+ * @returns Array of filtered words (lowercase, no fillers)
+ *
+ * @example
+ * getFilteredWords("The quick brown fox")
+ * // returns ["quick", "brown", "fox"]
+ */
+export function getFilteredWords(text: string): string[] {
+  const fillerWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+    'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these',
+    'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'my', 'your',
+    'his', 'her', 'its', 'our', 'their'
+  ]);
+
+  if (!text) return [];
+
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(word => {
+      const cleaned = word.replace(/[^\w]/g, '');
+      return cleaned.length > 0 && !fillerWords.has(cleaned);
+    });
+}
+
+/**
+ * Alias for mean() - calculates average of an array of numbers.
+ * Provided for backward compatibility.
+ *
+ * @param values - Array of numbers to average
+ * @returns Average of the numbers, or 0 if array is empty
+ */
+export function calculateAverage(values: readonly number[]): number {
+  return mean(values);
+}
+
+/**
+ * Sorts an array of numbers in descending order.
+ * Returns a new array (does not mutate input).
+ *
+ * @param values - Array of numbers to sort
+ * @returns New array sorted in descending order
+ *
+ * @example
+ * sortDescending([3, 1, 4, 1, 5]) // returns [5, 4, 3, 1, 1]
+ */
+export function sortDescending(values: readonly number[]): number[] {
+  return [...values].sort((a, b) => b - a);
+}

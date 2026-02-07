@@ -15,7 +15,7 @@
  * thinking adversarial and testable, not just passively scored.
  */
 
-import { splitSentences, countWords, round2, round3, sortEntriesDescending } from "../lib/math-utils.ts";
+import { splitSentences, countWords, round2, round3, sortEntriesDescending, countWhere } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -902,7 +902,7 @@ export function getDebateStats(): {
   const totalClashes = debates.reduce((s, d) => s + d.evidenceClashes.length, 0);
   const qualitySum = debates.reduce((s, d) => s + d.debateQualityScore, 0);
   const marginSum = debates.reduce((s, d) => s + d.verdict.margin, 0);
-  const ties = debates.filter(d => d.verdict.winner === "tie").length;
+  const ties = countWhere(debates, d => d.verdict.winner === "tie");
 
   return {
     totalDebates: debates.length,
