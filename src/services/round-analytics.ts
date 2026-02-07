@@ -153,6 +153,98 @@ export interface AnalyticsSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Decision Quality Scoring Parameters
+ *
+ * These constants control how individual agent decisions are scored for quality.
+ * Quality scoring is used to rank agent performance and identify best/worst decisions.
+ */
+
+/** Execution success score when trade executed successfully (0-100 scale). */
+const QUALITY_SCORE_EXECUTION_SUCCESS = 100;
+
+/** Execution success score when agent chooses to hold (0-100 scale). */
+const QUALITY_SCORE_HOLD = 80;
+
+/** Execution success score when trade failed to execute (0-100 scale). */
+const QUALITY_SCORE_EXECUTION_FAILED = 0;
+
+/** Baseline confidence calibration score when trade executed (0-100 scale). */
+const QUALITY_SCORE_CONFIDENCE_BASELINE = 70;
+
+/** Confidence calibration score for high confidence (>70%) executed trades. */
+const QUALITY_SCORE_CONFIDENCE_HIGH_EXECUTED = 90;
+
+/** Confidence threshold for "high confidence" classification (0-1 scale). */
+const QUALITY_CONFIDENCE_HIGH_THRESHOLD = 0.7;
+
+/** Baseline position sizing score when trade amount is appropriate (0-100 scale). */
+const QUALITY_SCORE_POSITION_BASELINE = 70;
+
+/**
+ * Position sizing score tiers based on USDC amount.
+ * - $0-50: Reasonable position size = 90
+ * - $50-200: Moderate position size = 75
+ * - $200+: Aggressive position size = 50
+ * - $0: Zero quantity (unusual) = 60
+ */
+const QUALITY_SCORE_POSITION_SMALL = 90; // amount <= $50
+const QUALITY_POSITION_SMALL_THRESHOLD = 50;
+const QUALITY_SCORE_POSITION_MODERATE = 75; // $50 < amount <= $200
+const QUALITY_POSITION_MODERATE_THRESHOLD = 200;
+const QUALITY_SCORE_POSITION_LARGE = 50; // amount > $200
+const QUALITY_SCORE_POSITION_ZERO = 60; // amount = 0
+
+/**
+ * Timing score based on reasoning length.
+ * - >100 chars: Thoughtful analysis = 85
+ * - >50 chars: Adequate reasoning = 70
+ * - <=50 chars: Rushed decision = 50
+ */
+const QUALITY_SCORE_TIMING_THOUGHTFUL = 85;
+const QUALITY_TIMING_THOUGHTFUL_THRESHOLD = 100;
+const QUALITY_SCORE_TIMING_ADEQUATE = 70;
+const QUALITY_TIMING_ADEQUATE_THRESHOLD = 50;
+const QUALITY_SCORE_TIMING_RUSHED = 50;
+
+/**
+ * Quality score component weights (must sum to 1.0).
+ * - Execution success: 35% (most important — did the trade work?)
+ * - Confidence calibration: 25% (was confidence accurate?)
+ * - Position sizing: 20% (was the position size appropriate?)
+ * - Timing score: 20% (was the decision well-reasoned?)
+ */
+const QUALITY_WEIGHT_EXECUTION = 0.35;
+const QUALITY_WEIGHT_CONFIDENCE = 0.25;
+const QUALITY_WEIGHT_POSITION = 0.20;
+const QUALITY_WEIGHT_TIMING = 0.20;
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Used to classify agent performance trends over time.
+ */
+
+/** Trend score > 0.1 = agent performance improving over time. */
+const TREND_IMPROVING_THRESHOLD = 0.1;
+
+/** Trend score < -0.1 = agent performance declining over time. */
+const TREND_DECLINING_THRESHOLD = -0.1;
+
+/**
+ * Memory and Query Limits
+ */
+
+/** Default window size for recent rounds returned by getRecentRoundAnalytics(). */
+const RECENT_ROUNDS_DEFAULT_LIMIT = 20;
+
+/** Minimum trend trades required for reliable trend detection. */
+const TREND_MIN_TRADES = 3;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -270,7 +362,7 @@ export function getRoundAnalytics(roundId: string): RoundAnalytics | null {
 /**
  * Get analytics for the N most recent rounds.
  */
-export function getRecentRoundAnalytics(limit = 20): RoundAnalytics[] {
+export function getRecentRoundAnalytics(limit = RECENT_ROUNDS_DEFAULT_LIMIT): RoundAnalytics[] {
   return roundHistory.slice(-limit);
 }
 
@@ -348,37 +440,37 @@ function scoreDecisionQuality(
   decisions: RoundDecision[],
 ): RoundAnalytics["quality"] {
   const agentScores = decisions.map((d) => {
-    // Execution success: 100 if executed or hold, 0 if failed
+    // Execution success: 100 if executed, 80 for hold, 0 if failed
     const executionSuccess =
-      d.action === "hold" ? 80 : d.executed ? 100 : 0;
+      d.action === "hold" ? QUALITY_SCORE_HOLD : d.executed ? QUALITY_SCORE_EXECUTION_SUCCESS : QUALITY_SCORE_EXECUTION_FAILED;
 
     // Confidence calibration: penalize extreme confidence on failed trades
-    let confidenceCalibration = 70; // baseline
+    let confidenceCalibration = QUALITY_SCORE_CONFIDENCE_BASELINE;
     if (!d.executed && d.action !== "hold") {
       // Failed trade with high confidence = poor calibration
       confidenceCalibration = Math.max(0, 100 - d.confidence);
-    } else if (d.executed && d.confidence > 70) {
-      confidenceCalibration = 90; // good: high confidence on executed trade
+    } else if (d.executed && d.confidence > QUALITY_CONFIDENCE_HIGH_THRESHOLD) {
+      confidenceCalibration = QUALITY_SCORE_CONFIDENCE_HIGH_EXECUTED; // good: high confidence on executed trade
     }
 
-    // Position sizing: penalize very large trades (over $100) and very tiny ones
-    let positionSizing = 70;
+    // Position sizing: penalize very large trades (over $200) and very tiny ones
+    let positionSizing = QUALITY_SCORE_POSITION_BASELINE;
     if (d.action !== "hold") {
       const amount = d.usdcAmount ?? d.quantity;
-      if (amount > 0 && amount <= 50) positionSizing = 90; // reasonable
-      else if (amount > 50 && amount <= 200) positionSizing = 75;
-      else if (amount > 200) positionSizing = 50; // too aggressive
-      else if (amount === 0) positionSizing = 60; // zero quantity?
+      if (amount > 0 && amount <= QUALITY_POSITION_SMALL_THRESHOLD) positionSizing = QUALITY_SCORE_POSITION_SMALL; // reasonable
+      else if (amount > QUALITY_POSITION_SMALL_THRESHOLD && amount <= QUALITY_POSITION_MODERATE_THRESHOLD) positionSizing = QUALITY_SCORE_POSITION_MODERATE;
+      else if (amount > QUALITY_POSITION_MODERATE_THRESHOLD) positionSizing = QUALITY_SCORE_POSITION_LARGE; // too aggressive
+      else if (amount === 0) positionSizing = QUALITY_SCORE_POSITION_ZERO; // zero quantity?
     }
 
-    // Timing score: based on reasoning quality (length > 50 chars = thoughtful)
-    const timingScore = d.reasoning.length > 100 ? 85 : d.reasoning.length > 50 ? 70 : 50;
+    // Timing score: based on reasoning quality (length threshold = thoughtful)
+    const timingScore = d.reasoning.length > QUALITY_TIMING_THOUGHTFUL_THRESHOLD ? QUALITY_SCORE_TIMING_THOUGHTFUL : d.reasoning.length > QUALITY_TIMING_ADEQUATE_THRESHOLD ? QUALITY_SCORE_TIMING_ADEQUATE : QUALITY_SCORE_TIMING_RUSHED;
 
     const qualityScore =
-      (executionSuccess * 0.35 +
-        confidenceCalibration * 0.25 +
-        positionSizing * 0.20 +
-        timingScore * 0.20);
+      (executionSuccess * QUALITY_WEIGHT_EXECUTION +
+        confidenceCalibration * QUALITY_WEIGHT_CONFIDENCE +
+        positionSizing * QUALITY_WEIGHT_POSITION +
+        timingScore * QUALITY_WEIGHT_TIMING);
 
     return {
       agentId: d.agentId,
@@ -528,7 +620,7 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
       )
       .slice(-windowSize);
 
-    if (agentRounds.length < 3) continue;
+    if (agentRounds.length < TREND_MIN_TRADES) continue;
 
     const recentRoundsData = agentRounds.map((r) => {
       const score = r.quality.agentScores.find(
@@ -538,7 +630,7 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
         roundId: r.roundId,
         action: "unknown", // would need full decision data
         confidence: r.consensus.majorityConfidence,
-        executed: score.factors.executionSuccess === 100,
+        executed: score.factors.executionSuccess === QUALITY_SCORE_EXECUTION_SUCCESS,
         qualityScore: score.qualityScore,
       };
     });
@@ -548,8 +640,8 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
     const trendScore = computeLinearTrend(scores);
 
     let trend: AgentPerformanceTrend["trend"];
-    if (trendScore > 0.1) trend = "improving";
-    else if (trendScore < -0.1) trend = "declining";
+    if (trendScore > TREND_IMPROVING_THRESHOLD) trend = "improving";
+    else if (trendScore < TREND_DECLINING_THRESHOLD) trend = "declining";
     else trend = "stable";
 
     const movingAvgQuality =
