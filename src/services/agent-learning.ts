@@ -337,6 +337,42 @@ const PROMPT_STREAK_AWARENESS_THRESHOLD = 3;
 /** Pattern confidence threshold for prompt inclusion (60%+ = include in prompt) */
 const PROMPT_PATTERN_CONFIDENCE_THRESHOLD = 60;
 
+/**
+ * Cross-Agent Learning Parameters
+ *
+ * These control how agents learn from each other's trading history and share insights.
+ * Affects cross-agent intelligence sharing and learning prompt generation.
+ */
+
+/** Minimum trades required from other agents before including their insights (5+ for statistical reliability) */
+const CROSS_AGENT_MIN_OUTCOMES_FOR_INSIGHTS = 5;
+
+/** Recent trading outcomes window for cross-agent intelligence sharing (last 10 trades) */
+const CROSS_AGENT_RECENT_TRADES_WINDOW = 10;
+
+/** Recent actions display limit in cross-agent insights (show last 3 actions per agent) */
+const CROSS_AGENT_RECENT_ACTIONS_DISPLAY_LIMIT = 3;
+
+/**
+ * Agent Snapshot Parameters
+ *
+ * These control what recent trading history is included in agent snapshots and learning prompts.
+ * Affects how much historical context agents receive when making decisions.
+ */
+
+/** Recent outcomes window for agent snapshot generation (last 10 trades) */
+const SNAPSHOT_RECENT_OUTCOMES_WINDOW = 10;
+
+/**
+ * Metrics Aggregation Parameters
+ *
+ * These control minimum data requirements for system-wide learning metrics calculation.
+ * Ensures statistical significance when calculating overall system performance.
+ */
+
+/** Minimum trades per agent required for inclusion in system-wide metrics (3+ for basic statistics) */
+const METRICS_MIN_TRADES_FOR_AGGREGATION = 3;
+
 // ---------------------------------------------------------------------------
 // Core Analysis
 // ---------------------------------------------------------------------------
@@ -867,7 +903,7 @@ export function getAgentLearningContext(agentId: string): AgentLearningContext {
     patterns,
     calibration,
     riskParams: risk,
-    recentOutcomes: outcomes.slice(-10),
+    recentOutcomes: outcomes.slice(-SNAPSHOT_RECENT_OUTCOMES_WINDOW),
     promptSection,
     updatedAt: new Date().toISOString(),
   };
@@ -894,17 +930,19 @@ export function getCrossAgentInsights(
 
   for (const agentId of otherAgents) {
     const outcomes = tradeOutcomes.get(agentId) ?? [];
-    if (outcomes.length < 5) continue;
+    if (outcomes.length < CROSS_AGENT_MIN_OUTCOMES_FOR_INSIGHTS) continue;
 
     const tradingOutcomes = outcomes.filter((o) => o.action !== "hold");
-    const recent = tradingOutcomes.slice(-10);
+    const recent = tradingOutcomes.slice(-CROSS_AGENT_RECENT_TRADES_WINDOW);
     const recentWinRate =
       recent.length > 0
         ? (recent.filter((o) => o.directionCorrect).length / recent.length) * 100
         : 0;
 
     // Share recent action summary
-    const recentActions = recent.slice(-3).map((o) => `${o.action} ${o.symbol}`);
+    const recentActions = recent
+      .slice(-CROSS_AGENT_RECENT_ACTIONS_DISPLAY_LIMIT)
+      .map((o) => `${o.action} ${o.symbol}`);
     insights.push(
       `  ${agentId}: ${recentWinRate.toFixed(0)}% recent accuracy — latest: ${recentActions.join(", ")}`,
     );
