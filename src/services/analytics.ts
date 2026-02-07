@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, getTopKey, round2, round3, sortDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -721,11 +721,11 @@ function computePerformance(
   const highConfidence = actionDecisions.filter((d) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
   const winRate = actionDecisions.length > 0 ? (highConfidence.length / actionDecisions.length) * 100 : 0;
 
-  const avgConfidence = calculateAverage(decisions, 'confidence');
-  const winsConf = calculateAverage(highConfidence, 'confidence');
+  const avgConfidence = averageByKey(decisions, 'confidence');
+  const winsConf = averageByKey(highConfidence, 'confidence');
 
   const losses = actionDecisions.filter((d) => d.confidence < HIGH_CONFIDENCE_THRESHOLD);
-  const lossesConf = calculateAverage(losses, 'confidence');
+  const lossesConf = averageByKey(losses, 'confidence');
 
   // Best and worst decisions by confidence
   const sorted = [...decisions].sort((a, b) => b.confidence - a.confidence);
@@ -1070,7 +1070,7 @@ function computeHourlyActivity(
 ): HourlyActivity[] {
   const hourMap = groupAndAggregate(
     decisions,
-    (d) => d.createdAt.getHours(),
+    (d) => String(d.createdAt.getHours()),
     () => ({ count: 0, totalConf: 0 }),
     (agg, d) => ({
       count: agg.count + 1,

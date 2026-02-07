@@ -16,7 +16,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp, findMax, findMin } from "../lib/math-utils.ts";
+import { clamp, findMax, findMin, findMaxBy, findMinBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1247,7 +1247,7 @@ export async function compareAttribution(
   const bestTimingAgent = findMax(summaries, "timingScore");
   const mostDiversified = findMax(summaries, "diversificationRatio");
   const highestAlpha = findMax(summaries, "alpha");
-  const lowestBeta = findMin(summaries, "beta", (a, b) => Math.abs(a) - Math.abs(b));
+  const lowestBeta = findMinBy(summaries, "beta", (a, b) => Math.abs(a) - Math.abs(b));
 
   // Build comparison narrative
   const narrativeParts: string[] = [];
