@@ -38,7 +38,7 @@ import { trades, agentDecisions, agentTheses, positions } from "../db/schema/ind
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
 import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
-import { getLatestLiquidityAnalysis, type TokenLiquidity, type LiquidityAnalysis } from "../services/market-aggregator.ts";
+import { getLatestLiquidityAnalysis, fetchAggregatedPrices, type TokenLiquidity, type LiquidityAnalysis } from "../services/market-aggregator.ts";
 import { getLatestMeetingFromDynamo, getMeetingFromDynamo, getRecentRounds, type PersistedAgentResult } from "../services/dynamo-round-persister.ts";
 import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
@@ -358,7 +358,16 @@ pages.get("/", async (c) => {
   }
 
   // Get liquidity analysis for the Liquidity Chart widget
-  const liquidityAnalysis = getLatestLiquidityAnalysis();
+  // If no cached analysis exists (fresh Lambda), fetch prices to populate it
+  let liquidityAnalysis = getLatestLiquidityAnalysis();
+  if (!liquidityAnalysis) {
+    try {
+      await fetchAggregatedPrices();
+      liquidityAnalysis = getLatestLiquidityAnalysis();
+    } catch {
+      // Non-critical — widget just won't show
+    }
+  }
 
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
