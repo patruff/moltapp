@@ -3,6 +3,25 @@
  */
 
 /**
+ * Number of milliseconds in one day (24 hours).
+ *
+ * Common use cases:
+ * - Date range calculations: (endDate - startDate) / MS_PER_DAY
+ * - Time-based offsets: new Date(now.getTime() - 7 * MS_PER_DAY)
+ * - Duration measurements: elapsed / MS_PER_DAY (days)
+ *
+ * @constant
+ * @example
+ * // Calculate days between two dates
+ * const daysDiff = (date2.getTime() - date1.getTime()) / MS_PER_DAY;
+ *
+ * @example
+ * // Create date 30 days ago
+ * const thirtyDaysAgo = new Date(Date.now() - 30 * MS_PER_DAY);
+ */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
  * Clamps a value between a minimum and maximum bound.
  *
  * @param value - The value to clamp

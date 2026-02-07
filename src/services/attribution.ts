@@ -16,7 +16,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp, findMax, findMin, findMaxBy, findMinBy } from "../lib/math-utils.ts";
+import { clamp, findMax, findMin, findMaxBy, findMinBy, MS_PER_DAY } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -381,7 +381,7 @@ const VALID_AGENT_IDS = [
 async function fetchAgentData(agentId: string, periodDays?: number) {
   const now = new Date();
   const startDate = periodDays
-    ? new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000)
+    ? new Date(now.getTime() - periodDays * MS_PER_DAY)
     : undefined;
 
   const decisionConditions = startDate

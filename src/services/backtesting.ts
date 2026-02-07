@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, calculateAverage, averageByKey } from "../lib/math-utils.ts";
+import { round2, round4, calculateAverage, averageByKey, MS_PER_DAY } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -634,7 +634,7 @@ export async function getBacktestComparison(): Promise<BacktestComparison> {
 
   // Default to last 90 days
   const end = new Date();
-  const start = new Date(end.getTime() - DEFAULT_BACKTEST_DAYS * 24 * 60 * 60 * 1000);
+  const start = new Date(end.getTime() - DEFAULT_BACKTEST_DAYS * MS_PER_DAY);
   const startDate = start.toISOString().slice(0, 10);
   const endDate = end.toISOString().slice(0, 10);
   const initialCapital = DEFAULT_INITIAL_CAPITAL;
@@ -732,7 +732,7 @@ export async function generateEquityCurve(
   }
 
   const end = new Date();
-  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  const start = new Date(end.getTime() - days * MS_PER_DAY);
   const initialCapital = DEFAULT_INITIAL_CAPITAL;
 
   try {
@@ -795,7 +795,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   // --- Trading frequency ---
   const oldest = decisions[decisions.length - 1].createdAt;
   const newest = decisions[0].createdAt;
-  const daySpan = Math.max(1, (newest.getTime() - oldest.getTime()) / (24 * 60 * 60 * 1000));
+  const daySpan = Math.max(1, (newest.getTime() - oldest.getTime()) / MS_PER_DAY);
   const avgDecisionsPerDay = decisions.length / daySpan;
   const tradingFrequency = avgDecisionsPerDay > 10
     ? "very-high"
@@ -931,22 +931,22 @@ export async function getHistoricalPerformance(
   let startDate: Date;
   switch (period) {
     case "1w":
-      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - 7 * MS_PER_DAY);
       break;
     case "1m":
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - 30 * MS_PER_DAY);
       break;
     case "3m":
-      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - 90 * MS_PER_DAY);
       break;
     case "6m":
-      startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - 180 * MS_PER_DAY);
       break;
     case "all":
       startDate = new Date("2024-01-01");
       break;
     default:
-      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      startDate = new Date(now.getTime() - 30 * MS_PER_DAY);
   }
 
   const startStr = startDate.toISOString().slice(0, 10);
@@ -1049,7 +1049,7 @@ function computeBacktestMetrics(
     const symbolBuys = buyDates.get(t.symbol);
     if (symbolBuys && symbolBuys.length > 0) {
       const buyDate = symbolBuys.shift()!;
-      const diff = (new Date(t.date).getTime() - new Date(buyDate).getTime()) / (24 * 60 * 60 * 1000);
+      const diff = (new Date(t.date).getTime() - new Date(buyDate).getTime()) / MS_PER_DAY;
       totalHoldingDays += Math.max(1, diff);
       holdingCount++;
     }
