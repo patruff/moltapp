@@ -80,12 +80,175 @@ export interface AgentCertificationProfile {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * CERTIFICATION LEVEL THRESHOLDS
+ * Minimum dimension scores required for each certification tier
+ */
+
+/** Gold certification requires ALL dimensions >= 0.8 (exemplary reasoning) */
+const CERTIFICATION_THRESHOLD_GOLD = 0.8;
+
+/** Silver certification requires ALL dimensions >= 0.6 (solid reasoning) */
+const CERTIFICATION_THRESHOLD_SILVER = 0.6;
+
+/** Bronze certification requires ALL dimensions >= 0.4 (acceptable reasoning) */
+const CERTIFICATION_THRESHOLD_BRONZE = 0.4;
+
+/**
+ * STRUCTURAL COMPLETENESS SCORING WEIGHTS
+ * Points awarded for each structural element present
+ */
+
+/** Thesis statement weight (25% of structural score) */
+const STRUCTURAL_WEIGHT_THESIS = 0.25;
+
+/** Evidence markers weight (up to 30% of structural score, 0.10 per marker) */
+const STRUCTURAL_WEIGHT_EVIDENCE_BASE = 0.30;
+const STRUCTURAL_WEIGHT_EVIDENCE_PER_MARKER = 0.10;
+
+/** Conclusion weight (20% of structural score) */
+const STRUCTURAL_WEIGHT_CONCLUSION = 0.20;
+
+/** Sentence count adequacy weight (15% of structural score) */
+const STRUCTURAL_WEIGHT_SENTENCE_COUNT = 0.15;
+
+/** Word count depth weight (10% of structural score) */
+const STRUCTURAL_WEIGHT_WORD_COUNT = 0.10;
+
+/** Minimum sentence count for adequacy (3 sentences shows complete argument) */
+const STRUCTURAL_MIN_SENTENCES = 3;
+
+/** Minimum word count for sufficient depth (50 words ensures substantive analysis) */
+const STRUCTURAL_MIN_WORDS = 50;
+
+/** Sentence splitting threshold for structural analysis (10 chars minimum) */
+const STRUCTURAL_SENTENCE_MIN_LENGTH = 10;
+
+/**
+ * DATA GROUNDING SCORING WEIGHTS
+ * Points awarded for quantitative claims, temporal references, and data sources
+ */
+
+/** Quantitative claims weight (up to 30%, 0.06 per claim) */
+const DATA_GROUNDING_WEIGHT_QUANTITATIVE_BASE = 0.30;
+const DATA_GROUNDING_WEIGHT_QUANTITATIVE_PER_CLAIM = 0.06;
+
+/** Temporal references weight (up to 20%, 0.07 per reference) */
+const DATA_GROUNDING_WEIGHT_TEMPORAL_BASE = 0.20;
+const DATA_GROUNDING_WEIGHT_TEMPORAL_PER_REF = 0.07;
+
+/** Data sources weight (up to 30%, 0.10 per source) */
+const DATA_GROUNDING_WEIGHT_SOURCES_BASE = 0.30;
+const DATA_GROUNDING_WEIGHT_SOURCES_PER_SOURCE = 0.10;
+
+/** Bonus for diverse sources (3+ sources shows comprehensive research) */
+const DATA_GROUNDING_BONUS_DIVERSE_SOURCES = 0.10;
+const DATA_GROUNDING_MIN_DIVERSE_SOURCES = 3;
+
+/** Bonus for specific price mentions (shows quantitative grounding) */
+const DATA_GROUNDING_BONUS_PRICE_MENTION = 0.10;
+
+/**
+ * LOGICAL SOUNDNESS SCORING WEIGHTS
+ * Points for causal reasoning, penalties for contradictions and circular logic
+ */
+
+/** Starting baseline score for logical soundness (0.5 = neutral) */
+const LOGICAL_SOUNDNESS_BASELINE = 0.5;
+
+/** Causal connectors weight (up to 30%, 0.05 per connector) */
+const LOGICAL_SOUNDNESS_WEIGHT_CAUSAL_BASE = 0.30;
+const LOGICAL_SOUNDNESS_WEIGHT_CAUSAL_PER_CONNECTOR = 0.05;
+
+/** Penalty per contradiction detected (15% penalty) */
+const LOGICAL_SOUNDNESS_PENALTY_CONTRADICTION = 0.15;
+
+/** Penalty for circular reasoning (10% penalty) */
+const LOGICAL_SOUNDNESS_PENALTY_CIRCULAR = 0.10;
+
+/** Bonus for strong causal reasoning with no contradictions (10% bonus) */
+const LOGICAL_SOUNDNESS_BONUS_STRONG_CAUSAL = 0.10;
+const LOGICAL_SOUNDNESS_MIN_CAUSAL_FOR_BONUS = 3;
+
+/** Sentence splitting threshold for circular detection (20 chars minimum) */
+const LOGICAL_SOUNDNESS_SENTENCE_MIN_LENGTH = 20;
+
+/**
+ * EPISTEMIC HONESTY SCORING WEIGHTS
+ * Points for uncertainty acknowledgment, penalties for overconfidence
+ */
+
+/** Starting baseline score for epistemic honesty (0.5 = neutral) */
+const EPISTEMIC_HONESTY_BASELINE = 0.5;
+
+/** Uncertainty markers weight (up to 25%, 0.08 per marker) */
+const EPISTEMIC_HONESTY_WEIGHT_UNCERTAINTY_BASE = 0.25;
+const EPISTEMIC_HONESTY_WEIGHT_UNCERTAINTY_PER_MARKER = 0.08;
+
+/** Penalty per overconfidence marker (10% penalty) */
+const EPISTEMIC_HONESTY_PENALTY_OVERCONFIDENCE = 0.10;
+
+/** Penalty for high confidence without uncertainty (10% penalty when conf > 0.8) */
+const EPISTEMIC_HONESTY_PENALTY_UNCALIBRATED_HIGH_CONF = 0.10;
+const EPISTEMIC_HONESTY_HIGH_CONF_THRESHOLD = 0.8;
+
+/** Bonus for appropriate low confidence expression (10% bonus when conf < 0.5) */
+const EPISTEMIC_HONESTY_BONUS_CALIBRATED_LOW_CONF = 0.10;
+const EPISTEMIC_HONESTY_LOW_CONF_THRESHOLD = 0.5;
+
+/**
+ * ACTIONABILITY SCORING WEIGHTS
+ * Points for decision clarity, position sizing, and risk management
+ */
+
+/** Actionable details weight (up to 30%, 0.05 per detail) */
+const ACTIONABILITY_WEIGHT_DETAILS_BASE = 0.30;
+const ACTIONABILITY_WEIGHT_DETAILS_PER_ITEM = 0.05;
+
+/** Decision statement weight (25% for clear decision) */
+const ACTIONABILITY_WEIGHT_DECISION = 0.25;
+
+/** Position sizing context weight (20% for sizing details) */
+const ACTIONABILITY_WEIGHT_POSITION_SIZING = 0.20;
+
+/** Risk management criteria weight (25% for stop/target/limits) */
+const ACTIONABILITY_WEIGHT_RISK_MGMT = 0.25;
+
+/**
+ * CERTIFICATE VALIDITY AND LIMITS
+ */
+
+/** Certificate validity period in milliseconds (7 days) */
+const CERTIFICATE_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Maximum certificates stored per agent (circular buffer) */
+const MAX_CERTS_PER_AGENT = 300;
+
+/**
+ * TREND DETECTION AND GRADING
+ */
+
+/** Minimum improvement threshold for "improving" trend (3% composite score increase) */
+const TREND_IMPROVEMENT_THRESHOLD = 0.03;
+
+/** Minimum decline threshold for "declining" trend (3% composite score decrease) */
+const TREND_DECLINE_THRESHOLD = 0.03;
+
+/** Pillar score weight for certification rate (40%) */
+const PILLAR_WEIGHT_CERT_RATE = 0.4;
+
+/** Pillar score weight for average composite (60%) */
+const PILLAR_WEIGHT_AVG_COMPOSITE = 0.6;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const certificateStore = new Map<string, QualityCertificate[]>();
 const certificateByHash = new Map<string, QualityCertificate>();
-const MAX_CERTS_PER_AGENT = 300;
 
 // ---------------------------------------------------------------------------
 // Analysis Patterns
@@ -162,9 +325,9 @@ export function certifyReasoning(
   // Determine certification level
   const minScore = Math.min(...dimensions.map((d) => d.score));
   let level: CertificationLevel;
-  if (minScore >= 0.8) level = "gold";
-  else if (minScore >= 0.6) level = "silver";
-  else if (minScore >= 0.4) level = "bronze";
+  if (minScore >= CERTIFICATION_THRESHOLD_GOLD) level = "gold";
+  else if (minScore >= CERTIFICATION_THRESHOLD_SILVER) level = "silver";
+  else if (minScore >= CERTIFICATION_THRESHOLD_BRONZE) level = "bronze";
   else level = "uncertified";
 
   // Create certificate
@@ -180,7 +343,7 @@ export function certifyReasoning(
   const hash = createHash("sha256").update(certContent).digest("hex");
 
   const now = new Date();
-  const expires = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const expires = new Date(now.getTime() + CERTIFICATE_VALIDITY_MS);
 
   const certificate: QualityCertificate = {
     certificateId: `cert_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -229,16 +392,16 @@ function scoreStructuralCompleteness(reasoning: string): CertificationDimension 
   CONCLUSION_PATTERNS.lastIndex = 0;
   if (hasConclusion) indicators.push("Contains conclusion");
 
-  const sentences = splitSentences(reasoning, 10);
+  const sentences = splitSentences(reasoning, STRUCTURAL_SENTENCE_MIN_LENGTH);
   const wordCount = countWords(reasoning);
-  if (wordCount > 50) indicators.push(`${wordCount} words (sufficient depth)`);
+  if (wordCount > STRUCTURAL_MIN_WORDS) indicators.push(`${wordCount} words (sufficient depth)`);
 
   let score = 0;
-  if (hasThesis) score += 0.25;
-  if (evidenceCount > 0) score += Math.min(0.30, evidenceCount * 0.10);
-  if (hasConclusion) score += 0.20;
-  if (sentences.length >= 3) score += 0.15;
-  if (wordCount >= 50) score += 0.10;
+  if (hasThesis) score += STRUCTURAL_WEIGHT_THESIS;
+  if (evidenceCount > 0) score += Math.min(STRUCTURAL_WEIGHT_EVIDENCE_BASE, evidenceCount * STRUCTURAL_WEIGHT_EVIDENCE_PER_MARKER);
+  if (hasConclusion) score += STRUCTURAL_WEIGHT_CONCLUSION;
+  if (sentences.length >= STRUCTURAL_MIN_SENTENCES) score += STRUCTURAL_WEIGHT_SENTENCE_COUNT;
+  if (wordCount >= STRUCTURAL_MIN_WORDS) score += STRUCTURAL_WEIGHT_WORD_COUNT;
 
   return {
     name: "structural_completeness",
@@ -265,13 +428,13 @@ function scoreDataGrounding(reasoning: string, sources: string[]): Certification
   if (sourceCount > 0) indicators.push(`${sourceCount} data sources cited`);
 
   let score = 0;
-  score += Math.min(0.30, quantClaims * 0.06);
-  score += Math.min(0.20, timeRefs * 0.07);
-  score += Math.min(0.30, sourceCount * 0.10);
+  score += Math.min(DATA_GROUNDING_WEIGHT_QUANTITATIVE_BASE, quantClaims * DATA_GROUNDING_WEIGHT_QUANTITATIVE_PER_CLAIM);
+  score += Math.min(DATA_GROUNDING_WEIGHT_TEMPORAL_BASE, timeRefs * DATA_GROUNDING_WEIGHT_TEMPORAL_PER_REF);
+  score += Math.min(DATA_GROUNDING_WEIGHT_SOURCES_BASE, sourceCount * DATA_GROUNDING_WEIGHT_SOURCES_PER_SOURCE);
   // Bonus for diverse sources
-  if (sourceCount >= 3) score += 0.10;
+  if (sourceCount >= DATA_GROUNDING_MIN_DIVERSE_SOURCES) score += DATA_GROUNDING_BONUS_DIVERSE_SOURCES;
   // Bonus for specific price/percentage mentions
-  if (/\$\d+/.test(reasoning)) score += 0.10;
+  if (/\$\d+/.test(reasoning)) score += DATA_GROUNDING_BONUS_PRICE_MENTION;
 
   return {
     name: "data_grounding",
@@ -301,7 +464,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
   }
 
   // Check for circular reasoning
-  const sentences = splitSentences(reasoning, 20);
+  const sentences = splitSentences(reasoning, LOGICAL_SOUNDNESS_SENTENCE_MIN_LENGTH);
   let circularFlag = false;
   if (sentences.length >= 2) {
     const first = sentences[0].trim().toLowerCase().slice(0, 50);
@@ -312,11 +475,11 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
     }
   }
 
-  let score = 0.5; // Start at baseline
-  score += Math.min(0.30, causalCount * 0.05);
-  score -= contradictions * 0.15;
-  if (circularFlag) score -= 0.10;
-  if (causalCount >= 3 && contradictions === 0) score += 0.10;
+  let score = LOGICAL_SOUNDNESS_BASELINE; // Start at baseline
+  score += Math.min(LOGICAL_SOUNDNESS_WEIGHT_CAUSAL_BASE, causalCount * LOGICAL_SOUNDNESS_WEIGHT_CAUSAL_PER_CONNECTOR);
+  score -= contradictions * LOGICAL_SOUNDNESS_PENALTY_CONTRADICTION;
+  if (circularFlag) score -= LOGICAL_SOUNDNESS_PENALTY_CIRCULAR;
+  if (causalCount >= LOGICAL_SOUNDNESS_MIN_CAUSAL_FOR_BONUS && contradictions === 0) score += LOGICAL_SOUNDNESS_BONUS_STRONG_CAUSAL;
 
   return {
     name: "logical_soundness",
@@ -345,19 +508,19 @@ function scoreEpistemicHonesty(reasoning: string, confidence: number): Certifica
   const hasUncertainty = uncertaintyCount > 0;
   const hasOverconfidence = overconfCount > 0;
 
-  let score = 0.5;
-  if (hasUncertainty) score += Math.min(0.25, uncertaintyCount * 0.08);
-  if (hasOverconfidence) score -= overconfCount * 0.10;
+  let score = EPISTEMIC_HONESTY_BASELINE;
+  if (hasUncertainty) score += Math.min(EPISTEMIC_HONESTY_WEIGHT_UNCERTAINTY_BASE, uncertaintyCount * EPISTEMIC_HONESTY_WEIGHT_UNCERTAINTY_PER_MARKER);
+  if (hasOverconfidence) score -= overconfCount * EPISTEMIC_HONESTY_PENALTY_OVERCONFIDENCE;
 
   // Penalize high confidence with no uncertainty markers
-  if (conf01 > 0.8 && !hasUncertainty && !hasOverconfidence) {
-    score -= 0.10;
+  if (conf01 > EPISTEMIC_HONESTY_HIGH_CONF_THRESHOLD && !hasUncertainty && !hasOverconfidence) {
+    score -= EPISTEMIC_HONESTY_PENALTY_UNCALIBRATED_HIGH_CONF;
     indicators.push("High confidence without uncertainty acknowledgment");
   }
 
   // Reward appropriate calibration
-  if (conf01 < 0.5 && hasUncertainty) {
-    score += 0.10;
+  if (conf01 < EPISTEMIC_HONESTY_LOW_CONF_THRESHOLD && hasUncertainty) {
+    score += EPISTEMIC_HONESTY_BONUS_CALIBRATED_LOW_CONF;
     indicators.push("Low confidence with appropriate uncertainty expression");
   }
 
@@ -393,10 +556,10 @@ function scoreActionability(reasoning: string, action: string): CertificationDim
   if (hasRiskMgmt) indicators.push("Risk management criteria");
 
   let score = 0;
-  score += Math.min(0.30, actionDetails * 0.05);
-  if (hasDecisionStatement) score += 0.25;
-  if (hasPositionContext) score += 0.20;
-  if (hasRiskMgmt) score += 0.25;
+  score += Math.min(ACTIONABILITY_WEIGHT_DETAILS_BASE, actionDetails * ACTIONABILITY_WEIGHT_DETAILS_PER_ITEM);
+  if (hasDecisionStatement) score += ACTIONABILITY_WEIGHT_DECISION;
+  if (hasPositionContext) score += ACTIONABILITY_WEIGHT_POSITION_SIZING;
+  if (hasRiskMgmt) score += ACTIONABILITY_WEIGHT_RISK_MGMT;
 
   return {
     name: "actionability",
@@ -459,12 +622,12 @@ export function getCertificationProfile(agentId: string): AgentCertificationProf
   const firstAvg = firstHalf.length > 0 ? firstHalf.reduce((s, c) => s + c.compositeScore, 0) / firstHalf.length : 0;
   const secondAvg = secondHalf.length > 0 ? secondHalf.reduce((s, c) => s + c.compositeScore, 0) / secondHalf.length : 0;
   let trend: "improving" | "stable" | "declining" = "stable";
-  if (secondAvg - firstAvg > 0.03) trend = "improving";
-  if (firstAvg - secondAvg > 0.03) trend = "declining";
+  if (secondAvg - firstAvg > TREND_IMPROVEMENT_THRESHOLD) trend = "improving";
+  if (firstAvg - secondAvg > TREND_DECLINE_THRESHOLD) trend = "declining";
 
   // Pillar score: weighted blend of certification rate + composite quality
   const certRate = total > 0 ? certified / total : 0;
-  const pillarScore = round2(certRate * 0.4 + avgComposite * 0.6);
+  const pillarScore = round2(certRate * PILLAR_WEIGHT_CERT_RATE + avgComposite * PILLAR_WEIGHT_AVG_COMPOSITE);
 
   return {
     agentId,
