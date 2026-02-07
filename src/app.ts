@@ -194,6 +194,18 @@ app.notFound(notFoundHandler);
 // Health check (public)
 app.route("/health", healthRoutes);
 
+// Serve SKILL.md as machine-readable onboarding guide
+app.get("/skill.md", async (c) => {
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const content = await readFile("./SKILL.md", "utf-8");
+    c.header("Content-Type", "text/markdown; charset=utf-8");
+    return c.text(content);
+  } catch {
+    return c.text("# SKILL.md not found", 404);
+  }
+});
+
 // Landing page (public)
 app.route("/landing", landingRoutes);
 

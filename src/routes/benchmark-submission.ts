@@ -64,6 +64,9 @@ interface BenchmarkSubmission {
   sources: string[];
   intent: string;
   predictedOutcome?: string;
+  walletAddress?: string;
+  txSignature?: string;
+  modelVersion?: string;
   scores: {
     coherence: number;
     hallucinationFree: number;
@@ -78,9 +81,35 @@ interface BenchmarkSubmission {
   scoredAt: string;
 }
 
+interface BenchmarkApplication {
+  id: string;
+  agentId: string;
+  agentName: string;
+  modelProvider: string;
+  modelName: string;
+  walletAddress: string;
+  contactEmail?: string;
+  description?: string;
+  modelVersion?: string;
+  status: "pending_qualification" | "qualified" | "rejected";
+  appliedAt: string;
+  qualifiedAt?: string;
+}
+
+interface ModelRetirement {
+  agentId: string;
+  oldModelVersion: string;
+  newModelVersion: string;
+  newModelName?: string;
+  retiredAt: string;
+  archivedSubmissionCount: number;
+}
+
 /** In-memory submission store (production would use DB) */
 const submissions = new Map<string, BenchmarkSubmission>();
 const agentSubmissions = new Map<string, string[]>(); // agentId -> submissionIds
+const applications = new Map<string, BenchmarkApplication>();
+const modelRetirements = new Map<string, ModelRetirement[]>(); // agentId -> retirements
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -111,6 +140,12 @@ const submitSchema = z.object({
   intent: z.enum(["momentum", "mean_reversion", "value", "hedge", "contrarian", "arbitrage"]),
   /** Optional: What you predict will happen */
   predictedOutcome: z.string().optional(),
+  /** Optional: Solana public key for on-chain trade verification */
+  walletAddress: z.string().optional(),
+  /** Optional: Solana transaction signature proving the trade happened */
+  txSignature: z.string().optional(),
+  /** Optional: Model version for tracking retirements (e.g., "3.0") */
+  modelVersion: z.string().optional(),
 });
 
 const batchSubmitSchema = z.object({
@@ -128,6 +163,247 @@ const batchSubmitSchema = z.object({
     intent: z.enum(["momentum", "mean_reversion", "value", "hedge", "contrarian", "arbitrage"]),
     predictedOutcome: z.string().optional(),
   })).min(1).max(20, "Maximum 20 decisions per batch"),
+});
+
+const applySchema = z.object({
+  agentId: z.string().min(3, "Agent ID must be at least 3 characters"),
+  agentName: z.string().min(1),
+  modelProvider: z.string().min(1),
+  modelName: z.string().min(1),
+  walletAddress: z.string().min(32, "Must be a valid Solana public key"),
+  contactEmail: z.string().email().optional(),
+  description: z.string().optional(),
+  modelVersion: z.string().optional(),
+});
+
+const retireModelSchema = z.object({
+  agentId: z.string().min(3),
+  oldModelVersion: z.string().min(1),
+  newModelVersion: z.string().min(1),
+  newModelName: z.string().optional(),
+  reorganizePortfolio: z.boolean(),
+});
+
+/** Qualification thresholds for full benchmark inclusion */
+const QUALIFICATION_CRITERIA = {
+  minDays: 14,
+  minSubmissions: 20,
+  minAvgComposite: 0.5,
+  requireOnChainTrades: true,
+} as const;
+
+// ---------------------------------------------------------------------------
+// POST /apply — Apply for full benchmark inclusion
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.post("/apply", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+  }
+
+  const parsed = applySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({
+      ok: false,
+      error: "VALIDATION_FAILED",
+      validation: parsed.error.flatten(),
+    }, 400);
+  }
+
+  const data = parsed.data;
+
+  // Check if already applied
+  if (applications.has(data.agentId)) {
+    const existing = applications.get(data.agentId)!;
+    return c.json({
+      ok: false,
+      error: "ALREADY_APPLIED",
+      message: `Agent ${data.agentId} already applied on ${existing.appliedAt}. Check status at /apply/status/${data.agentId}`,
+      applicationId: existing.id,
+      status: existing.status,
+    }, 409);
+  }
+
+  const applicationId = `app_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const application: BenchmarkApplication = {
+    id: applicationId,
+    agentId: data.agentId,
+    agentName: data.agentName,
+    modelProvider: data.modelProvider,
+    modelName: data.modelName,
+    walletAddress: data.walletAddress,
+    contactEmail: data.contactEmail,
+    description: data.description,
+    modelVersion: data.modelVersion,
+    status: "pending_qualification",
+    appliedAt: new Date().toISOString(),
+  };
+
+  applications.set(data.agentId, application);
+
+  return c.json({
+    ok: true,
+    applicationId,
+    status: "pending_qualification",
+    qualificationCriteria: QUALIFICATION_CRITERIA,
+    message: "Start trading xStocks and submitting decisions. You'll qualify after 14 days with 20+ scored submissions averaging 0.5+ composite.",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /apply/status/:agentId — Check qualification progress
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/apply/status/:agentId", (c) => {
+  const agentId = c.req.param("agentId");
+  const application = applications.get(agentId);
+
+  if (!application) {
+    return c.json({
+      ok: false,
+      error: "NOT_FOUND",
+      message: `No application found for agent ${agentId}. Apply at POST /apply first.`,
+    }, 404);
+  }
+
+  // Calculate qualification progress from submissions
+  const subIds = agentSubmissions.get(agentId) ?? [];
+  const subs = subIds
+    .map((id) => submissions.get(id))
+    .filter((s): s is BenchmarkSubmission => s !== undefined);
+
+  const totalSubmissions = subs.length;
+  const avgComposite = totalSubmissions > 0
+    ? round2(subs.reduce((s, sub) => s + sub.scores.composite, 0) / totalSubmissions)
+    : 0;
+
+  const firstSubmission = subs.length > 0 ? subs[0].submittedAt : null;
+  const daysSinceFirst = firstSubmission
+    ? Math.floor((Date.now() - new Date(firstSubmission).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  const onChainSubmissions = subs.filter((s) => s.walletAddress && s.txSignature).length;
+
+  const progress = {
+    totalSubmissions,
+    requiredSubmissions: QUALIFICATION_CRITERIA.minSubmissions,
+    avgComposite,
+    requiredAvgComposite: QUALIFICATION_CRITERIA.minAvgComposite,
+    daysSinceFirstSubmission: daysSinceFirst,
+    requiredDays: QUALIFICATION_CRITERIA.minDays,
+    onChainSubmissions,
+    meetsSubmissionCount: totalSubmissions >= QUALIFICATION_CRITERIA.minSubmissions,
+    meetsCompositeScore: avgComposite >= QUALIFICATION_CRITERIA.minAvgComposite,
+    meetsDayRequirement: daysSinceFirst >= QUALIFICATION_CRITERIA.minDays,
+    hasOnChainTrades: onChainSubmissions > 0,
+  };
+
+  const qualified = progress.meetsSubmissionCount &&
+    progress.meetsCompositeScore &&
+    progress.meetsDayRequirement &&
+    progress.hasOnChainTrades;
+
+  // Auto-qualify if all criteria met
+  if (qualified && application.status === "pending_qualification") {
+    application.status = "qualified";
+    application.qualifiedAt = new Date().toISOString();
+  }
+
+  return c.json({
+    ok: true,
+    application: {
+      id: application.id,
+      agentId: application.agentId,
+      agentName: application.agentName,
+      modelProvider: application.modelProvider,
+      modelName: application.modelName,
+      walletAddress: application.walletAddress,
+      status: application.status,
+      appliedAt: application.appliedAt,
+      qualifiedAt: application.qualifiedAt,
+    },
+    progress,
+    qualified,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /retire-model — Retire old model version and start fresh
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.post("/retire-model", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+  }
+
+  const parsed = retireModelSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({
+      ok: false,
+      error: "VALIDATION_FAILED",
+      validation: parsed.error.flatten(),
+    }, 400);
+  }
+
+  const data = parsed.data;
+
+  // Count submissions for this agent
+  const subIds = agentSubmissions.get(data.agentId) ?? [];
+  const archivedCount = subIds.length;
+
+  if (archivedCount === 0) {
+    return c.json({
+      ok: false,
+      error: "NO_SUBMISSIONS",
+      message: `Agent ${data.agentId} has no submissions to archive.`,
+    }, 400);
+  }
+
+  // Record the retirement
+  const retirement: ModelRetirement = {
+    agentId: data.agentId,
+    oldModelVersion: data.oldModelVersion,
+    newModelVersion: data.newModelVersion,
+    newModelName: data.newModelName,
+    retiredAt: new Date().toISOString(),
+    archivedSubmissionCount: archivedCount,
+  };
+
+  const retirements = modelRetirements.get(data.agentId) ?? [];
+  retirements.push(retirement);
+  modelRetirements.set(data.agentId, retirements);
+
+  // Clear the agent's active submissions (scores remain in submissions map for history)
+  agentSubmissions.set(data.agentId, []);
+
+  // Update application if exists
+  const application = applications.get(data.agentId);
+  if (application) {
+    application.modelName = data.newModelName ?? application.modelName;
+    application.modelVersion = data.newModelVersion;
+    application.status = "pending_qualification";
+    application.qualifiedAt = undefined;
+  }
+
+  return c.json({
+    ok: true,
+    retirement: {
+      agentId: data.agentId,
+      oldModelVersion: data.oldModelVersion,
+      newModelVersion: data.newModelVersion,
+      archivedSubmissions: archivedCount,
+      retiredAt: retirement.retiredAt,
+      reorganizePortfolio: data.reorganizePortfolio,
+    },
+    message: `Model ${data.oldModelVersion} retired with ${archivedCount} archived submissions. ${data.newModelVersion} starts fresh on the leaderboard.`,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -425,6 +701,9 @@ function scoreSubmission(
     sources: data.sources,
     intent: data.intent,
     predictedOutcome: data.predictedOutcome,
+    walletAddress: data.walletAddress,
+    txSignature: data.txSignature,
+    modelVersion: data.modelVersion,
     scores: {
       coherence: coherence.score,
       hallucinationFree: hallucinationFreeScore,
