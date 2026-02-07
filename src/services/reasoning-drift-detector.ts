@@ -85,14 +85,127 @@ export interface DriftAlert {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Data Retention Limits
+ *
+ * Control memory usage by capping historical snapshot and alert storage.
+ */
+
+/**
+ * MAX_SNAPSHOTS: 500
+ *
+ * Maximum reasoning snapshots retained per agent. Limits memory usage while
+ * providing sufficient history for drift analysis (500 snapshots = ~500 rounds
+ * of trading history, enough to detect multi-month trends).
+ *
+ * When this limit is reached, oldest snapshots are removed (FIFO queue).
+ */
+const MAX_SNAPSHOTS = 500;
+
+/**
+ * MAX_ALERTS: 200
+ *
+ * Maximum drift alerts retained in the global alerts buffer. Prevents unbounded
+ * memory growth from continuous drift detection across all agents.
+ *
+ * When this limit is reached, oldest alerts are removed (FIFO queue).
+ */
+const MAX_ALERTS = 200;
+
+/**
+ * Drift Detection Thresholds
+ *
+ * Define what constitutes "significant drift" in each dimension.
+ */
+
+/**
+ * DRIFT_THRESHOLD: 0.15
+ *
+ * Minimum absolute change required to classify drift as "significant" in any
+ * dimension (quality, confidence, vocabulary, strategy, hallucination).
+ *
+ * Example: If coherenceScore changes from 0.75 to 0.92 (+0.17), that exceeds
+ * the 0.15 threshold and triggers a "quality drift" classification.
+ *
+ * Lower threshold = more sensitive drift detection (catches smaller changes).
+ * Higher threshold = less noisy drift detection (only catches major shifts).
+ */
+const DRIFT_THRESHOLD = 0.15;
+
+/**
+ * Alert Severity Classification Thresholds
+ *
+ * Define severity levels for drift alerts based on magnitude of change.
+ */
+
+/**
+ * ALERT_SEVERITY_HIGH_THRESHOLD: 0.3
+ *
+ * Absolute delta > 0.3 classifies drift alert as "high" severity.
+ *
+ * Example: Coherence drops from 0.80 to 0.45 (delta = -0.35) → HIGH severity
+ * This indicates a major degradation in reasoning quality requiring immediate attention.
+ */
+const ALERT_SEVERITY_HIGH_THRESHOLD = 0.3;
+
+/**
+ * ALERT_SEVERITY_MEDIUM_THRESHOLD: 0.2
+ *
+ * Absolute delta > 0.2 (but ≤ 0.3) classifies drift alert as "medium" severity.
+ *
+ * Example: Confidence shifts from 65% to 80% (delta = +0.15) → LOW severity
+ * Example: Confidence shifts from 65% to 88% (delta = +0.23) → MEDIUM severity
+ *
+ * Medium severity indicates notable drift that should be monitored but may not
+ * require immediate intervention.
+ */
+const ALERT_SEVERITY_MEDIUM_THRESHOLD = 0.2;
+
+/**
+ * Analysis Window Parameters
+ *
+ * Control sliding window behavior for drift analysis.
+ */
+
+/**
+ * DEFAULT_WINDOW_SIZE: 10
+ *
+ * Default number of snapshots per analysis window when windowSize parameter
+ * not provided to analyzeDrift(). Smaller windows = more granular drift
+ * detection, larger windows = smoother trend analysis.
+ *
+ * Used to split snapshot history into overlapping windows for comparison.
+ */
+const DEFAULT_WINDOW_SIZE = 10;
+
+/**
+ * ALERT_LIMIT_DEFAULT: 20
+ *
+ * Default number of recent alerts returned by getDriftAlerts() when limit
+ * parameter not specified. Balances UI responsiveness (fewer alerts = faster
+ * rendering) with drift visibility (more alerts = better trend awareness).
+ */
+const ALERT_LIMIT_DEFAULT = 20;
+
+/**
+ * OVERALL_DRIFT_COMPONENT_COUNT: 5
+ *
+ * Number of drift dimensions averaged to compute overall drift magnitude.
+ * Currently: quality, confidence, vocabulary, strategy, hallucination.
+ *
+ * Used as divisor in overallDrift calculation to normalize across dimensions.
+ */
+const OVERALL_DRIFT_COMPONENT_COUNT = 5;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const snapshots: Map<string, DriftSnapshot[]> = new Map();
 const alerts: DriftAlert[] = [];
-const MAX_SNAPSHOTS = 500;
-const MAX_ALERTS = 200;
-const DRIFT_THRESHOLD = 0.15;
 
 // ---------------------------------------------------------------------------
 // Data Collection
@@ -150,7 +263,7 @@ export function buildDriftSnapshot(data: {
  */
 export function analyzeDrift(
   agentId: string,
-  windowSize = 10,
+  windowSize = DEFAULT_WINDOW_SIZE,
 ): DriftAnalysis {
   const data = snapshots.get(agentId) ?? [];
 
@@ -253,7 +366,7 @@ export function analyzeDrift(
       Math.abs(confidenceDrift) +
       vocabularyDrift +
       strategyDrift +
-      Math.abs(hallucinationDrift)) / 5;
+      Math.abs(hallucinationDrift)) / OVERALL_DRIFT_COMPONENT_COUNT;
 
   // Identify significant drifts
   const driftCategories: string[] = [];
@@ -300,9 +413,9 @@ export function analyzeDrift(
         agentId,
         category: cat,
         severity:
-          Math.abs(delta) > 0.3
+          Math.abs(delta) > ALERT_SEVERITY_HIGH_THRESHOLD
             ? "high"
-            : Math.abs(delta) > 0.2
+            : Math.abs(delta) > ALERT_SEVERITY_MEDIUM_THRESHOLD
               ? "medium"
               : "low",
         description: `${cat} drift detected: ${prevVal.toFixed(3)} → ${currentVal.toFixed(3)}`,
@@ -388,7 +501,7 @@ export function compareAgentDrift(): {
  */
 export function getDriftAlerts(
   agentId?: string,
-  limit = 20,
+  limit = ALERT_LIMIT_DEFAULT,
 ): DriftAlert[] {
   let filtered = alerts;
   if (agentId) {

@@ -16,6 +16,102 @@
 import { normalize, round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Connector Strength Values
+ *
+ * These constants define the strength (0-1) of logical connectors detected in reasoning chains.
+ * Higher values = stronger logical relationships between steps.
+ */
+
+// Causal connector strengths
+const CONNECTOR_STRENGTH_RESULT = 0.9; // "as a result", "consequently" - strongest causal link
+const CONNECTOR_STRENGTH_THEREFORE = 0.9; // "therefore" - explicit logical conclusion
+const CONNECTOR_STRENGTH_BECAUSE = 0.8; // "because", "due to", "thus", "hence" - strong causal
+const CONNECTOR_STRENGTH_SINCE = 0.7; // "since" - moderate causal (can be temporal)
+const CONNECTOR_STRENGTH_SO = 0.5; // "so" - weak causal (informal)
+
+// Conditional connector strengths
+const CONNECTOR_STRENGTH_IF = 0.7; // "if", "provided that", "unless" - standard conditional
+const CONNECTOR_STRENGTH_ASSUMING = 0.6; // "assuming" - weaker conditional (assumption-based)
+
+// Comparative connector strengths
+const CONNECTOR_STRENGTH_COMPARED = 0.7; // "compared to", "relative to" - explicit comparison
+const CONNECTOR_STRENGTH_WHEREAS = 0.6; // "whereas" - moderate comparison
+const CONNECTOR_STRENGTH_MORE_LESS = 0.5; // "more than", "less than" - weak comparison
+
+// Temporal connector strengths
+const CONNECTOR_STRENGTH_AFTER_BEFORE = 0.5; // "after", "before" - moderate temporal
+const CONNECTOR_STRENGTH_RECENTLY = 0.4; // "recently", "previously" - weak temporal
+const CONNECTOR_STRENGTH_NOW = 0.3; // "now" - weakest temporal (minimal logical weight)
+
+// Additive connector strengths
+const CONNECTOR_STRENGTH_FURTHERMORE = 0.5; // "furthermore", "moreover", "additionally" - adds info
+const CONNECTOR_STRENGTH_ALSO = 0.3; // "also" - weak additive
+const CONNECTOR_STRENGTH_AND = 0.2; // "and" - weakest additive (grammatical)
+
+// Contrastive connector strengths
+const CONNECTOR_STRENGTH_CONTRASTIVE_STRONG = 0.7; // "however", "despite", "nevertheless", "on the other hand" - strong contrast
+const CONNECTOR_STRENGTH_CONTRASTIVE_MODERATE = 0.6; // "but", "although" - moderate contrast
+
+/**
+ * Step Classification Thresholds
+ *
+ * Positional bias applied during step type classification to improve accuracy.
+ * Early steps in reasoning chains tend to be observations; late steps tend to be conclusions.
+ */
+const STEP_POSITION_EARLY_THRESHOLD = 0.3; // Position < 0.3 = early in chain (boost observation score)
+const STEP_POSITION_LATE_THRESHOLD = 0.7; // Position > 0.7 = late in chain (boost conclusion score)
+const STEP_POSITION_VERY_LATE_THRESHOLD = 0.8; // Position > 0.8 = very late (boost action_rationale score)
+
+const STEP_POSITION_EARLY_BONUS = 0.5; // Bonus added to observation score for early steps
+const STEP_POSITION_LATE_BONUS = 0.5; // Bonus added to conclusion score for late steps
+const STEP_POSITION_VERY_LATE_BONUS = 0.3; // Bonus added to action_rationale score for very late steps
+
+/**
+ * Defect Detection Thresholds
+ *
+ * Parameters controlling when reasoning defects are flagged.
+ */
+const DEFECT_CIRCULAR_SEVERITY = 0.8; // Severity (0-1) assigned to circular reasoning defects
+const DEFECT_NON_SEQUITUR_SEVERITY = 0.6; // Severity assigned to non-sequitur defects (conclusions lacking support)
+const DEFECT_EVIDENCE_GAP_MIN_STEPS = 3; // Minimum consecutive steps without evidence to flag as gap
+const DEFECT_EVIDENCE_GAP_BASE_SEVERITY = 0.3; // Base severity for evidence gaps
+const DEFECT_EVIDENCE_GAP_SEVERITY_PER_STEP = 0.1; // Additional severity per gapped step (0.3 + 0.1*steps)
+const DEFECT_CONTRADICTION_SEVERITY = 0.7; // Severity assigned to contradictory signals
+const DEFECT_UNSUPPORTED_LEAP_MIN_GAP = 4; // Minimum step gap to flag as unsupported leap
+const DEFECT_UNSUPPORTED_LEAP_SEVERITY = 0.5; // Severity assigned to unsupported leaps
+
+/**
+ * Chain Quality Scoring
+ *
+ * Weights and thresholds for computing overall chain quality score.
+ * Formula: base + evidence_bonus + connector_bonus + chain_depth_bonus - defect_penalties
+ */
+const CHAIN_QUALITY_BASE_SCORE = 0.6; // Starting score for all chains (neutral baseline)
+const CHAIN_QUALITY_EVIDENCE_WEIGHT = 0.2; // Weight for evidence coverage (0.2 * evidenceSteps/totalSteps)
+const CHAIN_QUALITY_CONNECTOR_WEIGHT = 0.1; // Weight for valid connectors (0.1 * validConnectors/totalSteps)
+const CHAIN_QUALITY_DEPTH_WEIGHT = 0.1; // Weight for chain depth (0.1 * min(1, longestChain/4))
+const CHAIN_QUALITY_DEPTH_NORMALIZATION = 4; // Divide longestChain by 4 for normalization
+const CHAIN_QUALITY_CONNECTOR_STRENGTH_THRESHOLD = 0.5; // Min strength to count as "valid connector"
+const CHAIN_QUALITY_MAJOR_DEFECT_PENALTY = 0.15; // Penalty per major defect (severity > 0.5)
+const CHAIN_QUALITY_MINOR_DEFECT_PENALTY = 0.05; // Penalty per minor defect (severity <= 0.5)
+const CHAIN_QUALITY_MAJOR_DEFECT_SEVERITY_THRESHOLD = 0.5; // Severity threshold for major vs minor
+
+/**
+ * Pillar Score Aggregation
+ *
+ * Weights for computing agent-level pillar score from chain validation history.
+ * Formula: avgChainQuality * 0.4 + avgStepEvidence * 0.3 + (1 - defectRate) * 0.3
+ */
+const PILLAR_SCORE_QUALITY_WEIGHT = 0.4; // Weight for average chain quality (40%, HIGHEST)
+const PILLAR_SCORE_EVIDENCE_WEIGHT = 0.3; // Weight for average step evidence (30%)
+const PILLAR_SCORE_DEFECT_WEIGHT = 0.3; // Weight for defect-free rate (30%)
+const PILLAR_SCORE_DEFAULT = 0.5; // Default pillar score when no validation history exists
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -179,45 +275,45 @@ interface ConnectorPattern {
 
 const CONNECTOR_PATTERNS: ConnectorPattern[] = [
   // Causal
-  { regex: /\bbecause\b/i, type: "causal", strength: 0.8 },
-  { regex: /\bsince\b/i, type: "causal", strength: 0.7 },
-  { regex: /\bdue\s+to\b/i, type: "causal", strength: 0.8 },
-  { regex: /\bas\s+a\s+result\b/i, type: "causal", strength: 0.9 },
-  { regex: /\btherefore\b/i, type: "causal", strength: 0.9 },
-  { regex: /\bthus\b/i, type: "causal", strength: 0.8 },
-  { regex: /\bhence\b/i, type: "causal", strength: 0.8 },
-  { regex: /\bconsequently\b/i, type: "causal", strength: 0.9 },
-  { regex: /\bso\b/i, type: "causal", strength: 0.5 },
+  { regex: /\bbecause\b/i, type: "causal", strength: CONNECTOR_STRENGTH_BECAUSE },
+  { regex: /\bsince\b/i, type: "causal", strength: CONNECTOR_STRENGTH_SINCE },
+  { regex: /\bdue\s+to\b/i, type: "causal", strength: CONNECTOR_STRENGTH_BECAUSE },
+  { regex: /\bas\s+a\s+result\b/i, type: "causal", strength: CONNECTOR_STRENGTH_RESULT },
+  { regex: /\btherefore\b/i, type: "causal", strength: CONNECTOR_STRENGTH_THEREFORE },
+  { regex: /\bthus\b/i, type: "causal", strength: CONNECTOR_STRENGTH_BECAUSE },
+  { regex: /\bhence\b/i, type: "causal", strength: CONNECTOR_STRENGTH_BECAUSE },
+  { regex: /\bconsequently\b/i, type: "causal", strength: CONNECTOR_STRENGTH_RESULT },
+  { regex: /\bso\b/i, type: "causal", strength: CONNECTOR_STRENGTH_SO },
   // Conditional
-  { regex: /\bif\b/i, type: "conditional", strength: 0.7 },
-  { regex: /\bassuming\b/i, type: "conditional", strength: 0.6 },
-  { regex: /\bprovided\s+that\b/i, type: "conditional", strength: 0.7 },
-  { regex: /\bunless\b/i, type: "conditional", strength: 0.7 },
+  { regex: /\bif\b/i, type: "conditional", strength: CONNECTOR_STRENGTH_IF },
+  { regex: /\bassuming\b/i, type: "conditional", strength: CONNECTOR_STRENGTH_ASSUMING },
+  { regex: /\bprovided\s+that\b/i, type: "conditional", strength: CONNECTOR_STRENGTH_IF },
+  { regex: /\bunless\b/i, type: "conditional", strength: CONNECTOR_STRENGTH_IF },
   // Comparative
-  { regex: /\bcompared\s+to\b/i, type: "comparative", strength: 0.7 },
-  { regex: /\brelative\s+to\b/i, type: "comparative", strength: 0.7 },
-  { regex: /\bwhereas\b/i, type: "comparative", strength: 0.6 },
-  { regex: /\bmore\s+than\b/i, type: "comparative", strength: 0.5 },
-  { regex: /\bless\s+than\b/i, type: "comparative", strength: 0.5 },
+  { regex: /\bcompared\s+to\b/i, type: "comparative", strength: CONNECTOR_STRENGTH_COMPARED },
+  { regex: /\brelative\s+to\b/i, type: "comparative", strength: CONNECTOR_STRENGTH_COMPARED },
+  { regex: /\bwhereas\b/i, type: "comparative", strength: CONNECTOR_STRENGTH_WHEREAS },
+  { regex: /\bmore\s+than\b/i, type: "comparative", strength: CONNECTOR_STRENGTH_MORE_LESS },
+  { regex: /\bless\s+than\b/i, type: "comparative", strength: CONNECTOR_STRENGTH_MORE_LESS },
   // Temporal
-  { regex: /\bafter\b/i, type: "temporal", strength: 0.5 },
-  { regex: /\bbefore\b/i, type: "temporal", strength: 0.5 },
-  { regex: /\brecently\b/i, type: "temporal", strength: 0.4 },
-  { regex: /\bpreviously\b/i, type: "temporal", strength: 0.4 },
-  { regex: /\bnow\b/i, type: "temporal", strength: 0.3 },
+  { regex: /\bafter\b/i, type: "temporal", strength: CONNECTOR_STRENGTH_AFTER_BEFORE },
+  { regex: /\bbefore\b/i, type: "temporal", strength: CONNECTOR_STRENGTH_AFTER_BEFORE },
+  { regex: /\brecently\b/i, type: "temporal", strength: CONNECTOR_STRENGTH_RECENTLY },
+  { regex: /\bpreviously\b/i, type: "temporal", strength: CONNECTOR_STRENGTH_RECENTLY },
+  { regex: /\bnow\b/i, type: "temporal", strength: CONNECTOR_STRENGTH_NOW },
   // Additive
-  { regex: /\bfurthermore\b/i, type: "additive", strength: 0.5 },
-  { regex: /\bmoreover\b/i, type: "additive", strength: 0.5 },
-  { regex: /\badditionally\b/i, type: "additive", strength: 0.5 },
-  { regex: /\balso\b/i, type: "additive", strength: 0.3 },
-  { regex: /\band\b/i, type: "additive", strength: 0.2 },
+  { regex: /\bfurthermore\b/i, type: "additive", strength: CONNECTOR_STRENGTH_FURTHERMORE },
+  { regex: /\bmoreover\b/i, type: "additive", strength: CONNECTOR_STRENGTH_FURTHERMORE },
+  { regex: /\badditionally\b/i, type: "additive", strength: CONNECTOR_STRENGTH_FURTHERMORE },
+  { regex: /\balso\b/i, type: "additive", strength: CONNECTOR_STRENGTH_ALSO },
+  { regex: /\band\b/i, type: "additive", strength: CONNECTOR_STRENGTH_AND },
   // Contrastive
-  { regex: /\bhowever\b/i, type: "contrastive", strength: 0.7 },
-  { regex: /\bbut\b/i, type: "contrastive", strength: 0.6 },
-  { regex: /\balthough\b/i, type: "contrastive", strength: 0.6 },
-  { regex: /\bdespite\b/i, type: "contrastive", strength: 0.7 },
-  { regex: /\bnevertheless\b/i, type: "contrastive", strength: 0.7 },
-  { regex: /\bon\s+the\s+other\s+hand\b/i, type: "contrastive", strength: 0.7 },
+  { regex: /\bhowever\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_STRONG },
+  { regex: /\bbut\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_MODERATE },
+  { regex: /\balthough\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_MODERATE },
+  { regex: /\bdespite\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_STRONG },
+  { regex: /\bnevertheless\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_STRONG },
+  { regex: /\bon\s+the\s+other\s+hand\b/i, type: "contrastive", strength: CONNECTOR_STRENGTH_CONTRASTIVE_STRONG },
 ];
 
 // ---------------------------------------------------------------------------
@@ -320,9 +416,9 @@ function classifyStepType(
 
   // Positional bias
   const position = totalSteps > 1 ? index / (totalSteps - 1) : 0.5;
-  if (position < 0.3) scores.observation += 0.5;
-  if (position > 0.7) scores.conclusion += 0.5;
-  if (position > 0.8) scores.action_rationale += 0.3;
+  if (position < STEP_POSITION_EARLY_THRESHOLD) scores.observation += STEP_POSITION_EARLY_BONUS;
+  if (position > STEP_POSITION_LATE_THRESHOLD) scores.conclusion += STEP_POSITION_LATE_BONUS;
+  if (position > STEP_POSITION_VERY_LATE_THRESHOLD) scores.action_rationale += STEP_POSITION_VERY_LATE_BONUS;
 
   let best: ReasoningStep["type"] = "observation";
   let bestScore = -1;
@@ -484,7 +580,7 @@ function detectCircularReasoning(steps: ReasoningStep[]): ChainDefect[] {
             reported.add(pairKey);
             defects.push({
               type: "circular_reasoning",
-              severity: 0.8,
+              severity: DEFECT_CIRCULAR_SEVERITY,
               description: `Steps ${Math.min(step.index, depIdx)} and ${Math.max(step.index, depIdx)} reference each other circularly`,
               stepIndices: [Math.min(step.index, depIdx), Math.max(step.index, depIdx)],
             });
@@ -518,7 +614,7 @@ function detectNonSequiturs(steps: ReasoningStep[]): ChainDefect[] {
     if (!hasSupportingPremise && step.dependsOn.length > 0) {
       defects.push({
         type: "non_sequitur",
-        severity: 0.6,
+        severity: DEFECT_NON_SEQUITUR_SEVERITY,
         description: `Conclusion at step ${step.index} lacks supporting analysis or inference`,
         stepIndices: [step.index],
       });
@@ -539,10 +635,10 @@ function detectEvidenceGaps(steps: ReasoningStep[]): ChainDefect[] {
     if (!step.hasEvidence) {
       gapIndices.push(step.index);
     } else {
-      if (gapIndices.length >= 3) {
+      if (gapIndices.length >= DEFECT_EVIDENCE_GAP_MIN_STEPS) {
         defects.push({
           type: "evidence_gap",
-          severity: Math.min(1, 0.3 + gapIndices.length * 0.1),
+          severity: Math.min(1, DEFECT_EVIDENCE_GAP_BASE_SEVERITY + gapIndices.length * DEFECT_EVIDENCE_GAP_SEVERITY_PER_STEP),
           description: `Steps ${gapIndices[0]}-${gapIndices[gapIndices.length - 1]} (${gapIndices.length} steps) lack evidential support`,
           stepIndices: [...gapIndices],
         });
@@ -552,10 +648,10 @@ function detectEvidenceGaps(steps: ReasoningStep[]): ChainDefect[] {
   }
 
   // Trailing gap
-  if (gapIndices.length >= 3) {
+  if (gapIndices.length >= DEFECT_EVIDENCE_GAP_MIN_STEPS) {
     defects.push({
       type: "evidence_gap",
-      severity: Math.min(1, 0.3 + gapIndices.length * 0.1),
+      severity: Math.min(1, DEFECT_EVIDENCE_GAP_BASE_SEVERITY + gapIndices.length * DEFECT_EVIDENCE_GAP_SEVERITY_PER_STEP),
       description: `Steps ${gapIndices[0]}-${gapIndices[gapIndices.length - 1]} (${gapIndices.length} steps) lack evidential support`,
       stepIndices: [...gapIndices],
     });
@@ -588,7 +684,7 @@ function detectContradictions(steps: ReasoningStep[]): ChainDefect[] {
     if (!hasHedge) {
       defects.push({
         type: "contradiction",
-        severity: 0.7,
+        severity: DEFECT_CONTRADICTION_SEVERITY,
         description: `Contradictory signals: bullish at steps [${bullishSteps.join(",")}] vs bearish at [${bearishSteps.join(",")}] without hedging`,
         stepIndices: [...bullishSteps, ...bearishSteps],
       });
@@ -612,10 +708,10 @@ function detectUnsupportedLeaps(steps: ReasoningStep[]): ChainDefect[] {
       if (depIdx >= 0 && depIdx < steps.length) {
         const gap = step.index - depIdx;
         const depStep = steps[depIdx];
-        if (gap >= 4 && depStep.type === "observation" && step.dependsOn.length === 1) {
+        if (gap >= DEFECT_UNSUPPORTED_LEAP_MIN_GAP && depStep.type === "observation" && step.dependsOn.length === 1) {
           defects.push({
             type: "unsupported_leap",
-            severity: 0.5,
+            severity: DEFECT_UNSUPPORTED_LEAP_SEVERITY,
             description: `Step ${step.index} leaps ${gap} steps back to observation at step ${depIdx} without intermediate analysis`,
             stepIndices: [depIdx, step.index],
           });
@@ -693,15 +789,15 @@ function computeChainQualityScore(
 
   const totalSteps = steps.length;
   const evidenceSteps = steps.filter((s) => s.hasEvidence).length;
-  const validConnectors = connectors.filter((c) => c.strength >= 0.5).length;
+  const validConnectors = connectors.filter((c) => c.strength >= CHAIN_QUALITY_CONNECTOR_STRENGTH_THRESHOLD).length;
 
-  let score = 0.6;
-  score += 0.2 * (evidenceSteps / totalSteps);
-  score += 0.1 * (validConnectors / totalSteps);
-  score += 0.1 * Math.min(1, longestChain / 4);
+  let score = CHAIN_QUALITY_BASE_SCORE;
+  score += CHAIN_QUALITY_EVIDENCE_WEIGHT * (evidenceSteps / totalSteps);
+  score += CHAIN_QUALITY_CONNECTOR_WEIGHT * (validConnectors / totalSteps);
+  score += CHAIN_QUALITY_DEPTH_WEIGHT * Math.min(1, longestChain / CHAIN_QUALITY_DEPTH_NORMALIZATION);
 
   for (const defect of defects) {
-    score -= defect.severity > 0.5 ? 0.15 : 0.05;
+    score -= defect.severity > CHAIN_QUALITY_MAJOR_DEFECT_SEVERITY_THRESHOLD ? CHAIN_QUALITY_MAJOR_DEFECT_PENALTY : CHAIN_QUALITY_MINOR_DEFECT_PENALTY;
   }
 
   return Math.round(normalize(score) * 100) / 100;
@@ -784,7 +880,7 @@ export function recordChainValidation(agentId: string, result: ChainValidationRe
  */
 export function getChainValidationPillarScore(agentId: string): number {
   const history = agentChainHistory.get(agentId);
-  if (!history || history.length === 0) return 0.5;
+  if (!history || history.length === 0) return PILLAR_SCORE_DEFAULT;
 
   const avgQuality = averageByKey(history, 'chainQualityScore');
   const avgEvidence = averageByKey(history, 'avgStepEvidence');
@@ -793,7 +889,7 @@ export function getChainValidationPillarScore(agentId: string): number {
   const totalSteps = history.reduce((sum, r) => sum + r.stepCount, 0);
   const defectRate = totalSteps > 0 ? Math.min(1, totalDefects / totalSteps) : 0;
 
-  const pillarScore = avgQuality * 0.4 + avgEvidence * 0.3 + (1 - defectRate) * 0.3;
+  const pillarScore = avgQuality * PILLAR_SCORE_QUALITY_WEIGHT + avgEvidence * PILLAR_SCORE_EVIDENCE_WEIGHT + (1 - defectRate) * PILLAR_SCORE_DEFECT_WEIGHT;
   return Math.round(normalize(pillarScore) * 100) / 100;
 }
 
