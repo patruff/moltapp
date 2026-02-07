@@ -7,6 +7,7 @@ import {
   signJupiterTransaction,
   signJupiterTransactionDirect,
   executeOrder,
+  getPrices,
 } from "./jupiter.ts";
 import { getStockBySymbol } from "./stocks.ts";
 import {
@@ -32,6 +33,15 @@ const ATA_PROGRAM_ADDRESS = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
 /** Minimum SOL balance required to pay transaction fees (0.01 SOL) */
 const MIN_SOL_FOR_FEES = 10_000_000n; // 0.01 SOL in lamports
+
+/**
+ * Maximum allowed slippage between Jupiter reference price and quoted execution price.
+ * xStocks tokens have wildly varying liquidity — some have $2M+ pools (CRCLx, TSLAx),
+ * others have zero pools (AMDx, PLTRx). Even a $5 trade in illiquid tokens can produce
+ * 50-270x slippage. This guard prevents executing trades where the fill price deviates
+ * more than 5% from the Jupiter mid-market reference price.
+ */
+const MAX_SLIPPAGE_PERCENT = 5;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -65,6 +75,90 @@ async function getAtaAddress(
     ],
   });
   return pda;
+}
+
+// ---------------------------------------------------------------------------
+// Slippage Guard — reject trades with excessive price impact
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if a Jupiter quote has acceptable slippage relative to the
+ * mid-market reference price. Returns the slippage percentage and whether
+ * the trade should proceed.
+ *
+ * For BUY orders: compares (usdcAmount / quotedOutputTokens) to reference price
+ * For SELL orders: compares (quotedOutputUsdc / tokenAmount) to reference price
+ */
+async function checkSlippage(params: {
+  mintAddress: string;
+  symbol: string;
+  side: "buy" | "sell";
+  /** Raw input amount (USDC raw for buy, token raw for sell) */
+  inputAmountRaw: string;
+  /** Raw output amount from Jupiter quote */
+  outputAmountRaw: string;
+  /** Input decimals (6 for USDC, 8 for xStocks) */
+  inputDecimals: number;
+  /** Output decimals (8 for xStocks, 6 for USDC) */
+  outputDecimals: number;
+}): Promise<{ ok: boolean; slippagePercent: number; refPrice: number; execPrice: number }> {
+  // Calculate implied execution price from the quote
+  const inputAmount = new Decimal(params.inputAmountRaw).div(new Decimal(10).pow(params.inputDecimals));
+  const outputAmount = new Decimal(params.outputAmountRaw).div(new Decimal(10).pow(params.outputDecimals));
+
+  let execPrice: number;
+  if (params.side === "buy") {
+    // Buying stock with USDC: price = usdcSpent / stockReceived
+    execPrice = inputAmount.div(outputAmount).toNumber();
+  } else {
+    // Selling stock for USDC: price = usdcReceived / stockSold
+    execPrice = outputAmount.div(inputAmount).toNumber();
+  }
+
+  // Fetch reference mid-market price from Jupiter
+  let refPrice = 0;
+  try {
+    const prices = await getPrices([params.mintAddress]);
+    refPrice = prices[params.mintAddress]?.usdPrice ?? 0;
+  } catch {
+    // If we can't get a reference price, we can't check slippage — allow the trade
+    // but log the situation
+    console.warn(`[SlippageGuard] Could not fetch reference price for ${params.symbol}, skipping slippage check`);
+    return { ok: true, slippagePercent: 0, refPrice: 0, execPrice };
+  }
+
+  if (refPrice <= 0) {
+    console.warn(`[SlippageGuard] No reference price for ${params.symbol}, skipping slippage check`);
+    return { ok: true, slippagePercent: 0, refPrice: 0, execPrice };
+  }
+
+  // Calculate slippage: how much worse is the execution price vs reference
+  // For buys: paying MORE than reference is bad (positive slippage)
+  // For sells: receiving LESS than reference is bad (positive slippage)
+  let slippagePercent: number;
+  if (params.side === "buy") {
+    slippagePercent = ((execPrice - refPrice) / refPrice) * 100;
+  } else {
+    slippagePercent = ((refPrice - execPrice) / refPrice) * 100;
+  }
+
+  const ok = slippagePercent <= MAX_SLIPPAGE_PERCENT;
+
+  if (!ok) {
+    console.error(
+      `[SlippageGuard] REJECTED ${params.side.toUpperCase()} ${params.symbol}: ` +
+      `slippage ${slippagePercent.toFixed(2)}% exceeds ${MAX_SLIPPAGE_PERCENT}% max ` +
+      `(exec=$${execPrice.toFixed(4)} vs ref=$${refPrice.toFixed(4)})`
+    );
+  } else {
+    console.log(
+      `[SlippageGuard] ${params.side.toUpperCase()} ${params.symbol}: ` +
+      `slippage ${slippagePercent.toFixed(2)}% OK ` +
+      `(exec=$${execPrice.toFixed(4)} vs ref=$${refPrice.toFixed(4)})`
+    );
+  }
+
+  return { ok, slippagePercent, refPrice, execPrice };
 }
 
 // ---------------------------------------------------------------------------
@@ -250,6 +344,24 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
     taker: wallet.publicKey,
   });
 
+  // 5b. Slippage guard — reject if execution price deviates >5% from reference
+  const slippage = await checkSlippage({
+    mintAddress: stock.mintAddress,
+    symbol: stock.symbol,
+    side: "buy",
+    inputAmountRaw: order.inAmount,
+    outputAmountRaw: order.outAmount,
+    inputDecimals: 6, // USDC
+    outputDecimals: stock.decimals,
+  });
+  if (!slippage.ok) {
+    throw new Error(
+      `excessive_slippage: ${stock.symbol} BUY slippage ${slippage.slippagePercent.toFixed(1)}% ` +
+      `exceeds ${MAX_SLIPPAGE_PERCENT}% max (exec=$${slippage.execPrice.toFixed(2)} vs ref=$${slippage.refPrice.toFixed(2)}). ` +
+      `Token likely has insufficient liquidity.`
+    );
+  }
+
   // 6. Sign transaction (direct Keypair or Turnkey fallback)
   const signedBase64 = await signTransaction(order.transaction, wallet);
 
@@ -402,6 +514,24 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
   if (solBalance < MIN_SOL_FOR_FEES) {
     throw new Error(
       `insufficient_sol_for_fees: need at least 0.01 SOL, have ${new Decimal(solBalance.toString()).div(1e9).toFixed(9)} SOL`
+    );
+  }
+
+  // 7b. Slippage guard — reject if execution price deviates >5% from reference
+  const slippage = await checkSlippage({
+    mintAddress: stock.mintAddress,
+    symbol: stock.symbol,
+    side: "sell",
+    inputAmountRaw: order.inAmount,
+    outputAmountRaw: order.outAmount,
+    inputDecimals: stock.decimals, // selling stock tokens
+    outputDecimals: 6, // receiving USDC
+  });
+  if (!slippage.ok) {
+    throw new Error(
+      `excessive_slippage: ${stock.symbol} SELL slippage ${slippage.slippagePercent.toFixed(1)}% ` +
+      `exceeds ${MAX_SLIPPAGE_PERCENT}% max (exec=$${slippage.execPrice.toFixed(2)} vs ref=$${slippage.refPrice.toFixed(2)}). ` +
+      `Token likely has insufficient liquidity.`
     );
   }
 

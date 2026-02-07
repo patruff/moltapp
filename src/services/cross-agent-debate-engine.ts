@@ -18,6 +18,218 @@
 import { splitSentences, countWords, round2, round3, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Rebuttal Strength Scoring
+ *
+ * Measures how well an agent's reasoning addresses opponent's claims.
+ */
+
+/** Base score for any rebuttal attempt (30%) */
+const REBUTTAL_BASE_SCORE = 0.3;
+
+/** Weight for addressing opponent's key claims/vocabulary (30% max) */
+const REBUTTAL_ADDRESS_WEIGHT = 0.3;
+
+/** Bonus for superior evidence (15% when more evidence than opponent) */
+const REBUTTAL_EVIDENCE_BONUS_SUPERIOR = 0.15;
+
+/** Bonus for any counter-evidence (8% when some evidence present) */
+const REBUTTAL_EVIDENCE_BONUS_BASIC = 0.08;
+
+/** Points per logical connector in rebuttal (4% each, 20% max) */
+const REBUTTAL_CONNECTOR_POINTS = 0.04;
+
+/** Maximum connector bonus (20%) */
+const REBUTTAL_CONNECTOR_MAX = 0.2;
+
+/**
+ * Evidence Clash Detection
+ *
+ * Thresholds for detecting conflicting claims between agents.
+ */
+
+/** Price gap threshold for evidence clash (10% = agents citing different price points) */
+const EVIDENCE_CLASH_PRICE_GAP_THRESHOLD = 0.1;
+
+/**
+ * Thesis Clarity Scoring
+ *
+ * Measures how clear and actionable the agent's opening thesis is.
+ */
+
+/** Points awarded when thesis contains actionable language (buy/sell/hold) */
+const THESIS_CLARITY_ACTION_BONUS = 0.5;
+
+/** Points awarded when thesis lacks actionable language */
+const THESIS_CLARITY_NO_ACTION_PENALTY = 0.2;
+
+/** Points awarded when thesis is optimal length (5-30 words) */
+const THESIS_CLARITY_LENGTH_BONUS = 0.3;
+
+/** Points awarded when thesis is too short/long */
+const THESIS_CLARITY_LENGTH_PENALTY = 0.1;
+
+/** Points awarded when supporting points exist */
+const THESIS_CLARITY_SUPPORT_BONUS = 0.2;
+
+/**
+ * Evidence Quality Scoring
+ *
+ * Rewards quantitative grounding in supporting arguments.
+ */
+
+/** Points per supporting point with quantitative data ($X, Y%, P/E ratio) */
+const EVIDENCE_QUALITY_QUANTITATIVE_POINTS = 0.2;
+
+/** Points per supporting point with qualitative claims only */
+const EVIDENCE_QUALITY_QUALITATIVE_POINTS = 0.08;
+
+/**
+ * Logical Strength Scoring
+ *
+ * Measures causal reasoning structure.
+ */
+
+/** Base logical strength score (20%) */
+const LOGICAL_STRENGTH_BASE = 0.2;
+
+/** Points per causal connector (because, therefore, thus, etc.) */
+const LOGICAL_STRENGTH_CONNECTOR_POINTS = 0.1;
+
+/**
+ * Intellectual Honesty Scoring
+ *
+ * Assesses whether agent acknowledges uncertainty appropriately.
+ * Too much hedging = weak conviction, too little = overconfidence.
+ */
+
+/** Score when hedge rate is in optimal range (0.02-0.05) - base */
+const INTELLECTUAL_HONESTY_OPTIMAL_BASE = 0.7;
+
+/** Maximum bonus in optimal range (30%) */
+const INTELLECTUAL_HONESTY_OPTIMAL_MAX_BONUS = 0.3;
+
+/** Multiplier for hedge rate bonus in optimal range */
+const INTELLECTUAL_HONESTY_OPTIMAL_MULTIPLIER = 10;
+
+/** Lower bound for optimal hedge rate (2% of words) */
+const INTELLECTUAL_HONESTY_HEDGE_RATE_MIN = 0.01;
+
+/** Upper bound for optimal hedge rate (6% of words) */
+const INTELLECTUAL_HONESTY_HEDGE_RATE_MAX = 0.06;
+
+/** Score when hedge rate exceeds upper bound - base before penalty */
+const INTELLECTUAL_HONESTY_EXCESSIVE_BASE = 0.7;
+
+/** Minimum score floor when excessive hedging (30%) */
+const INTELLECTUAL_HONESTY_EXCESSIVE_MIN = 0.3;
+
+/** Penalty multiplier for excessive hedging (per % over 0.06) */
+const INTELLECTUAL_HONESTY_EXCESSIVE_PENALTY_MULTIPLIER = 10;
+
+/** Score when hedge rate is below minimum - base */
+const INTELLECTUAL_HONESTY_LOW_BASE = 0.3;
+
+/** Bonus multiplier when hedge rate is below minimum (less hedging = slightly better) */
+const INTELLECTUAL_HONESTY_LOW_BONUS_MULTIPLIER = 20;
+
+/**
+ * Composite Debate Score Weights
+ *
+ * How much each dimension contributes to overall debate winner determination.
+ */
+
+/** Weight for thesis clarity (15%) */
+const COMPOSITE_WEIGHT_THESIS_CLARITY = 0.15;
+
+/** Weight for evidence quality (30% - highest, most objective) */
+const COMPOSITE_WEIGHT_EVIDENCE_QUALITY = 0.30;
+
+/** Weight for logical strength (25% - second highest) */
+const COMPOSITE_WEIGHT_LOGICAL_STRENGTH = 0.25;
+
+/** Weight for rebuttal power (15%) */
+const COMPOSITE_WEIGHT_REBUTTAL_POWER = 0.15;
+
+/** Weight for intellectual honesty (15%) */
+const COMPOSITE_WEIGHT_INTELLECTUAL_HONESTY = 0.15;
+
+/**
+ * Debate Verdict Classification
+ *
+ * Thresholds for determining debate outcome (win/loss/tie).
+ */
+
+/** Composite score margin for tie classification (within 3%) */
+const DEBATE_TIE_MARGIN = 0.03;
+
+/**
+ * Logical Chain Comparison
+ *
+ * Weights for comparing causal reasoning chains between agents.
+ */
+
+/** Weight for causal claim count (40%) */
+const LOGICAL_CHAIN_WEIGHT_CAUSAL = 0.4;
+
+/** Weight for connector density (30%) */
+const LOGICAL_CHAIN_WEIGHT_DENSITY = 0.3;
+
+/** Weight for sentence/chain length (30%) */
+const LOGICAL_CHAIN_WEIGHT_LENGTH = 0.3;
+
+/** Multiplier for connector density (converts to 0-100 scale) */
+const LOGICAL_CHAIN_DENSITY_MULTIPLIER = 100;
+
+/** Minimum difference to classify one chain as stronger (1 point) */
+const LOGICAL_CHAIN_STRENGTH_THRESHOLD = 1;
+
+/**
+ * Debate Quality Scoring
+ *
+ * Measures how substantive/valuable the debate was overall.
+ */
+
+/** Weight for average participant composite scores (40% of quality) */
+const DEBATE_QUALITY_WEIGHT_COMPOSITE = 0.4;
+
+/** Weight for evidence clashes (30% of quality) */
+const DEBATE_QUALITY_WEIGHT_CLASHES = 0.3;
+
+/** Points per evidence clash (20% per clash, capped at 1.0) */
+const DEBATE_QUALITY_CLASH_POINTS = 0.2;
+
+/** Score when many causal claims (>4 total between agents) - high-quality debate */
+const DEBATE_QUALITY_SCORE_HIGH_CAUSAL = 0.3;
+
+/** Score when few causal claims (≤4 total) - lower-quality debate */
+const DEBATE_QUALITY_SCORE_LOW_CAUSAL = 0.15;
+
+/** Threshold for classifying debate as high-quality (>4 causal claims total) */
+const DEBATE_QUALITY_CAUSAL_THRESHOLD = 4;
+
+/**
+ * Profile Aggregation Weights
+ *
+ * How debate performance translates to overall agent "debate pillar" score.
+ */
+
+/** Weight for win rate (30%) */
+const PROFILE_WEIGHT_WIN_RATE = 0.30;
+
+/** Weight for average debate score (30%) */
+const PROFILE_WEIGHT_AVG_SCORE = 0.30;
+
+/** Weight for rebuttal win rate (20%) */
+const PROFILE_WEIGHT_REBUTTAL = 0.20;
+
+/** Weight for average debate quality (20%) */
+const PROFILE_WEIGHT_QUALITY = 0.20;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -179,24 +391,24 @@ function computeRebuttalStrength(ownReasoning: string, opponentReasoning: string
   const ownLower = ownReasoning.toLowerCase();
   const oppLower = opponentReasoning.toLowerCase();
 
-  let score = 0.3; // Base score
+  let score = REBUTTAL_BASE_SCORE;
 
   // Does agent address the opponent's key claims?
   const oppKeywords = oppLower.match(/\b\w{5,}\b/g) ?? [];
   const oppUniqueWords = new Set(oppKeywords);
   const addressedCount = [...oppUniqueWords].filter(w => ownLower.includes(w)).length;
   const addressRate = oppUniqueWords.size > 0 ? addressedCount / oppUniqueWords.size : 0;
-  score += addressRate * 0.3;
+  score += addressRate * REBUTTAL_ADDRESS_WEIGHT;
 
   // Does agent counter with different evidence?
   const ownEvidence = (ownLower.match(/\$[\d,]+|\d+%|P\/E|RSI|MACD|volume/gi) ?? []).length;
   const oppEvidence = (oppLower.match(/\$[\d,]+|\d+%|P\/E|RSI|MACD|volume/gi) ?? []).length;
-  if (ownEvidence > oppEvidence) score += 0.15;
-  else if (ownEvidence > 0) score += 0.08;
+  if (ownEvidence > oppEvidence) score += REBUTTAL_EVIDENCE_BONUS_SUPERIOR;
+  else if (ownEvidence > 0) score += REBUTTAL_EVIDENCE_BONUS_BASIC;
 
   // Logical connectors = stronger argumentation
   const connectors = (ownLower.match(/\bbecause|therefore|however|nevertheless|despite|although\b/g) ?? []).length;
-  score += Math.min(0.2, connectors * 0.04);
+  score += Math.min(REBUTTAL_CONNECTOR_MAX, connectors * REBUTTAL_CONNECTOR_POINTS);
 
   return Math.min(1, round2(score));
 }
@@ -236,14 +448,14 @@ function detectEvidenceClashes(
   if (aPriceMatch && bPriceMatch) {
     const aPrice = parseFloat(aPriceMatch[1]);
     const bPrice = parseFloat(bPriceMatch[1]);
-    if (Math.abs(aPrice - bPrice) / Math.max(aPrice, bPrice) > 0.1) {
+    if (Math.abs(aPrice - bPrice) / Math.max(aPrice, bPrice) > EVIDENCE_CLASH_PRICE_GAP_THRESHOLD) {
       clashes.push({
         dimension: "price_reference",
         agentAClaim: `$${aPrice}`,
         agentBClaim: `$${bPrice}`,
         clashType: "data_gap",
         winner: "unresolved",
-        explanation: "Agents reference different price points (>10% gap)",
+        explanation: `Agents reference different price points (>${(EVIDENCE_CLASH_PRICE_GAP_THRESHOLD * 100).toFixed(0)}% gap)`,
       });
     }
   }
@@ -329,9 +541,13 @@ function analyzeLogicalChain(
   const densityB = round3(connectorsB / wordsB);
 
   let stronger: string | "equal" = "equal";
-  const scoreA = causalA * 0.4 + densityA * 100 * 0.3 + sentencesA.length * 0.3;
-  const scoreB = causalB * 0.4 + densityB * 100 * 0.3 + sentencesB.length * 0.3;
-  if (Math.abs(scoreA - scoreB) > 1) {
+  const scoreA = causalA * LOGICAL_CHAIN_WEIGHT_CAUSAL +
+                 densityA * LOGICAL_CHAIN_DENSITY_MULTIPLIER * LOGICAL_CHAIN_WEIGHT_DENSITY +
+                 sentencesA.length * LOGICAL_CHAIN_WEIGHT_LENGTH;
+  const scoreB = causalB * LOGICAL_CHAIN_WEIGHT_CAUSAL +
+                 densityB * LOGICAL_CHAIN_DENSITY_MULTIPLIER * LOGICAL_CHAIN_WEIGHT_DENSITY +
+                 sentencesB.length * LOGICAL_CHAIN_WEIGHT_LENGTH;
+  if (Math.abs(scoreA - scoreB) > LOGICAL_CHAIN_STRENGTH_THRESHOLD) {
     stronger = scoreA > scoreB ? "agentA" : "agentB";
   }
 
@@ -358,16 +574,16 @@ function scoreDebateParticipant(
   const thesisWords = countWords(participant.thesisStatement);
   const thesisHasAction = /buy|sell|hold|bullish|bearish/i.test(participant.thesisStatement);
   const thesisClarity = Math.min(1,
-    (thesisHasAction ? 0.5 : 0.2) +
-    (thesisWords > 5 && thesisWords < 30 ? 0.3 : 0.1) +
-    (participant.supportingPoints.length > 0 ? 0.2 : 0)
+    (thesisHasAction ? THESIS_CLARITY_ACTION_BONUS : THESIS_CLARITY_NO_ACTION_PENALTY) +
+    (thesisWords > 5 && thesisWords < 30 ? THESIS_CLARITY_LENGTH_BONUS : THESIS_CLARITY_LENGTH_PENALTY) +
+    (participant.supportingPoints.length > 0 ? THESIS_CLARITY_SUPPORT_BONUS : 0)
   );
 
   // Evidence quality: supporting points with quantitative data
   let evidenceQuality = 0;
   for (const point of participant.supportingPoints) {
-    if (/\$[\d,]+|\d+%|P\/E|\d+\.\d+/i.test(point)) evidenceQuality += 0.2;
-    else evidenceQuality += 0.08;
+    if (/\$[\d,]+|\d+%|P\/E|\d+\.\d+/i.test(point)) evidenceQuality += EVIDENCE_QUALITY_QUANTITATIVE_POINTS;
+    else evidenceQuality += EVIDENCE_QUALITY_QUALITATIVE_POINTS;
   }
   evidenceQuality = Math.min(1, evidenceQuality);
 
@@ -375,7 +591,7 @@ function scoreDebateParticipant(
   const connectorCount = (participant.reasoning.match(
     /because|therefore|thus|hence|consequently|due to|leading to|given that|since/gi
   ) ?? []).length;
-  const logicalStrength = Math.min(1, 0.2 + connectorCount * 0.1);
+  const logicalStrength = Math.min(1, LOGICAL_STRENGTH_BASE + connectorCount * LOGICAL_STRENGTH_CONNECTOR_POINTS);
 
   // Rebuttal power: how well does the reasoning address opponent's claims
   const rebuttalPower = participant.rebuttalStrength;
@@ -384,19 +600,19 @@ function scoreDebateParticipant(
   const hedges = (participant.reasoning.match(/perhaps|maybe|might|uncertain|unclear|risk|however/gi) ?? []).length;
   const totalWords = countWords(participant.reasoning);
   const hedgeRate = totalWords > 0 ? hedges / totalWords : 0;
-  // Sweet spot: some hedging is good (0.02-0.05), too much is bad
-  const intellectualHonesty = hedgeRate > 0.01 && hedgeRate < 0.06
-    ? 0.7 + Math.min(0.3, hedgeRate * 10)
-    : hedgeRate > 0.06
-      ? Math.max(0.3, 0.7 - (hedgeRate - 0.06) * 10)
-      : 0.3 + hedgeRate * 20;
+  // Sweet spot: some hedging is good (0.01-0.06), too much is bad
+  const intellectualHonesty = hedgeRate > INTELLECTUAL_HONESTY_HEDGE_RATE_MIN && hedgeRate < INTELLECTUAL_HONESTY_HEDGE_RATE_MAX
+    ? INTELLECTUAL_HONESTY_OPTIMAL_BASE + Math.min(INTELLECTUAL_HONESTY_OPTIMAL_MAX_BONUS, hedgeRate * INTELLECTUAL_HONESTY_OPTIMAL_MULTIPLIER)
+    : hedgeRate > INTELLECTUAL_HONESTY_HEDGE_RATE_MAX
+      ? Math.max(INTELLECTUAL_HONESTY_EXCESSIVE_MIN, INTELLECTUAL_HONESTY_EXCESSIVE_BASE - (hedgeRate - INTELLECTUAL_HONESTY_HEDGE_RATE_MAX) * INTELLECTUAL_HONESTY_EXCESSIVE_PENALTY_MULTIPLIER)
+      : INTELLECTUAL_HONESTY_LOW_BASE + hedgeRate * INTELLECTUAL_HONESTY_LOW_BONUS_MULTIPLIER;
 
   const composite = round2(
-    thesisClarity * 0.15 +
-    evidenceQuality * 0.30 +
-    logicalStrength * 0.25 +
-    rebuttalPower * 0.15 +
-    intellectualHonesty * 0.15,
+    thesisClarity * COMPOSITE_WEIGHT_THESIS_CLARITY +
+    evidenceQuality * COMPOSITE_WEIGHT_EVIDENCE_QUALITY +
+    logicalStrength * COMPOSITE_WEIGHT_LOGICAL_STRENGTH +
+    rebuttalPower * COMPOSITE_WEIGHT_REBUTTAL_POWER +
+    intellectualHonesty * COMPOSITE_WEIGHT_INTELLECTUAL_HONESTY,
   );
 
   return {
@@ -460,7 +676,7 @@ export function conductDebate(
   // Determine verdict
   const diff = scoreA.composite - scoreB.composite;
   const margin = Math.abs(diff);
-  const winner = margin < 0.03 ? "tie" : (diff > 0 ? agentA : agentB);
+  const winner = margin < DEBATE_TIE_MARGIN ? "tie" : (diff > 0 ? agentA : agentB);
 
   // Find key differentiating factor
   const dimensionDiffs: [string, number][] = [
@@ -494,9 +710,9 @@ export function conductDebate(
 
   // Debate quality = how substantive was this debate?
   const debateQualityScore = round2(Math.min(1,
-    (scoreA.composite + scoreB.composite) / 2 * 0.4 +
-    Math.min(1, evidenceClashes.length * 0.2) * 0.3 +
-    (logicalChainAnalysis.agentACausalClaims + logicalChainAnalysis.agentBCausalClaims > 4 ? 0.3 : 0.15),
+    (scoreA.composite + scoreB.composite) / 2 * DEBATE_QUALITY_WEIGHT_COMPOSITE +
+    Math.min(1, evidenceClashes.length * DEBATE_QUALITY_CLASH_POINTS) * DEBATE_QUALITY_WEIGHT_CLASHES +
+    (logicalChainAnalysis.agentACausalClaims + logicalChainAnalysis.agentBCausalClaims > DEBATE_QUALITY_CAUSAL_THRESHOLD ? DEBATE_QUALITY_SCORE_HIGH_CAUSAL : DEBATE_QUALITY_SCORE_LOW_CAUSAL),
   ));
 
   const debate: DebateRound = {
