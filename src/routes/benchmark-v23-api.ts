@@ -26,6 +26,7 @@ import {
   computeV23CompositeScore,
   getEngineState,
   getRecentResolutions,
+  VALID_HORIZON_LABELS,
 } from "../services/outcome-resolution-engine.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
@@ -386,6 +387,15 @@ benchmarkV23ApiRoutes.post("/resolve", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const horizon = (body as Record<string, string>).horizon ?? "1h";
 
+  // Validate the horizon against supported values
+  if (!VALID_HORIZON_LABELS.includes(horizon)) {
+    return c.json({
+      ok: false,
+      error: `Invalid horizon "${horizon}". Supported horizons: ${VALID_HORIZON_LABELS.join(", ")}`,
+      supportedHorizons: VALID_HORIZON_LABELS,
+    }, 400);
+  }
+
   let marketData: MarketData[];
   try {
     marketData = await getMarketData();
@@ -406,6 +416,7 @@ benchmarkV23ApiRoutes.post("/resolve", async (c) => {
     ok: true,
     resolved: results.length,
     horizon,
+    supportedHorizons: VALID_HORIZON_LABELS,
     summary: {
       profits: results.filter((r) => r.outcome === "profit").length,
       losses: results.filter((r) => r.outcome === "loss").length,
@@ -443,6 +454,7 @@ benchmarkV23ApiRoutes.get("/health", (c) => {
       totalResolved: state.totalResolved,
       lastRun: state.lastRun,
       recentResolutions: recent.length,
+      supportedHorizons: VALID_HORIZON_LABELS,
     },
     recentStats: recent.length > 0
       ? {

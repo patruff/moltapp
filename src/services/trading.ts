@@ -23,6 +23,7 @@ import {
 } from "@solana/kit";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
+import { recordTransactionCost } from "./transaction-cost-tracker.ts";
 
 // ---------------------------------------------------------------------------
 // Constants (same patterns as wallets.ts / withdrawal.ts)
@@ -398,10 +399,25 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
         outAmount: order.outAmount,
         inputAmountResult: result.inputAmountResult,
         outputAmountResult: result.outputAmountResult,
+        // Actual execution quality metrics (from checkSlippage)
+        actualSlippagePercent: slippage.slippagePercent,
+        actualSlippageBps: Math.round(slippage.slippagePercent * 100),
+        referencePrice: slippage.refPrice,
+        executionPrice: slippage.execPrice,
       },
       status: "confirmed",
     })
     .returning();
+
+  // 9b. Record transaction cost for P&L tracking
+  recordTransactionCost({
+    tradeId: tradeRecord.id,
+    agentId: req.agentId,
+    symbol: stock.symbol,
+    side: "buy",
+    usdcAmount: usdcSpent.toNumber(),
+    slippagePercent: slippage.slippagePercent,
+  });
 
   // 10. Update position (upsert with weighted average cost basis)
   await db
@@ -569,10 +585,25 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
         outAmount: order.outAmount,
         inputAmountResult: result.inputAmountResult,
         outputAmountResult: result.outputAmountResult,
+        // Actual execution quality metrics (from checkSlippage)
+        actualSlippagePercent: slippage.slippagePercent,
+        actualSlippageBps: Math.round(slippage.slippagePercent * 100),
+        referencePrice: slippage.refPrice,
+        executionPrice: slippage.execPrice,
       },
       status: "confirmed",
     })
     .returning();
+
+  // 10b. Record transaction cost for P&L tracking
+  recordTransactionCost({
+    tradeId: tradeRecord.id,
+    agentId: req.agentId,
+    symbol: stock.symbol,
+    side: "sell",
+    usdcAmount: usdcReceived.toNumber(),
+    slippagePercent: slippage.slippagePercent,
+  });
 
   // 11. Update position: decrement or delete
   const newQuantity = positionQuantity.minus(sellQuantity);

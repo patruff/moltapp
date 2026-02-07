@@ -199,6 +199,7 @@ import {
 import {
   registerPrediction,
   resolvePredictions,
+  getResolvedPredictions,
 } from "../services/outcome-resolution-engine.ts";
 import {
   recordCalibrationPoint,
@@ -3112,6 +3113,22 @@ async function executeTradingRound(
     }));
     const allReasoningsV37 = results.map((r) => r.decision.reasoning);
 
+    // Build P&L lookup from resolved predictions: agentId:symbol -> latest resolved P&L
+    // Uses the outcome resolution engine's prediction store (populated by registerPrediction
+    // in prior rounds and resolved by resolvePredictions earlier in this function).
+    const resolvedPnlMap = new Map<string, { pnlPercent: number; outcome: "profit" | "loss" | "breakeven" }>();
+    const resolvedPredictions = getResolvedPredictions();
+    for (const pred of resolvedPredictions) {
+      if (pred.pnlPercent !== undefined) {
+        const key = `${pred.agentId}:${pred.symbol.toLowerCase()}`;
+        // Classify outcome: |pnl| < 0.1% = breakeven (matches OUTCOME_BREAKEVEN_THRESHOLD)
+        const absPnl = Math.abs(pred.pnlPercent);
+        const outcome: "profit" | "loss" | "breakeven" =
+          absPnl < 0.1 ? "breakeven" : pred.pnlPercent > 0 ? "profit" : "loss";
+        resolvedPnlMap.set(key, { pnlPercent: pred.pnlPercent, outcome });
+      }
+    }
+
     for (const r of results) {
       const d = r.decision;
       const conf01V37 = normalizeConfidence(d.confidence);
@@ -3126,6 +3143,10 @@ async function executeTradingRound(
       const sourcesV37 = d.sources ?? extractSourcesFromReasoning(d.reasoning);
       const intentV37 = d.intent ?? classifyIntent(d.reasoning, d.action);
       const peerReasoningsV37 = allReasoningsV37.filter((_: string, i: number) => results[i].agentId !== r.agentId);
+
+      // Look up resolved P&L for this agent+symbol from prior prediction resolution
+      const pnlKey = `${r.agentId}:${d.symbol.toLowerCase()}`;
+      const resolvedPnl = resolvedPnlMap.get(pnlKey);
 
       const gradeV37 = gradeTradeV37({
         agentId: r.agentId,
@@ -3145,6 +3166,8 @@ async function executeTradingRound(
         peerActions: v37PeerActions.filter((p: { agentId: string }) => p.agentId !== r.agentId),
         peerReasonings: peerReasoningsV37,
         quantity: d.quantity ?? 0,
+        actualPnlPercent: resolvedPnl?.pnlPercent,
+        tradeOutcome: resolvedPnl?.outcome ?? "pending",
       });
 
       v37Trades.push(gradeV37);

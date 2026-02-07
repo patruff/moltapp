@@ -5,6 +5,10 @@ import { agentTheses } from "../db/schema/agent-theses.ts";
 import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 import { getOnChainPortfolio } from "./onchain-portfolio.ts";
+import {
+  getAgentTransactionCosts,
+  estimateTransactionCosts,
+} from "./transaction-cost-tracker.ts";
 
 /** Initial capital per agent ($50 USDC) - used for P&L calculation */
 const AGENT_INITIAL_CAPITAL = 50;
@@ -49,6 +53,11 @@ export interface LeaderboardEntry {
   activeThesis: ThesisSummary | null; // Most recent active thesis
   stocksValue: string; // Total value in stocks (not cash)
   cashBalance: string; // USDC cash not deployed
+  // Transaction cost tracking (Jupiter swap fees + slippage + network fees)
+  estimatedTransactionCosts: string; // Total estimated costs in USDC
+  netPnlAbsolute: string; // P&L after subtracting transaction costs
+  netPnlPercent: string; // Net P&L as percentage of initial capital
+  avgSlippageBps: string; // Average slippage in basis points (volume-weighted)
 }
 
 export interface LeaderboardData {
@@ -56,6 +65,7 @@ export interface LeaderboardData {
   aggregateStats: {
     totalAgents: number;
     totalVolume: string; // sum of all USDC traded
+    totalEstimatedTransactionCosts: string; // sum of all estimated tx costs
   };
   computedAt: Date;
 }
@@ -294,6 +304,30 @@ async function refreshLeaderboard(): Promise<void> {
       ? new Date(agentTradeStats.lastTradeAt)
       : null;
 
+    // Transaction cost calculation: use in-memory tracker data if available,
+    // otherwise fall back to estimation based on trade count and volume.
+    const trackerCosts = getAgentTransactionCosts(agent.id);
+    const totalVolume = totalBuyUsdc.plus(totalSellUsdc).toNumber();
+    let txCostUsdc: number;
+    let avgSlippageBps: number;
+
+    if (trackerCosts.tradeCount > 0) {
+      // In-memory tracker has actual slippage data from executed trades
+      txCostUsdc = trackerCosts.totalCostUsdc;
+      avgSlippageBps = trackerCosts.avgSlippageBps;
+    } else {
+      // Fallback: estimate costs from trade count and volume
+      // (happens after server restart when in-memory data is lost)
+      txCostUsdc = estimateTransactionCosts(tradeCount, totalVolume);
+      avgSlippageBps = 15; // conservative default: 15bps average slippage
+    }
+
+    const txCostDecimal = new Decimal(txCostUsdc);
+    const netPnlAbsolute = totalPnlAbsolute.minus(txCostDecimal);
+    const netPnlPercent = new Decimal(AGENT_INITIAL_CAPITAL).isZero()
+      ? new Decimal(0)
+      : netPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(100);
+
     return {
       rank: 0, // assigned after sorting
       agentId: agent.id,
@@ -308,6 +342,10 @@ async function refreshLeaderboard(): Promise<void> {
       activeThesis,
       stocksValue: marketValue.toFixed(2),
       cashBalance: usdcCashBalance.toFixed(2),
+      estimatedTransactionCosts: txCostDecimal.toFixed(2),
+      netPnlAbsolute: netPnlAbsolute.toFixed(2),
+      netPnlPercent: netPnlPercent.toFixed(2),
+      avgSlippageBps: avgSlippageBps.toFixed(1),
     };
   });
 
@@ -323,9 +361,14 @@ async function refreshLeaderboard(): Promise<void> {
   }
 
   // Step 10: Compute aggregate stats
+  const totalEstimatedTxCosts = entries.reduce(
+    (sum, e) => sum.plus(e.estimatedTransactionCosts),
+    new Decimal(0),
+  );
   const aggregateStats = {
     totalAgents: allAgents.length,
     totalVolume: totalVolumeDecimal.toFixed(2),
+    totalEstimatedTransactionCosts: totalEstimatedTxCosts.toFixed(2),
   };
 
   // Step 11: Update cache

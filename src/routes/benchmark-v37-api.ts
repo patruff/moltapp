@@ -18,6 +18,7 @@
  * - GET /consensus                 — Multi-agent consensus analysis
  * - GET /export/jsonl              — Full benchmark dataset export (JSONL)
  * - GET /export/csv                — Agent scores export (CSV)
+ * - GET /weight-analysis           — Data-driven dimension weight optimization analysis
  * - GET /health                    — Benchmark engine health check
  */
 
@@ -31,6 +32,7 @@ import {
   getDimensionWeights,
   getDimensionCount,
   getBenchmarkVersion,
+  computeOptimalWeights,
   type V37TradeGrade,
 } from "../services/v37-benchmark-engine.ts";
 import { round2 } from "../lib/math-utils.ts";
@@ -144,14 +146,14 @@ benchmarkV37ApiRoutes.get("/dimensions", (c) => {
     version: getBenchmarkVersion(),
     categories: [
       {
-        name: "Financial Performance", weight: 0.14, dimensions: [
+        name: "Financial Performance", weight: 0.30, dimensions: [
           { key: "pnlPercent", label: "P&L %", weight: weights.pnlPercent, description: "ROI since round start" },
           { key: "sharpeRatio", label: "Sharpe Ratio", weight: weights.sharpeRatio, description: "Risk-adjusted return (annualized)" },
           { key: "maxDrawdown", label: "Max Drawdown", weight: weights.maxDrawdown, description: "Largest peak-to-trough decline" },
         ],
       },
       {
-        name: "Reasoning Quality", weight: 0.50, dimensions: [
+        name: "Reasoning Quality", weight: 0.35, dimensions: [
           { key: "coherence", label: "Coherence", weight: weights.coherence, description: "Reasoning logically supports trade action" },
           { key: "reasoningDepth", label: "Reasoning Depth", weight: weights.reasoningDepth, description: "Sophistication of multi-step reasoning" },
           { key: "sourceQuality", label: "Source Quality", weight: weights.sourceQuality, description: "Breadth and quality of data sources cited" },
@@ -172,7 +174,7 @@ benchmarkV37ApiRoutes.get("/dimensions", (c) => {
         ],
       },
       {
-        name: "Safety & Trust", weight: 0.10, dimensions: [
+        name: "Safety & Trust", weight: 0.15, dimensions: [
           { key: "hallucinationRate", label: "Hallucination Rate", weight: weights.hallucinationRate, description: "Rate of factually incorrect claims" },
           { key: "instructionDiscipline", label: "Instruction Discipline", weight: weights.instructionDiscipline, description: "Compliance with trading rules" },
           { key: "riskAwareness", label: "Risk Awareness", weight: weights.riskAwareness, description: "Degree to which agent discusses risk" },
@@ -187,14 +189,14 @@ benchmarkV37ApiRoutes.get("/dimensions", (c) => {
         ],
       },
       {
-        name: "Predictive Power", weight: 0.06, dimensions: [
+        name: "Predictive Power", weight: 0.07, dimensions: [
           { key: "outcomeAccuracy", label: "Outcome Accuracy", weight: weights.outcomeAccuracy, description: "Accuracy of predicted vs actual outcomes" },
           { key: "marketRegimeAwareness", label: "Regime Awareness", weight: weights.marketRegimeAwareness, description: "Recognition of market conditions" },
           { key: "edgeConsistency", label: "Edge Consistency", weight: weights.edgeConsistency, description: "Consistency of positive edge across rounds" },
         ],
       },
       {
-        name: "Governance & Accountability", weight: 0.09, dimensions: [
+        name: "Governance & Accountability", weight: 0.05, dimensions: [
           { key: "tradeAccountability", label: "Trade Accountability", weight: weights.tradeAccountability, description: "Taking responsibility for outcomes" },
           { key: "reasoningQualityIndex", label: "RQI", weight: weights.reasoningQualityIndex, description: "Aggregate reasoning quality metric" },
           { key: "decisionAccountability", label: "Decision Accountability", weight: weights.decisionAccountability, description: "Tracking predictions and acknowledging errors" },
@@ -684,6 +686,117 @@ benchmarkV37ApiRoutes.get("/export/csv", (c) => {
       "Content-Type": "text/csv",
       "Content-Disposition": "attachment; filename=molt-benchmark-v37-agents.csv",
     },
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /weight-analysis — Data-driven dimension weight optimization analysis
+// ---------------------------------------------------------------------------
+
+benchmarkV37ApiRoutes.get("/weight-analysis", (c) => {
+  const scores = getAgentScores();
+  const weights = getDimensionWeights();
+
+  // Build agentPnls from the pnlPercent dimension (already normalized to 0-100 score)
+  // We need to reverse the normalization: pnlScore = 50 + pnlPercent * 2
+  // So pnlPercent = (pnlScore - 50) / 2
+  // However, raw pnlPercent is more accurate — use the dimension score directly
+  // as a proxy since all agents are scored on the same scale.
+  // For best results, callers should supply actual P&L, but we use dimension
+  // scores as a reasonable approximation from available data.
+  const agentPnls = scores.map((s) => ({
+    agentId: s.agentId,
+    // Reverse the normalization: pnlPercent = (pnlScore - 50) / 2
+    pnlPercent: (s.dimensions.pnlPercent - 50) / 2,
+  }));
+
+  const analysis = computeOptimalWeights(scores, agentPnls);
+
+  if (analysis.length === 0) {
+    return c.json({
+      ok: true,
+      benchmark: "MoltApp v37",
+      version: getBenchmarkVersion(),
+      agentsAnalyzed: scores.length,
+      message: "Insufficient data: need at least 3 agents with P&L data for correlation analysis",
+      dimensions: [],
+      summary: null,
+    });
+  }
+
+  // Compute summary statistics
+  const positiveCorrelations = analysis.filter((d) => d.correlation > 0.1);
+  const negativeCorrelations = analysis.filter((d) => d.correlation < -0.1);
+  const neutralCorrelations = analysis.filter((d) => Math.abs(d.correlation) <= 0.1);
+
+  // Identify over/under-weighted dimensions
+  const overweighted = analysis.filter(
+    (d) => d.currentWeight > d.suggestedWeight + 0.005,
+  ).map((d) => ({
+    dimension: d.dimension,
+    currentWeight: d.currentWeight,
+    suggestedWeight: d.suggestedWeight,
+    delta: round2(d.currentWeight - d.suggestedWeight),
+    correlation: d.correlation,
+  }));
+
+  const underweighted = analysis.filter(
+    (d) => d.suggestedWeight > d.currentWeight + 0.005,
+  ).map((d) => ({
+    dimension: d.dimension,
+    currentWeight: d.currentWeight,
+    suggestedWeight: d.suggestedWeight,
+    delta: round2(d.suggestedWeight - d.currentWeight),
+    correlation: d.correlation,
+  }));
+
+  // Total weight shift needed
+  const totalShift = analysis.reduce(
+    (sum, d) => sum + Math.abs(d.suggestedWeight - d.currentWeight),
+    0,
+  );
+
+  return c.json({
+    ok: true,
+    benchmark: "MoltApp v37",
+    version: getBenchmarkVersion(),
+    agentsAnalyzed: scores.length,
+    dimensions: analysis.map((d) => ({
+      dimension: d.dimension,
+      currentWeight: d.currentWeight,
+      suggestedWeight: d.suggestedWeight,
+      correlation: d.correlation,
+      weightDelta: round2(d.suggestedWeight - d.currentWeight),
+      interpretation: d.correlation > 0.3
+        ? "strongly predictive of profitability"
+        : d.correlation > 0.1
+          ? "moderately predictive of profitability"
+          : d.correlation > -0.1
+            ? "neutral — no clear link to profitability"
+            : d.correlation > -0.3
+              ? "moderately inversely correlated with profitability"
+              : "strongly inversely correlated with profitability",
+    })),
+    summary: {
+      mostPredictive: positiveCorrelations.slice(0, 5).map((d) => ({
+        dimension: d.dimension,
+        correlation: d.correlation,
+      })),
+      leastPredictive: negativeCorrelations.slice(-5).reverse().map((d) => ({
+        dimension: d.dimension,
+        correlation: d.correlation,
+      })),
+      neutralDimensions: neutralCorrelations.length,
+      overweightedDimensions: overweighted,
+      underweightedDimensions: underweighted,
+      totalWeightShiftNeeded: round2(totalShift),
+      recommendation: totalShift < 0.05
+        ? "Current weights are well-aligned with profitability signals — minimal adjustment needed"
+        : totalShift < 0.15
+          ? "Moderate misalignment detected — consider adjusting overweighted dimensions to better reflect profitability predictors"
+          : "Significant misalignment — current weights do not reflect which dimensions actually predict profitability. Review suggested weights for potential improvement.",
+    },
+    note: "This is an informational analysis tool. Suggested weights are NOT auto-applied. Use this data to inform manual weight tuning in DIMENSION_WEIGHTS.",
   });
 });
 

@@ -86,8 +86,8 @@ export const v23TradeWithReasoningSchema = z.object({
   /** What the agent predicts will happen */
   predictedOutcome: z.string().optional(),
 
-  /** Time horizon for the prediction: '1h', '4h', '24h', '7d' */
-  predictionHorizon: z.enum(["1h", "4h", "24h", "7d"]).optional(),
+  /** Time horizon for the prediction: '1h', '4h', '24h', '7d', '30d' */
+  predictionHorizon: z.enum(["1h", "4h", "24h", "7d", "30d"]).optional(),
 });
 
 export type V23TradeWithReasoning = z.infer<typeof v23TradeWithReasoningSchema>;

@@ -332,7 +332,7 @@ pages.get("/", async (c) => {
   try {
     data = await getLeaderboard();
   } catch {
-    data = { entries: [], aggregateStats: { totalAgents: 0, totalVolume: "0" }, computedAt: new Date() };
+    data = { entries: [], aggregateStats: { totalAgents: 0, totalVolume: "0", totalEstimatedTransactionCosts: "0" }, computedAt: new Date() };
   }
 
   // Try in-memory first, fall back to DynamoDB for cross-Lambda persistence

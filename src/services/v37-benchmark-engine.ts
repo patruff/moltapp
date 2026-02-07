@@ -408,43 +408,75 @@ const roundSummaries: V37RoundSummary[] = [];
 
 // ---------------------------------------------------------------------------
 // Dimension weights (must sum to ~1.0) — 34 entries
+//
+// Rebalanced for a TRADING benchmark: financial performance raised from 12%
+// to 30% so profitability is the dominant signal. Reasoning quality reduced
+// from ~53% to 35% — still the second-largest category because *how* an agent
+// thinks matters, but not more than whether it actually makes money. Safety &
+// Trust raised to 15% (hallucination/discipline are non-negotiable for live
+// trading). Behavioral, Predictive, and Governance categories adjusted to fill
+// the remaining 20%.
+//
+// Category breakdown:
+//   Financial Performance  30%  (was 12%)  — the primary purpose of a trading agent
+//   Reasoning Quality      35%  (was 53%)  — still important, but secondary to P&L
+//   Safety & Trust         15%  (was  9%)  — higher because trust is table-stakes
+//   Behavioral Intelligence 8%  (unchanged) — adaptability and calibration
+//   Predictive Power        7%  (was  6%)  — slight bump for outcome accuracy
+//   Governance              5%  (was  9%)  — reduced, least trading-relevant
 // ---------------------------------------------------------------------------
 
 const DIMENSION_WEIGHTS: Record<keyof V37DimensionScores, number> = {
-  pnlPercent: 0.04,                // reduced from 0.05
-  sharpeRatio: 0.04,               // reduced from 0.05
-  maxDrawdown: 0.04,
-  coherence: 0.04,                 // reduced from 0.05
-  reasoningDepth: 0.04,
-  sourceQuality: 0.03,
-  logicalConsistency: 0.03,
-  reasoningIntegrity: 0.03,
-  reasoningTransparency: 0.03,
-  reasoningGrounding: 0.03,
-  causalReasoning: 0.03,           // reduced from 0.04
-  epistemicHumility: 0.03,         // reduced from 0.04
-  reasoningTraceability: 0.03,
-  adversarialCoherence: 0.03,
-  informationAsymmetry: 0.03,
-  temporalReasoningQuality: 0.03,
-  reasoningAuditability: 0.03,     // reduced from 0.04
-  decisionReversibility: 0.03,     // reduced from 0.04
-  reasoningComposability: 0.03,    // NEW
-  strategicForesight: 0.03,        // NEW
-  hallucinationRate: 0.04,         // reduced from 0.05
-  instructionDiscipline: 0.03,
-  riskAwareness: 0.02,
+  // --- Financial Performance (30%) -------------------------------------------
+  pnlPercent: 0.12,                // P&L is the north-star metric for a trading benchmark
+  sharpeRatio: 0.10,               // risk-adjusted return rewards consistency
+  maxDrawdown: 0.08,               // capital preservation / tail-risk control
+
+  // --- Reasoning Quality (35%) -----------------------------------------------
+  // Top-tier reasoning dimensions (0.04 each — most indicative of quality)
+  coherence: 0.04,                 // reasoning must logically support the trade
+  reasoningDepth: 0.04,            // multi-step analysis depth
+  sourceQuality: 0.04,             // breadth and quality of cited data
+  reasoningGrounding: 0.04,        // anchored in real market data
+
+  // Mid-tier reasoning dimensions (0.02 each — valuable but secondary)
+  logicalConsistency: 0.02,
+  reasoningIntegrity: 0.02,
+  reasoningTransparency: 0.02,
+  causalReasoning: 0.02,
+  epistemicHumility: 0.02,
+  reasoningTraceability: 0.02,
+
+  // Lower-tier reasoning dimensions (0.01 each — nice-to-have detail)
+  adversarialCoherence: 0.01,
+  informationAsymmetry: 0.01,
+  temporalReasoningQuality: 0.01,
+  reasoningAuditability: 0.01,
+  decisionReversibility: 0.01,
+  reasoningComposability: 0.01,
+  strategicForesight: 0.01,
+
+  // --- Safety & Trust (15%) --------------------------------------------------
+  hallucinationRate: 0.06,         // fabricated data is disqualifying in live trading
+  instructionDiscipline: 0.05,     // rule compliance prevents catastrophic errors
+  riskAwareness: 0.04,             // must acknowledge and manage downside risk
+
+  // --- Behavioral Intelligence (8%) ------------------------------------------
   strategyConsistency: 0.02,
   adaptability: 0.02,
   confidenceCalibration: 0.02,
   crossRoundLearning: 0.02,
-  outcomeAccuracy: 0.02,
+
+  // --- Predictive Power (7%) -------------------------------------------------
+  outcomeAccuracy: 0.03,           // did the agent's predictions come true?
   marketRegimeAwareness: 0.02,
   edgeConsistency: 0.02,
+
+  // --- Governance & Accountability (5%) --------------------------------------
   tradeAccountability: 0.02,
-  reasoningQualityIndex: 0.02,
-  decisionAccountability: 0.03,
-  consensusQuality: 0.02,
+  reasoningQualityIndex: 0.01,
+  decisionAccountability: 0.01,
+  consensusQuality: 0.01,
 };
 
 // ---------------------------------------------------------------------------
@@ -1181,6 +1213,149 @@ export function createRoundSummary(
   if (roundSummaries.length > 200) roundSummaries.length = 200;
 
   return summary;
+}
+
+// ---------------------------------------------------------------------------
+// Optimal Weight Analysis Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum weight floor for any single dimension in optimal weight suggestions.
+ * Prevents any dimension from being zeroed out, ensuring all dimensions
+ * contribute at least minimally to the composite score.
+ * At 0.01, a dimension contributes ~1% even if it has zero or negative
+ * correlation with profitability.
+ */
+const OPTIMAL_WEIGHT_FLOOR = 0.01;
+
+/**
+ * Maximum weight cap for any single dimension in optimal weight suggestions.
+ * Prevents a single highly-correlated dimension from dominating the composite
+ * score, ensuring diversified scoring across all 34 dimensions.
+ * At 0.15, no dimension can exceed 15% of the total composite weight.
+ */
+const OPTIMAL_WEIGHT_CAP = 0.15;
+
+/**
+ * Minimum number of agents required to compute meaningful Pearson correlations.
+ * With fewer than 3 data points, correlation is unreliable (perfect fit or
+ * undefined), so we return empty results below this threshold.
+ */
+const OPTIMAL_WEIGHT_MIN_AGENTS = 3;
+
+// ---------------------------------------------------------------------------
+// Optimal Weight Computation
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute data-driven dimension weight suggestions by correlating each
+ * dimension's scores across agents with their actual P&L performance.
+ *
+ * For each of the 34 dimensions, computes the Pearson correlation between
+ * that dimension's agent-level scores and the agents' actual P&L percentages.
+ * Dimensions with higher positive correlation to profitability receive higher
+ * suggested weights; dimensions with negative correlation receive lower weights.
+ *
+ * Weight normalization rules:
+ * - Raw correlation values are shifted to [0, 1] range via (r + 1) / 2
+ * - Each weight is floored at OPTIMAL_WEIGHT_FLOOR (0.01) — no dimension gets zero
+ * - Each weight is capped at OPTIMAL_WEIGHT_CAP (0.15) — no dimension dominates
+ * - Final weights are normalized to sum to exactly 1.0
+ *
+ * @param agentScores - Array of V37AgentScore objects with dimension scores
+ * @param agentPnls - Array of { agentId, pnlPercent } for each agent's actual P&L
+ * @returns Array of { dimension, currentWeight, suggestedWeight, correlation } for each dimension,
+ *          sorted by correlation descending (most predictive first).
+ *          Returns empty array if fewer than OPTIMAL_WEIGHT_MIN_AGENTS agents have matching P&L data.
+ */
+export function computeOptimalWeights(
+  agentScores: V37AgentScore[],
+  agentPnls: { agentId: string; pnlPercent: number }[],
+): { dimension: string; currentWeight: number; suggestedWeight: number; correlation: number }[] {
+  // Build agentId -> pnlPercent lookup
+  const pnlMap = new Map<string, number>();
+  for (const entry of agentPnls) {
+    pnlMap.set(entry.agentId, entry.pnlPercent);
+  }
+
+  // Filter to agents that have both dimension scores AND P&L data
+  const matched = agentScores.filter((s) => pnlMap.has(s.agentId));
+  if (matched.length < OPTIMAL_WEIGHT_MIN_AGENTS) {
+    return [];
+  }
+
+  const pnlValues = matched.map((s) => pnlMap.get(s.agentId)!);
+  const meanPnl = pnlValues.reduce((a, b) => a + b, 0) / pnlValues.length;
+
+  const dimensionKeys = Object.keys(DIMENSION_WEIGHTS) as (keyof V37DimensionScores)[];
+
+  // Step 1: Compute Pearson correlation for each dimension vs P&L
+  const correlations: { dimension: string; correlation: number; currentWeight: number }[] = [];
+
+  for (const dim of dimensionKeys) {
+    const dimValues = matched.map((s) => s.dimensions[dim]);
+    const meanDim = dimValues.reduce((a, b) => a + b, 0) / dimValues.length;
+
+    let numerator = 0;
+    let denomDim = 0;
+    let denomPnl = 0;
+    for (let i = 0; i < matched.length; i++) {
+      const dDim = dimValues[i] - meanDim;
+      const dPnl = pnlValues[i] - meanPnl;
+      numerator += dDim * dPnl;
+      denomDim += dDim * dDim;
+      denomPnl += dPnl * dPnl;
+    }
+    const denominator = Math.sqrt(denomDim * denomPnl);
+    const r = denominator > 0 ? numerator / denominator : 0;
+
+    correlations.push({
+      dimension: dim,
+      correlation: Math.round(r * 1000) / 1000,
+      currentWeight: DIMENSION_WEIGHTS[dim],
+    });
+  }
+
+  // Step 2: Convert correlations to raw weights
+  // Shift correlation from [-1, 1] to [0, 1] via (r + 1) / 2
+  // This gives positive-correlation dimensions higher raw weight
+  let rawWeights = correlations.map((c) => ({
+    ...c,
+    rawWeight: (c.correlation + 1) / 2,
+  }));
+
+  // Step 3: Apply floor and cap
+  rawWeights = rawWeights.map((w) => ({
+    ...w,
+    rawWeight: Math.max(OPTIMAL_WEIGHT_FLOOR, Math.min(OPTIMAL_WEIGHT_CAP, w.rawWeight)),
+  }));
+
+  // Step 4: Normalize so weights sum to 1.0
+  const totalRaw = rawWeights.reduce((sum, w) => sum + w.rawWeight, 0);
+  const results = rawWeights.map((w) => {
+    const normalized = totalRaw > 0 ? w.rawWeight / totalRaw : 1 / dimensionKeys.length;
+    // Re-apply floor and cap after normalization
+    return {
+      dimension: w.dimension,
+      currentWeight: w.currentWeight,
+      suggestedWeight: Math.round(Math.max(OPTIMAL_WEIGHT_FLOOR, Math.min(OPTIMAL_WEIGHT_CAP, normalized)) * 10000) / 10000,
+      correlation: w.correlation,
+    };
+  });
+
+  // Final normalization pass to ensure sum = 1.0 after floor/cap enforcement
+  const totalSuggested = results.reduce((sum, r) => sum + r.suggestedWeight, 0);
+  if (totalSuggested > 0 && Math.abs(totalSuggested - 1.0) > 0.001) {
+    const scale = 1.0 / totalSuggested;
+    for (const r of results) {
+      r.suggestedWeight = Math.round(r.suggestedWeight * scale * 10000) / 10000;
+    }
+  }
+
+  // Sort by correlation descending (most predictive first)
+  results.sort((a, b) => b.correlation - a.correlation);
+
+  return results;
 }
 
 // ---------------------------------------------------------------------------

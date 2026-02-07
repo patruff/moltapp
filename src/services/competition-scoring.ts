@@ -106,6 +106,206 @@ const BASE_SCORE = 1000;
 const K_FACTOR = 32;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * P&L Scoring Parameters
+ *
+ * Control how raw P&L is normalized to 0-100 scores when comparing agents.
+ */
+
+/** Single agent positive P&L score (no comparison available) */
+const PNL_SINGLE_AGENT_POSITIVE = 75;
+
+/** Single agent negative P&L score (no comparison available) */
+const PNL_SINGLE_AGENT_NEGATIVE = 25;
+
+/** Equal P&L fallback score when all agents tie */
+const PNL_EQUAL_SCORE = 50;
+
+/**
+ * Risk-Adjusted Scoring Parameters
+ *
+ * Modulate P&L scores based on confidence calibration. High-confidence losses
+ * are penalized more heavily than low-confidence losses (overconfidence penalty).
+ */
+
+/** Base score for profitable trades (before confidence bonuses) */
+const RISK_BASE_PROFIT_SCORE = 50;
+
+/** Bonus for any positive P&L (non-zero profit) */
+const RISK_PROFIT_BONUS = 25;
+
+/** High confidence threshold for profitable trades (>70% = excellent calibration) */
+const RISK_HIGH_CONFIDENCE_THRESHOLD = 70;
+
+/** Moderate confidence threshold for profitable trades (>40% = acceptable) */
+const RISK_MODERATE_CONFIDENCE_THRESHOLD = 40;
+
+/** High confidence profit bonus (70%+) */
+const RISK_HIGH_CONFIDENCE_PROFIT_BONUS = 15;
+
+/** Moderate confidence profit bonus (40-70%) */
+const RISK_MODERATE_CONFIDENCE_PROFIT_BONUS = 10;
+
+/** Low confidence profit bonus (<40%) */
+const RISK_LOW_CONFIDENCE_PROFIT_BONUS = 5;
+
+/** Base score for losing trades (before confidence penalties) */
+const RISK_BASE_LOSS_SCORE = 40;
+
+/** Very high confidence loss penalty threshold (>80% = severe overconfidence) */
+const RISK_VERY_HIGH_CONFIDENCE_THRESHOLD = 80;
+
+/** High confidence loss penalty threshold (>60% = moderate overconfidence) */
+const RISK_HIGH_CONFIDENCE_LOSS_THRESHOLD = 60;
+
+/** Very high confidence loss penalty (80%+) */
+const RISK_VERY_HIGH_CONFIDENCE_LOSS_PENALTY = 30;
+
+/** High confidence loss penalty (60-80%) */
+const RISK_HIGH_CONFIDENCE_LOSS_PENALTY = 20;
+
+/** Moderate confidence loss penalty (<60%) */
+const RISK_MODERATE_CONFIDENCE_LOSS_PENALTY = 10;
+
+/**
+ * Consistency Scoring Parameters
+ *
+ * Reward execution reliability, action variety, and consecutive successful rounds.
+ */
+
+/** Base consistency score (neutral baseline) */
+const CONSISTENCY_BASE_SCORE = 50;
+
+/** Bonus for successfully executing a trade */
+const CONSISTENCY_EXECUTION_BONUS = 20;
+
+/** Penalty for failing to execute (hold when action planned) */
+const CONSISTENCY_NO_EXECUTION_PENALTY = 15;
+
+/** Execution streak threshold for bonus (>3 consecutive executions) */
+const CONSISTENCY_STREAK_THRESHOLD = 3;
+
+/** Maximum streak bonus cap (prevent unbounded growth) */
+const CONSISTENCY_STREAK_BONUS_MAX = 15;
+
+/** Streak bonus multiplier per consecutive execution */
+const CONSISTENCY_STREAK_BONUS_MULTIPLIER = 3;
+
+/** Bonus for taking action (non-hold decision) */
+const CONSISTENCY_ACTION_VARIETY_BONUS = 10;
+
+/**
+ * Decision Quality Scoring Parameters
+ *
+ * Assess reasoning depth, confidence calibration, and action appropriateness.
+ */
+
+/** Base decision quality score */
+const QUALITY_BASE_SCORE = 50;
+
+/** Long reasoning threshold (>200 chars = thoughtful analysis) */
+const QUALITY_REASONING_LONG_THRESHOLD = 200;
+
+/** Medium reasoning threshold (>100 chars = adequate detail) */
+const QUALITY_REASONING_MEDIUM_THRESHOLD = 100;
+
+/** Short reasoning threshold (<20 chars = insufficient) */
+const QUALITY_REASONING_SHORT_THRESHOLD = 20;
+
+/** Bonus for long, detailed reasoning */
+const QUALITY_REASONING_LONG_BONUS = 10;
+
+/** Bonus for medium-length reasoning */
+const QUALITY_REASONING_MEDIUM_BONUS = 5;
+
+/** Penalty for very short reasoning */
+const QUALITY_REASONING_SHORT_PENALTY = 10;
+
+/** Bonus for executing non-hold decisions with quantity */
+const QUALITY_ACTION_EXECUTION_BONUS = 15;
+
+/** Lower confidence bound for appropriate hold decisions (30-70% = rational uncertainty) */
+const QUALITY_HOLD_CONFIDENCE_MIN = 30;
+
+/** Upper confidence bound for appropriate hold decisions */
+const QUALITY_HOLD_CONFIDENCE_MAX = 70;
+
+/** Bonus for well-calibrated hold confidence */
+const QUALITY_HOLD_CALIBRATED_BONUS = 10;
+
+/** Very high confidence threshold for holds (>90% = should act instead) */
+const QUALITY_HOLD_OVERCONFIDENT_THRESHOLD = 90;
+
+/** Penalty for overconfident holds */
+const QUALITY_HOLD_OVERCONFIDENT_PENALTY = 5;
+
+/** Critical overconfidence threshold for holds (>85% confidence + hold = contradictory) */
+const QUALITY_HOLD_CRITICAL_OVERCONFIDENCE_THRESHOLD = 85;
+
+/** Penalty for critically overconfident holds */
+const QUALITY_HOLD_CRITICAL_OVERCONFIDENCE_PENALTY = 10;
+
+/**
+ * Win Streak and Bonus Parameters
+ *
+ * Reward consistency and comeback improvements.
+ */
+
+/** Win streak threshold for bonus (3+ consecutive top-half finishes) */
+const BONUS_WIN_STREAK_THRESHOLD = 3;
+
+/** Maximum win streak bonus cap */
+const BONUS_WIN_STREAK_MAX = 10;
+
+/** Win streak bonus multiplier per consecutive win */
+const BONUS_WIN_STREAK_MULTIPLIER = 2;
+
+/** Comeback bonus threshold (>20 point improvement from last round) */
+const BONUS_COMEBACK_THRESHOLD = 20;
+
+/** Comeback bonus points */
+const BONUS_COMEBACK_VALUE = 5;
+
+/**
+ * Inactivity Penalty Parameters
+ *
+ * Discourage excessive passivity (holding for many consecutive rounds).
+ */
+
+/** Recent rounds lookback window for hold detection */
+const PENALTY_INACTIVITY_LOOKBACK = 3;
+
+/** Low-score hold threshold (<45 = passive trading) */
+const PENALTY_INACTIVITY_SCORE_THRESHOLD = 45;
+
+/** Minimum consecutive low-score holds to trigger penalty */
+const PENALTY_INACTIVITY_MIN_HOLDS = 2;
+
+/** Penalty for passive trading */
+const PENALTY_INACTIVITY_VALUE = -5;
+
+/**
+ * Momentum Detection Parameters
+ *
+ * Classify agent performance trend (rising/falling/stable).
+ */
+
+/** Minimum rounds required for 6-round momentum comparison */
+const MOMENTUM_MIN_ROUNDS_LONG = 6;
+
+/** Minimum rounds required for 2-round momentum comparison */
+const MOMENTUM_MIN_ROUNDS_SHORT = 2;
+
+/** Rising momentum threshold (recent avg > 1.1× previous avg) */
+const MOMENTUM_RISING_MULTIPLIER = 1.1;
+
+/** Falling momentum threshold (recent avg < 0.9× previous avg) */
+const MOMENTUM_FALLING_MULTIPLIER = 0.9;
+
+// ---------------------------------------------------------------------------
 // In-Memory State
 // ---------------------------------------------------------------------------
 
@@ -156,7 +356,7 @@ function scorePnL(
   if (values.length === 0) return scores;
   if (values.length === 1) {
     const [agentId] = agentPnls.keys();
-    scores.set(agentId, values[0] >= 0 ? 75 : 25);
+    scores.set(agentId, values[0] >= 0 ? PNL_SINGLE_AGENT_POSITIVE : PNL_SINGLE_AGENT_NEGATIVE);
     return scores;
   }
 
@@ -166,7 +366,7 @@ function scorePnL(
 
   for (const [agentId, pnl] of agentPnls) {
     if (range === 0) {
-      scores.set(agentId, 50); // All equal
+      scores.set(agentId, PNL_EQUAL_SCORE); // All equal
     } else {
       // Linear interpolation 0-100
       const normalized = ((pnl - minPnl) / range) * 100;
@@ -197,11 +397,17 @@ function scoreRiskAdjusted(
     let score: number;
     if (pnl >= 0) {
       // Profitable: reward proportionally to confidence calibration
-      score = 50 + (pnl > 0 ? 25 : 0) + (confidence > 70 ? 15 : confidence > 40 ? 10 : 5);
+      score = RISK_BASE_PROFIT_SCORE +
+        (pnl > 0 ? RISK_PROFIT_BONUS : 0) +
+        (confidence > RISK_HIGH_CONFIDENCE_THRESHOLD ? RISK_HIGH_CONFIDENCE_PROFIT_BONUS :
+         confidence > RISK_MODERATE_CONFIDENCE_THRESHOLD ? RISK_MODERATE_CONFIDENCE_PROFIT_BONUS :
+         RISK_LOW_CONFIDENCE_PROFIT_BONUS);
     } else {
       // Loss: penalize high-confidence losses more
-      const confidencePenalty = confidence > 80 ? 30 : confidence > 60 ? 20 : 10;
-      score = Math.max(0, 40 - confidencePenalty);
+      const confidencePenalty = confidence > RISK_VERY_HIGH_CONFIDENCE_THRESHOLD ? RISK_VERY_HIGH_CONFIDENCE_LOSS_PENALTY :
+                                confidence > RISK_HIGH_CONFIDENCE_LOSS_THRESHOLD ? RISK_HIGH_CONFIDENCE_LOSS_PENALTY :
+                                RISK_MODERATE_CONFIDENCE_LOSS_PENALTY;
+      score = Math.max(0, RISK_BASE_LOSS_SCORE - confidencePenalty);
     }
 
     scores.set(agentId, clamp(score, 0, 100));
@@ -221,25 +427,25 @@ function scoreConsistency(
 
   for (const result of roundResults) {
     const state = getOrCreateState(result.agentId);
-    let score = 50; // Base
+    let score = CONSISTENCY_BASE_SCORE; // Base
 
     // Execution bonus: successfully executed trades score higher
     if (result.executed) {
-      score += 20;
+      score += CONSISTENCY_EXECUTION_BONUS;
       state.executionStreak++;
     } else {
       state.executionStreak = 0;
-      score -= 15;
+      score -= CONSISTENCY_NO_EXECUTION_PENALTY;
     }
 
     // Streak bonus (consecutive successful rounds)
-    if (state.executionStreak > 3) {
-      score += Math.min(15, state.executionStreak * 3);
+    if (state.executionStreak > CONSISTENCY_STREAK_THRESHOLD) {
+      score += Math.min(CONSISTENCY_STREAK_BONUS_MAX, state.executionStreak * CONSISTENCY_STREAK_BONUS_MULTIPLIER);
     }
 
     // Action variety bonus (not just holding)
     if (result.decision.action !== "hold") {
-      score += 10;
+      score += CONSISTENCY_ACTION_VARIETY_BONUS;
     }
 
     scores.set(result.agentId, clamp(score, 0, 100));
@@ -258,31 +464,31 @@ function scoreDecisionQuality(
   const scores = new Map<string, number>();
 
   for (const result of roundResults) {
-    let score = 50; // Base
+    let score = QUALITY_BASE_SCORE; // Base
 
     // Confidence calibration
     const confidence = result.decision.confidence;
 
     // Reasoning depth (longer = more thoughtful, up to a point)
     const reasoningLength = result.decision.reasoning.length;
-    if (reasoningLength > 200) score += 10;
-    else if (reasoningLength > 100) score += 5;
-    else if (reasoningLength < 20) score -= 10;
+    if (reasoningLength > QUALITY_REASONING_LONG_THRESHOLD) score += QUALITY_REASONING_LONG_BONUS;
+    else if (reasoningLength > QUALITY_REASONING_MEDIUM_THRESHOLD) score += QUALITY_REASONING_MEDIUM_BONUS;
+    else if (reasoningLength < QUALITY_REASONING_SHORT_THRESHOLD) score -= QUALITY_REASONING_SHORT_PENALTY;
 
     // Non-trivial decisions rewarded
     if (result.decision.action !== "hold" && result.decision.quantity > 0) {
-      score += 15;
+      score += QUALITY_ACTION_EXECUTION_BONUS;
     }
 
     // Appropriate confidence for holds (should be moderate)
     if (result.decision.action === "hold") {
-      if (confidence >= 30 && confidence <= 70) score += 10;
-      else if (confidence > 90) score -= 5; // Overconfident holds are weird
+      if (confidence >= QUALITY_HOLD_CONFIDENCE_MIN && confidence <= QUALITY_HOLD_CONFIDENCE_MAX) score += QUALITY_HOLD_CALIBRATED_BONUS;
+      else if (confidence > QUALITY_HOLD_OVERCONFIDENT_THRESHOLD) score -= QUALITY_HOLD_OVERCONFIDENT_PENALTY; // Overconfident holds are weird
     }
 
     // Very high confidence should be backed by action
-    if (confidence > 85 && result.decision.action === "hold") {
-      score -= 10;
+    if (confidence > QUALITY_HOLD_CRITICAL_OVERCONFIDENCE_THRESHOLD && result.decision.action === "hold") {
+      score -= QUALITY_HOLD_CRITICAL_OVERCONFIDENCE_PENALTY;
     }
 
     scores.set(result.agentId, clamp(score, 0, 100));
@@ -343,21 +549,21 @@ export async function scoreRound(
     const penalties: ScoreBreakdown["penalties"] = [];
 
     // Win streak bonus
-    if (state.winStreak >= 3) {
-      const bonus = Math.min(10, state.winStreak * 2);
+    if (state.winStreak >= BONUS_WIN_STREAK_THRESHOLD) {
+      const bonus = Math.min(BONUS_WIN_STREAK_MAX, state.winStreak * BONUS_WIN_STREAK_MULTIPLIER);
       bonuses.push({ name: "win_streak", value: bonus, reason: `${state.winStreak} consecutive top-2 finishes` });
     }
 
     // Comeback bonus: big improvement from last round
     const lastScore = state.roundScores[state.roundScores.length - 1];
-    if (lastScore !== undefined && rawTotal > lastScore + 20) {
-      bonuses.push({ name: "comeback", value: 5, reason: `+${Math.round(rawTotal - lastScore)} point improvement` });
+    if (lastScore !== undefined && rawTotal > lastScore + BONUS_COMEBACK_THRESHOLD) {
+      bonuses.push({ name: "comeback", value: BONUS_COMEBACK_VALUE, reason: `+${Math.round(rawTotal - lastScore)} point improvement` });
     }
 
     // Inactivity penalty: holding multiple rounds in a row
-    const recentHolds = state.roundScores.slice(-3).filter((s) => s < 45).length;
-    if (recentHolds >= 2 && result.decision.action === "hold") {
-      penalties.push({ name: "passive_trading", value: -5, reason: "Holding for 3+ consecutive rounds" });
+    const recentHolds = state.roundScores.slice(-PENALTY_INACTIVITY_LOOKBACK).filter((s) => s < PENALTY_INACTIVITY_SCORE_THRESHOLD).length;
+    if (recentHolds >= PENALTY_INACTIVITY_MIN_HOLDS && result.decision.action === "hold") {
+      penalties.push({ name: "passive_trading", value: PENALTY_INACTIVITY_VALUE, reason: "Holding for 3+ consecutive rounds" });
     }
 
     const bonusTotal = bonuses.reduce((sum, b) => sum + b.value, 0);
@@ -413,6 +619,7 @@ export async function scoreRound(
     const state = getOrCreateState(score.agentId);
     state.lastRoundRank = score.rank;
 
+    // Win = top half of rankings (rounded up)
     if (score.rank <= Math.ceil(roundScores.length / 2)) {
       state.winStreak++;
       state.lossStreak = 0;
@@ -486,16 +693,16 @@ export function getLeaderboard(): LeaderboardEntry[] {
 
     // Momentum: compare last 3 rounds to previous 3
     let currentMomentum: "rising" | "falling" | "stable" = "stable";
-    if (state.roundScores.length >= 6) {
+    if (state.roundScores.length >= MOMENTUM_MIN_ROUNDS_LONG) {
       const recent3 = state.roundScores.slice(-3).reduce((a, b) => a + b, 0) / 3;
       const prev3 = state.roundScores.slice(-6, -3).reduce((a, b) => a + b, 0) / 3;
-      if (recent3 > prev3 * 1.1) currentMomentum = "rising";
-      else if (recent3 < prev3 * 0.9) currentMomentum = "falling";
-    } else if (state.roundScores.length >= 2) {
+      if (recent3 > prev3 * MOMENTUM_RISING_MULTIPLIER) currentMomentum = "rising";
+      else if (recent3 < prev3 * MOMENTUM_FALLING_MULTIPLIER) currentMomentum = "falling";
+    } else if (state.roundScores.length >= MOMENTUM_MIN_ROUNDS_SHORT) {
       const last = state.roundScores[state.roundScores.length - 1];
       const prev = state.roundScores[state.roundScores.length - 2];
-      if (last > prev * 1.1) currentMomentum = "rising";
-      else if (last < prev * 0.9) currentMomentum = "falling";
+      if (last > prev * MOMENTUM_RISING_MULTIPLIER) currentMomentum = "rising";
+      else if (last < prev * MOMENTUM_FALLING_MULTIPLIER) currentMomentum = "falling";
     }
 
     // Convert head-to-head map

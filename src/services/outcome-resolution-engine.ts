@@ -11,7 +11,7 @@
  * 5. Stores results in outcome_resolutions table
  * 6. Generates calibration snapshots for the HuggingFace dataset
  *
- * Resolution horizons: 1h, 4h, 24h, 7d
+ * Resolution horizons: 1h, 4h, 24h, 7d, 30d
  */
 
 import { db } from "../db/index.ts";
@@ -22,7 +22,7 @@ import {
   benchmarkLeaderboardV23,
 } from "../db/schema/benchmark-v23.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, isNull, desc, inArray } from "drizzle-orm";
+import { eq, isNull, desc, inArray, and, lte } from "drizzle-orm";
 import type { MarketData } from "../agents/base-agent.ts";
 import {
   V23_SCORING_WEIGHTS,
@@ -150,6 +150,45 @@ const CALIBRATION_BUCKET_BOUNDARIES = [
  */
 const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.1;
 
+/**
+ * Resolution horizons: all supported time windows for outcome resolution.
+ *
+ * Each entry defines:
+ * - label: short display name used in DB records and API responses
+ * - hours: duration in hours (used for minimum-age checks before resolving)
+ *
+ * Agents with longer-term theses (swing trades, position trades) benefit
+ * from the 30d horizon, which evaluates predictions over a full month.
+ *
+ * To add a new horizon, append an entry here — resolution logic handles it
+ * automatically via the shared resolveOutcome() function.
+ */
+export const RESOLUTION_HORIZONS = [
+  { label: "1h", hours: 1 },
+  { label: "4h", hours: 4 },
+  { label: "24h", hours: 24 },
+  { label: "7d", hours: 168 },
+  { label: "30d", hours: 720 },
+] as const;
+
+/**
+ * Valid resolution horizon labels for type checking and validation.
+ *
+ * Derived from RESOLUTION_HORIZONS to stay in sync automatically.
+ * Usage: `if (VALID_HORIZON_LABELS.includes(horizon)) { ... }`
+ */
+export const VALID_HORIZON_LABELS: readonly string[] = RESOLUTION_HORIZONS.map(h => h.label);
+
+/**
+ * Look up the minimum age in hours required before resolving at a given horizon.
+ * Returns undefined if the horizon label is not recognized.
+ *
+ * Example: getHorizonHours("30d") → 720
+ */
+export function getHorizonHours(label: string): number | undefined {
+  return RESOLUTION_HORIZONS.find(h => h.label === label)?.hours;
+}
+
 // ---------------------------------------------------------------------------
 // Core Resolution Logic
 // ---------------------------------------------------------------------------
@@ -230,6 +269,13 @@ export function resolveOutcome(
 
 /**
  * Run outcome resolution for all pending justifications.
+ *
+ * The `horizon` parameter controls which time window is being resolved.
+ * A minimum-age check ensures that justifications are only resolved once
+ * they are at least as old as the horizon duration. For example, "30d"
+ * resolution only processes justifications that were created >= 720 hours ago.
+ *
+ * This prevents premature resolution of long-term predictions.
  */
 export async function runOutcomeResolution(
   marketData: MarketData[],
@@ -237,11 +283,20 @@ export async function runOutcomeResolution(
 ): Promise<ResolutionResult[]> {
   const results: ResolutionResult[] = [];
 
+  // Determine the minimum age required for this horizon
+  const horizonHours = getHorizonHours(horizon) ?? 1;
+  const minAge = new Date(Date.now() - horizonHours * 60 * 60 * 1000);
+
   try {
     const pending = await db
       .select()
       .from(tradeJustifications)
-      .where(isNull(tradeJustifications.actualOutcome))
+      .where(
+        and(
+          isNull(tradeJustifications.actualOutcome),
+          lte(tradeJustifications.timestamp, minAge),
+        ),
+      )
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(100);
 

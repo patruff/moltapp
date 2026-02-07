@@ -56,7 +56,7 @@ export const outcomeResolutions = pgTable("outcome_resolutions", {
   /** Price when the outcome was resolved */
   exitPrice: real("exit_price"),
 
-  /** Time horizon for resolution: '1h', '4h', '24h', '7d' */
+  /** Time horizon for resolution: '1h', '4h', '24h', '7d', '30d' */
   horizon: text("horizon").notNull(),
 
   /** Actual P&L percent for the trade */
