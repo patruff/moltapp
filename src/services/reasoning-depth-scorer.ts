@@ -423,7 +423,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
       compEvidence.push(match[0]);
     }
   }
-  const compScore = Math.min(1, compCount / 3);
+  const compScore = Math.min(1, compCount / COMPARATIVE_ANALYSIS_DIVISOR);
   const comparativeAnalysis: DimensionScore = {
     score: compScore,
     weight: DIMENSION_WEIGHTS.comparativeAnalysis,
@@ -431,7 +431,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   };
 
   // 7. Quantitative Rigor
-  const quantScore = Math.min(1, specificNumbers / (sentenceCount * 0.3 + 1));
+  const quantScore = Math.min(1, specificNumbers / (sentenceCount * QUANTITATIVE_RIGOR_FACTOR + 1));
   const quantitativeRigor: DimensionScore = {
     score: quantScore,
     weight: DIMENSION_WEIGHTS.quantitativeRigor,
@@ -440,9 +440,9 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
 
   // 8. Thesis Structure: detect intro, body, conclusion
   const hasThesis = /\b(?:thesis|believe|position|view|strategy|approach|decision)\b/i.test(reasoning);
-  const hasEvidence = specificNumbers >= 2 || causalCount >= 1;
+  const hasEvidence = specificNumbers >= THESIS_EVIDENCE_MIN_NUMBERS || causalCount >= THESIS_EVIDENCE_MIN_CAUSAL;
   const hasConclusion = /\b(?:therefore|thus|consequently|conclusion|accordingly|decision|action)\b/i.test(reasoning);
-  const structureScore = (hasThesis ? 0.35 : 0) + (hasEvidence ? 0.35 : 0) + (hasConclusion ? 0.30 : 0);
+  const structureScore = (hasThesis ? THESIS_STRUCTURE_WEIGHT_THESIS : 0) + (hasEvidence ? THESIS_STRUCTURE_WEIGHT_EVIDENCE : 0) + (hasConclusion ? THESIS_STRUCTURE_WEIGHT_CONCLUSION : 0);
   const thesisStructure: DimensionScore = {
     score: structureScore,
     weight: DIMENSION_WEIGHTS.thesisStructure,
@@ -472,9 +472,9 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
 
   // Classification
   let classification: "shallow" | "moderate" | "deep" | "exceptional";
-  if (overall >= 0.80) classification = "exceptional";
-  else if (overall >= 0.55) classification = "deep";
-  else if (overall >= 0.30) classification = "moderate";
+  if (overall >= CLASSIFICATION_EXCEPTIONAL_THRESHOLD) classification = "exceptional";
+  else if (overall >= CLASSIFICATION_DEEP_THRESHOLD) classification = "deep";
+  else if (overall >= CLASSIFICATION_MODERATE_THRESHOLD) classification = "moderate";
   else classification = "shallow";
 
   // Find strongest/weakest
@@ -506,7 +506,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
  */
 export function quickClassify(reasoning: string): "shallow" | "moderate" | "deep" | "exceptional" {
   const words = countWords(reasoning);
-  if (words < 15) return "shallow";
+  if (words < QUICK_CLASSIFY_WORD_MIN_SHALLOW) return "shallow";
 
   let angles = 0;
   for (const patterns of Object.values(ANALYTICAL_ANGLES)) {
@@ -518,9 +518,9 @@ export function quickClassify(reasoning: string): "shallow" | "moderate" | "deep
     }
   }
 
-  if (angles >= 5 && words >= 80) return "exceptional";
-  if (angles >= 3 && words >= 40) return "deep";
-  if (angles >= 1 && words >= 20) return "moderate";
+  if (angles >= QUICK_CLASSIFY_ANGLES_MIN_EXCEPTIONAL && words >= QUICK_CLASSIFY_WORD_MIN_EXCEPTIONAL) return "exceptional";
+  if (angles >= QUICK_CLASSIFY_ANGLES_MIN_DEEP && words >= QUICK_CLASSIFY_WORD_MIN_DEEP) return "deep";
+  if (angles >= QUICK_CLASSIFY_ANGLES_MIN_MODERATE && words >= QUICK_CLASSIFY_WORD_MIN_MODERATE) return "moderate";
   return "shallow";
 }
 
@@ -538,14 +538,14 @@ export function compareDepth(reasoningA: string, reasoningB: string): {
   const scoreB = scoreReasoningDepth(reasoningB);
 
   const margin = Math.abs(scoreA.overall - scoreB.overall);
-  const winner = margin < 0.02 ? "tie" : (scoreA.overall > scoreB.overall ? "A" : "B");
+  const winner = margin < COMPARISON_TIE_MARGIN ? "tie" : (scoreA.overall > scoreB.overall ? "A" : "B");
 
   const dimensionWins: { A: string[]; B: string[] } = { A: [], B: [] };
   const dimNamesA = Object.keys(scoreA.dimensions) as (keyof typeof scoreA.dimensions)[];
   for (const dim of dimNamesA) {
-    if (scoreA.dimensions[dim].score > scoreB.dimensions[dim].score + 0.05) {
+    if (scoreA.dimensions[dim].score > scoreB.dimensions[dim].score + COMPARISON_DIMENSION_WIN_MARGIN) {
       dimensionWins.A.push(dim);
-    } else if (scoreB.dimensions[dim].score > scoreA.dimensions[dim].score + 0.05) {
+    } else if (scoreB.dimensions[dim].score > scoreA.dimensions[dim].score + COMPARISON_DIMENSION_WIN_MARGIN) {
       dimensionWins.B.push(dim);
     }
   }
