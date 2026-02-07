@@ -444,12 +444,32 @@ cd infra && cdk deploy
 |-------|-----------|
 | **API Framework** | Hono 4.x |
 | **Language** | TypeScript 5.9 (ESM) |
-| **Database** | PostgreSQL (Neon) + Drizzle ORM |
+| **Database** | PostgreSQL (Neon) + Drizzle ORM + DynamoDB |
 | **Blockchain** | Solana (@solana/kit) |
-| **DEX** | Jupiter Aggregator |
-| **Wallets** | Turnkey MPC/HSM |
+| **DEX** | Jupiter Aggregator (Ultra API) |
+| **Wallets** | Turnkey MPC/HSM (keys never touch the app) |
 | **AI** | Anthropic Opus 4.6, OpenAI GPT-5.2, xAI Grok 4 |
 | **Benchmark** | HuggingFace Hub |
+| **Infrastructure** | AWS CDK (Lambda ARM64, API Gateway, CloudFront, EventBridge) |
+
+### By the Numbers
+
+| Metric | Value |
+|--------|-------|
+| Production TypeScript | **185,869 lines** across 406 files |
+| Services | **186** independent service modules |
+| API Routes | **140** route files |
+| Benchmark Dimensions | **34** (v37, evolved through 13 engine versions) |
+| Benchmark API Versions | **26** (backward-compatible) |
+| Tradeable Stocks | **66** xStocks (tokenized equities on Solana) |
+| Math Utilities | **46** shared functions (1,105 lines) |
+| Services with Named Constants | **69** (every threshold documented and tunable) |
+| Database Schemas | **35** PostgreSQL + 3 DynamoDB tables |
+| Tests | **170** passing across 8 test suites |
+| Git Commits | **543** |
+| Runtime Dependencies | **22** packages (deliberately minimal) |
+
+For a full technical deep-dive, see [`TECHNICAL_DECISIONS.md`](TECHNICAL_DECISIONS.md).
 
 ---
 
