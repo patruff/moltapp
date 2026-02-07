@@ -238,6 +238,24 @@ const LEARNING_TREND_SCORE_STABLE = 0.5;
  */
 const LEARNING_TREND_SCORE_DECLINING = 0.2;
 
+/**
+ * Early Resolution Threshold
+ *
+ * Threshold for early directional claim resolution before expiration.
+ */
+
+/**
+ * Early resolution movement threshold (2%)
+ *
+ * For directional claims, resolve early if price moves > this % before expiration.
+ * Allows early verification when direction is clearly confirmed.
+ *
+ * Example: Buy claim with 2.5% up move resolves early as correct
+ *
+ * Tuning impact: Lower to 1.5% to resolve claims faster; raise to 3% for stricter verification
+ */
+const EARLY_RESOLUTION_MOVEMENT_THRESHOLD = 0.02;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -533,10 +551,10 @@ export function resolvePendingClaims(
         const prevPrice = previousPrices.get(claim.symbol.toLowerCase());
         if (currentPrice && prevPrice && prevPrice > 0) {
           const pctChange = (currentPrice - prevPrice) / prevPrice;
-          // Resolve if move > 2%
-          if (Math.abs(pctChange) > 0.02) {
+          // Resolve if move > threshold
+          if (Math.abs(pctChange) > EARLY_RESOLUTION_MOVEMENT_THRESHOLD) {
             const moved = pctChange > 0 ? "up" : "down";
-            const isCorrect = moved === claim.direction || (claim.direction === "flat" && Math.abs(pctChange) < 0.01);
+            const isCorrect = moved === claim.direction || (claim.direction === "flat" && Math.abs(pctChange) < CLAIM_FLAT_CLASSIFICATION_THRESHOLD);
             claim.status = isCorrect ? "correct" : "incorrect";
             claim.resolution = `Price moved ${(pctChange * 100).toFixed(1)}% (${moved}), predicted ${claim.direction}`;
             claim.resolvedAt = now.toISOString();
@@ -566,11 +584,11 @@ function tryResolve(
     const pctChange = (currentPrice - prevPrice) / prevPrice;
     if (claim.direction === "up") return pctChange > 0;
     if (claim.direction === "down") return pctChange < 0;
-    if (claim.direction === "flat") return Math.abs(pctChange) < 0.02;
+    if (claim.direction === "flat") return Math.abs(pctChange) < CLAIM_FLAT_RESOLUTION_THRESHOLD;
   }
 
   if (claim.claimType === "price_target" && claim.targetPrice) {
-    const tolerance = claim.targetPrice * 0.05;
+    const tolerance = claim.targetPrice * PRICE_TARGET_TOLERANCE;
     return Math.abs(currentPrice - claim.targetPrice) < tolerance;
   }
 
@@ -614,15 +632,8 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   }
 
   // By confidence bucket
-  const buckets = [
-    { label: "0.0-0.2", min: 0, max: 0.2 },
-    { label: "0.2-0.4", min: 0.2, max: 0.4 },
-    { label: "0.4-0.6", min: 0.4, max: 0.6 },
-    { label: "0.6-0.8", min: 0.6, max: 0.8 },
-    { label: "0.8-1.0", min: 0.8, max: 1.0 },
-  ];
-  const byConfidence = buckets.map((b) => {
-    const inBucket = resolved.filter((c) => c.confidence >= b.min && c.confidence < (b.max === 1.0 ? 1.01 : b.max));
+  const byConfidence = CONFIDENCE_BUCKET_BOUNDARIES.map((b) => {
+    const inBucket = resolved.filter((c) => c.confidence >= b.min && c.confidence < (b.max === 1.0 ? CONFIDENCE_BUCKET_UPPER_OFFSET : b.max));
     const correctInBucket = inBucket.filter((c) => c.status === "correct").length;
     return {
       bucket: b.label,
@@ -633,7 +644,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   });
 
   // Overconfidence rate
-  const highConfResolved = resolved.filter((c) => c.confidence > 0.7);
+  const highConfResolved = resolved.filter((c) => c.confidence > HIGH_CONFIDENCE_THRESHOLD);
   const highConfWrong = highConfResolved.filter((c) => c.status === "incorrect").length;
   const overconfidenceRate = highConfResolved.length > 0
     ? Math.round((highConfWrong / highConfResolved.length) * 100) / 100
@@ -646,8 +657,8 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   const firstAcc = firstHalf.length > 0 ? firstHalf.filter((c) => c.status === "correct").length / firstHalf.length : 0;
   const secondAcc = secondHalf.length > 0 ? secondHalf.filter((c) => c.status === "correct").length / secondHalf.length : 0;
   let learningTrend: "improving" | "stable" | "declining" = "stable";
-  if (secondAcc - firstAcc > 0.05) learningTrend = "improving";
-  if (firstAcc - secondAcc > 0.05) learningTrend = "declining";
+  if (secondAcc - firstAcc > LEARNING_TREND_IMPROVEMENT_THRESHOLD) learningTrend = "improving";
+  if (firstAcc - secondAcc > LEARNING_TREND_DECLINE_THRESHOLD) learningTrend = "declining";
 
   // Accuracy rate
   const accuracyRate = resolved.length > 0
@@ -656,10 +667,10 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
 
   // Composite accountability score
   const accountabilityScore = Math.round((
-    accuracyRate * 0.35 +
-    (1 - overconfidenceRate) * 0.25 +
-    (learningTrend === "improving" ? 0.8 : learningTrend === "stable" ? 0.5 : 0.2) * 0.20 +
-    Math.min(1, resolved.length / 20) * 0.20
+    accuracyRate * ACCOUNTABILITY_WEIGHT_ACCURACY +
+    (1 - overconfidenceRate) * ACCOUNTABILITY_WEIGHT_OVERCONFIDENCE +
+    (learningTrend === "improving" ? LEARNING_TREND_SCORE_IMPROVING : learningTrend === "stable" ? LEARNING_TREND_SCORE_STABLE : LEARNING_TREND_SCORE_DECLINING) * ACCOUNTABILITY_WEIGHT_LEARNING_TREND +
+    Math.min(1, resolved.length / CLAIMS_VOLUME_NORMALIZATION) * ACCOUNTABILITY_WEIGHT_VOLUME
   ) * 100) / 100;
 
   return {
