@@ -476,7 +476,7 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.3,
+          verificationConfidence: CONFIDENCE_GENERAL_INFERRED,
           explanation: "Price claim without parseable symbol or value",
         };
       }
@@ -486,7 +486,7 @@ function verifyClaim(
         return {
           claim,
           status: "ungrounded",
-          verificationConfidence: 0.8,
+          verificationConfidence: CONFIDENCE_SYMBOL_NOT_FOUND,
           explanation: `Symbol ${claim.symbol} not found in provided market data — claim references unavailable data`,
         };
       }
@@ -524,7 +524,7 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.3,
+          verificationConfidence: CONFIDENCE_GENERAL_INFERRED,
           explanation: "Percentage claim without parseable symbol or value",
         };
       }
@@ -534,7 +534,7 @@ function verifyClaim(
         return {
           claim,
           status: "ungrounded",
-          verificationConfidence: 0.7,
+          verificationConfidence: CONFIDENCE_NO_CHANGE_DATA,
           explanation: `No 24h change data available for ${claim.symbol}`,
         };
       }
@@ -544,25 +544,25 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.5,
+          verificationConfidence: CONFIDENCE_CHANGE_DATA_NULL,
           explanation: `24h change data not available for ${claim.symbol} — inference from other data possible`,
         };
       }
 
       const changeDev = Math.abs(claim.value - realChange);
-      if (changeDev <= 1.0) {
+      if (changeDev <= PERCENTAGE_CHANGE_GROUNDED_THRESHOLD) {
         return {
           claim,
           status: "grounded",
-          verificationConfidence: 0.9,
+          verificationConfidence: CONFIDENCE_PERCENTAGE_GROUNDED,
           explanation: `Percentage claim matches 24h change data (claimed ${claim.value}%, actual ${realChange.toFixed(2)}%)`,
           groundTruth: `${realChange.toFixed(2)}%`,
         };
-      } else if (changeDev <= 3.0) {
+      } else if (changeDev <= PERCENTAGE_CHANGE_EMBELLISHED_THRESHOLD) {
         return {
           claim,
           status: "embellished",
-          verificationConfidence: 0.6,
+          verificationConfidence: CONFIDENCE_PERCENTAGE_EMBELLISHED,
           explanation: `Percentage claim approximately correct but off by ${changeDev.toFixed(1)}pp`,
           groundTruth: `${realChange.toFixed(2)}%`,
         };
@@ -570,7 +570,7 @@ function verifyClaim(
         return {
           claim,
           status: "hallucinated",
-          verificationConfidence: 0.8,
+          verificationConfidence: CONFIDENCE_PERCENTAGE_HALLUCINATED,
           explanation: `Percentage claim significantly off (claimed ${claim.value}%, actual ${realChange.toFixed(2)}%)`,
           groundTruth: `${realChange.toFixed(2)}%`,
         };
@@ -582,7 +582,7 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.3,
+          verificationConfidence: CONFIDENCE_GENERAL_INFERRED,
           explanation: "Volume claim without parseable symbol",
         };
       }
@@ -592,7 +592,7 @@ function verifyClaim(
         return {
           claim,
           status: "ungrounded",
-          verificationConfidence: 0.6,
+          verificationConfidence: CONFIDENCE_VOLUME_UNGROUNDED,
           explanation: `No volume data available for ${claim.symbol} — claim references unavailable data`,
         };
       }
@@ -601,7 +601,7 @@ function verifyClaim(
       return {
         claim,
         status: "grounded",
-        verificationConfidence: 0.7,
+        verificationConfidence: CONFIDENCE_VOLUME_GROUNDED,
         explanation: `Volume data is available for ${claim.symbol}`,
         groundTruth: `$${(realVolume / 1_000_000).toFixed(1)}M`,
       };
@@ -613,14 +613,14 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.6,
+          verificationConfidence: CONFIDENCE_TREND_INFERRED,
           explanation: `Trend claim for available symbol ${claim.symbol} — reasonable inference from price data`,
         };
       }
       return {
         claim,
         status: "ungrounded",
-        verificationConfidence: 0.5,
+        verificationConfidence: CONFIDENCE_TREND_UNGROUNDED,
         explanation: `Trend claim for symbol not in available data`,
       };
     }
@@ -635,7 +635,7 @@ function verifyClaim(
           return {
             claim,
             status: "grounded",
-            verificationConfidence: 0.7,
+            verificationConfidence: CONFIDENCE_COMPARISON_GROUNDED,
             explanation: `Both symbols in comparison are in the available dataset`,
           };
         }
@@ -643,7 +643,7 @@ function verifyClaim(
       return {
         claim,
         status: "inferred",
-        verificationConfidence: 0.4,
+        verificationConfidence: CONFIDENCE_COMPARISON_INFERRED,
         explanation: `Comparison claim — partial data available`,
       };
     }
@@ -655,14 +655,14 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.5,
+          verificationConfidence: CONFIDENCE_TECHNICAL_INFERRED,
           explanation: "Technical indicator claim — agent cites technical indicators as a source",
         };
       }
       return {
         claim,
         status: "ungrounded",
-        verificationConfidence: 0.7,
+        verificationConfidence: CONFIDENCE_TECHNICAL_UNGROUNDED,
         explanation: "Technical indicator claim without technical data being provided",
       };
     }
@@ -673,7 +673,7 @@ function verifyClaim(
         return {
           claim,
           status: "grounded",
-          verificationConfidence: 0.7,
+          verificationConfidence: CONFIDENCE_NEWS_GROUNDED,
           explanation: `News data was provided for ${claim.symbol}`,
         };
       }
@@ -681,14 +681,14 @@ function verifyClaim(
         return {
           claim,
           status: "inferred",
-          verificationConfidence: 0.4,
+          verificationConfidence: CONFIDENCE_NEWS_INFERRED,
           explanation: "News claim — agent cites news feed but specific news not verified",
         };
       }
       return {
         claim,
         status: "ungrounded",
-        verificationConfidence: 0.6,
+        verificationConfidence: CONFIDENCE_NEWS_UNGROUNDED,
         explanation: "News claim without news data being provided to agent",
       };
     }
@@ -697,7 +697,7 @@ function verifyClaim(
       return {
         claim,
         status: "inferred",
-        verificationConfidence: 0.3,
+        verificationConfidence: CONFIDENCE_GENERAL_INFERRED,
         explanation: "General claim — insufficient data for verification",
       };
   }
@@ -738,19 +738,19 @@ export function validateGrounding(
     totalWeight += weight;
     switch (v.status) {
       case "grounded":
-        weightedSum += weight * 1.0;
+        weightedSum += weight * STATUS_WEIGHT_GROUNDED;
         break;
       case "inferred":
-        weightedSum += weight * 0.7;
+        weightedSum += weight * STATUS_WEIGHT_INFERRED;
         break;
       case "embellished":
-        weightedSum += weight * 0.4;
+        weightedSum += weight * STATUS_WEIGHT_EMBELLISHED;
         break;
       case "ungrounded":
-        weightedSum += weight * 0.1;
+        weightedSum += weight * STATUS_WEIGHT_UNGROUNDED;
         break;
       case "hallucinated":
-        weightedSum += weight * 0.0;
+        weightedSum += weight * STATUS_WEIGHT_HALLUCINATED;
         break;
     }
   }
@@ -759,18 +759,18 @@ export function validateGrounding(
     totalWeight > 0
       ? round3(weightedSum / totalWeight)
       : claims.length === 0
-        ? 0.8 // No factual claims = neutral (reasoning is opinion-based)
+        ? GROUNDING_SCORE_NO_CLAIMS_DEFAULT // No factual claims = neutral (reasoning is opinion-based)
         : 1.0;
 
   // Build assessment
   let assessment: string;
   if (claims.length === 0) {
     assessment = "No verifiable factual claims found in reasoning — opinion-based analysis";
-  } else if (groundingScore >= 0.8) {
+  } else if (groundingScore >= GROUNDING_SCORE_EXCELLENT_THRESHOLD) {
     assessment = "Reasoning is well-grounded in available market data";
-  } else if (groundingScore >= 0.5) {
+  } else if (groundingScore >= GROUNDING_SCORE_ADEQUATE_THRESHOLD) {
     assessment = "Reasoning is partially grounded — some claims lack data support";
-  } else if (groundingScore >= 0.3) {
+  } else if (groundingScore >= GROUNDING_SCORE_MINIMAL_THRESHOLD) {
     assessment = "Reasoning is poorly grounded — significant fabrication or unverifiable claims";
   } else {
     assessment = "Reasoning is largely ungrounded — agent appears to fabricate data";
