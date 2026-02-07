@@ -70,6 +70,362 @@ export interface BenchmarkHealthReport {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum Snapshot Thresholds
+ * Defines minimum data requirements for meaningful regression detection.
+ */
+
+/**
+ * Minimum snapshots required for regression detection.
+ * At least 5 snapshots needed to compute baseline and detect drift.
+ */
+const MIN_SNAPSHOTS_FOR_DETECTION = 5;
+
+/**
+ * Scoring Drift Detection Thresholds
+ * Controls sensitivity of composite score drift alerts.
+ */
+
+/**
+ * Moderate scoring drift threshold (15% change).
+ * Composite score shifts >15% trigger medium severity alerts.
+ * Example: Scores shifting from 0.70 → 0.82 indicates scoring formula drift.
+ */
+const SCORING_DRIFT_MODERATE_THRESHOLD = 0.15;
+
+/**
+ * High severity scoring drift threshold (25% change).
+ * Composite score shifts >25% trigger high severity alerts.
+ * Example: Scores shifting from 0.70 → 0.88 indicates major methodology change.
+ */
+const SCORING_DRIFT_HIGH_THRESHOLD = 0.25;
+
+/**
+ * Expected scoring drift range (±10%).
+ * Normal variation in composite scores should stay within this band.
+ */
+const SCORING_DRIFT_EXPECTED_RANGE = 0.1;
+
+/**
+ * Agent Convergence Detection Thresholds
+ * Controls sensitivity of agent score differentiation alerts.
+ */
+
+/**
+ * Low agent convergence threshold (3% spread).
+ * Agent score spread <3% triggers medium severity alerts.
+ * Example: All 3 agents scoring 0.70-0.73 = poor differentiation.
+ */
+const AGENT_CONVERGENCE_MODERATE_THRESHOLD = 0.03;
+
+/**
+ * High severity convergence threshold (1% spread).
+ * Agent score spread <1% triggers high severity alerts.
+ * Example: All 3 agents scoring 0.70-0.71 = benchmark failure.
+ */
+const AGENT_CONVERGENCE_HIGH_THRESHOLD = 0.01;
+
+/**
+ * Expected agent score spread range (5-30%).
+ * Healthy benchmarks differentiate agents by at least 5%.
+ */
+const AGENT_SPREAD_MIN_EXPECTED = 0.05;
+const AGENT_SPREAD_MAX_EXPECTED = 0.30;
+
+/**
+ * Coherence Inflation Detection Thresholds
+ * Controls sensitivity of coherence gaming detection.
+ */
+
+/**
+ * Coherence inflation delta threshold (15% increase).
+ * Coherence increasing >15% between periods triggers alert.
+ * Example: Coherence 0.70 → 0.82 suggests agents gaming the scorer.
+ */
+const COHERENCE_INFLATION_DELTA_THRESHOLD = 0.15;
+
+/**
+ * Coherence inflation absolute threshold (85%).
+ * Coherence >85% with significant increase triggers alert.
+ * Example: Coherence at 0.88 is suspiciously high for real reasoning.
+ */
+const COHERENCE_INFLATION_ABSOLUTE_THRESHOLD = 0.85;
+
+/**
+ * Expected coherence range (50-80%).
+ * Healthy reasoning typically scores 50-80% coherence.
+ */
+const COHERENCE_EXPECTED_MIN = 0.5;
+const COHERENCE_EXPECTED_MAX = 0.8;
+
+/**
+ * Hallucination Spike Detection Thresholds
+ * Controls sensitivity of hallucination rate increase alerts.
+ */
+
+/**
+ * Hallucination spike delta threshold (10% increase).
+ * Hallucination rate increasing >10% triggers alert.
+ * Example: Rate 0.05 → 0.16 suggests data pipeline issues.
+ */
+const HALLUCINATION_SPIKE_DELTA_THRESHOLD = 0.1;
+
+/**
+ * High severity hallucination threshold (30% rate).
+ * Hallucination rate >30% triggers high severity alert.
+ * Example: 1 in 3 claims fabricated = serious quality issue.
+ */
+const HALLUCINATION_SPIKE_HIGH_THRESHOLD = 0.3;
+
+/**
+ * Expected hallucination rate range (0-15%).
+ * Healthy agents hallucinate <15% of claims.
+ */
+const HALLUCINATION_EXPECTED_MAX = 0.15;
+
+/**
+ * Reasoning Length Drift Detection Thresholds
+ * Controls sensitivity of reasoning laziness detection.
+ */
+
+/**
+ * Reasoning length drift threshold (40% reduction).
+ * Length dropping to <60% of baseline triggers alert.
+ * Example: 120 words → 65 words = agents getting lazy.
+ */
+const REASONING_LENGTH_DRIFT_THRESHOLD = 0.6;
+
+/**
+ * Expected reasoning length range (80-150% of baseline).
+ * Normal variation allows ±20% length changes, up to +50% for detailed analysis.
+ */
+const REASONING_LENGTH_EXPECTED_MIN_RATIO = 0.8;
+const REASONING_LENGTH_EXPECTED_MAX_RATIO = 1.5;
+
+/**
+ * Calibration Decay Detection Thresholds
+ * Controls sensitivity of confidence calibration degradation alerts.
+ */
+
+/**
+ * Calibration decay delta threshold (10% decrease).
+ * Calibration quality dropping >10% triggers alert.
+ * Example: Quality 0.65 → 0.52 suggests agents losing calibration.
+ */
+const CALIBRATION_DECAY_DELTA_THRESHOLD = 0.1;
+
+/**
+ * Calibration decay absolute threshold (50%).
+ * Calibration <50% with significant decrease triggers alert.
+ * Example: Quality at 0.42 = agents making poor confidence estimates.
+ */
+const CALIBRATION_DECAY_ABSOLUTE_THRESHOLD = 0.5;
+
+/**
+ * High severity calibration threshold (30%).
+ * Calibration <30% triggers high severity alert.
+ * Example: Quality at 0.25 = complete calibration failure.
+ */
+const CALIBRATION_DECAY_HIGH_THRESHOLD = 0.3;
+
+/**
+ * Expected calibration range (50-100%).
+ * Healthy agents maintain >50% calibration quality.
+ */
+const CALIBRATION_EXPECTED_MIN = 0.5;
+const CALIBRATION_EXPECTED_MAX = 1.0;
+
+/**
+ * Pillar Imbalance Detection Thresholds
+ * Controls sensitivity of pillar score variation alerts.
+ */
+
+/**
+ * Pillar imbalance threshold (25% std dev).
+ * Pillar score std dev >25% triggers alert.
+ * Example: Pillars at 0.90, 0.70, 0.40 = imbalanced scoring.
+ */
+const PILLAR_IMBALANCE_THRESHOLD = 0.25;
+
+/**
+ * Expected pillar balance range (0-20% std dev).
+ * Healthy benchmarks keep pillar scores within 20% std dev.
+ */
+const PILLAR_BALANCE_EXPECTED_MAX = 0.20;
+
+/**
+ * Health Score Dimension Weights
+ * Controls contribution of each dimension to overall health score.
+ */
+
+/**
+ * Scoring stability weight (25%).
+ * Low score drift indicates stable methodology.
+ */
+const HEALTH_WEIGHT_SCORING_STABILITY = 0.25;
+
+/**
+ * Pillar balance weight (20%).
+ * Balanced pillar scores indicate fair composite calculation.
+ */
+const HEALTH_WEIGHT_PILLAR_BALANCE = 0.20;
+
+/**
+ * Agent diversity weight (25%).
+ * High score spread indicates good agent differentiation.
+ */
+const HEALTH_WEIGHT_AGENT_DIVERSITY = 0.25;
+
+/**
+ * Data freshness weight (15%).
+ * Longer reasoning indicates thoughtful analysis.
+ */
+const HEALTH_WEIGHT_DATA_FRESHNESS = 0.15;
+
+/**
+ * Calibration quality weight (15%).
+ * Good calibration indicates accurate confidence estimates.
+ */
+const HEALTH_WEIGHT_CALIBRATION_QUALITY = 0.15;
+
+/**
+ * Health Score Normalization Parameters
+ * Controls how raw metrics map to 0-1 health scores.
+ */
+
+/**
+ * Scoring stability drift multiplier (5×).
+ * Converts avg drift to stability score: 1 - (avgDrift × 5).
+ * Example: 0.02 avg drift → 0.90 stability score.
+ */
+const HEALTH_SCORING_STABILITY_DRIFT_MULTIPLIER = 5;
+
+/**
+ * Pillar balance std dev multiplier (3×).
+ * Converts pillar std dev to balance score: 1 - (stdDev × 3).
+ * Example: 0.10 std dev → 0.70 balance score.
+ */
+const HEALTH_PILLAR_BALANCE_STDDEV_MULTIPLIER = 3;
+
+/**
+ * Agent diversity spread multiplier (10×).
+ * Converts agent score spread to diversity score: min(1, spread × 10).
+ * Example: 0.08 spread → 0.80 diversity score.
+ */
+const HEALTH_AGENT_DIVERSITY_SPREAD_MULTIPLIER = 10;
+
+/**
+ * Data freshness baseline word count (80 words).
+ * Converts avg reasoning length to freshness score: min(1, length / 80).
+ * Example: 64 words → 0.80 freshness score, 120 words → 1.00 (capped).
+ */
+const HEALTH_DATA_FRESHNESS_BASELINE_WORDS = 80;
+
+/**
+ * Health Status Recommendation Thresholds
+ * Controls when specific recommendations are triggered.
+ */
+
+/**
+ * Agent diversity low threshold (30%).
+ * Diversity <30% triggers differentiation recommendation.
+ */
+const RECOMMENDATION_AGENT_DIVERSITY_LOW = 0.3;
+
+/**
+ * Scoring stability low threshold (50%).
+ * Stability <50% triggers methodology review recommendation.
+ */
+const RECOMMENDATION_SCORING_STABILITY_LOW = 0.5;
+
+/**
+ * Data freshness low threshold (50%).
+ * Freshness <50% triggers prompt engineering recommendation.
+ */
+const RECOMMENDATION_DATA_FRESHNESS_LOW = 0.5;
+
+/**
+ * Calibration quality low threshold (40%).
+ * Calibration <40% triggers feedback recommendation.
+ */
+const RECOMMENDATION_CALIBRATION_QUALITY_LOW = 0.4;
+
+/**
+ * Health Trend Detection Thresholds
+ * Controls sensitivity of improving/declining trend classification.
+ */
+
+/**
+ * Trend detection threshold (±5%).
+ * Coherence change >±5% between halves classifies as improving/declining.
+ * Example: 0.65 → 0.71 = improving, 0.65 → 0.59 = declining.
+ */
+const HEALTH_TREND_THRESHOLD = 0.05;
+
+/**
+ * Query and Display Limits
+ * Controls data retention and output sizes.
+ */
+
+/**
+ * Recent snapshots window size (10 snapshots).
+ * Most regression checks use last 10 snapshots as "recent" period.
+ */
+const RECENT_SNAPSHOTS_WINDOW = 10;
+
+/**
+ * Older snapshots window size (20 snapshots).
+ * Regression checks compare recent 10 vs older 20 snapshots.
+ * Actual range: snapshots[-30:-10] (20 snapshots total).
+ */
+const OLDER_SNAPSHOTS_WINDOW_START = 30;
+const OLDER_SNAPSHOTS_WINDOW_END = 10;
+
+/**
+ * Active alerts display limit (20 alerts).
+ * Health report returns last 20 active alerts.
+ */
+const HEALTH_REPORT_ALERTS_DISPLAY_LIMIT = 20;
+
+/**
+ * Alerts query limit (50 alerts).
+ * getActiveAlerts() returns last 50 alerts.
+ */
+const ACTIVE_ALERTS_QUERY_LIMIT = 50;
+
+/**
+ * Snapshot history query limit (100 snapshots).
+ * getHealthSnapshotHistory() returns last 100 snapshots.
+ */
+const SNAPSHOT_HISTORY_QUERY_LIMIT = 100;
+
+/**
+ * Health status alert count thresholds.
+ * Controls status classification based on alert counts.
+ */
+
+/**
+ * Critical status alert threshold (3+ high/critical alerts).
+ * Status = "critical" when 3+ high/critical severity alerts active.
+ */
+const STATUS_CRITICAL_ALERT_THRESHOLD = 3;
+
+/**
+ * Degraded status alert threshold (1+ high/critical alerts).
+ * Status = "degraded" when 1+ high/critical severity alerts active.
+ */
+const STATUS_DEGRADED_ALERT_THRESHOLD = 1;
+
+/**
+ * Warning status alert threshold (3+ total alerts).
+ * Status = "warning" when >3 alerts of any severity active.
+ */
+const STATUS_WARNING_ALERT_THRESHOLD = 3;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -106,12 +462,12 @@ export function recordBenchmarkHealthSnapshot(snapshot: BenchmarkHealthSnapshot)
 function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[] {
   const alerts: RegressionAlert[] = [];
 
-  if (healthSnapshots.length < 5) return alerts;
+  if (healthSnapshots.length < MIN_SNAPSHOTS_FOR_DETECTION) return alerts;
 
-  const recent = healthSnapshots.slice(-10);
-  const older = healthSnapshots.slice(-30, -10);
+  const recent = healthSnapshots.slice(-RECENT_SNAPSHOTS_WINDOW);
+  const older = healthSnapshots.slice(-OLDER_SNAPSHOTS_WINDOW_START, -OLDER_SNAPSHOTS_WINDOW_END);
 
-  if (older.length < 5) return alerts;
+  if (older.length < MIN_SNAPSHOTS_FOR_DETECTION) return alerts;
 
   // 1. Scoring Drift: detect if average scores are shifting without explanation
   const recentAvgScores = computeAvgMetric(recent, (s) => {
@@ -124,14 +480,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   });
 
   const scoreDrift = Math.abs(recentAvgScores - olderAvgScores);
-  if (scoreDrift > 0.15) {
+  if (scoreDrift > SCORING_DRIFT_MODERATE_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_drift`,
       type: "scoring_drift",
-      severity: scoreDrift > 0.25 ? "high" : "medium",
+      severity: scoreDrift > SCORING_DRIFT_HIGH_THRESHOLD ? "high" : "medium",
       description: `Composite scores shifted by ${(scoreDrift * 100).toFixed(1)}% — may indicate scoring formula drift or data quality change`,
       metric: "avg_composite_score",
-      expectedRange: [olderAvgScores - 0.1, olderAvgScores + 0.1],
+      expectedRange: [olderAvgScores - SCORING_DRIFT_EXPECTED_RANGE, olderAvgScores + SCORING_DRIFT_EXPECTED_RANGE],
       actualValue: recentAvgScores,
       recommendation: "Review recent scoring weight changes or data pipeline for anomalies",
       timestamp: new Date().toISOString(),
@@ -140,14 +496,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
 
   // 2. Agent Convergence: all agents scoring similarly = bad differentiation
   const recentSpread = computeAvgMetric(recent, (s) => s.agentScoreSpread);
-  if (recentSpread < 0.03) {
+  if (recentSpread < AGENT_CONVERGENCE_MODERATE_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_conv`,
       type: "agent_convergence",
-      severity: recentSpread < 0.01 ? "high" : "medium",
+      severity: recentSpread < AGENT_CONVERGENCE_HIGH_THRESHOLD ? "high" : "medium",
       description: `Agent score spread is only ${(recentSpread * 100).toFixed(1)}% — benchmark is not differentiating agents well`,
       metric: "agent_score_spread",
-      expectedRange: [0.05, 0.30],
+      expectedRange: [AGENT_SPREAD_MIN_EXPECTED, AGENT_SPREAD_MAX_EXPECTED],
       actualValue: recentSpread,
       recommendation: "Increase weight of differentiating pillars (financial, battle, patterns)",
       timestamp: new Date().toISOString(),
@@ -157,14 +513,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   // 3. Coherence Inflation: coherence scores creeping up artificially
   const recentCoherence = computeAvgMetric(recent, (s) => s.coherenceAvg);
   const olderCoherence = computeAvgMetric(older, (s) => s.coherenceAvg);
-  if (recentCoherence > olderCoherence + 0.15 && recentCoherence > 0.85) {
+  if (recentCoherence > olderCoherence + COHERENCE_INFLATION_DELTA_THRESHOLD && recentCoherence > COHERENCE_INFLATION_ABSOLUTE_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_coh_inf`,
       type: "coherence_inflation",
       severity: "medium",
       description: `Coherence scores inflated from ${(olderCoherence * 100).toFixed(0)}% to ${(recentCoherence * 100).toFixed(0)}% — agents may be gaming the coherence scorer`,
       metric: "avg_coherence",
-      expectedRange: [0.5, 0.8],
+      expectedRange: [COHERENCE_EXPECTED_MIN, COHERENCE_EXPECTED_MAX],
       actualValue: recentCoherence,
       recommendation: "Review coherence scoring methodology for gaming vectors",
       timestamp: new Date().toISOString(),
@@ -174,14 +530,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   // 4. Hallucination Spike
   const recentHallRate = computeAvgMetric(recent, (s) => s.hallucinationRate);
   const olderHallRate = computeAvgMetric(older, (s) => s.hallucinationRate);
-  if (recentHallRate > olderHallRate + 0.1) {
+  if (recentHallRate > olderHallRate + HALLUCINATION_SPIKE_DELTA_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_hall`,
       type: "hallucination_spike",
-      severity: recentHallRate > 0.3 ? "high" : "medium",
+      severity: recentHallRate > HALLUCINATION_SPIKE_HIGH_THRESHOLD ? "high" : "medium",
       description: `Hallucination rate spiked from ${(olderHallRate * 100).toFixed(0)}% to ${(recentHallRate * 100).toFixed(0)}%`,
       metric: "hallucination_rate",
-      expectedRange: [0, 0.15],
+      expectedRange: [0, HALLUCINATION_EXPECTED_MAX],
       actualValue: recentHallRate,
       recommendation: "Check if market data pipeline has issues causing agents to hallucinate",
       timestamp: new Date().toISOString(),
