@@ -82,7 +82,137 @@ export interface V30RoundSummary {
   marketRegime: string;
 }
 
+// ============================================================================
+// Configuration Constants
+// ============================================================================
+
+/**
+ * Tier classification thresholds for composite scores (0-100 scale)
+ */
+const TIER_S_THRESHOLD = 85;  // >= 85 = S tier (elite performance)
+const TIER_A_THRESHOLD = 70;  // >= 70 = A tier (strong performance)
+const TIER_B_THRESHOLD = 55;  // >= 55 = B tier (above average)
+const TIER_C_THRESHOLD = 40;  // >= 40 = C tier (below average, < 40 = D tier)
+
+/**
+ * Grade boundaries for trade grading (0-1 scale)
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95;   // >= 0.95 = A+ (exceptional reasoning)
+const GRADE_THRESHOLD_A = 0.85;        // >= 0.85 = A (excellent reasoning)
+const GRADE_THRESHOLD_B_PLUS = 0.75;   // >= 0.75 = B+ (very good reasoning)
+const GRADE_THRESHOLD_B = 0.65;        // >= 0.65 = B (good reasoning)
+const GRADE_THRESHOLD_C_PLUS = 0.55;   // >= 0.55 = C+ (acceptable reasoning)
+const GRADE_THRESHOLD_C = 0.45;        // >= 0.45 = C (marginal reasoning)
+const GRADE_THRESHOLD_D = 0.30;        // >= 0.30 = D (poor reasoning, < 0.30 = F)
+
+/**
+ * Reasoning depth factor weights (sum to 1.0 for max score)
+ * Analyzes presence of key reasoning patterns in agent explanations
+ */
+const DEPTH_FACTOR_CAUSAL_WEIGHT = 0.15;       // Causal reasoning (because, therefore, etc.)
+const DEPTH_FACTOR_NUANCE_WEIGHT = 0.15;       // Nuanced thinking (however, although, etc.)
+const DEPTH_FACTOR_CONDITIONAL_WEIGHT = 0.10;  // Conditional logic (if, assuming, etc.)
+const DEPTH_FACTOR_STRUCTURED_WEIGHT = 0.15;   // Structured thinking (first, second, etc.)
+const DEPTH_FACTOR_RISK_AWARE_WEIGHT = 0.10;   // Risk awareness (risk, downside, volatility)
+const DEPTH_FACTOR_QUANTITATIVE_WEIGHT = 0.10; // Quantitative references ($100, 5%)
+const DEPTH_FACTOR_COMPARATIVE_WEIGHT = 0.10;  // Comparative analysis (compared to, vs.)
+const DEPTH_FACTOR_FORWARD_LOOKING_WEIGHT = 0.10; // Forward-looking (predict, expect, likely)
+
+/**
+ * Word count bonus thresholds for reasoning depth
+ * Longer reasoning usually indicates more thorough analysis (up to a point)
+ */
+const DEPTH_WORD_COUNT_THRESHOLD_LOW = 50;   // > 50 words = +0.05 depth bonus
+const DEPTH_WORD_COUNT_THRESHOLD_HIGH = 100; // > 100 words = +0.05 additional bonus
+const DEPTH_WORD_COUNT_BONUS_LOW = 0.05;     // First bonus for exceeding low threshold
+const DEPTH_WORD_COUNT_BONUS_HIGH = 0.05;    // Second bonus for exceeding high threshold
+
+/**
+ * Source quality scoring parameters
+ * Rewards diverse, high-quality data sources in reasoning
+ */
+const SOURCE_QUALITY_DIVERSITY_MAX = 0.3;        // Max 30% score from source diversity
+const SOURCE_QUALITY_DIVERSITY_PER_SOURCE = 0.06; // 6% per unique source (capped at 5 sources)
+const SOURCE_QUALITY_HIGH_BONUS = 0.12;          // 12% bonus per high-quality source
+const SOURCE_QUALITY_MEDIUM_BONUS = 0.08;        // 8% bonus per medium-quality source
+const SOURCE_QUALITY_LOW_BONUS = 0.04;           // 4% bonus per low-quality source
+
+/**
+ * Logical consistency base score and adjustments
+ * Starts at 0.7 (70%) and adjusts based on reasoning-action alignment
+ */
+const CONSISTENCY_BASE_SCORE = 0.7;              // Neutral starting score (70%)
+const CONSISTENCY_ALIGNMENT_BONUS = 0.2;         // +20% when action matches reasoning sentiment
+const CONSISTENCY_STRUCTURE_BONUS = 0.1;         // +10% for explicit reasoning structure (step 1, etc.)
+const CONSISTENCY_LENGTH_PENALTY_THRESHOLD = 50; // Penalize reasoning < 50 chars
+const CONSISTENCY_LENGTH_PENALTY = 0.3;          // -30% penalty for very short reasoning
+
+/**
+ * Trade grading component weights (sum to 1.0)
+ * Determines how much each dimension contributes to overall trade grade
+ */
+const GRADE_WEIGHT_COHERENCE = 0.25;             // 25% - reasoning coherence (HIGHEST weight)
+const GRADE_WEIGHT_HALLUCINATION_FREE = 0.20;    // 20% - hallucination-free score
+const GRADE_WEIGHT_DISCIPLINE = 0.15;            // 15% - instruction discipline compliance
+const GRADE_WEIGHT_DEPTH = 0.20;                 // 20% - reasoning depth score
+const GRADE_WEIGHT_SOURCE_QUALITY = 0.10;        // 10% - source quality score
+const GRADE_WEIGHT_PREDICTED_OUTCOME = 0.10;     // 10% - predicted outcome present
+
+/**
+ * Hallucination penalty per flag
+ * Each hallucination flag detected reduces hallucination-free score by 25%
+ */
+const HALLUCINATION_PENALTY_PER_FLAG = 0.25;
+
+/**
+ * Storage limits for benchmark data retention
+ * Prevents unbounded memory growth in long-running benchmarks
+ */
+const STORAGE_LIMIT_TRADES = 200;        // Max 200 trade grades stored
+const STORAGE_LIMIT_ROUNDS = 50;         // Max 50 round summaries stored
+const STORAGE_LIMIT_BEST_WORST = 20;     // Max 20 best/worst trades tracked
+
+/**
+ * Depth factor analysis parameters
+ * Controls match counting and normalization in reasoning depth scoring
+ */
+const DEPTH_FACTOR_MATCHES_DIVISOR = 2;  // Divide match count by 2 for diminishing returns (e.g., 4 matches = 2.0 weight)
+
+/**
+ * Predicted outcome bonus
+ * Rewards agents for making falsifiable predictions (enables outcome resolution)
+ */
+const GRADE_PREDICTED_OUTCOME_BONUS = 0.1;             // 10% bonus for including predicted outcome
+
+/**
+ * PnL normalization parameters
+ * Converts P&L percentage to 0-1 scale for composite scoring
+ */
+const PNL_NORMALIZATION_OFFSET = 50;                   // Offset to center range (±50% P&L → 0-100 range)
+const PNL_NORMALIZATION_DIVISOR = 100;                 // Divisor to convert to 0-1 scale (100 total range)
+
+/**
+ * Sharpe ratio normalization parameter
+ * Caps Sharpe ratio at 3.0 for normalization to 0-1 scale
+ */
+const SHARPE_NORMALIZATION_CAP = 3.0;                  // Cap at 3.0 (excellent risk-adjusted returns)
+
+/**
+ * Composite score scaling
+ * Converts 0-1 composite score to 0-100 scale for display
+ */
+const COMPOSITE_SCALE_MULTIPLIER = 10000;              // Multiplier for rounding precision (4 decimal places → 0-100 scale)
+
+/**
+ * Rounding precision
+ * Controls decimal places in final score calculations
+ */
+const SCORE_ROUNDING_PRECISION = 100;                  // Round to 2 decimal places (multiply by 100, round, divide by 100)
+
+// ============================================================================
 // In-memory storage for benchmark data
+// ============================================================================
+
 const agentScores = new Map<string, V30AgentScore>();
 const tradeGrades: V30TradeGrade[] = [];
 const roundSummaries: V30RoundSummary[] = [];
@@ -113,10 +243,10 @@ const DIMENSION_WEIGHTS: Record<keyof V30DimensionScores, number> = {
 
 // Tier thresholds
 function getTier(composite: number): 'S' | 'A' | 'B' | 'C' | 'D' {
-  if (composite >= 85) return 'S';
-  if (composite >= 70) return 'A';
-  if (composite >= 55) return 'B';
-  if (composite >= 40) return 'C';
+  if (composite >= TIER_S_THRESHOLD) return 'S';
+  if (composite >= TIER_A_THRESHOLD) return 'A';
+  if (composite >= TIER_B_THRESHOLD) return 'B';
+  if (composite >= TIER_C_THRESHOLD) return 'C';
   return 'D';
 }
 
@@ -137,27 +267,27 @@ export function computeReasoningIntegrityHash(reasoning: string, agentId: string
 export function analyzeReasoningDepthV30(reasoning: string): number {
   let score = 0;
   const factors = [
-    { pattern: /\b(because|since|therefore|thus|hence|consequently)\b/gi, weight: 0.15, label: 'causal_reasoning' },
-    { pattern: /\b(however|although|despite|nevertheless|on the other hand)\b/gi, weight: 0.15, label: 'nuance' },
-    { pattern: /\b(if|assuming|given that|in case|should)\b/gi, weight: 0.10, label: 'conditional' },
-    { pattern: /\b(first|second|third|step \d|additionally|furthermore|moreover)\b/gi, weight: 0.15, label: 'structured' },
-    { pattern: /\b(risk|downside|volatility|exposure|hedge)\b/gi, weight: 0.10, label: 'risk_aware' },
-    { pattern: /\$[\d,.]+|\d+\.?\d*%/g, weight: 0.10, label: 'quantitative' },
-    { pattern: /\b(compared to|relative to|versus|vs\.?|outperform|underperform)\b/gi, weight: 0.10, label: 'comparative' },
-    { pattern: /\b(predict|expect|anticipate|forecast|likely|probability)\b/gi, weight: 0.10, label: 'forward_looking' },
+    { pattern: /\b(because|since|therefore|thus|hence|consequently)\b/gi, weight: DEPTH_FACTOR_CAUSAL_WEIGHT, label: 'causal_reasoning' },
+    { pattern: /\b(however|although|despite|nevertheless|on the other hand)\b/gi, weight: DEPTH_FACTOR_NUANCE_WEIGHT, label: 'nuance' },
+    { pattern: /\b(if|assuming|given that|in case|should)\b/gi, weight: DEPTH_FACTOR_CONDITIONAL_WEIGHT, label: 'conditional' },
+    { pattern: /\b(first|second|third|step \d|additionally|furthermore|moreover)\b/gi, weight: DEPTH_FACTOR_STRUCTURED_WEIGHT, label: 'structured' },
+    { pattern: /\b(risk|downside|volatility|exposure|hedge)\b/gi, weight: DEPTH_FACTOR_RISK_AWARE_WEIGHT, label: 'risk_aware' },
+    { pattern: /\$[\d,.]+|\d+\.?\d*%/g, weight: DEPTH_FACTOR_QUANTITATIVE_WEIGHT, label: 'quantitative' },
+    { pattern: /\b(compared to|relative to|versus|vs\.?|outperform|underperform)\b/gi, weight: DEPTH_FACTOR_COMPARATIVE_WEIGHT, label: 'comparative' },
+    { pattern: /\b(predict|expect|anticipate|forecast|likely|probability)\b/gi, weight: DEPTH_FACTOR_FORWARD_LOOKING_WEIGHT, label: 'forward_looking' },
   ];
 
   for (const { pattern, weight } of factors) {
     const matches = reasoning.match(pattern);
     if (matches && matches.length > 0) {
-      score += weight * Math.min(1, matches.length / 2);
+      score += weight * Math.min(1, matches.length / DEPTH_FACTOR_MATCHES_DIVISOR);
     }
   }
 
   // Bonus for length (longer reasoning usually = more depth, up to a point)
   const wordCount = reasoning.split(/\s+/).length;
-  if (wordCount > 50) score += 0.05;
-  if (wordCount > 100) score += 0.05;
+  if (wordCount > DEPTH_WORD_COUNT_THRESHOLD_LOW) score += DEPTH_WORD_COUNT_BONUS_LOW;
+  if (wordCount > DEPTH_WORD_COUNT_THRESHOLD_HIGH) score += DEPTH_WORD_COUNT_BONUS_HIGH;
 
   return Math.min(1, Math.round(score * 100) / 100);
 }
@@ -173,13 +303,13 @@ export function analyzeSourceQualityV30(sources: string[]): number {
   const uniqueSources = [...new Set(sources)];
 
   // Diversity bonus
-  score += Math.min(0.3, uniqueSources.length * 0.06);
+  score += Math.min(SOURCE_QUALITY_DIVERSITY_MAX, uniqueSources.length * SOURCE_QUALITY_DIVERSITY_PER_SOURCE);
 
   // Quality bonus
   for (const src of uniqueSources) {
-    if (highQualitySources.includes(src)) score += 0.12;
-    else if (mediumQualitySources.includes(src)) score += 0.08;
-    else score += 0.04;
+    if (highQualitySources.includes(src)) score += SOURCE_QUALITY_HIGH_BONUS;
+    else if (mediumQualitySources.includes(src)) score += SOURCE_QUALITY_MEDIUM_BONUS;
+    else score += SOURCE_QUALITY_LOW_BONUS;
   }
 
   return Math.min(1, Math.round(score * 100) / 100);
@@ -187,7 +317,7 @@ export function analyzeSourceQualityV30(sources: string[]): number {
 
 // Analyze logical consistency (0-1): check if reasoning doesn't contradict itself
 export function analyzeLogicalConsistency(reasoning: string, action: string): number {
-  let score = 0.7; // Base score
+  let score = CONSISTENCY_BASE_SCORE; // Base score
 
   // Check for self-contradictions
   const bullishPhrases = reasoning.match(/\b(bullish|upside|buy|undervalued|growth|breakout|rally)\b/gi) || [];
@@ -196,17 +326,17 @@ export function analyzeLogicalConsistency(reasoning: string, action: string): nu
   const bullishCount = bullishPhrases.length;
   const bearishCount = bearishPhrases.length;
 
-  if (action === 'buy' && bullishCount > bearishCount) score += 0.2;
-  else if (action === 'sell' && bearishCount > bullishCount) score += 0.2;
-  else if (action === 'hold' && Math.abs(bullishCount - bearishCount) <= 1) score += 0.2;
+  if (action === 'buy' && bullishCount > bearishCount) score += CONSISTENCY_ALIGNMENT_BONUS;
+  else if (action === 'sell' && bearishCount > bullishCount) score += CONSISTENCY_ALIGNMENT_BONUS;
+  else if (action === 'hold' && Math.abs(bullishCount - bearishCount) <= 1) score += CONSISTENCY_ALIGNMENT_BONUS;
 
   // Check for explicit reasoning structure
-  if (/\b(step|reason|factor|point)\s*\d/i.test(reasoning)) score += 0.1;
+  if (/\b(step|reason|factor|point)\s*\d/i.test(reasoning)) score += CONSISTENCY_STRUCTURE_BONUS;
 
   // Penalize very short reasoning
-  if (reasoning.length < 50) score -= 0.3;
+  if (reasoning.length < CONSISTENCY_LENGTH_PENALTY_THRESHOLD) score -= CONSISTENCY_LENGTH_PENALTY;
 
-  return Math.max(0, Math.min(1, Math.round(score * 100) / 100));
+  return Math.max(0, Math.min(1, Math.round(score * SCORE_ROUNDING_PRECISION) / SCORE_ROUNDING_PRECISION));
 }
 
 // Grade a single trade
@@ -229,12 +359,12 @@ export function gradeTrade(
 
   // Compute overall grade
   const score =
-    coherenceScore * 0.25 +
-    (1 - Math.min(1, hallucinationFlags.length * 0.25)) * 0.20 +
-    (disciplinePassed ? 1 : 0) * 0.15 +
-    depthScore * 0.20 +
-    sourceScore * 0.10 +
-    (predictedOutcome ? 0.1 : 0) * 0.10;
+    coherenceScore * GRADE_WEIGHT_COHERENCE +
+    (1 - Math.min(1, hallucinationFlags.length * HALLUCINATION_PENALTY_PER_FLAG)) * GRADE_WEIGHT_HALLUCINATION_FREE +
+    (disciplinePassed ? 1 : 0) * GRADE_WEIGHT_DISCIPLINE +
+    depthScore * GRADE_WEIGHT_DEPTH +
+    sourceScore * GRADE_WEIGHT_SOURCE_QUALITY +
+    (predictedOutcome ? GRADE_PREDICTED_OUTCOME_BONUS : 0) * GRADE_WEIGHT_PREDICTED_OUTCOME;
 
   let grade: V30TradeGrade['overallGrade'];
   if (score >= 0.95) grade = 'A+';
@@ -265,7 +395,7 @@ export function gradeTrade(
   };
 
   tradeGrades.push(tradeGrade);
-  if (tradeGrades.length > 5000) tradeGrades.splice(0, tradeGrades.length - 5000);
+  if (tradeGrades.length > STORAGE_LIMIT_TRADES) tradeGrades.splice(0, tradeGrades.length - STORAGE_LIMIT_TRADES);
 
   return tradeGrade;
 }
@@ -282,15 +412,15 @@ export function computeV30Composite(dims: V30DimensionScores): number {
     }
     // Normalize pnlPercent to 0-1 scale (cap at ±50%)
     if (dimKey === 'pnlPercent') {
-      value = Math.max(0, Math.min(1, (value + 50) / 100));
+      value = Math.max(0, Math.min(1, (value + PNL_NORMALIZATION_OFFSET) / PNL_NORMALIZATION_DIVISOR));
     }
     // Normalize sharpeRatio to 0-1 (cap at 3.0)
     if (dimKey === 'sharpeRatio') {
-      value = Math.max(0, Math.min(1, value / 3));
+      value = Math.max(0, Math.min(1, value / SHARPE_NORMALIZATION_CAP));
     }
     composite += value * weight;
   }
-  return Math.round(composite * 10000) / 100; // 0-100 scale
+  return Math.round(composite * COMPOSITE_SCALE_MULTIPLIER) / SCORE_ROUNDING_PRECISION; // 0-100 scale
 }
 
 // Update agent score after a round
