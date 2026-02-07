@@ -29,6 +29,162 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * PRICE CLAIM VERIFICATION THRESHOLDS
+ *
+ * Control how price deviation is classified in claim verification.
+ */
+
+/**
+ * Maximum price deviation for "grounded" classification.
+ * Claims within 5% of actual price are considered accurate.
+ * Example: Claimed $100, actual $102 → 2% deviation → grounded.
+ */
+const PRICE_DEVIATION_GROUNDED_THRESHOLD = 0.05;
+
+/**
+ * Maximum price deviation for "embellished" classification.
+ * Claims 5-20% off are roughly correct but overstated.
+ * Claims >20% off are classified as "hallucinated".
+ * Example: Claimed $100, actual $115 → 15% deviation → embellished.
+ */
+const PRICE_DEVIATION_EMBELLISHED_THRESHOLD = 0.20;
+
+/**
+ * PERCENTAGE CHANGE VERIFICATION THRESHOLDS
+ *
+ * Control how percentage change claims are classified.
+ */
+
+/**
+ * Maximum percentage point deviation for "grounded" classification.
+ * Claims within ±1.0pp of actual 24h change are accurate.
+ * Example: Claimed +3.5%, actual +4.2% → 0.7pp deviation → grounded.
+ */
+const PERCENTAGE_CHANGE_GROUNDED_THRESHOLD = 1.0;
+
+/**
+ * Maximum percentage point deviation for "embellished" classification.
+ * Claims 1-3pp off are approximately correct but overstated.
+ * Claims >3pp off are classified as "hallucinated".
+ * Example: Claimed +5%, actual +7.5% → 2.5pp deviation → embellished.
+ */
+const PERCENTAGE_CHANGE_EMBELLISHED_THRESHOLD = 3.0;
+
+/**
+ * VERIFICATION CONFIDENCE SCORES
+ *
+ * Confidence levels assigned to different verification outcomes.
+ * Higher values = more certain about the verification result.
+ */
+
+/** High confidence in grounded price claim (within 5% of actual) */
+const CONFIDENCE_PRICE_GROUNDED = 0.95;
+
+/** Moderate confidence in embellished price claim (5-20% deviation) */
+const CONFIDENCE_PRICE_EMBELLISHED = 0.7;
+
+/** High confidence in hallucinated price claim (>20% deviation) */
+const CONFIDENCE_PRICE_HALLUCINATED = 0.9;
+
+/** High confidence symbol not found in provided data (ungrounded) */
+const CONFIDENCE_SYMBOL_NOT_FOUND = 0.8;
+
+/** High confidence in grounded percentage claim (within ±1pp) */
+const CONFIDENCE_PERCENTAGE_GROUNDED = 0.9;
+
+/** Moderate confidence in embellished percentage claim (1-3pp off) */
+const CONFIDENCE_PERCENTAGE_EMBELLISHED = 0.6;
+
+/** High confidence in hallucinated percentage claim (>3pp off) */
+const CONFIDENCE_PERCENTAGE_HALLUCINATED = 0.8;
+
+/** Moderate confidence in no change data available (ungrounded) */
+const CONFIDENCE_NO_CHANGE_DATA = 0.7;
+
+/** Moderate confidence in grounded volume claim (qualitative) */
+const CONFIDENCE_VOLUME_GROUNDED = 0.7;
+
+/** Moderate confidence in ungrounded volume claim */
+const CONFIDENCE_VOLUME_UNGROUNDED = 0.6;
+
+/** Moderate confidence in inferred trend claim (from price data) */
+const CONFIDENCE_TREND_INFERRED = 0.6;
+
+/** Moderate confidence in ungrounded trend claim */
+const CONFIDENCE_TREND_UNGROUNDED = 0.5;
+
+/** Moderate confidence in grounded comparison claim (both symbols available) */
+const CONFIDENCE_COMPARISON_GROUNDED = 0.7;
+
+/** Low confidence in inferred comparison claim (partial data) */
+const CONFIDENCE_COMPARISON_INFERRED = 0.4;
+
+/** Moderate confidence in inferred technical claim (with source) */
+const CONFIDENCE_TECHNICAL_INFERRED = 0.5;
+
+/** Moderate confidence in ungrounded technical claim (no data) */
+const CONFIDENCE_TECHNICAL_UNGROUNDED = 0.7;
+
+/** Moderate confidence in grounded news claim (news data provided) */
+const CONFIDENCE_NEWS_GROUNDED = 0.7;
+
+/** Moderate confidence in ungrounded news claim (no news data) */
+const CONFIDENCE_NEWS_UNGROUNDED = 0.6;
+
+/** Low confidence in inferred news claim (news feed cited but not verified) */
+const CONFIDENCE_NEWS_INFERRED = 0.4;
+
+/** Low confidence in unparseable or general claims (default inference) */
+const CONFIDENCE_GENERAL_INFERRED = 0.3;
+
+/** Moderate confidence in inference when change data null */
+const CONFIDENCE_CHANGE_DATA_NULL = 0.5;
+
+/**
+ * STATUS WEIGHT MULTIPLIERS
+ *
+ * Weights applied to different verification statuses when computing
+ * the overall grounding score. Lower weights penalize fabrication.
+ */
+
+/** Weight for grounded claims (fully verified against data) */
+const STATUS_WEIGHT_GROUNDED = 1.0;
+
+/** Weight for inferred claims (reasonable deduction from available data) */
+const STATUS_WEIGHT_INFERRED = 0.7;
+
+/** Weight for embellished claims (true but overstated) */
+const STATUS_WEIGHT_EMBELLISHED = 0.4;
+
+/** Weight for ungrounded claims (references unavailable data) */
+const STATUS_WEIGHT_UNGROUNDED = 0.1;
+
+/** Weight for hallucinated claims (incorrect facts) */
+const STATUS_WEIGHT_HALLUCINATED = 0.0;
+
+/**
+ * GROUNDING SCORE CLASSIFICATION THRESHOLDS
+ *
+ * Thresholds for assessing overall grounding quality.
+ */
+
+/** Grounding score threshold for "well-grounded" assessment (≥80%) */
+const GROUNDING_SCORE_EXCELLENT_THRESHOLD = 0.8;
+
+/** Grounding score threshold for "partially grounded" assessment (≥50%) */
+const GROUNDING_SCORE_ADEQUATE_THRESHOLD = 0.5;
+
+/** Grounding score threshold for "poorly grounded" assessment (≥30%) */
+const GROUNDING_SCORE_MINIMAL_THRESHOLD = 0.3;
+
+/** Default score when no factual claims found (opinion-based reasoning) */
+const GROUNDING_SCORE_NO_CLAIMS_DEFAULT = 0.8;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -336,19 +492,19 @@ function verifyClaim(
       }
 
       const deviation = Math.abs(claim.value - realPrice) / realPrice;
-      if (deviation <= 0.05) {
+      if (deviation <= PRICE_DEVIATION_GROUNDED_THRESHOLD) {
         return {
           claim,
           status: "grounded",
-          verificationConfidence: 0.95,
-          explanation: `Price claim matches market data within 5% (claimed $${claim.value}, actual $${realPrice.toFixed(2)})`,
+          verificationConfidence: CONFIDENCE_PRICE_GROUNDED,
+          explanation: `Price claim matches market data within ${PRICE_DEVIATION_GROUNDED_THRESHOLD * 100}% (claimed $${claim.value}, actual $${realPrice.toFixed(2)})`,
           groundTruth: `$${realPrice.toFixed(2)}`,
         };
-      } else if (deviation <= 0.20) {
+      } else if (deviation <= PRICE_DEVIATION_EMBELLISHED_THRESHOLD) {
         return {
           claim,
           status: "embellished",
-          verificationConfidence: 0.7,
+          verificationConfidence: CONFIDENCE_PRICE_EMBELLISHED,
           explanation: `Price claim roughly correct but ${(deviation * 100).toFixed(0)}% off (claimed $${claim.value}, actual $${realPrice.toFixed(2)})`,
           groundTruth: `$${realPrice.toFixed(2)}`,
         };
@@ -356,7 +512,7 @@ function verifyClaim(
         return {
           claim,
           status: "hallucinated",
-          verificationConfidence: 0.9,
+          verificationConfidence: CONFIDENCE_PRICE_HALLUCINATED,
           explanation: `Price claim ${(deviation * 100).toFixed(0)}% off reality (claimed $${claim.value}, actual $${realPrice.toFixed(2)})`,
           groundTruth: `$${realPrice.toFixed(2)}`,
         };

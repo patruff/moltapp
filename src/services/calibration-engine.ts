@@ -22,6 +22,128 @@
 
 import { round2 } from "../lib/math-utils.ts";
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of calibration samples stored per agent.
+ * Sliding window prevents unbounded memory growth while maintaining
+ * statistical significance (~500 trades = 6-12 months of data).
+ */
+const MAX_SAMPLES = 500;
+
+/**
+ * Number of confidence buckets for reliability diagram.
+ * 10 buckets = 10% increments (0-10%, 10-20%, ..., 90-100%).
+ * Standard in calibration literature for granular analysis.
+ */
+const NUM_BUCKETS = 10;
+
+/**
+ * Monotonicity tolerance threshold.
+ * Allows 5% tolerance for noise when checking if higher confidence
+ * buckets have higher win rates. Prevents flagging normal variance.
+ */
+const MONOTONICITY_TOLERANCE = 0.05;
+
+/**
+ * Minimum samples required for temporal trend detection.
+ * Requires at least 20 samples to compare first half vs second half
+ * and detect improving/degrading calibration trends.
+ */
+const MIN_SAMPLES_FOR_TREND = 20;
+
+/**
+ * Trend detection threshold - improvement (ECE decreased).
+ * If ECE drops by more than 3%, classify as "improving" calibration.
+ * Lower ECE = better calibration, so negative diff = improvement.
+ */
+const TREND_IMPROVEMENT_THRESHOLD = -0.03;
+
+/**
+ * Trend detection threshold - degradation (ECE increased).
+ * If ECE rises by more than 3%, classify as "degrading" calibration.
+ * Higher ECE = worse calibration, so positive diff = degradation.
+ */
+const TREND_DEGRADING_THRESHOLD = 0.03;
+
+/**
+ * ECE threshold for "well_calibrated" diagnosis.
+ * ECE < 8% = agent's confidence predictions are reasonably accurate.
+ * Standard calibration quality cutoff in ML literature.
+ */
+const ECE_WELL_CALIBRATED_THRESHOLD = 0.08;
+
+/**
+ * High overconfidence rate threshold for "overconfident" diagnosis.
+ * If >60% of buckets show confidence > win rate, agent systematically
+ * overestimates trade success probability.
+ */
+const OVERCONFIDENCE_HIGH_THRESHOLD = 0.6;
+
+/**
+ * High underconfidence rate threshold for "underconfident" diagnosis.
+ * If >60% of buckets show confidence < win rate, agent systematically
+ * underestimates trade success probability.
+ */
+const UNDERCONFIDENCE_HIGH_THRESHOLD = 0.6;
+
+/**
+ * Default calibration score for agents with zero samples.
+ * 0.5 = neutral, no evidence of good or bad calibration yet.
+ */
+const EMPTY_ANALYSIS_DEFAULT_SCORE = 0.5;
+
+/**
+ * Confidence gap threshold for overconfidence classification.
+ * Bucket considered overconfident if avgConfidence > actualWinRate + 5%.
+ */
+const CONFIDENCE_GAP_THRESHOLD_OVERCONFIDENT = 0.05;
+
+/**
+ * Confidence gap threshold for underconfidence classification.
+ * Bucket considered underconfident if avgConfidence < actualWinRate - 5%.
+ */
+const CONFIDENCE_GAP_THRESHOLD_UNDERCONFIDENT = 0.05;
+
+/**
+ * ECE score multiplier for aggregate calibration score.
+ * Converts ECE (0-0.2) to score component (1.0 to 0.0).
+ * 0.2 ECE maps to 0.0 score (terrible calibration).
+ */
+const ECE_SCORE_MULTIPLIER = 5;
+
+/**
+ * Brier score multiplier for aggregate calibration score.
+ * Converts Brier (0-0.25) to score component (1.0 to 0.0).
+ * 0.25 Brier maps to 0.0 score (random guessing).
+ */
+const BRIER_SCORE_MULTIPLIER = 4;
+
+/**
+ * Monotonic bonus for aggregate calibration score.
+ * Adds 0.1 to score if win rates increase with confidence.
+ * Rewards agents with logically consistent confidence predictions.
+ */
+const MONOTONIC_BONUS = 0.1;
+
+/**
+ * ECE component weight in aggregate calibration score.
+ * 50% weight = ECE is primary calibration quality indicator.
+ */
+const ECE_SCORE_WEIGHT = 0.5;
+
+/**
+ * Brier score component weight in aggregate calibration score.
+ * 40% weight = Brier score is secondary quality indicator.
+ */
+const BRIER_SCORE_WEIGHT = 0.4;
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface CalibrationSample {
   agentId: string;
   confidence: number;   // 0-1: agent's self-reported confidence
@@ -73,7 +195,6 @@ export interface CalibrationReport {
 // In-memory storage (per-agent sliding windows)
 // ---------------------------------------------------------------------------
 
-const MAX_SAMPLES = 500;
 const agentSamples = new Map<string, CalibrationSample[]>();
 
 /**
@@ -98,8 +219,6 @@ export function getCalibrationSamples(agentId: string): CalibrationSample[] {
 // ---------------------------------------------------------------------------
 // Core Calibration Computation
 // ---------------------------------------------------------------------------
-
-const NUM_BUCKETS = 10;
 
 /**
  * Build calibration buckets from samples.
@@ -176,8 +295,7 @@ function checkMonotonicity(buckets: CalibrationBucket[]): boolean {
   if (nonEmpty.length < 2) return true;
 
   for (let i = 1; i < nonEmpty.length; i++) {
-    if (nonEmpty[i].actualWinRate < nonEmpty[i - 1].actualWinRate - 0.05) {
-      // Allow 5% tolerance for noise
+    if (nonEmpty[i].actualWinRate < nonEmpty[i - 1].actualWinRate - MONOTONICITY_TOLERANCE) {
       return false;
     }
   }
@@ -188,7 +306,7 @@ function checkMonotonicity(buckets: CalibrationBucket[]): boolean {
  * Detect calibration trend by comparing first half vs second half of samples.
  */
 function detectTrend(samples: CalibrationSample[]): "improving" | "degrading" | "stable" {
-  if (samples.length < 20) return "stable";
+  if (samples.length < MIN_SAMPLES_FOR_TREND) return "stable";
 
   const sorted = [...samples].sort((a, b) => a.timestamp - b.timestamp);
   const mid = Math.floor(sorted.length / 2);
@@ -199,8 +317,8 @@ function detectTrend(samples: CalibrationSample[]): "improving" | "degrading" | 
   const eceSecond = computeECE(buildBuckets(secondHalf), secondHalf.length);
 
   const diff = eceSecond - eceFirst;
-  if (diff < -0.03) return "improving";  // ECE decreased = better calibration
-  if (diff > 0.03) return "degrading";   // ECE increased = worse calibration
+  if (diff < TREND_IMPROVEMENT_THRESHOLD) return "improving";
+  if (diff > TREND_DEGRADING_THRESHOLD) return "degrading";
   return "stable";
 }
 
@@ -213,9 +331,9 @@ function diagnose(
   underconfidenceRate: number,
   ece: number,
 ): CalibrationReport["diagnosis"] {
-  if (ece < 0.08) return "well_calibrated";
-  if (overconfidenceRate > 0.6) return "overconfident";
-  if (underconfidenceRate > 0.6) return "underconfident";
+  if (ece < ECE_WELL_CALIBRATED_THRESHOLD) return "well_calibrated";
+  if (overconfidenceRate > OVERCONFIDENCE_HIGH_THRESHOLD) return "overconfident";
+  if (underconfidenceRate > UNDERCONFIDENCE_HIGH_THRESHOLD) return "underconfident";
   return "erratic";
 }
 
@@ -241,7 +359,7 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
       sampleCount: 0,
       isMonotonic: true,
       trend: "stable",
-      score: 0.5,
+      score: EMPTY_ANALYSIS_DEFAULT_SCORE,
     };
   }
 
@@ -253,8 +371,8 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
 
   // Compute over/under confidence rates
   const nonEmptyBuckets = buckets.filter((b) => b.count > 0);
-  const overconfident = nonEmptyBuckets.filter((b) => b.avgConfidence > b.actualWinRate + 0.05);
-  const underconfident = nonEmptyBuckets.filter((b) => b.avgConfidence < b.actualWinRate - 0.05);
+  const overconfident = nonEmptyBuckets.filter((b) => b.avgConfidence > b.actualWinRate + CONFIDENCE_GAP_THRESHOLD_OVERCONFIDENT);
+  const underconfident = nonEmptyBuckets.filter((b) => b.avgConfidence < b.actualWinRate - CONFIDENCE_GAP_THRESHOLD_UNDERCONFIDENT);
   const overconfidenceRate = nonEmptyBuckets.length > 0 ? overconfident.length / nonEmptyBuckets.length : 0;
   const underconfidenceRate = nonEmptyBuckets.length > 0 ? underconfident.length / nonEmptyBuckets.length : 0;
 
@@ -262,10 +380,10 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
 
   // Compute aggregate score: 1.0 = perfect, 0.0 = terrible
   // Factors: low ECE, low Brier, monotonic, not erratic
-  const eceScore = Math.max(0, 1 - ece * 5);      // 0.2 ECE = 0.0 score
-  const brierPenalty = Math.max(0, 1 - brierScore * 4);
-  const monotonicBonus = isMonotonic ? 0.1 : 0;
-  const score = round2(Math.min(1, eceScore * 0.5 + brierPenalty * 0.4 + monotonicBonus));
+  const eceScore = Math.max(0, 1 - ece * ECE_SCORE_MULTIPLIER);
+  const brierPenalty = Math.max(0, 1 - brierScore * BRIER_SCORE_MULTIPLIER);
+  const monotonicBonus = isMonotonic ? MONOTONIC_BONUS : 0;
+  const score = round2(Math.min(1, eceScore * ECE_SCORE_WEIGHT + brierPenalty * BRIER_SCORE_WEIGHT + monotonicBonus));
 
   return {
     agentId,
