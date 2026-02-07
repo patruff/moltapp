@@ -17,6 +17,82 @@
  */
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Solana RPC Rate Limiting Configuration
+ *
+ * Controls throughput for on-chain data queries (getBalance, getTransaction, getAccountInfo).
+ * Conservative limit to avoid overwhelming public RPC endpoints.
+ */
+
+/** Maximum Solana RPC requests allowed in bucket at once */
+const SOLANA_RPC_MAX_TOKENS = 5;
+
+/** Tokens refilled per interval for Solana RPC (5/sec = 300/min) */
+const SOLANA_RPC_REFILL_RATE = 5;
+
+/** Refill interval for Solana RPC in milliseconds (1 second) */
+const SOLANA_RPC_REFILL_INTERVAL_MS = 1000;
+
+/** Maximum queued Solana RPC requests before rejecting new ones */
+const SOLANA_RPC_MAX_QUEUE_SIZE = 100;
+
+/**
+ * LLM API Rate Limiting Configuration
+ *
+ * Controls throughput for Claude/GPT/Grok agent reasoning calls.
+ * Matches typical tier-1 API rate limits (10 requests/minute).
+ */
+
+/** Maximum LLM API requests allowed in bucket at once */
+const LLM_API_MAX_TOKENS = 10;
+
+/** Tokens refilled per interval for LLM APIs (10/min) */
+const LLM_API_REFILL_RATE = 10;
+
+/** Refill interval for LLM APIs in milliseconds (60 seconds) */
+const LLM_API_REFILL_INTERVAL_MS = 60_000;
+
+/** Maximum queued LLM API requests before rejecting new ones */
+const LLM_API_MAX_QUEUE_SIZE = 20;
+
+/**
+ * Jupiter DEX Rate Limiting Configuration
+ *
+ * Controls throughput for DEX swap executions and quote requests.
+ * Conservative limit (2/sec) to avoid triggering Jupiter's anti-spam filters.
+ */
+
+/** Maximum Jupiter DEX requests allowed in bucket at once */
+const JUPITER_MAX_TOKENS = 2;
+
+/** Tokens refilled per interval for Jupiter DEX (2/sec = 120/min) */
+const JUPITER_REFILL_RATE = 2;
+
+/** Refill interval for Jupiter DEX in milliseconds (1 second) */
+const JUPITER_REFILL_INTERVAL_MS = 1000;
+
+/** Maximum queued Jupiter DEX requests before rejecting new ones */
+const JUPITER_MAX_QUEUE_SIZE = 50;
+
+/**
+ * Trade Execution Jitter Parameters
+ *
+ * Random delay added between sequential agent trade executions to:
+ * - Prevent all agents from hitting Jupiter simultaneously
+ * - Reduce MEV risk from predictable execution timing
+ * - Smooth out RPC load spikes
+ */
+
+/** Minimum jitter delay in milliseconds (1 second floor) */
+const JITTER_MIN_MS = 1000;
+
+/** Maximum jitter delay in milliseconds (5 second ceiling) */
+const JITTER_MAX_MS = 5000;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -198,28 +274,28 @@ export class TokenBucketRateLimiter {
 /** Solana RPC: 5 requests per second */
 export const solanaRpcLimiter = new TokenBucketRateLimiter({
   name: "solana-rpc",
-  maxTokens: 5,
-  refillRate: 5,
-  refillIntervalMs: 1000,
-  maxQueueSize: 100,
+  maxTokens: SOLANA_RPC_MAX_TOKENS,
+  refillRate: SOLANA_RPC_REFILL_RATE,
+  refillIntervalMs: SOLANA_RPC_REFILL_INTERVAL_MS,
+  maxQueueSize: SOLANA_RPC_MAX_QUEUE_SIZE,
 });
 
 /** LLM APIs (Anthropic/OpenAI/xAI): 10 requests per minute */
 export const llmApiLimiter = new TokenBucketRateLimiter({
   name: "llm-api",
-  maxTokens: 10,
-  refillRate: 10,
-  refillIntervalMs: 60_000,
-  maxQueueSize: 20,
+  maxTokens: LLM_API_MAX_TOKENS,
+  refillRate: LLM_API_REFILL_RATE,
+  refillIntervalMs: LLM_API_REFILL_INTERVAL_MS,
+  maxQueueSize: LLM_API_MAX_QUEUE_SIZE,
 });
 
 /** Jupiter DEX: 2 requests per second */
 export const jupiterLimiter = new TokenBucketRateLimiter({
   name: "jupiter-dex",
-  maxTokens: 2,
-  refillRate: 2,
-  refillIntervalMs: 1000,
-  maxQueueSize: 50,
+  maxTokens: JUPITER_MAX_TOKENS,
+  refillRate: JUPITER_REFILL_RATE,
+  refillIntervalMs: JUPITER_REFILL_INTERVAL_MS,
+  maxQueueSize: JUPITER_MAX_QUEUE_SIZE,
 });
 
 // ---------------------------------------------------------------------------
@@ -228,10 +304,10 @@ export const jupiterLimiter = new TokenBucketRateLimiter({
 
 /**
  * Add random jitter between agent trade executions.
- * Returns a delay in milliseconds between 1000-5000ms.
+ * Returns a delay in milliseconds between JITTER_MIN_MS and JITTER_MAX_MS.
  */
 export function getTradeJitterMs(): number {
-  return 1000 + Math.floor(Math.random() * 4000);
+  return JITTER_MIN_MS + Math.floor(Math.random() * (JITTER_MAX_MS - JITTER_MIN_MS));
 }
 
 /**
