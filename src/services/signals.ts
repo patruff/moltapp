@@ -18,6 +18,447 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Technical Indicator Configuration Constants
+ *
+ * All technical indicator periods, thresholds, and parameters are defined here
+ * for easy tuning and benchmark reproducibility. These control RSI, MACD,
+ * Bollinger Bands, volume analysis, momentum calculations, and signal generation.
+ */
+
+// ===== RSI (Relative Strength Index) Parameters =====
+
+/**
+ * RSI period (lookback window in price bars)
+ * Standard: 14 periods
+ */
+const RSI_PERIOD = 14;
+
+/**
+ * RSI oversold threshold (below this = oversold, potential bounce)
+ * Standard: 30 (aggressive traders use 20)
+ */
+const RSI_OVERSOLD_THRESHOLD = 30;
+
+/**
+ * RSI overbought threshold (above this = overbought, potential pullback)
+ * Standard: 70 (aggressive traders use 80)
+ */
+const RSI_OVERBOUGHT_THRESHOLD = 70;
+
+/**
+ * RSI extreme oversold threshold (very strong signal)
+ * Used in overall signal scoring
+ */
+const RSI_EXTREME_OVERSOLD = 20;
+
+/**
+ * RSI extreme overbought threshold (very strong signal)
+ * Used in overall signal scoring
+ */
+const RSI_EXTREME_OVERBOUGHT = 80;
+
+/**
+ * RSI neutral default (when insufficient data)
+ */
+const RSI_NEUTRAL_DEFAULT = 50;
+
+// ===== MACD (Moving Average Convergence Divergence) Parameters =====
+
+/**
+ * MACD fast EMA period
+ * Standard: 12 periods
+ */
+const MACD_FAST_PERIOD = 12;
+
+/**
+ * MACD slow EMA period
+ * Standard: 26 periods
+ */
+const MACD_SLOW_PERIOD = 26;
+
+/**
+ * MACD signal line period (EMA of MACD line)
+ * Standard: 9 periods
+ */
+const MACD_SIGNAL_PERIOD = 9;
+
+// ===== Bollinger Bands Parameters =====
+
+/**
+ * Bollinger Bands period (moving average lookback)
+ * Standard: 20 periods
+ */
+const BOLLINGER_PERIOD = 20;
+
+/**
+ * Bollinger Bands standard deviation multiplier
+ * Standard: 2 (upper/lower bands are 2σ from middle)
+ */
+const BOLLINGER_STDDEV_MULTIPLIER = 2;
+
+/**
+ * Bollinger Bands squeeze threshold (bandwidth % below this = squeeze)
+ * Squeeze: Low volatility, typically precedes big move
+ * Standard: 4% bandwidth
+ */
+const BOLLINGER_SQUEEZE_THRESHOLD = 4;
+
+/**
+ * Bollinger Bands %B lower threshold (price at or below lower band)
+ * Used for breakout detection
+ */
+const BOLLINGER_PERCENT_B_LOWER = 0;
+
+/**
+ * Bollinger Bands %B upper threshold (price at or above upper band)
+ * Used for breakout detection
+ */
+const BOLLINGER_PERCENT_B_UPPER = 1.0;
+
+/**
+ * Bollinger Bands %B near lower threshold (price near lower band)
+ * Used for overall signal scoring
+ */
+const BOLLINGER_PERCENT_B_NEAR_LOWER = 0.1;
+
+/**
+ * Bollinger Bands %B near upper threshold (price near upper band)
+ * Used for overall signal scoring
+ */
+const BOLLINGER_PERCENT_B_NEAR_UPPER = 0.9;
+
+/**
+ * Bollinger Bands %B neutral position (price at middle band)
+ */
+const BOLLINGER_PERCENT_B_NEUTRAL = 0.5;
+
+/**
+ * Bollinger position classification lower threshold (< 0.2 = near lower)
+ */
+const BOLLINGER_POSITION_LOWER_THRESHOLD = 0.2;
+
+/**
+ * Bollinger position classification upper threshold (> 0.8 = near upper)
+ */
+const BOLLINGER_POSITION_UPPER_THRESHOLD = 0.8;
+
+// ===== Volume Profile Parameters =====
+
+/**
+ * Volume spike threshold (current/average ratio)
+ * Spike when volume > 2.0× average
+ */
+const VOLUME_SPIKE_THRESHOLD = 2.0;
+
+/**
+ * Volume trend increase threshold (ratio > this = increasing)
+ * Standard: 1.3× average
+ */
+const VOLUME_TREND_INCREASE = 1.3;
+
+/**
+ * Volume trend decrease threshold (ratio < this = decreasing)
+ * Standard: 0.7× average
+ */
+const VOLUME_TREND_DECREASE = 0.7;
+
+// ===== Momentum Parameters =====
+
+/**
+ * Short-term momentum period (5 periods back)
+ * Used for momentum shift detection
+ */
+const MOMENTUM_SHORT_TERM_PERIOD = 5;
+
+/**
+ * Medium-term momentum period (14 periods back)
+ * Used for momentum shift detection and trend comparison
+ */
+const MOMENTUM_MEDIUM_TERM_PERIOD = 14;
+
+/**
+ * Long-term momentum period (30 periods back)
+ * Used for overall trend strength
+ */
+const MOMENTUM_LONG_TERM_PERIOD = 30;
+
+/**
+ * Momentum acceleration threshold (|acceleration| > this = shift signal)
+ * Acceleration = short-term - medium-term momentum
+ */
+const MOMENTUM_ACCELERATION_THRESHOLD = 2;
+
+/**
+ * Momentum strong directional threshold (|momentum| > this = breakout)
+ * Used for price breakout signal generation
+ */
+const MOMENTUM_BREAKOUT_THRESHOLD = 3;
+
+/**
+ * Momentum overall signal contribution threshold (> this = bullish/bearish)
+ * Used in overall signal scoring
+ */
+const MOMENTUM_SIGNAL_THRESHOLD = 2;
+
+/**
+ * Momentum acceleration signal contribution threshold (> this = bonus score)
+ * Used in overall signal scoring
+ */
+const MOMENTUM_ACCELERATION_SIGNAL = 1;
+
+// ===== Signal Generation Parameters =====
+
+/**
+ * Signal expiry time (milliseconds)
+ * Standard: 30 minutes for technical signals
+ */
+const SIGNAL_EXPIRY_MS = 30 * 60 * 1000;
+
+/**
+ * Consensus signal expiry time (milliseconds)
+ * Longer expiry for agent consensus signals
+ */
+const SIGNAL_CONSENSUS_EXPIRY_MS = 60 * 60 * 1000;
+
+/**
+ * RSI signal strength multiplier (per point beyond threshold)
+ * strength = (threshold_distance) * multiplier
+ */
+const SIGNAL_RSI_STRENGTH_MULTIPLIER = 3;
+
+/**
+ * MACD histogram strength multiplier
+ * strength = |histogram| * multiplier
+ */
+const SIGNAL_MACD_STRENGTH_MULTIPLIER = 500;
+
+/**
+ * Bollinger squeeze strength multiplier
+ * strength = (threshold - bandwidth) * multiplier
+ */
+const SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER = 25;
+
+/**
+ * Bollinger breakout strength divisor (percentB distance from center)
+ * strength = |percentB - 0.5| * 100
+ */
+const SIGNAL_BOLLINGER_BREAKOUT_DIVISOR = 0.5;
+
+/**
+ * Volume spike strength multiplier
+ * strength = ratio * multiplier
+ */
+const SIGNAL_VOLUME_STRENGTH_MULTIPLIER = 25;
+
+/**
+ * Momentum shift strength multiplier
+ * strength = |acceleration| * multiplier
+ */
+const SIGNAL_MOMENTUM_STRENGTH_MULTIPLIER = 10;
+
+/**
+ * Price breakout strength multiplier
+ * strength = |momentum| * multiplier
+ */
+const SIGNAL_BREAKOUT_STRENGTH_MULTIPLIER = 10;
+
+/**
+ * Strong signal threshold (strength >= this = strong buy/sell)
+ * Used for dashboard filtering
+ */
+const SIGNAL_STRONG_THRESHOLD = 70;
+
+// ===== Agent Consensus Parameters =====
+
+/**
+ * Agent consensus agreement threshold (% of agents agreeing)
+ * >= 80% agreement = consensus signal
+ */
+const CONSENSUS_AGREEMENT_THRESHOLD = 80;
+
+/**
+ * Agent consensus strength multiplier (for divergence signals)
+ * strength = avgConfidence * multiplier
+ */
+const CONSENSUS_DIVERGENCE_MULTIPLIER = 0.7;
+
+/**
+ * Agent consensus minimum agents for divergence signal
+ * Need at least 2 agents for meaningful split
+ */
+const CONSENSUS_MIN_AGENTS_DIVERGENCE = 2;
+
+/**
+ * High-confidence trade threshold (confidence >= this)
+ * Used for individual agent signal generation
+ */
+const CONSENSUS_HIGH_CONFIDENCE_THRESHOLD = 85;
+
+/**
+ * Agent consensus lookback window (milliseconds)
+ * Look at last 24 hours of decisions
+ */
+const CONSENSUS_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * High-confidence trade lookback window (milliseconds)
+ * Look at last 2 hours for high-conviction trades
+ */
+const CONSENSUS_HIGH_CONF_LOOKBACK_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Agent consensus recent decisions limit (per agent)
+ * Fetch last N decisions per agent
+ */
+const CONSENSUS_RECENT_DECISIONS_LIMIT = 10;
+
+/**
+ * High-confidence trades limit (global)
+ * Show top N high-confidence trades in signals
+ */
+const CONSENSUS_HIGH_CONF_LIMIT = 5;
+
+// ===== Overall Signal Scoring Parameters =====
+
+/**
+ * Overall signal strong buy threshold (composite score >= this)
+ * Composite score from RSI + MACD + Bollinger + Momentum
+ */
+const OVERALL_SIGNAL_STRONG_BUY = 3;
+
+/**
+ * Overall signal buy threshold (composite score >= this)
+ */
+const OVERALL_SIGNAL_BUY = 1.5;
+
+/**
+ * Overall signal strong sell threshold (composite score <= this)
+ */
+const OVERALL_SIGNAL_STRONG_SELL = -3;
+
+/**
+ * Overall signal sell threshold (composite score <= this)
+ */
+const OVERALL_SIGNAL_SELL = -1.5;
+
+/**
+ * RSI contribution to overall signal (extreme oversold)
+ */
+const OVERALL_RSI_EXTREME_OVERSOLD_SCORE = 2;
+
+/**
+ * RSI contribution to overall signal (oversold)
+ */
+const OVERALL_RSI_OVERSOLD_SCORE = 1;
+
+/**
+ * RSI contribution to overall signal (extreme overbought)
+ */
+const OVERALL_RSI_EXTREME_OVERBOUGHT_SCORE = -2;
+
+/**
+ * RSI contribution to overall signal (overbought)
+ */
+const OVERALL_RSI_OVERBOUGHT_SCORE = -1;
+
+/**
+ * MACD crossover contribution to overall signal
+ */
+const OVERALL_MACD_CROSSOVER_SCORE = 1;
+
+/**
+ * MACD histogram contribution to overall signal
+ */
+const OVERALL_MACD_HISTOGRAM_SCORE = 0.5;
+
+/**
+ * Bollinger %B contribution to overall signal (near lower/upper)
+ */
+const OVERALL_BOLLINGER_SCORE = 1;
+
+/**
+ * Momentum contribution to overall signal (strong directional)
+ */
+const OVERALL_MOMENTUM_SCORE = 1;
+
+/**
+ * Momentum acceleration contribution to overall signal
+ */
+const OVERALL_MOMENTUM_ACCELERATION_SCORE = 0.5;
+
+// ===== Dashboard Parameters =====
+
+/**
+ * Market sentiment bullish threshold (bullish/bearish ratio)
+ * If bullish > bearish * 1.5, market is risk_on
+ */
+const DASHBOARD_SENTIMENT_BULLISH_RATIO = 1.5;
+
+/**
+ * Dashboard top opportunities/risks limit
+ * Show top N bullish/bearish signals
+ */
+const DASHBOARD_TOP_SIGNALS_LIMIT = 5;
+
+/**
+ * Dashboard technical summary stock limit
+ * Show technical indicators for top N stocks
+ */
+const DASHBOARD_TECHNICAL_SUMMARY_LIMIT = 10;
+
+/**
+ * Dashboard trending stocks limit
+ * Show top N stocks by signal count
+ */
+const DASHBOARD_TRENDING_LIMIT = 5;
+
+// ===== Price History Parameters =====
+
+/**
+ * Price history default periods
+ * Fetch last N price points for indicator calculations
+ */
+const PRICE_HISTORY_DEFAULT_PERIODS = 30;
+
+/**
+ * Price history decision multiplier
+ * Fetch periods * multiplier decisions (not all will have symbol)
+ */
+const PRICE_HISTORY_DECISION_MULTIPLIER = 3;
+
+/**
+ * Price history minimum data points
+ * Fall back to synthetic if < N historical prices
+ */
+const PRICE_HISTORY_MIN_DATA = 5;
+
+/**
+ * Synthetic price walk drift (slight upward bias)
+ * Standard: -0.48 centers random() around +0.02
+ */
+const SYNTHETIC_PRICE_DRIFT = -0.48;
+
+/**
+ * Synthetic price walk volatility multiplier
+ */
+const SYNTHETIC_PRICE_VOLATILITY = 0.02;
+
+/**
+ * Synthetic fallback base price (when no market data)
+ */
+const SYNTHETIC_FALLBACK_PRICE = 100;
+
+/**
+ * Volume profile lookback window (days)
+ * Calculate average from last N days
+ */
+const VOLUME_LOOKBACK_DAYS = 7;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -167,7 +608,7 @@ interface TrendingStock {
  */
 async function getPriceHistory(
   symbol: string,
-  periods: number = 30,
+  periods: number = PRICE_HISTORY_DEFAULT_PERIODS,
 ): Promise<number[]> {
   // Fetch recent decisions that contain market snapshots for this symbol
   const recentDecisions = await db
@@ -178,7 +619,7 @@ async function getPriceHistory(
     .from(agentDecisions)
     .where(eq(agentDecisions.symbol, symbol))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(periods * 3); // get extra since not all will have the symbol
+    .limit(periods * PRICE_HISTORY_DECISION_MULTIPLIER); // get extra since not all will have the symbol
 
   const prices: number[] = [];
   const seen = new Set<string>();
@@ -202,15 +643,15 @@ async function getPriceHistory(
   }
 
   // If we don't have enough data, generate synthetic history from current price
-  if (prices.length < 5) {
+  if (prices.length < PRICE_HISTORY_MIN_DATA) {
     const currentMarket = await getMarketData();
     const stock = currentMarket.find((m) => m.symbol === symbol);
-    const basePrice = stock?.price ?? 100;
+    const basePrice = stock?.price ?? SYNTHETIC_FALLBACK_PRICE;
 
     // Generate a random walk backward from current price
     const syntheticPrices: number[] = [basePrice];
     for (let i = 1; i < periods; i++) {
-      const change = (Math.random() - 0.48) * 0.02; // slight upward bias
+      const change = (Math.random() + SYNTHETIC_PRICE_DRIFT) * SYNTHETIC_PRICE_VOLATILITY; // slight upward bias
       syntheticPrices.push(syntheticPrices[i - 1] * (1 - change));
     }
     return syntheticPrices.reverse();
@@ -224,8 +665,8 @@ async function getPriceHistory(
 // ---------------------------------------------------------------------------
 
 /** Calculate RSI (Relative Strength Index) */
-function calculateRSI(prices: number[], period: number = 14): number {
-  if (prices.length < period + 1) return 50; // default neutral
+function calculateRSI(prices: number[], period: number = RSI_PERIOD): number {
+  if (prices.length < period + 1) return RSI_NEUTRAL_DEFAULT; // default neutral
 
   const changes: number[] = [];
   for (let i = 1; i < prices.length; i++) {
@@ -251,16 +692,16 @@ function calculateRSI(prices: number[], period: number = 14): number {
 
 /** Calculate MACD (Moving Average Convergence Divergence) */
 function calculateMACD(prices: number[]): MACDData {
-  const ema12 = calculateEMA(prices, 12);
-  const ema26 = calculateEMA(prices, 26);
+  const ema12 = calculateEMA(prices, MACD_FAST_PERIOD);
+  const ema26 = calculateEMA(prices, MACD_SLOW_PERIOD);
   const macdLine = ema12 - ema26;
 
   // Signal line (9-period EMA of MACD)
   // Simplified: use recent MACD values
   const macdValues = [];
-  for (let i = Math.max(0, prices.length - 9); i < prices.length; i++) {
-    const e12 = calculateEMA(prices.slice(0, i + 1), 12);
-    const e26 = calculateEMA(prices.slice(0, i + 1), 26);
+  for (let i = Math.max(0, prices.length - MACD_SIGNAL_PERIOD); i < prices.length; i++) {
+    const e12 = calculateEMA(prices.slice(0, i + 1), MACD_FAST_PERIOD);
+    const e26 = calculateEMA(prices.slice(0, i + 1), MACD_SLOW_PERIOD);
     macdValues.push(e12 - e26);
   }
   const signalLine =
