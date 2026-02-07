@@ -1038,3 +1038,49 @@ export function calculateAverage(values: readonly number[]): number {
 export function sortDescending(values: readonly number[]): number[] {
   return [...values].sort((a, b) => b - a);
 }
+
+/**
+ * Sorts an array of objects by a property in descending order.
+ * Returns a new array (does not mutate input).
+ *
+ * @param items - Array of objects to sort
+ * @param prop - Property name to sort by (must be numeric)
+ * @returns New array sorted in descending order by the property
+ *
+ * @example
+ * sortByDescending([{val: 3}, {val: 1}, {val: 5}], 'val') // returns [{val: 5}, {val: 3}, {val: 1}]
+ * sortByDescending(trades, 'pnl') // sorts trades by P&L, highest first
+ */
+export function sortByDescending<T>(items: readonly T[], prop: keyof T): T[] {
+  return [...items].sort((a, b) => {
+    const aVal = a[prop];
+    const bVal = b[prop];
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return bVal - aVal;
+    }
+    return 0;
+  });
+}
+
+/**
+ * Sorts an array of objects by a property in ascending order.
+ * Returns a new array (does not mutate input).
+ *
+ * @param items - Array of objects to sort
+ * @param prop - Property name to sort by (must be numeric)
+ * @returns New array sorted in ascending order by the property
+ *
+ * @example
+ * sortByAscending([{val: 3}, {val: 1}, {val: 5}], 'val') // returns [{val: 1}, {val: 3}, {val: 5}]
+ * sortByAscending(trades, 'date') // sorts trades by date, earliest first
+ */
+export function sortByAscending<T>(items: readonly T[], prop: keyof T): T[] {
+  return [...items].sort((a, b) => {
+    const aVal = a[prop];
+    const bVal = b[prop];
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return aVal - bVal;
+    }
+    return 0;
+  });
+}

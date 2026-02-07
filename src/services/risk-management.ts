@@ -517,7 +517,7 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
 
   // HHI = sum of squared market shares (x10000)
   const hhi = Math.round(
-    sumByKey(weights, 'weight', (w) => (w * 100) ** 2),
+    weights.reduce((sum, w) => sum + (w.weight * 100) ** 2, 0)
   );
 
   // Classify concentration

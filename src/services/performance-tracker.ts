@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, sortDescending } from "../lib/math-utils.ts";
+import { round2, sortDescending, sortByDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -673,7 +673,7 @@ function computeStockPerformance(
   // Filter to stocks with any activity
   const activeStocks = Array.from(stockMap.values())
     .filter((s) => s.tradeCount > 0 || s.currentPosition > 0);
-  return sortDescending(activeStocks, "tradeCount");
+  return sortByDescending(activeStocks, "tradeCount");
 }
 
 // ---------------------------------------------------------------------------

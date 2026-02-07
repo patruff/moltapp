@@ -409,7 +409,7 @@ export async function replayRound(roundId: string): Promise<{
   }
 
   // Round summary
-  const actionGroups = groupByKey(roundDecisions, 'action');
+  const actionGroups = groupByKey(roundDecisions, (d) => d.action);
   const actionCounts = Object.fromEntries(
     Object.entries(actionGroups).map(([action, items]) => [action, items.length]),
   );

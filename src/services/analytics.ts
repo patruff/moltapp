@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -952,7 +952,7 @@ function computeSectorAllocation(
     tradeCount: data.count,
     allocation: Math.round((data.count / total) * 1000) / 10,
   }));
-  return sortDescending(sectorData, "tradeCount");
+  return sortByDescending(sectorData, "tradeCount");
 }
 
 function computeStreaks(
