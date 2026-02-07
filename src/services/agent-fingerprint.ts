@@ -26,6 +26,152 @@ import { eq, desc, and, gte } from "drizzle-orm";
 import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Lookback window sizes for fingerprint generation and drift detection.
+ */
+
+/**
+ * Default lookback window for overall behavioral fingerprint generation.
+ * Captures ~200 most recent decisions for comprehensive behavior analysis.
+ */
+const FINGERPRINT_LOOKBACK_DEFAULT = 200;
+
+/**
+ * Recent lookback window for drift detection.
+ * Compares last 20 decisions against overall pattern to detect behavior changes.
+ */
+const FINGERPRINT_LOOKBACK_RECENT = 20;
+
+/**
+ * Minimum rounds required for meaningful drift detection.
+ * Below this threshold, insufficient data exists for comparison.
+ */
+const DRIFT_DETECTION_MIN_ROUNDS = 30;
+
+/**
+ * Confidence distribution bucket boundaries.
+ * Used to classify confidence scores into 5 tiers for profile analysis.
+ */
+
+/**
+ * Boundary between veryLow and low confidence buckets (0-20 vs 21-40).
+ */
+const CONFIDENCE_BUCKET_VERY_LOW_MAX = 20;
+
+/**
+ * Boundary between low and moderate confidence buckets (21-40 vs 41-60).
+ */
+const CONFIDENCE_BUCKET_LOW_MAX = 40;
+
+/**
+ * Boundary between moderate and high confidence buckets (41-60 vs 61-80).
+ */
+const CONFIDENCE_BUCKET_MODERATE_MAX = 60;
+
+/**
+ * Boundary between high and veryHigh confidence buckets (61-80 vs 81-100).
+ */
+const CONFIDENCE_BUCKET_HIGH_MAX = 80;
+
+/**
+ * Display limits for stock preferences and decision history.
+ */
+
+/**
+ * Maximum number of top stocks to include in fingerprint.
+ * Captures agent's most frequently traded symbols without overwhelming detail.
+ */
+const TOP_STOCKS_DISPLAY_LIMIT = 10;
+
+/**
+ * Recent decisions window for sentiment bias calculation.
+ * Tracks last 10 decisions to compute recentBias metric.
+ */
+const RECENT_DECISIONS_SENTIMENT_WINDOW = 10;
+
+/**
+ * Sentiment bias classification thresholds.
+ */
+
+/**
+ * Bias volatility threshold for contrarian classification.
+ * If >60% of consecutive non-hold decisions flip direction, agent is contrarian.
+ */
+const CONTRARIAN_VOLATILITY_THRESHOLD = 0.6;
+
+/**
+ * Sentiment difference threshold for divergence note generation.
+ * |biasA - biasB| > 0.3 triggers "Different market outlook" note.
+ */
+const SENTIMENT_DIVERGENCE_THRESHOLD = 0.3;
+
+/**
+ * Feature vector normalization parameters.
+ * Used to scale various metrics into 0-1 range for similarity computation.
+ */
+
+/**
+ * Maximum reasonable confidence standard deviation for normalization.
+ * Used to normalize stdDev from unbounded range to 0-1 scale.
+ */
+const CONFIDENCE_STDDEV_NORMALIZATION_MAX = 50;
+
+/**
+ * Average position size normalization ceiling.
+ * Positions above $5000 are capped at 1.0 in normalized feature vector.
+ */
+const AVG_POSITION_SIZE_NORMALIZATION_MAX = 5000;
+
+/**
+ * Maximum position size normalization ceiling.
+ * Max positions above $10,000 are capped at 1.0 in normalized feature vector.
+ */
+const MAX_POSITION_SIZE_NORMALIZATION_MAX = 10000;
+
+/**
+ * Stock diversity normalization factor.
+ * Agents trading 10+ stocks get full 1.0 score for diversity dimension.
+ */
+const STOCK_DIVERSITY_NORMALIZATION_MAX = 10;
+
+/**
+ * Total decisions normalization ceiling for activity level.
+ * Agents with 100+ decisions get full 1.0 score for activity dimension.
+ */
+const ACTIVITY_NORMALIZATION_MAX = 100;
+
+/**
+ * Divergence detection thresholds for similarity comparison.
+ */
+
+/**
+ * Buy/sell ratio difference threshold for "significantly more bullish" note.
+ * Difference >15% in buy decisions triggers divergence note.
+ */
+const BUY_RATIO_DIVERGENCE_THRESHOLD = 15;
+
+/**
+ * Confidence mean difference threshold for divergence note.
+ * Difference >15 points in average confidence triggers note.
+ */
+const CONFIDENCE_DIVERGENCE_THRESHOLD = 15;
+
+/**
+ * Trade frequency difference threshold for divergence note.
+ * Difference >0.3 in trade rate (30% more active) triggers note.
+ */
+const TRADE_FREQUENCY_DIVERGENCE_THRESHOLD = 0.3;
+
+/**
+ * Behavioral drift detection threshold.
+ * Euclidean distance between recent and overall feature vectors >0.5 = significant drift.
+ */
+const DRIFT_SCORE_THRESHOLD = 0.5;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -130,7 +276,7 @@ export async function generateFingerprint(
   agentId: string,
   options?: { lookbackRounds?: number },
 ): Promise<BehavioralFingerprint> {
-  const lookback = options?.lookbackRounds ?? 200;
+  const lookback = options?.lookbackRounds ?? FINGERPRINT_LOOKBACK_DEFAULT;
 
   // Fetch decision history
   const decisions = await db
@@ -255,7 +401,7 @@ function computeStockPreferences(
 
   // Sort by trade count descending
   preferences.sort((a, b) => b.tradeCount - a.tradeCount);
-  return preferences.slice(0, 10); // Top 10
+  return preferences.slice(0, TOP_STOCKS_DISPLAY_LIMIT);
 }
 
 function computeConfidenceProfile(
@@ -281,11 +427,11 @@ function computeConfidenceProfile(
 
   // Distribution buckets
   const distribution = {
-    veryLow: confidences.filter((c) => c <= 20).length,
-    low: confidences.filter((c) => c > 20 && c <= 40).length,
-    moderate: confidences.filter((c) => c > 40 && c <= 60).length,
-    high: confidences.filter((c) => c > 60 && c <= 80).length,
-    veryHigh: confidences.filter((c) => c > 80).length,
+    veryLow: confidences.filter((c) => c <= CONFIDENCE_BUCKET_VERY_LOW_MAX).length,
+    low: confidences.filter((c) => c > CONFIDENCE_BUCKET_VERY_LOW_MAX && c <= CONFIDENCE_BUCKET_LOW_MAX).length,
+    moderate: confidences.filter((c) => c > CONFIDENCE_BUCKET_LOW_MAX && c <= CONFIDENCE_BUCKET_MODERATE_MAX).length,
+    high: confidences.filter((c) => c > CONFIDENCE_BUCKET_MODERATE_MAX && c <= CONFIDENCE_BUCKET_HIGH_MAX).length,
+    veryHigh: confidences.filter((c) => c > CONFIDENCE_BUCKET_HIGH_MAX).length,
   };
 
   return {
@@ -339,7 +485,7 @@ function computeSentimentBias(
   const overallBias =
     sentiments.reduce((a: number, b: number) => a + b, 0) / sentiments.length;
 
-  const recent = sentiments.slice(0, 10);
+  const recent = sentiments.slice(0, RECENT_DECISIONS_SENTIMENT_WINDOW);
   const recentBias =
     recent.length > 0
       ? recent.reduce((a: number, b: number) => a + b, 0) / recent.length
@@ -366,7 +512,7 @@ function computeSentimentBias(
     overallBias: round3(overallBias),
     recentBias: round3(recentBias),
     biasVolatility,
-    contrarian: biasVolatility > 0.6, // More than 60% of decisions flip
+    contrarian: biasVolatility > CONTRARIAN_VOLATILITY_THRESHOLD,
   };
 }
 
@@ -391,21 +537,21 @@ function buildFeatureVector(
     actions.holdPercent / 100,
     // Confidence profile (3 dims)
     confidence.mean / 100,
-    confidence.stdDev / 50,  // Normalize: max reasonable stdDev ~50
+    confidence.stdDev / CONFIDENCE_STDDEV_NORMALIZATION_MAX,
     confidence.median / 100,
     // Risk appetite (3 dims)
-    Math.min(1, risk.avgPositionSize / 5000), // Normalize: max $5000
-    Math.min(1, risk.maxPositionSize / 10000),
+    Math.min(1, risk.avgPositionSize / AVG_POSITION_SIZE_NORMALIZATION_MAX),
+    Math.min(1, risk.maxPositionSize / MAX_POSITION_SIZE_NORMALIZATION_MAX),
     risk.tradeFrequency,
     // Sentiment (3 dims)
     (sentiment.overallBias + 1) / 2, // Map -1..1 to 0..1
     (sentiment.recentBias + 1) / 2,
     sentiment.biasVolatility,
     // Stock diversity (2 dims)
-    Math.min(1, stocks.length / 10),
+    Math.min(1, stocks.length / STOCK_DIVERSITY_NORMALIZATION_MAX),
     stocks.length > 0 ? stocks[0].weight / 100 : 0, // Concentration in top stock
     // Activity (2 dims)
-    Math.min(1, actions.totalDecisions / 100),
+    Math.min(1, actions.totalDecisions / ACTIVITY_NORMALIZATION_MAX),
     actions.totalDecisions > 0
       ? (actions.totalDecisions - (actions.holdPercent / 100 * actions.totalDecisions)) / actions.totalDecisions
       : 0,
@@ -580,7 +726,7 @@ function generateDivergenceNotes(
 
   // Compare action distributions
   const buyDiff = Math.abs(fpA.actionDistribution.buyPercent - fpB.actionDistribution.buyPercent);
-  if (buyDiff > 15) {
+  if (buyDiff > BUY_RATIO_DIVERGENCE_THRESHOLD) {
     const moreBullish = fpA.actionDistribution.buyPercent > fpB.actionDistribution.buyPercent
       ? fpA.agentId : fpB.agentId;
     notes.push(`${moreBullish} is significantly more bullish (${buyDiff.toFixed(0)}% more buy decisions)`);
@@ -588,7 +734,7 @@ function generateDivergenceNotes(
 
   // Compare confidence
   const confDiff = Math.abs(fpA.confidenceProfile.mean - fpB.confidenceProfile.mean);
-  if (confDiff > 15) {
+  if (confDiff > CONFIDENCE_DIVERGENCE_THRESHOLD) {
     const moreConfident = fpA.confidenceProfile.mean > fpB.confidenceProfile.mean
       ? fpA.agentId : fpB.agentId;
     notes.push(`${moreConfident} has higher average confidence (${confDiff.toFixed(0)} points)`);
@@ -596,7 +742,7 @@ function generateDivergenceNotes(
 
   // Compare sentiment bias
   const sentDiff = Math.abs(fpA.sentimentBias.overallBias - fpB.sentimentBias.overallBias);
-  if (sentDiff > 0.3) {
+  if (sentDiff > SENTIMENT_DIVERGENCE_THRESHOLD) {
     notes.push(`Different market outlook: bias difference of ${sentDiff.toFixed(2)}`);
   }
 
@@ -612,7 +758,7 @@ function generateDivergenceNotes(
 
   // Compare trade frequency
   const freqDiff = Math.abs(fpA.riskAppetite.tradeFrequency - fpB.riskAppetite.tradeFrequency);
-  if (freqDiff > 0.3) {
+  if (freqDiff > TRADE_FREQUENCY_DIVERGENCE_THRESHOLD) {
     const moreActive = fpA.riskAppetite.tradeFrequency > fpB.riskAppetite.tradeFrequency
       ? fpA.agentId : fpB.agentId;
     notes.push(`${moreActive} trades more frequently (${freqDiff.toFixed(2)} higher trade rate)`);
@@ -697,10 +843,10 @@ export async function detectBehaviorDrift(
   driftScore: number;
   dimensions: Array<{ dimension: string; recentValue: number; historicalValue: number }>;
 }> {
-  const overall = await generateFingerprint(agentId, { lookbackRounds: 200 });
-  const recent = await generateFingerprint(agentId, { lookbackRounds: 20 });
+  const overall = await generateFingerprint(agentId, { lookbackRounds: FINGERPRINT_LOOKBACK_DEFAULT });
+  const recent = await generateFingerprint(agentId, { lookbackRounds: FINGERPRINT_LOOKBACK_RECENT });
 
-  if (overall.roundsAnalyzed < 30) {
+  if (overall.roundsAnalyzed < DRIFT_DETECTION_MIN_ROUNDS) {
     return { hasDrift: false, driftScore: 0, dimensions: [] };
   }
 
@@ -726,7 +872,7 @@ export async function detectBehaviorDrift(
   });
 
   const driftScore = round3(Math.sqrt(sumSquaredDiff));
-  const hasDrift = driftScore > 0.5; // Threshold for significant drift
+  const hasDrift = driftScore > DRIFT_SCORE_THRESHOLD;
 
   return { hasDrift, driftScore, dimensions };
 }
