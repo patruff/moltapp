@@ -245,6 +245,53 @@ const ADAPTABILITY_WEIGHT_CONF = 0.3;
  */
 const ADAPTABILITY_INTENT_DIVERSITY_DIVISOR = 3;
 
+/**
+ * Information utilization: divisor for per-trade source type diversity.
+ * utilization = min(1, tradeSourceTypes.size / 4) — normalizes source breadth.
+ *
+ * Examples:
+ * - 1 source type (e.g., only price) → 1/4 = 0.25 utilization
+ * - 2 source types (price + volume) → 2/4 = 0.50 utilization
+ * - 4+ source types (price, volume, news, sentiment) → 4/4 = 1.0 (capped)
+ */
+const INFORMATION_UTILIZATION_DIVISOR = 4;
+
+/**
+ * Minimum trades required for trend detection.
+ * Trend analysis needs at least 4 data points to split into first/second half.
+ */
+const TREND_MIN_TRADES = 4;
+
+/**
+ * Minimum trades required for conviction consistency analysis.
+ * Need at least 3 trades to establish alignment patterns.
+ */
+const CONVICTION_MIN_TRADES = 3;
+
+/**
+ * Minimum trades required for strategic adaptability analysis.
+ * Need at least 6 trades to compute meaningful first-half vs second-half divergence.
+ */
+const ADAPTABILITY_MIN_TRADES = 6;
+
+/**
+ * Window size calculation divisor for trend detection.
+ * windowSize = max(3, floor(trades.length / 4)) — creates 4 equal windows for scoring.
+ */
+const TREND_WINDOW_DIVISOR = 4;
+
+/**
+ * Minimum window size for trend detection.
+ * Ensures at least 3 trades per window even for small trade histories.
+ */
+const TREND_WINDOW_MIN_SIZE = 3;
+
+/**
+ * Coherence threshold for intent consistency fallback.
+ * When intent-action match cannot be determined, use coherenceScore >= 0.5 as proxy.
+ */
+const INTENT_CONSISTENCY_COHERENCE_THRESHOLD = 0.5;
+
 /** Keywords that signal risk-aware reasoning. */
 const RISK_KEYWORDS = [
   "hedge",
@@ -349,7 +396,7 @@ function countKeywordMatches(
 function detectTrend(
   values: number[],
 ): "improving" | "declining" | "stable" {
-  if (values.length < 4) return "stable";
+  if (values.length < TREND_MIN_TRADES) return "stable";
   const mid = Math.floor(values.length / 2);
   const firstHalf = values.slice(0, mid);
   const secondHalf = values.slice(mid);
@@ -390,11 +437,11 @@ function normalizeIntent(intent: string): string {
  * high confidence trades are aggressive (buy/sell), low confidence leads to holds.
  */
 function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
-  if (trades.length < 3) {
+  if (trades.length < CONVICTION_MIN_TRADES) {
     return {
       name: "conviction_consistency",
       score: SCORE_DEFAULT_INSUFFICIENT_DATA,
-      evidence: "Insufficient data (fewer than 3 trades)",
+      evidence: `Insufficient data (fewer than ${CONVICTION_MIN_TRADES} trades)`,
       trendDirection: "stable",
     };
   }
@@ -471,8 +518,8 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
     // Depth component: how many risk mentions per trade (diminishing returns)
     const depthScore = Math.min(1, totalHits / RISK_DEPTH_DIVISOR);
     // Breadth component: how many unique risk concepts
-    const breadthScore = Math.min(1, uniqueHits / 5);
-    const tradeScore = depthScore * 0.4 + breadthScore * 0.6;
+    const breadthScore = Math.min(1, uniqueHits / RISK_BREADTH_DIVISOR);
+    const tradeScore = depthScore * RISK_WEIGHT_DEPTH + breadthScore * RISK_WEIGHT_BREADTH;
     perTradeScores.push(tradeScore);
 
     // Track unique keywords across all trades
@@ -485,7 +532,7 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
 
   const score = perTradeScores.reduce((s, v) => s + v, 0) / perTradeScores.length;
   const trend = detectTrend(perTradeScores);
-  const tradesWithRisk = perTradeScores.filter((s) => s > 0.1).length;
+  const tradesWithRisk = perTradeScores.filter((s) => s > RISK_MENTION_THRESHOLD).length;
 
   return {
     name: "risk_awareness",
@@ -525,18 +572,18 @@ function scoreMarketSensitivity(trades: TradeRecord[]): StrategyDimension {
     const symbolRef = t.reasoning.toLowerCase().includes(t.symbol.toLowerCase()) ? 1 : 0;
 
     // Keyword breadth (0-1): how many market data types referenced
-    const keywordScore = Math.min(1, uniqueHits / 6);
+    const keywordScore = Math.min(1, uniqueHits / MARKET_KEYWORD_DIVISOR);
     // Numeric specificity (0-1): does the agent cite actual numbers
-    const numericScore = Math.min(1, numericRefs / 3);
+    const numericScore = Math.min(1, numericRefs / MARKET_NUMERIC_DIVISOR);
     // Symbol awareness (0 or 1): does the agent reference the specific ticker
-    const combinedScore = keywordScore * 0.4 + numericScore * 0.35 + symbolRef * 0.25;
+    const combinedScore = keywordScore * MARKET_WEIGHT_KEYWORD + numericScore * MARKET_WEIGHT_NUMERIC + symbolRef * MARKET_WEIGHT_SYMBOL;
 
     perTradeScores.push(combinedScore);
   }
 
   const score = perTradeScores.reduce((s, v) => s + v, 0) / perTradeScores.length;
   const trend = detectTrend(perTradeScores);
-  const highSensitivity = perTradeScores.filter((s) => s > 0.5).length;
+  const highSensitivity = perTradeScores.filter((s) => s > MARKET_HIGH_SENSITIVITY_THRESHOLD).length;
 
   return {
     name: "market_sensitivity",
@@ -556,11 +603,11 @@ function scoreMarketSensitivity(trades: TradeRecord[]): StrategyDimension {
  * first half vs. second half of the trade history.
  */
 function scoreStrategicAdaptability(trades: TradeRecord[]): StrategyDimension {
-  if (trades.length < 6) {
+  if (trades.length < ADAPTABILITY_MIN_TRADES) {
     return {
       name: "strategic_adaptability",
-      score: 0.5,
-      evidence: "Insufficient data (fewer than 6 trades) to measure adaptability",
+      score: SCORE_DEFAULT_INSUFFICIENT_DATA,
+      evidence: `Insufficient data (fewer than ${ADAPTABILITY_MIN_TRADES} trades) to measure adaptability`,
       trendDirection: "stable",
     };
   }
@@ -596,7 +643,7 @@ function scoreStrategicAdaptability(trades: TradeRecord[]): StrategyDimension {
   }
   // divergence ranges from 0 (identical) to 2 (completely different)
   // Normalize to 0-1 where higher = more adaptive
-  const adaptabilityScore = Math.min(1, divergence / 1.5);
+  const adaptabilityScore = Math.min(1, divergence / ADAPTABILITY_DIVERGENCE_DIVISOR);
 
   // Also check confidence evolution (are they adjusting conviction levels?)
   const confFirst = firstHalf.map((t) => t.confidence);
@@ -606,15 +653,15 @@ function scoreStrategicAdaptability(trades: TradeRecord[]): StrategyDimension {
     confSecond.reduce((s, v) => s + v, 0) / confSecond.length,
   );
 
-  const combinedScore = adaptabilityScore * 0.7 + Math.min(1, confShift * 3) * 0.3;
+  const combinedScore = adaptabilityScore * ADAPTABILITY_WEIGHT_INTENT + Math.min(1, confShift * ADAPTABILITY_CONF_SHIFT_MULTIPLIER) * ADAPTABILITY_WEIGHT_CONF;
 
   // Compute per-window scores for trend detection
-  const windowSize = Math.max(3, Math.floor(trades.length / 4));
+  const windowSize = Math.max(TREND_WINDOW_MIN_SIZE, Math.floor(trades.length / TREND_WINDOW_DIVISOR));
   const windowScores: number[] = [];
   for (let i = 0; i + windowSize <= trades.length; i += windowSize) {
     const window = trades.slice(i, i + windowSize);
     const intents = new Set(window.map((t) => normalizeIntent(t.intent)));
-    windowScores.push(Math.min(1, intents.size / 3));
+    windowScores.push(Math.min(1, intents.size / ADAPTABILITY_INTENT_DIVERSITY_DIVISOR));
   }
   const trend = detectTrend(windowScores);
 
@@ -675,7 +722,7 @@ function scoreInformationUtilization(trades: TradeRecord[]): StrategyDimension {
       }
     }
 
-    const utilization = Math.min(1, tradeSourceTypes.size / 4);
+    const utilization = Math.min(1, tradeSourceTypes.size / INFORMATION_UTILIZATION_DIVISOR);
     perTradeScores.push(utilization);
   }
 
@@ -737,7 +784,7 @@ function computeIntentConsistency(trades: TradeRecord[]): number {
         break;
       default:
         // For other intents, check if coherence score is above threshold
-        isConsistent = t.coherenceScore >= 0.5;
+        isConsistent = t.coherenceScore >= INTENT_CONSISTENCY_COHERENCE_THRESHOLD;
         break;
     }
 
