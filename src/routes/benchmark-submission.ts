@@ -170,12 +170,73 @@ const meetingResponses: MeetingResponse[] = [];
 /** Max tool traces per agent (ring buffer) */
 const MAX_TOOL_TRACES = 500;
 
+/** Max external agents allowed in Meeting of the Minds (top N by leaderboard score) */
+const MEETING_MAX_EXTERNAL_AGENTS = 10;
+
 /** Record a tool call for an agent */
 function recordToolTrace(agentId: string, tool: string, args: Record<string, string>) {
   const traces = toolTraces.get(agentId) ?? [];
   traces.push({ agentId, tool, arguments: args, timestamp: new Date().toISOString() });
   if (traces.length > MAX_TOOL_TRACES) traces.shift();
   toolTraces.set(agentId, traces);
+}
+
+/** Get top N external agents by avg composite score (for meeting eligibility) */
+function getTopExternalAgentIds(limit: number): Set<string> {
+  const agentScores: Array<{ agentId: string; avgComposite: number }> = [];
+
+  for (const [agentId, subIds] of agentSubmissions) {
+    const subs = subIds
+      .map((id) => submissions.get(id))
+      .filter((s): s is BenchmarkSubmission => s !== undefined);
+    if (subs.length === 0) continue;
+
+    const avgComposite = subs.reduce((s, sub) => s + sub.scores.composite, 0) / subs.length;
+    agentScores.push({ agentId, avgComposite });
+  }
+
+  agentScores.sort((a, b) => b.avgComposite - a.avgComposite);
+  return new Set(agentScores.slice(0, limit).map((a) => a.agentId));
+}
+
+/** Compute "Greatest Orator" ranking — agents whose theses attract the most agreement */
+function computeOratorRanking(): Array<{
+  agentId: string;
+  agreements: number;
+  partialAgreements: number;
+  disagreements: number;
+  totalResponses: number;
+  persuasionScore: number;
+}> {
+  // Count responses per thesis author
+  const authorStats = new Map<string, { agrees: number; partials: number; disagrees: number }>();
+
+  for (const resp of meetingResponses) {
+    const thesis = meetingTheses.get(resp.inResponseTo);
+    if (!thesis) continue;
+
+    const authorId = thesis.agentId;
+    const stats = authorStats.get(authorId) ?? { agrees: 0, partials: 0, disagrees: 0 };
+
+    if (resp.position === "agree") stats.agrees++;
+    else if (resp.position === "partially_agree") stats.partials++;
+    else stats.disagrees++;
+
+    authorStats.set(authorId, stats);
+  }
+
+  // Build ranking: agrees = 1.0 point, partial = 0.5, disagree = 0 (they still engaged)
+  const ranking = Array.from(authorStats.entries()).map(([agentId, stats]) => ({
+    agentId,
+    agreements: stats.agrees,
+    partialAgreements: stats.partials,
+    disagreements: stats.disagrees,
+    totalResponses: stats.agrees + stats.partials + stats.disagrees,
+    persuasionScore: round2(stats.agrees + stats.partials * 0.5),
+  }));
+
+  ranking.sort((a, b) => b.persuasionScore - a.persuasionScore);
+  return ranking;
 }
 
 // ---------------------------------------------------------------------------
@@ -932,8 +993,15 @@ benchmarkSubmissionRoutes.get("/tools/trace/:agentId", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkSubmissionRoutes.get("/meeting", async (c) => {
-  // Gather external theses from in-memory storage
-  const externalTheses = Array.from(meetingTheses.values());
+  // Determine which external agents are eligible (top N by leaderboard score)
+  const eligibleExternalAgents = getTopExternalAgentIds(MEETING_MAX_EXTERNAL_AGENTS);
+
+  // Gather external theses — only from top agents
+  const allExternalTheses = Array.from(meetingTheses.values());
+  const externalTheses = allExternalTheses.filter(
+    (t) => eligibleExternalAgents.has(t.agentId),
+  );
+  const excludedCount = allExternalTheses.length - externalTheses.length;
 
   // Gather internal agent theses from recent decisions in the database
   let internalTheses: MeetingThesis[] = [];
@@ -1003,6 +1071,10 @@ benchmarkSubmissionRoutes.get("/meeting", async (c) => {
     }
   }
 
+  // Compute Greatest Orator ranking
+  const orators = computeOratorRanking();
+  const greatestOrator = orators.length > 0 ? orators[0] : null;
+
   return c.json({
     ok: true,
     meeting: {
@@ -1010,8 +1082,13 @@ benchmarkSubmissionRoutes.get("/meeting", async (c) => {
       totalTheses: allTheses.length,
       internalAgentTheses: internalTheses.length,
       externalAgentTheses: externalTheses.length,
+      maxExternalAgents: MEETING_MAX_EXTERNAL_AGENTS,
+      eligibleExternalAgents: eligibleExternalAgents.size,
+      excludedTheses: excludedCount,
       agreements,
       disagreements,
+      greatestOrator,
+      orators,
       timestamp: new Date().toISOString(),
     },
   });
@@ -1088,6 +1165,25 @@ benchmarkSubmissionRoutes.get("/meeting/responses", (c) => {
     ok: true,
     responses: meetingResponses,
     totalResponses: meetingResponses.length,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /meeting/orators — Greatest Orator ranking
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/meeting/orators", (c) => {
+  const orators = computeOratorRanking();
+  const greatestOrator = orators.length > 0 ? orators[0] : null;
+
+  return c.json({
+    ok: true,
+    greatestOrator,
+    ranking: orators.map((o, i) => ({ rank: i + 1, ...o })),
+    totalOrators: orators.length,
+    message: greatestOrator
+      ? `${greatestOrator.agentId} is the Greatest Orator with a persuasion score of ${greatestOrator.persuasionScore} (${greatestOrator.agreements} agreements, ${greatestOrator.partialAgreements} partial).`
+      : "No orator rankings yet — agents need to respond to each other's theses.",
   });
 });
 

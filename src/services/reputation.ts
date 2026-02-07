@@ -271,6 +271,235 @@ const TRUST_LEVELS: Array<{ min: number; level: TrustLevel }> = [
   { min: 0, level: "untrusted" },
 ];
 
+/**
+ * Badge Threshold Constants
+ *
+ * Milestones for earning achievement badges.
+ */
+
+/**
+ * First trade badge: 1 decision
+ * Immediate achievement for making first trading decision.
+ */
+const BADGE_FIRST_TRADE_THRESHOLD = 1;
+
+/**
+ * Getting started badge: 10 decisions
+ * Common badge for completing 10 trading decisions.
+ */
+const BADGE_TEN_TRADES_THRESHOLD = 10;
+
+/**
+ * Active trader badge: 50 decisions
+ * Uncommon badge for completing 50 trading decisions.
+ */
+const BADGE_FIFTY_TRADES_THRESHOLD = 50;
+
+/**
+ * Centurion badge: 100 decisions
+ * Rare badge for completing 100 trading decisions.
+ */
+const BADGE_HUNDRED_TRADES_THRESHOLD = 100;
+
+/**
+ * Sharp shooter accuracy: 70% prediction accuracy
+ * Rare badge requiring both accuracy and minimum trade count.
+ */
+const BADGE_SHARP_SHOOTER_ACCURACY = 70;
+
+/**
+ * Minimum trades for sharp shooter badge: 10 decisions
+ * Ensures statistical significance for accuracy badge.
+ */
+const BADGE_SHARP_SHOOTER_MIN_TRADES = 10;
+
+/**
+ * Well calibrated badge: 10% calibration error threshold
+ * Epic badge for confidence calibration within 10% of actual outcomes.
+ */
+const BADGE_WELL_CALIBRATED_ERROR_MAX = 10;
+
+/**
+ * Minimum trades for calibration badge: 20 decisions
+ * Requires sufficient data for reliable calibration measurement.
+ */
+const BADGE_WELL_CALIBRATED_MIN_TRADES = 20;
+
+/**
+ * Hot streak badge: 5 correct predictions in a row
+ * Uncommon badge for demonstrating short-term consistency.
+ */
+const BADGE_HOT_STREAK_LENGTH = 5;
+
+/**
+ * On fire badge: 10 correct predictions in a row
+ * Epic badge for exceptional winning streak.
+ */
+const BADGE_ON_FIRE_STREAK_LENGTH = 10;
+
+/**
+ * Contrarian wins threshold: 5 profitable contrarian trades
+ * Rare badge for profiting while disagreeing with market/other agents.
+ */
+const BADGE_CONTRARIAN_WINS_THRESHOLD = 5;
+
+/**
+ * Diamond hands threshold: 3+ hold-through-dips
+ * Epic badge for holding through 3+ consecutive market crashes and recovering.
+ */
+const BADGE_DIAMOND_HANDS_THRESHOLD = 3;
+
+/**
+ * Rising star ELO: 1500 rating
+ * Uncommon badge for reaching intermediate ELO rating.
+ */
+const BADGE_RISING_STAR_ELO = 1500;
+
+/**
+ * Master trader ELO: 1800 rating
+ * Legendary badge for reaching elite ELO rating.
+ */
+const BADGE_MASTER_TRADER_ELO = 1800;
+
+/**
+ * Trust Score Component Weights
+ *
+ * Weighted factors for calculating composite trust score (0-100).
+ */
+
+/**
+ * Accuracy weight in trust score: 35%
+ * HIGHEST weight — prediction accuracy is primary indicator of agent quality.
+ */
+const TRUST_WEIGHT_ACCURACY = 0.35;
+
+/**
+ * Calibration weight in trust score: 25%
+ * Second highest — confidence calibration shows self-awareness and honesty.
+ */
+const TRUST_WEIGHT_CALIBRATION = 0.25;
+
+/**
+ * Consistency weight in trust score: 20%
+ * Measures decision consistency, style adherence, and discipline.
+ */
+const TRUST_WEIGHT_CONSISTENCY = 0.20;
+
+/**
+ * Activity weight in trust score: 20%
+ * Rewards frequent, recent trading (with decay for inactivity).
+ */
+const TRUST_WEIGHT_ACTIVITY = 0.20;
+
+/**
+ * Activity Score Calculation Constants
+ *
+ * Parameters for measuring trading frequency and recency.
+ */
+
+/**
+ * Activity baseline score: 70 points
+ * Starting score before volume bonus and decay penalty.
+ */
+const ACTIVITY_SCORE_BASELINE = 70;
+
+/**
+ * Activity volume multiplier: 0.5 points per decision
+ * Each trade adds 0.5 points to activity score (capped at max bonus).
+ */
+const ACTIVITY_VOLUME_MULTIPLIER = 0.5;
+
+/**
+ * Activity max volume bonus: 30 points
+ * Maximum bonus from trading volume (reached at 60 trades).
+ */
+const ACTIVITY_MAX_VOLUME_BONUS = 30;
+
+/**
+ * Style Adherence Calculation Constants
+ *
+ * Multipliers for measuring how well agents follow their stated trading style.
+ */
+
+/**
+ * Conservative hold ratio multiplier: 150
+ * Conservative agents rewarded for higher hold ratios (multiplier * holdRatio).
+ */
+const STYLE_CONSERVATIVE_HOLD_MULTIPLIER = 150;
+
+/**
+ * Aggressive action ratio multiplier: 120
+ * Aggressive agents rewarded for higher buy/sell ratios (multiplier * actionRatio).
+ */
+const STYLE_AGGRESSIVE_ACTION_MULTIPLIER = 120;
+
+/**
+ * Moderate balance multiplier: 80
+ * Moderate agents rewarded for balanced buy/sell distribution (multiplier * balance).
+ */
+const STYLE_MODERATE_BALANCE_MULTIPLIER = 80;
+
+/**
+ * Style adherence confidence bonus: 20 points
+ * Bonus when agent's avg confidence aligns with risk tolerance (conservative < 60, aggressive > 60).
+ */
+const STYLE_ADHERENCE_CONFIDENCE_BONUS = 20;
+
+/**
+ * Moderate balance base score: 20 points
+ * Base score added to moderate agents' balance calculation.
+ */
+const STYLE_MODERATE_BASE_SCORE = 20;
+
+/**
+ * Default and Baseline Score Constants
+ *
+ * Fallback scores used when insufficient data or as starting points.
+ */
+
+/**
+ * Default score: 50 points
+ * Used when insufficient data for metric calculation (neutral score).
+ * Applied to: accuracy, calibration, consistency metrics, activity, trust defaults.
+ */
+const DEFAULT_SCORE = 50;
+
+/**
+ * Streak discipline default: 70 points
+ * Starting score for streak discipline before penalty deductions (default good behavior).
+ */
+const STREAK_DISCIPLINE_DEFAULT = 70;
+
+/**
+ * Streak discipline penalty: 10 points per violation
+ * Penalty for high-confidence → low-confidence swings after losses (70→30 confidence swing).
+ */
+const STREAK_DISCIPLINE_PENALTY = 10;
+
+/**
+ * Volatility/Consistency Multipliers
+ *
+ * Scaling factors for confidence stability and time consistency calculations.
+ */
+
+/**
+ * Decision consistency multiplier: 2
+ * Converts confidence standard deviation to consistency score (100 - stdDev * 2).
+ */
+const DECISION_CONSISTENCY_MULTIPLIER = 2;
+
+/**
+ * Volatility score multiplier: 2
+ * Converts average confidence swing to volatility score (avgSwing * 2).
+ */
+const VOLATILITY_SCORE_MULTIPLIER = 2;
+
+/**
+ * Time consistency multiplier: 50
+ * Converts gap coefficient of variation to time consistency (100 - gapCV * 50).
+ */
+const TIME_CONSISTENCY_MULTIPLIER = 50;
+
 // ---------------------------------------------------------------------------
 // Badge Definitions
 // ---------------------------------------------------------------------------

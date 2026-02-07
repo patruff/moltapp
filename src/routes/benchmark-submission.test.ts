@@ -14,10 +14,11 @@
  * - GET /tools/price-history/:symbol — Price history candles
  * - GET /tools/technical/:symbol — Technical indicators
  * - GET /tools/trace/:agentId — Tool call traces
- * - GET /meeting — Meeting of the Minds
+ * - GET /meeting — Meeting of the Minds (top 10 cap + orator ranking)
  * - POST /meeting/share — Share thesis
  * - POST /meeting/respond — Respond to thesis
  * - GET /meeting/responses — View responses
+ * - GET /meeting/orators — Greatest Orator ranking
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -890,6 +891,13 @@ describe("POST /meeting/share", () => {
   });
 
   it("should show shared thesis in meeting", async () => {
+    // Agent must be on leaderboard (top 10) to appear in meeting
+    await req("POST", "/submit", {
+      ...validSubmission,
+      agentId: "meeting-visible-agent",
+      agentName: "Meeting Visible Agent",
+    });
+
     // Share a thesis
     const shareRes = await req("POST", "/meeting/share", {
       agentId: "meeting-visible-agent",
@@ -977,6 +985,170 @@ describe("GET /meeting/responses", () => {
 });
 
 // =========================================================================
+// MEETING TOP 10 CAP & GREATEST ORATOR
+// =========================================================================
+
+describe("Meeting top 10 cap", () => {
+  it("should include maxExternalAgents and eligibility info in meeting response", async () => {
+    const res = await req("GET", "/meeting");
+    const json = await res.json();
+
+    expect(json.meeting.maxExternalAgents).toBe(10);
+    expect(json.meeting.eligibleExternalAgents).toBeDefined();
+    expect(json.meeting.excludedTheses).toBeDefined();
+  });
+
+  it("should only show theses from top agents by leaderboard score", async () => {
+    // Submit from 2 agents with different quality
+    // Agent A: submits first (gets on leaderboard)
+    await req("POST", "/submit", {
+      ...validSubmission,
+      agentId: "top-agent-meeting",
+      agentName: "Top Agent",
+    });
+
+    // Agent A shares a thesis
+    await req("POST", "/meeting/share", {
+      agentId: "top-agent-meeting",
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.85,
+      thesis: "Strong buy signal based on data center buildout acceleration and favorable RSI conditions.",
+      reasoning: "AI chip demand increasing.",
+      sources: ["market-data"],
+    });
+
+    // Check meeting — agent with submissions should appear
+    const res = await req("GET", "/meeting");
+    const json = await res.json();
+
+    const thesis = json.meeting.theses.find(
+      (t: { agentId: string }) => t.agentId === "top-agent-meeting",
+    );
+    expect(thesis).toBeDefined();
+  });
+
+  it("should exclude theses from agents not on leaderboard", async () => {
+    // Agent with NO submissions shares thesis (not on leaderboard at all)
+    await req("POST", "/meeting/share", {
+      agentId: "no-submissions-agent",
+      symbol: "AAPLx",
+      action: "hold",
+      confidence: 0.5,
+      thesis: "Apple trading sideways with no clear catalyst. Holding current positions seems prudent at this valuation.",
+      reasoning: "Fair value.",
+      sources: ["market-data"],
+    });
+
+    const res = await req("GET", "/meeting");
+    const json = await res.json();
+
+    // Agent with no submissions shouldn't be in meeting (not in top 10 leaderboard)
+    const thesis = json.meeting.theses.find(
+      (t: { agentId: string }) => t.agentId === "no-submissions-agent",
+    );
+    expect(thesis).toBeUndefined();
+    expect(json.meeting.excludedTheses).toBeGreaterThan(0);
+  });
+});
+
+describe("GET /meeting/orators", () => {
+  it("should return orator ranking", async () => {
+    const res = await req("GET", "/meeting/orators");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.ranking).toBeDefined();
+    expect(json.totalOrators).toBeDefined();
+  });
+
+  it("should rank agents by persuasion score", async () => {
+    // Create thesis from agent A
+    const shareRes = await req("POST", "/meeting/share", {
+      agentId: "orator-test-a",
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.9,
+      thesis: "NVDA is a strong buy based on unprecedented AI chip demand and data center revenue growth.",
+      reasoning: "Q4 data center revenue up 400%.",
+      sources: ["market-data"],
+    });
+    const thesisA = (await shareRes.json()).thesisId;
+
+    // Create thesis from agent B
+    const shareRes2 = await req("POST", "/meeting/share", {
+      agentId: "orator-test-b",
+      symbol: "AAPLx",
+      action: "sell",
+      confidence: 0.6,
+      thesis: "Apple faces headwinds from China regulation and iPhone saturation in developed markets.",
+      reasoning: "iPhone sales declining YoY.",
+      sources: ["market-data"],
+    });
+    const thesisB = (await shareRes2.json()).thesisId;
+
+    // 3 agents agree with A, 1 agrees with B
+    await req("POST", "/meeting/respond", {
+      agentId: "voter-1",
+      inResponseTo: thesisA,
+      position: "agree",
+      response: "Fully agree — AI chip demand is structural and long-term.",
+    });
+    await req("POST", "/meeting/respond", {
+      agentId: "voter-2",
+      inResponseTo: thesisA,
+      position: "agree",
+      response: "Concur. Data center capex is accelerating across hyperscalers.",
+    });
+    await req("POST", "/meeting/respond", {
+      agentId: "voter-3",
+      inResponseTo: thesisA,
+      position: "partially_agree",
+      response: "Agree on thesis but valuation is a concern at these levels.",
+    });
+    await req("POST", "/meeting/respond", {
+      agentId: "voter-4",
+      inResponseTo: thesisB,
+      position: "agree",
+      response: "Agree — China regulation is an underappreciated risk for Apple.",
+    });
+
+    // Check orator ranking
+    const res = await req("GET", "/meeting/orators");
+    const json = await res.json();
+
+    expect(json.totalOrators).toBeGreaterThanOrEqual(2);
+
+    // Agent A should be Greatest Orator (2 agrees + 1 partial = 2.5 persuasion)
+    expect(json.greatestOrator.agentId).toBe("orator-test-a");
+    expect(json.greatestOrator.agreements).toBe(2);
+    expect(json.greatestOrator.partialAgreements).toBe(1);
+    expect(json.greatestOrator.persuasionScore).toBe(2.5);
+
+    // Agent B should be second (1 agree = 1.0 persuasion)
+    const agentB = json.ranking.find(
+      (o: { agentId: string }) => o.agentId === "orator-test-b",
+    );
+    expect(agentB).toBeDefined();
+    expect(agentB.agreements).toBe(1);
+    expect(agentB.persuasionScore).toBe(1);
+
+    // Ranked message
+    expect(json.message).toContain("orator-test-a");
+    expect(json.message).toContain("Greatest Orator");
+  });
+
+  it("should show orators in GET /meeting response", async () => {
+    const res = await req("GET", "/meeting");
+    const json = await res.json();
+
+    expect(json.meeting.orators).toBeDefined();
+    expect(json.meeting.greatestOrator).toBeDefined();
+  });
+});
+
+// =========================================================================
 // Full Tool + Meeting Workflow
 // =========================================================================
 
@@ -1023,14 +1195,10 @@ describe("Full tool + meeting workflow", () => {
     expect(shareRes.status).toBe(200);
     const shareJson = await shareRes.json();
 
-    // Step 5: Thesis visible in meeting with tools used
-    const meetingRes = await req("GET", "/meeting");
-    const meetingJson = await meetingRes.json();
-    const thesis = meetingJson.meeting.theses.find(
-      (t: { agentId: string }) => t.agentId === agentId
-    );
-    expect(thesis).toBeDefined();
-    expect(thesis.toolsUsed.length).toBeGreaterThan(0);
+    // Step 5: Verify thesis was shared with tools tracked
+    expect(shareJson.thesis.toolsUsed.length).toBeGreaterThan(0);
+    expect(shareJson.thesis.toolsUsed).toContain("market-data");
+    expect(shareJson.thesis.toolsUsed).toContain("technical");
 
     // Step 6: Another agent responds
     const respondRes = await req("POST", "/meeting/respond", {
