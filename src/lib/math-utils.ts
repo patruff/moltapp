@@ -893,17 +893,18 @@ export function getTopKey(record: Record<string, number>): string {
 /**
  * Normalizes a value to a 0-1 range given a min and max.
  *
- * @param value - The value to normalize
- * @param min - Minimum of the range
- * @param max - Maximum of the range
+ * @param value - The value to normalize (when min/max not provided, assumes value is already in 0-100 range)
+ * @param min - Minimum of the range (default: 0)
+ * @param max - Maximum of the range (default: 1)
  * @returns Normalized value between 0 and 1, clamped
  *
  * @example
  * normalize(5, 0, 10) // returns 0.5
  * normalize(15, 0, 10) // returns 1 (clamped)
  * normalize(-5, 0, 10) // returns 0 (clamped)
+ * normalize(0.75) // returns 0.75 (already normalized, uses default 0-1 range)
  */
-export function normalize(value: number, min: number, max: number): number {
+export function normalize(value: number, min: number = 0, max: number = 1): number {
   if (max === min) return 0;
   const normalized = (value - min) / (max - min);
   return clamp(normalized, 0, 1);
@@ -912,15 +913,58 @@ export function normalize(value: number, min: number, max: number): number {
 /**
  * Calculates a weighted sum of values.
  *
+ * Overload 1: Extract values and weights from object array properties
+ * @param items - Array of objects containing value and weight properties
+ * @param valueProp - Property name for values
+ * @param weightProp - Property name for weights
+ * @returns Weighted sum
+ *
+ * Overload 2: Direct arrays of values and weights
  * @param values - Array of numbers to sum
  * @param weights - Array of weights (must be same length as values)
  * @returns Weighted sum
  *
  * @example
+ * // Overload 1: Extract from objects
+ * const items = [{score: 10, weight: 0.2}, {score: 20, weight: 0.3}];
+ * weightedSum(items, 'score', 'weight') // returns 10*0.2 + 20*0.3 = 8
+ *
+ * @example
+ * // Overload 2: Direct arrays
  * weightedSum([10, 20, 30], [0.2, 0.3, 0.5])
  * // returns 10*0.2 + 20*0.3 + 30*0.5 = 23
  */
-export function weightedSum(values: readonly number[], weights: readonly number[]): number {
+export function weightedSum<T extends Record<string, any>>(
+  items: readonly T[],
+  valueProp: keyof T,
+  weightProp: keyof T
+): number;
+export function weightedSum(values: readonly number[], weights: readonly number[]): number;
+export function weightedSum<T extends Record<string, any>>(
+  itemsOrValues: readonly T[] | readonly number[],
+  valuePropOrWeights: keyof T | readonly number[],
+  weightProp?: keyof T
+): number {
+  // Overload 1: Extract from objects
+  if (weightProp !== undefined && typeof valuePropOrWeights === 'string') {
+    const items = itemsOrValues as readonly T[];
+    const values = items.map(item => Number(item[valuePropOrWeights]));
+    const weights = items.map(item => Number(item[weightProp]));
+
+    if (values.length !== weights.length) {
+      throw new Error(`weightedSum: values length (${values.length}) must equal weights length (${weights.length})`);
+    }
+
+    let sum = 0;
+    for (let i = 0; i < values.length; i++) {
+      sum += values[i] * weights[i];
+    }
+    return sum;
+  }
+
+  // Overload 2: Direct arrays
+  const values = itemsOrValues as readonly number[];
+  const weights = valuePropOrWeights as readonly number[];
   if (values.length !== weights.length) {
     throw new Error(`weightedSum: values length (${values.length}) must equal weights length (${weights.length})`);
   }
@@ -937,13 +981,18 @@ export function weightedSum(values: readonly number[], weights: readonly number[
  * Returns array of meaningful words.
  *
  * @param text - The text to filter
+ * @param ngramSize - Optional minimum word length filter (words shorter than this are removed)
  * @returns Array of filtered words (lowercase, no fillers)
  *
  * @example
  * getFilteredWords("The quick brown fox")
  * // returns ["quick", "brown", "fox"]
+ *
+ * @example
+ * getFilteredWords("The quick brown fox", 6)
+ * // returns ["quick", "brown"] (filters "fox" with length < 6)
  */
-export function getFilteredWords(text: string): string[] {
+export function getFilteredWords(text: string, ngramSize?: number): string[] {
   const fillerWords = new Set([
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
     'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
@@ -960,7 +1009,8 @@ export function getFilteredWords(text: string): string[] {
     .split(/\s+/)
     .filter(word => {
       const cleaned = word.replace(/[^\w]/g, '');
-      return cleaned.length > 0 && !fillerWords.has(cleaned);
+      const meetsLengthRequirement = ngramSize ? cleaned.length >= ngramSize : true;
+      return cleaned.length > 0 && !fillerWords.has(cleaned) && meetsLengthRequirement;
     });
 }
 
