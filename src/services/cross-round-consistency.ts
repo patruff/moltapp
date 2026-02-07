@@ -17,6 +17,164 @@
 import { normalize, round2, countWords } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Dimension weights for overall consistency score calculation.
+ *
+ * These weights determine how much each dimension contributes to the overall
+ * consistency score. Stance consistency (25%) and reasoning evolution (20%)
+ * have the highest weight, followed by conviction stability and narrative coherence.
+ */
+
+/** Weight for stance consistency dimension (25% of overall score) */
+const DIMENSION_WEIGHT_STANCE = 0.25;
+
+/** Weight for conviction stability dimension (20% of overall score) */
+const DIMENSION_WEIGHT_CONVICTION = 0.20;
+
+/** Weight for narrative coherence dimension (20% of overall score) */
+const DIMENSION_WEIGHT_NARRATIVE = 0.20;
+
+/** Weight for strategy alignment dimension (15% of overall score) */
+const DIMENSION_WEIGHT_STRATEGY = 0.15;
+
+/** Weight for reasoning evolution dimension (20% of overall score) */
+const DIMENSION_WEIGHT_EVOLUTION = 0.20;
+
+/**
+ * Flip-flop detection thresholds.
+ *
+ * These control when stance reversals (buy→sell or sell→buy) are flagged
+ * as anomalies. Shorter time windows indicate more erratic behavior.
+ */
+
+/** Time window (hours) for detecting flip-flop behavior */
+const FLIP_FLOP_DETECTION_WINDOW_HOURS = 24;
+
+/** Time window (hours) for classifying flip-flop as high severity */
+const FLIP_FLOP_HIGH_SEVERITY_HOURS = 4;
+
+/**
+ * Stance consistency scoring parameters.
+ *
+ * Controls how reversal rate affects the stance consistency score.
+ */
+
+/** Multiplier for reversal rate penalty (higher = more severe penalty) */
+const STANCE_REVERSAL_RATE_MULTIPLIER = 2;
+
+/**
+ * Conviction stability thresholds.
+ *
+ * These detect sudden confidence changes that may indicate poor calibration
+ * or unstable reasoning. Large spikes suggest the agent doesn't have a
+ * stable internal model.
+ */
+
+/** Minimum confidence change to flag as spike (40% = 40 percentage points) */
+const CONFIDENCE_SPIKE_THRESHOLD = 0.4;
+
+/** Confidence change threshold for high severity classification (60% = 60 percentage points) */
+const CONFIDENCE_SPIKE_HIGH_SEVERITY = 0.6;
+
+/** Standard deviation normalization multiplier for conviction stability scoring */
+const CONVICTION_STDDEV_MULTIPLIER = 2.5;
+
+/**
+ * Narrative coherence thresholds.
+ *
+ * These control how much vocabulary overlap between consecutive trades on the
+ * same symbol is considered healthy vs suspicious. Some overlap shows continuity;
+ * too much suggests copypasta; too little suggests disconnected reasoning.
+ */
+
+/** Minimum Jaccard overlap for narrative continuity (10%) */
+const NARRATIVE_OVERLAP_MIN = 0.1;
+
+/** Maximum Jaccard overlap before flagging as copypasta (70%) */
+const NARRATIVE_OVERLAP_MAX = 0.7;
+
+/** Jaccard overlap threshold for "very low" continuity alert (5%) */
+const NARRATIVE_OVERLAP_VERY_LOW = 0.05;
+
+/** Partial credit multiplier for high overlap (copypasta gets 50% credit) */
+const NARRATIVE_HIGH_OVERLAP_CREDIT = 0.5;
+
+/**
+ * Strategy alignment parameters.
+ *
+ * Controls how dominant intent share is scored for strategy consistency.
+ */
+
+/** Base credit added to dominant intent share for strategy alignment score */
+const STRATEGY_BASE_CREDIT = 0.2;
+
+/**
+ * Reasoning evolution trend detection thresholds.
+ *
+ * These classify whether an agent's reasoning quality is improving, stable,
+ * or degrading by comparing first-half vs second-half performance.
+ */
+
+/** Coherence improvement threshold for "improving" classification (5% increase) */
+const EVOLUTION_COHERENCE_IMPROVEMENT_THRESHOLD = 0.05;
+
+/** Length decline threshold for "improving" classification (10% decrease allowed) */
+const EVOLUTION_LENGTH_DECLINE_TOLERANCE = 0.1;
+
+/** Coherence decline threshold for "degrading" classification (5% decrease) */
+const EVOLUTION_COHERENCE_DECLINE_THRESHOLD = 0.05;
+
+/** Length decline threshold for "degrading" classification (20% decrease) */
+const EVOLUTION_LENGTH_DECLINE_THRESHOLD = 0.2;
+
+/** Coherence decline threshold for high severity quality regression (10% decrease) */
+const EVOLUTION_COHERENCE_HIGH_DECLINE = 0.1;
+
+/** Average coherence threshold for bonus scoring (70%+) */
+const EVOLUTION_HIGH_COHERENCE_BONUS_THRESHOLD = 0.7;
+
+/** Bonus added to evolution score for consistently high coherence */
+const EVOLUTION_HIGH_COHERENCE_BONUS = 0.1;
+
+/**
+ * Reasoning evolution base scores.
+ *
+ * Default scores assigned based on trend classification.
+ */
+
+/** Base score for improving trend */
+const EVOLUTION_SCORE_IMPROVING = 0.85;
+
+/** Base score for stable trend */
+const EVOLUTION_SCORE_STABLE = 0.6;
+
+/** Base score for degrading trend */
+const EVOLUTION_SCORE_DEGRADING = 0.35;
+
+/**
+ * Grade assignment thresholds.
+ *
+ * These map overall consistency scores to letter grades (A+ through F).
+ * Lower thresholds = more lenient grading; higher = stricter.
+ */
+
+const GRADE_THRESHOLD_A_PLUS = 0.95;
+const GRADE_THRESHOLD_A = 0.90;
+const GRADE_THRESHOLD_A_MINUS = 0.85;
+const GRADE_THRESHOLD_B_PLUS = 0.80;
+const GRADE_THRESHOLD_B = 0.75;
+const GRADE_THRESHOLD_B_MINUS = 0.70;
+const GRADE_THRESHOLD_C_PLUS = 0.65;
+const GRADE_THRESHOLD_C = 0.60;
+const GRADE_THRESHOLD_C_MINUS = 0.55;
+const GRADE_THRESHOLD_D_PLUS = 0.50;
+const GRADE_THRESHOLD_D = 0.45;
+const GRADE_THRESHOLD_D_MINUS = 0.40;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -145,11 +303,11 @@ export function analyzeConsistency(agentId: string): ConsistencyReport {
 
   // Overall score
   const overallScore = Math.round((
-    stanceResult.score * 0.25 +
-    convictionResult.score * 0.20 +
-    narrativeResult.score * 0.20 +
-    strategyResult.score * 0.15 +
-    evolutionResult.score * 0.20
+    stanceResult.score * DIMENSION_WEIGHT_STANCE +
+    convictionResult.score * DIMENSION_WEIGHT_CONVICTION +
+    narrativeResult.score * DIMENSION_WEIGHT_NARRATIVE +
+    strategyResult.score * DIMENSION_WEIGHT_STRATEGY +
+    evolutionResult.score * DIMENSION_WEIGHT_EVOLUTION
   ) * 100) / 100;
 
   const grade = assignGrade(overallScore);
@@ -222,12 +380,12 @@ function analyzeStanceConsistency(
 
         reversals++;
 
-        if (hoursDiff < 24) {
+        if (hoursDiff < FLIP_FLOP_DETECTION_WINDOW_HOURS) {
           anomalies.push({
             type: "flip_flop",
             symbol,
             description: `Reversed stance on ${symbol}: ${prev.action} → ${curr.action} within ${hoursDiff.toFixed(1)} hours`,
-            severity: hoursDiff < 4 ? "high" : "medium",
+            severity: hoursDiff < FLIP_FLOP_HIGH_SEVERITY_HOURS ? "high" : "medium",
             roundId: curr.roundId,
             timestamp: curr.timestamp,
           });
@@ -247,7 +405,7 @@ function analyzeStanceConsistency(
 
   // Score: fewer reversals = higher score
   const reversalRate = totalTransitions > 0 ? totalReversals / totalTransitions : 0;
-  const score = normalize(1 - reversalRate * 2);
+  const score = normalize(1 - reversalRate * STANCE_REVERSAL_RATE_MULTIPLIER);
 
   return { score: round2(score), stanceHistory };
 }
@@ -272,12 +430,12 @@ function analyzeConvictionStability(
   // Check for sudden confidence spikes
   for (let i = 1; i < history.length; i++) {
     const diff = Math.abs(history[i].confidence - history[i - 1].confidence);
-    if (diff > 0.4) {
+    if (diff > CONFIDENCE_SPIKE_THRESHOLD) {
       anomalies.push({
         type: "confidence_spike",
         symbol: history[i].symbol,
         description: `Confidence jumped ${(diff * 100).toFixed(0)}%: ${(history[i - 1].confidence * 100).toFixed(0)}% → ${(history[i].confidence * 100).toFixed(0)}%`,
-        severity: diff > 0.6 ? "high" : "medium",
+        severity: diff > CONFIDENCE_SPIKE_HIGH_SEVERITY ? "high" : "medium",
         roundId: history[i].roundId,
         timestamp: history[i].timestamp,
       });
@@ -286,7 +444,7 @@ function analyzeConvictionStability(
 
   // Low stddev = stable conviction = good score
   // stdDev of 0.1 = very stable, 0.3+ = unstable
-  const score = normalize(1 - stdDev * 2.5);
+  const score = normalize(1 - stdDev * CONVICTION_STDDEV_MULTIPLIER);
 
   return { score: round2(score) };
 }
@@ -331,9 +489,9 @@ function analyzeNarrativeCoherence(
       const overlap = union > 0 ? intersection / union : 0;
 
       // Some overlap is good (narrative continuity), but too much is copypasta
-      if (overlap >= 0.1 && overlap <= 0.7) {
+      if (overlap >= NARRATIVE_OVERLAP_MIN && overlap <= NARRATIVE_OVERLAP_MAX) {
         coherentPairs++;
-      } else if (overlap > 0.7) {
+      } else if (overlap > NARRATIVE_OVERLAP_MAX) {
         anomalies.push({
           type: "narrative_break",
           symbol,
@@ -342,8 +500,8 @@ function analyzeNarrativeCoherence(
           roundId: curr.roundId,
           timestamp: curr.timestamp,
         });
-        coherentPairs += 0.5; // Partial credit — at least consistent topic
-      } else if (overlap < 0.05) {
+        coherentPairs += NARRATIVE_HIGH_OVERLAP_CREDIT; // Partial credit — at least consistent topic
+      } else if (overlap < NARRATIVE_OVERLAP_VERY_LOW) {
         anomalies.push({
           type: "narrative_break",
           symbol,
@@ -404,7 +562,7 @@ function analyzeStrategyAlignment(
   }
 
   // Score: higher dominant share = more consistent
-  const score = Math.min(1, dominantIntentShare + 0.2); // Give some base credit
+  const score = Math.min(1, dominantIntentShare + STRATEGY_BASE_CREDIT); // Give some base credit
 
   return { score: round2(score) };
 }
@@ -437,16 +595,16 @@ function analyzeReasoningEvolution(
 
   // Determine trend
   let trend: "improving" | "stable" | "degrading";
-  if (coherenceDelta > 0.05 && lengthDelta > -0.1) {
+  if (coherenceDelta > EVOLUTION_COHERENCE_IMPROVEMENT_THRESHOLD && lengthDelta > -EVOLUTION_LENGTH_DECLINE_TOLERANCE) {
     trend = "improving";
-  } else if (coherenceDelta < -0.05 || lengthDelta < -0.2) {
+  } else if (coherenceDelta < -EVOLUTION_COHERENCE_DECLINE_THRESHOLD || lengthDelta < -EVOLUTION_LENGTH_DECLINE_THRESHOLD) {
     trend = "degrading";
     anomalies.push({
       type: "quality_regression",
       symbol: "ALL",
       description: `Reasoning quality declining: coherence ${firstAvgCoherence.toFixed(2)} → ${secondAvgCoherence.toFixed(2)}, ` +
         `avg length ${firstAvgLength.toFixed(0)} → ${secondAvgLength.toFixed(0)} words`,
-      severity: coherenceDelta < -0.1 ? "high" : "medium",
+      severity: coherenceDelta < -EVOLUTION_COHERENCE_HIGH_DECLINE ? "high" : "medium",
       roundId: history[history.length - 1].roundId,
       timestamp: history[history.length - 1].timestamp,
     });
@@ -455,14 +613,14 @@ function analyzeReasoningEvolution(
   }
 
   // Score: improving gets bonus, stable is good, degrading loses points
-  let score = 0.6; // Base
-  if (trend === "improving") score = 0.85;
-  else if (trend === "degrading") score = 0.35;
+  let score = EVOLUTION_SCORE_STABLE; // Base
+  if (trend === "improving") score = EVOLUTION_SCORE_IMPROVING;
+  else if (trend === "degrading") score = EVOLUTION_SCORE_DEGRADING;
 
   // Bonus for consistently high coherence
   const allCoherences = history.map((e) => e.coherenceScore);
   const avgCoherence = allCoherences.reduce((s, v) => s + v, 0) / allCoherences.length;
-  if (avgCoherence > 0.7) score = Math.min(1, score + 0.1);
+  if (avgCoherence > EVOLUTION_HIGH_COHERENCE_BONUS_THRESHOLD) score = Math.min(1, score + EVOLUTION_HIGH_COHERENCE_BONUS);
 
   return { score: round2(score), trend };
 }
@@ -472,18 +630,18 @@ function analyzeReasoningEvolution(
 // ---------------------------------------------------------------------------
 
 function assignGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
