@@ -71,31 +71,6 @@ const USDC_DECIMALS = 6;
 const SOL_PRICE_USD = 200; // Conservative estimate, update as needed
 
 // ---------------------------------------------------------------------------
-// Mock Prices (fallback when Jupiter API doesn't return xStocks prices)
-// ---------------------------------------------------------------------------
-
-/** Base mock prices by symbol - approximating real stock prices in USD */
-const MOCK_BASE_PRICES: Record<string, number> = {
-  AAPLx: 178, AMZNx: 178, GOOGLx: 175, METAx: 505, MSFTx: 415, NVDAx: 131, TSLAx: 245,
-  AVGOx: 168, AMDx: 125, INTCx: 22, NFLXx: 875, PLTRx: 65, COINx: 225, MSTRx: 320,
-  HOODx: 25, CRCLx: 42, GMEx: 27, JPMx: 195, BACx: 38, GSx: 385, Vx: 275, MAx: 460,
-  LLYx: 850, UNHx: 520, JNJx: 155, MRKx: 105, PFEx: 28, WMTx: 165, KOx: 62, PEPx: 175,
-  MCDx: 290, XOMx: 105, CVXx: 155, SPYx: 512, QQQx: 440, TQQQx: 65, GLDx: 175, VTIx: 265,
-  TBLLx: 50, TMOx: 580, ACNx: 340, CRMx: 265, ORCLx: 125, IBMx: 168, CSCOx: 48,
-};
-
-/** Generate a mock price with small random variation */
-function generateMockPrice(symbol: string): number {
-  const base = MOCK_BASE_PRICES[symbol] ?? 100;
-  // Add ±5% random variation for realism
-  const variation = 0.95 + Math.random() * 0.1;
-  return base * variation;
-}
-
-/** Create symbol-to-mint lookup for mock price fallback */
-const symbolToMint = new Map(XSTOCKS_CATALOG.map(s => [s.mintAddress, s.symbol]));
-
-// ---------------------------------------------------------------------------
 // Core Functions
 // ---------------------------------------------------------------------------
 
@@ -154,16 +129,21 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
   // Build positions from on-chain xStock holdings
   const positionList = walletStatus.xStockHoldings.map(holding => {
     const stockInfo = XSTOCKS_CATALOG.find(s => s.mintAddress === holding.mintAddress);
-    const price = priceData[holding.mintAddress]?.usdPrice ?? generateMockPrice(holding.symbol);
-    const value = holding.amount * price;
 
     // Get cost basis from trades
     const costData = costBasisMap.get(holding.symbol);
     const avgCostBasis = costData && costData.totalQty > 0
       ? costData.totalCost / costData.totalQty
-      : price; // Default to current price if no trade history
+      : 0;
 
-    const unrealizedPnl = (price - avgCostBasis) * holding.amount;
+    // Use live Jupiter price when available. If Jupiter is down, fall back to
+    // cost basis so unrealized P&L = 0 (conservative). This avoids random mock
+    // prices (±5% variation) contaminating P&L calculations on every refresh.
+    const jupiterPrice = priceData[holding.mintAddress]?.usdPrice;
+    const price = jupiterPrice ?? (avgCostBasis > 0 ? avgCostBasis : 0);
+    const value = holding.amount * price;
+
+    const unrealizedPnl = avgCostBasis > 0 ? (price - avgCostBasis) * holding.amount : 0;
     const unrealizedPnlPercent = avgCostBasis > 0 ? ((price - avgCostBasis) / avgCostBasis) * 100 : 0;
 
     return {

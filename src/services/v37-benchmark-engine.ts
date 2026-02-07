@@ -325,6 +325,12 @@ export interface V37AgentScore {
   tradeCount: number;
   roundsPlayed: number;
   lastUpdated: string;
+  /**
+   * Pearson correlation between coherence score and actual P&L percent.
+   * Positive = higher reasoning quality predicts better financial outcomes.
+   * null when fewer than 2 trades have actualPnlPercent resolved.
+   */
+  reasoningProfitCorrelation?: number | null;
 }
 
 export interface V37TradeGrade {
@@ -360,6 +366,10 @@ export interface V37TradeGrade {
   predictedOutcome: string | null;
   actualOutcome: string | null;
   outcomeResolved: "pending" | "correct" | "incorrect" | "partial";
+  /** Actual P&L percentage this trade produced (null if unresolved) */
+  actualPnlPercent?: number;
+  /** Trade outcome classification from outcome resolution engine */
+  tradeOutcome?: "profit" | "loss" | "breakeven" | "pending";
   overallGrade: "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F";
   gradedAt: string;
 }
@@ -767,6 +777,10 @@ export function gradeTrade(input: {
   previousOutcomes?: Array<{ confidence: number; correct: boolean }>;
   previousReasonings?: string[];
   quantity?: number;
+  /** Actual P&L percentage from outcome resolution (pass-through) */
+  actualPnlPercent?: number;
+  /** Trade outcome classification from outcome resolution (pass-through) */
+  tradeOutcome?: "profit" | "loss" | "breakeven" | "pending";
 }): V37TradeGrade {
   const tradeId = `v37_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
@@ -902,6 +916,8 @@ export function gradeTrade(input: {
     predictedOutcome: input.predictedOutcome,
     actualOutcome: null,
     outcomeResolved: "pending",
+    actualPnlPercent: input.actualPnlPercent,
+    tradeOutcome: input.tradeOutcome,
     overallGrade,
     gradedAt: new Date().toISOString(),
   };
@@ -1022,6 +1038,33 @@ export function scoreAgent(input: {
   const decisionAccountability = avg(t.map((x) => x.accountabilityScore));
   const consensusQuality = avg(t.map((x) => x.consensusQualityScore));
 
+  // Reasoning-Profit Correlation: Pearson correlation between coherence and actual P&L
+  // Only computed when at least 2 trades have resolved actualPnlPercent
+  let reasoningProfitCorrelation: number | null = null;
+  const resolvedPnlTrades = t.filter(
+    (x) => x.actualPnlPercent !== undefined && x.actualPnlPercent !== null,
+  );
+  if (resolvedPnlTrades.length >= 2) {
+    const coherenceValues = resolvedPnlTrades.map((x) => x.coherenceScore);
+    const pnlValues = resolvedPnlTrades.map((x) => x.actualPnlPercent!);
+    const meanCoh = avg(coherenceValues);
+    const meanPnl = avg(pnlValues);
+    let numerator = 0;
+    let denomCoh = 0;
+    let denomPnl = 0;
+    for (let i = 0; i < resolvedPnlTrades.length; i++) {
+      const dCoh = coherenceValues[i] - meanCoh;
+      const dPnl = pnlValues[i] - meanPnl;
+      numerator += dCoh * dPnl;
+      denomCoh += dCoh * dCoh;
+      denomPnl += dPnl * dPnl;
+    }
+    const denominator = Math.sqrt(denomCoh * denomPnl);
+    reasoningProfitCorrelation = denominator > 0
+      ? Math.round((numerator / denominator) * 1000) / 1000
+      : 0;
+  }
+
   const dimensions: V37DimensionScores = {
     pnlPercent: Math.round(pnlScore * 100) / 100,
     sharpeRatio: Math.round(sharpeScore * 100) / 100,
@@ -1077,6 +1120,7 @@ export function scoreAgent(input: {
     tradeCount: t.length,
     roundsPlayed: new Set(t.map((x) => x.tradeId.split("_")[1])).size,
     lastUpdated: new Date().toISOString(),
+    reasoningProfitCorrelation,
   };
 
   agentScores.set(input.agentId, agentScore);

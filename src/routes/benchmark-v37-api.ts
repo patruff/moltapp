@@ -70,6 +70,7 @@ benchmarkV37ApiRoutes.get("/leaderboard", (c) => {
         .sort(([, a], [, b]) => a - b)
         .slice(0, 3)
         .map(([dim, score]) => ({ dimension: dim, score })),
+      reasoningProfitCorrelation: s.reasoningProfitCorrelation ?? null,
       lastUpdated: s.lastUpdated,
     })),
   });
@@ -122,6 +123,8 @@ benchmarkV37ApiRoutes.get("/trade-grades", (c) => {
       predictedOutcome: g.predictedOutcome,
       actualOutcome: g.actualOutcome,
       outcomeResolved: g.outcomeResolved,
+      actualPnlPercent: g.actualPnlPercent ?? null,
+      tradeOutcome: g.tradeOutcome ?? null,
       gradedAt: g.gradedAt,
     })),
     version: "37.0",
@@ -649,6 +652,8 @@ benchmarkV37ApiRoutes.get("/export/jsonl", (c) => {
     predicted_outcome: t.predictedOutcome,
     actual_outcome: t.actualOutcome,
     outcome_resolved: t.outcomeResolved,
+    actual_pnl_percent: t.actualPnlPercent ?? null,
+    trade_outcome: t.tradeOutcome ?? null,
     overall_grade: t.overallGrade,
     graded_at: t.gradedAt,
     benchmark_version: "37.0",

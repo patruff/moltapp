@@ -28,6 +28,124 @@ import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 import { normalize, countWords, mean, splitSentences, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Baseline Scores
+ * Starting point for each scoring dimension before bonuses/penalties applied.
+ */
+const LOGIC_QUALITY_BASELINE = 0.3; // Starting score for logic analysis (30%)
+const EVIDENCE_USAGE_BASELINE = 0.2; // Starting score for evidence citations (20%)
+const RISK_AWARENESS_BASELINE = 0.2; // Starting score for risk acknowledgment (20%)
+const ORIGINALITY_BASELINE = 0.3; // Starting score for reasoning uniqueness (30%)
+const CONCLUSION_VALIDITY_BASELINE = 0.5; // Neutral baseline for action alignment (50%)
+
+/**
+ * Word Count Thresholds
+ * Minimum word counts for various quality bonuses.
+ */
+const LOGIC_WORD_COUNT_TIER1 = 30; // Basic detail threshold
+const LOGIC_WORD_COUNT_TIER2 = 60; // Moderate detail threshold
+const LOGIC_WORD_COUNT_TIER3 = 100; // High detail threshold
+const EVIDENCE_WORD_COUNT_MIN = 20; // Minimum for evidenced conclusion
+const STRENGTH_WORD_COUNT_DETAILED = 60; // "Detailed analysis" strength marker
+const WEAKNESS_WORD_COUNT_MIN = 20; // Below this = "too brief" weakness
+const AGREEMENT_WORD_COUNT_BONUS = 40; // Better reasoning threshold for agreement
+const AGREEMENT_WORD_COUNT_PENALTY = 30; // Hold action brevity penalty
+
+/**
+ * Scoring Bonuses
+ * Points added for positive quality indicators.
+ */
+const LOGIC_BONUS_TIER1_WORDS = 0.1; // Bonus for >30 words
+const LOGIC_BONUS_TIER2_WORDS = 0.1; // Bonus for >60 words
+const LOGIC_BONUS_TIER3_WORDS = 0.05; // Bonus for >100 words
+const LOGIC_BONUS_CAUSAL_CONNECTOR = 0.04; // Per causal reasoning pattern (because, therefore, etc.)
+const LOGIC_BONUS_COMPARATIVE_CONNECTOR = 0.03; // Per comparative pattern (however, although, etc.)
+const LOGIC_BONUS_QUANTITATIVE_PATTERN = 0.03; // Per quantitative reasoning pattern (%, ratio, etc.)
+
+const EVIDENCE_BONUS_PRICE_REFERENCE = 0.15; // Specific $ prices cited
+const EVIDENCE_BONUS_DATA_PATTERN = 0.04; // Per data point pattern (volume, RSI, P/E, etc.)
+const EVIDENCE_BONUS_MULTI_STOCK = 0.1; // Multiple stock symbols mentioned (>1 stock)
+const EVIDENCE_BONUS_PORTFOLIO_REFERENCE = 0.1; // Portfolio state awareness
+
+const RISK_BONUS_RISK_PATTERN = 0.05; // Per risk-related term (risk, downside, volatility, etc.)
+const RISK_BONUS_CONDITIONAL_PATTERN = 0.03; // Per conditional language (if, could, might, etc.)
+const RISK_BONUS_BUY_WITH_AWARENESS = 0.1; // Buy action + risk acknowledgment
+
+const ORIGINALITY_BONUS_UNIQUE_RATIO = 0.3; // Multiplier for unique word ratio (max 0.2 ceiling)
+const ORIGINALITY_BONUS_UNIQUE_RATIO_CEILING = 0.2; // Max bonus from vocabulary diversity
+const ORIGINALITY_BONUS_MULTI_SENTENCE_TIER1 = 0.1; // Bonus for ≥3 sentences
+const ORIGINALITY_BONUS_MULTI_SENTENCE_TIER2 = 0.05; // Bonus for ≥5 sentences
+const ORIGINALITY_BONUS_FORWARD_PATTERN = 0.03; // Per forward-looking pattern (expect, predict, etc.)
+const ORIGINALITY_BONUS_HISTORICAL_CONTEXT = 0.1; // Historical comparison mentioned
+
+const CONCLUSION_BONUS_ACTION_ALIGNMENT = 0.2; // Action matches reasoning direction (buy+bullish, sell+bearish)
+
+/**
+ * Scoring Penalties
+ * Points deducted for quality concerns.
+ */
+const CONCLUSION_PENALTY_HIGH_CONF_SHORT = 0.2; // High confidence (>80%) with <20 words
+const CONCLUSION_PENALTY_LOW_CONF_DEFINITIVE = 0.15; // Low confidence (<30%) with definitive language
+const CONCLUSION_PENALTY_SHORT_HOLD = 0.1; // Hold action with <15 words
+const CONCLUSION_PENALTY_ACTION_MISMATCH = 0.15; // Action contradicts reasoning direction (buy+bearish, sell+bullish)
+
+/**
+ * Confidence Thresholds (normalized 0-1)
+ * Used for conclusion validity and agreement evaluation.
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.8; // 80%+ = high confidence
+const CONFIDENCE_LOW_THRESHOLD = 0.3; // <30% = low confidence
+const CONFIDENCE_MODERATE_MIN = 0.3; // Moderate confidence range start
+const CONFIDENCE_MODERATE_MAX = 0.85; // Moderate confidence range end
+const CONFIDENCE_VERY_HIGH_THRESHOLD = 0.9; // 90%+ = very high (overconfident warning)
+
+/**
+ * Composite Aggregation Weights
+ * How each dimension contributes to overall peer review score.
+ */
+const COMPOSITE_WEIGHT_LOGIC_QUALITY = 0.25; // 25% - logic chain validity
+const COMPOSITE_WEIGHT_EVIDENCE_USAGE = 0.20; // 20% - data citation quality
+const COMPOSITE_WEIGHT_RISK_AWARENESS = 0.20; // 20% - risk acknowledgment
+const COMPOSITE_WEIGHT_ORIGINALITY = 0.15; // 15% - reasoning uniqueness
+const COMPOSITE_WEIGHT_CONCLUSION_VALIDITY = 0.20; // 20% - action alignment
+
+/**
+ * Agreement Evaluation Parameters
+ * Control how reviewer perspective determines agreement probability.
+ */
+const AGREEMENT_BASE_PROBABILITY = 0.5; // Starting agreement likelihood (50%)
+const AGREEMENT_BONUS_WORD_COUNT = 0.1; // Bonus for >40 words
+const AGREEMENT_BONUS_EVIDENCE = 0.1; // Bonus for price/percentage citations
+const AGREEMENT_BONUS_RISK_AWARENESS = 0.05; // Bonus for risk mention
+const AGREEMENT_BONUS_MODERATE_CONFIDENCE = 0.05; // Bonus for 30-85% confidence range
+
+const AGREEMENT_CLAUDE_RISK_BONUS = 0.1; // Claude values risk awareness
+const AGREEMENT_CLAUDE_HOLD_BONUS = 0.1; // Claude values cautious hold reasoning
+const AGREEMENT_CLAUDE_OVERCONFIDENT_PENALTY = 0.15; // Claude penalizes high-conf buy without risk mention
+const AGREEMENT_GPT_MOMENTUM_BONUS = 0.1; // GPT values momentum/technical signals
+const AGREEMENT_GPT_HOLD_PENALTY = 0.1; // GPT dislikes brief hold reasoning
+const AGREEMENT_GROK_CONTRARIAN_BONUS = 0.15; // Grok values contrarian thinking
+const AGREEMENT_GROK_BASE_PENALTY = 0.1; // Grok generally more disagreeable
+
+/**
+ * Sentiment Pattern Weights
+ * Used for action-reasoning alignment scoring.
+ */
+const SENTIMENT_PATTERN_WEIGHT_UNIT = 1; // Weight increment per bullish/bearish pattern match
+
+/**
+ * Reference Limits
+ * Display/analysis caps for strengths, weaknesses, patterns.
+ */
+const STRENGTHS_DISPLAY_LIMIT = 4; // Max strengths shown per review
+const WEAKNESSES_DISPLAY_LIMIT = 4; // Max weaknesses shown per review
+const SENTENCE_COUNT_TIER1 = 3; // Multi-sentence analysis threshold
+const SENTENCE_COUNT_TIER2 = 5; // Deep multi-sentence analysis threshold
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -134,11 +252,11 @@ export function conductPeerReview(
   const critique = generateCritique(scores, strengths, weaknesses, action, symbol);
 
   const overallScore = round2(
-    scores.logicQuality * 0.25 +
-      scores.evidenceUsage * 0.20 +
-      scores.riskAwareness * 0.20 +
-      scores.originality * 0.15 +
-      scores.conclusionValidity * 0.20,
+    scores.logicQuality * COMPOSITE_WEIGHT_LOGIC_QUALITY +
+      scores.evidenceUsage * COMPOSITE_WEIGHT_EVIDENCE_USAGE +
+      scores.riskAwareness * COMPOSITE_WEIGHT_RISK_AWARENESS +
+      scores.originality * COMPOSITE_WEIGHT_ORIGINALITY +
+      scores.conclusionValidity * COMPOSITE_WEIGHT_CONCLUSION_VALIDITY,
   );
 
   const review: PeerReview = {
@@ -277,13 +395,13 @@ function analyzeReasoningQuality(
 }
 
 function scoreLogicQuality(reasoning: string): number {
-  let score = 0.3; // baseline
+  let score = LOGIC_QUALITY_BASELINE;
   const words = countWords(reasoning);
 
   // Length bonus: more detailed reasoning tends to be more logical
-  if (words > 30) score += 0.1;
-  if (words > 60) score += 0.1;
-  if (words > 100) score += 0.05;
+  if (words > LOGIC_WORD_COUNT_TIER1) score += LOGIC_BONUS_TIER1_WORDS;
+  if (words > LOGIC_WORD_COUNT_TIER2) score += LOGIC_BONUS_TIER2_WORDS;
+  if (words > LOGIC_WORD_COUNT_TIER3) score += LOGIC_BONUS_TIER3_WORDS;
 
   // Causal connectors indicate structured reasoning
   const causalPatterns = [
@@ -293,7 +411,7 @@ function scoreLogicQuality(reasoning: string): number {
     /\bsince\b/i, /\bhence\b/i, /\bthus\b/i,
   ];
   for (const p of causalPatterns) {
-    if (p.test(reasoning)) score += 0.04;
+    if (p.test(reasoning)) score += LOGIC_BONUS_CAUSAL_CONNECTOR;
   }
 
   // Comparative reasoning (comparing options)
@@ -303,7 +421,7 @@ function scoreLogicQuality(reasoning: string): number {
     /\binstead of\b/i, /\bbut\b/i, /\bdespite\b/i,
   ];
   for (const p of comparativePatterns) {
-    if (p.test(reasoning)) score += 0.03;
+    if (p.test(reasoning)) score += LOGIC_BONUS_COMPARATIVE_CONNECTOR;
   }
 
   // Quantitative reasoning (citing numbers beyond just prices)
@@ -312,17 +430,17 @@ function scoreLogicQuality(reasoning: string): number {
     /volatility/i, /correlation/i, /standard deviation/i,
   ];
   for (const p of quantPatterns) {
-    if (p.test(reasoning)) score += 0.03;
+    if (p.test(reasoning)) score += LOGIC_BONUS_QUANTITATIVE_PATTERN;
   }
 
   return Math.min(1, score);
 }
 
 function scoreEvidenceUsage(reasoning: string): number {
-  let score = 0.2;
+  let score = EVIDENCE_USAGE_BASELINE;
 
   // Price references
-  if (/\$\d+\.?\d*/i.test(reasoning)) score += 0.15;
+  if (/\$\d+\.?\d*/i.test(reasoning)) score += EVIDENCE_BONUS_PRICE_REFERENCE;
 
   // Specific data points
   const evidencePatterns = [
@@ -332,23 +450,23 @@ function scoreEvidenceUsage(reasoning: string): number {
     /\bsupport\b/i, /\bresistance\b/i, /\btrend\b/i,
   ];
   for (const p of evidencePatterns) {
-    if (p.test(reasoning)) score += 0.04;
+    if (p.test(reasoning)) score += EVIDENCE_BONUS_DATA_PATTERN;
   }
 
   // Multi-source analysis (mentions multiple stocks or factors)
   const stockMentions = reasoning.match(/\b[A-Z]{2,5}x\b/g);
-  if (stockMentions && stockMentions.length > 1) score += 0.1;
+  if (stockMentions && stockMentions.length > SENTIMENT_PATTERN_WEIGHT_UNIT) score += EVIDENCE_BONUS_MULTI_STOCK;
 
   // References to portfolio state
   if (/\bportfolio\b|\bposition\b|\bcash\b|\bbalance\b/i.test(reasoning)) {
-    score += 0.1;
+    score += EVIDENCE_BONUS_PORTFOLIO_REFERENCE;
   }
 
   return Math.min(1, score);
 }
 
 function scoreRiskAwareness(reasoning: string, action: "buy" | "sell" | "hold"): number {
-  let score = 0.2;
+  let score = RISK_AWARENESS_BASELINE;
 
   // Risk-related terms
   const riskPatterns = [
@@ -358,7 +476,7 @@ function scoreRiskAwareness(reasoning: string, action: "buy" | "sell" | "hold"):
     /\bconcentrat/i, /\blimit/i, /\bmax\s+position/i,
   ];
   for (const p of riskPatterns) {
-    if (p.test(reasoning)) score += 0.05;
+    if (p.test(reasoning)) score += RISK_BONUS_RISK_PATTERN;
   }
 
   // Conditional language shows awareness of uncertainty
@@ -367,19 +485,19 @@ function scoreRiskAwareness(reasoning: string, action: "buy" | "sell" | "hold"):
     /\bpotentially\b/i, /\bpossibly\b/i, /\bin case\b/i,
   ];
   for (const p of conditionalPatterns) {
-    if (p.test(reasoning)) score += 0.03;
+    if (p.test(reasoning)) score += RISK_BONUS_CONDITIONAL_PATTERN;
   }
 
   // Buy action with risk acknowledgment is better than blind buying
   if (action === "buy" && /\bdownside\b|\brisk\b|\bcaution\b/i.test(reasoning)) {
-    score += 0.1;
+    score += RISK_BONUS_BUY_WITH_AWARENESS;
   }
 
   return Math.min(1, score);
 }
 
 function scoreOriginality(reasoning: string): number {
-  let score = 0.3;
+  let score = ORIGINALITY_BASELINE;
 
   const words = countWords(reasoning);
   const sentences = splitSentences(reasoning).length;
@@ -387,11 +505,11 @@ function scoreOriginality(reasoning: string): number {
   // Unique word ratio (vocabulary diversity)
   const uniqueWords = new Set(reasoning.toLowerCase().split(/\s+/));
   const uniqueRatio = words > 0 ? uniqueWords.size / words : 0;
-  score += Math.min(0.2, uniqueRatio * 0.3);
+  score += Math.min(ORIGINALITY_BONUS_UNIQUE_RATIO_CEILING, uniqueRatio * ORIGINALITY_BONUS_UNIQUE_RATIO);
 
   // Multi-sentence analysis shows deeper thinking
-  if (sentences >= 3) score += 0.1;
-  if (sentences >= 5) score += 0.05;
+  if (sentences >= SENTENCE_COUNT_TIER1) score += ORIGINALITY_BONUS_MULTI_SENTENCE_TIER1;
+  if (sentences >= SENTENCE_COUNT_TIER2) score += ORIGINALITY_BONUS_MULTI_SENTENCE_TIER2;
 
   // Forward-looking analysis (not just describing current state)
   const forwardPatterns = [
@@ -400,12 +518,12 @@ function scoreOriginality(reasoning: string): number {
     /\bopportunity\b/i, /\bcatalyst\b/i, /\btarget\b/i,
   ];
   for (const p of forwardPatterns) {
-    if (p.test(reasoning)) score += 0.03;
+    if (p.test(reasoning)) score += ORIGINALITY_BONUS_FORWARD_PATTERN;
   }
 
   // Historical context (comparing to past)
   if (/\bhistorically\b|\bpreviously\b|\blast\s+(?:week|month|quarter)/i.test(reasoning)) {
-    score += 0.1;
+    score += ORIGINALITY_BONUS_HISTORICAL_CONTEXT;
   }
 
   return Math.min(1, score);
@@ -416,25 +534,25 @@ function scoreConclusionValidity(
   action: "buy" | "sell" | "hold",
   confidence: number,
 ): number {
-  let score = 0.5; // neutral baseline
+  let score = CONCLUSION_VALIDITY_BASELINE;
 
   // Check if reasoning length matches confidence
   const words = countWords(reasoning);
   const normalizedConf = normalizeConfidence(confidence);
 
   // High confidence with short reasoning = suspicious
-  if (normalizedConf > 0.8 && words < 20) {
-    score -= 0.2;
+  if (normalizedConf > CONFIDENCE_HIGH_THRESHOLD && words < EVIDENCE_WORD_COUNT_MIN) {
+    score -= CONCLUSION_PENALTY_HIGH_CONF_SHORT;
   }
 
   // Low confidence with definitive language = inconsistent
-  if (normalizedConf < 0.3 && /\bdefinitely\b|\bcertainly\b|\bclearly\b/i.test(reasoning)) {
-    score -= 0.15;
+  if (normalizedConf < CONFIDENCE_LOW_THRESHOLD && /\bdefinitely\b|\bcertainly\b|\bclearly\b/i.test(reasoning)) {
+    score -= CONCLUSION_PENALTY_LOW_CONF_DEFINITIVE;
   }
 
   // Hold action with no clear uncertainty reason = weak
-  if (action === "hold" && words < 15) {
-    score -= 0.1;
+  if (action === "hold" && words < AGREEMENT_WORD_COUNT_PENALTY) {
+    score -= CONCLUSION_PENALTY_SHORT_HOLD;
   }
 
   // Action + reasoning direction alignment (similar to coherence but from peer POV)
@@ -447,10 +565,10 @@ function scoreConclusionValidity(
     /\bweak\b/i, /\bnegative\b/i, /\bconcern/i,
   ]);
 
-  if (action === "buy" && bullishWeight > bearishWeight) score += 0.2;
-  if (action === "sell" && bearishWeight > bullishWeight) score += 0.2;
-  if (action === "buy" && bearishWeight > bullishWeight + 1) score -= 0.15;
-  if (action === "sell" && bullishWeight > bearishWeight + 1) score -= 0.15;
+  if (action === "buy" && bullishWeight > bearishWeight) score += CONCLUSION_BONUS_ACTION_ALIGNMENT;
+  if (action === "sell" && bearishWeight > bullishWeight) score += CONCLUSION_BONUS_ACTION_ALIGNMENT;
+  if (action === "buy" && bearishWeight > bullishWeight + SENTIMENT_PATTERN_WEIGHT_UNIT) score -= CONCLUSION_PENALTY_ACTION_MISMATCH;
+  if (action === "sell" && bullishWeight > bearishWeight + SENTIMENT_PATTERN_WEIGHT_UNIT) score -= CONCLUSION_PENALTY_ACTION_MISMATCH;
 
   return normalize(score);
 }
@@ -470,7 +588,7 @@ function countPatternWeight(text: string, patterns: RegExp[]): number {
 function identifyStrengths(reasoning: string, _action: string): string[] {
   const strengths: string[] = [];
 
-  if (countWords(reasoning) > 60) {
+  if (countWords(reasoning) > STRENGTH_WORD_COUNT_DETAILED) {
     strengths.push("Detailed analysis with substantial reasoning");
   }
   if (/\bbecause\b|\btherefore\b|\bthus\b|\bconsequently\b/i.test(reasoning)) {
@@ -492,7 +610,7 @@ function identifyStrengths(reasoning: string, _action: string): string[] {
     strengths.push("Considers portfolio-level implications");
   }
 
-  return strengths.slice(0, 4);
+  return strengths.slice(0, STRENGTHS_DISPLAY_LIMIT);
 }
 
 function identifyWeaknesses(reasoning: string, action: string, confidence: number): string[] {
@@ -500,10 +618,10 @@ function identifyWeaknesses(reasoning: string, action: string, confidence: numbe
   const words = countWords(reasoning);
   const normalizedConf = normalizeConfidence(confidence);
 
-  if (words < 20) {
+  if (words < WEAKNESS_WORD_COUNT_MIN) {
     weaknesses.push("Reasoning is too brief to be convincing");
   }
-  if (normalizedConf > 0.8 && !/\brisk\b|\bdownside\b|\bcaution\b/i.test(reasoning)) {
+  if (normalizedConf > CONFIDENCE_HIGH_THRESHOLD && !/\brisk\b|\bdownside\b|\bcaution\b/i.test(reasoning)) {
     weaknesses.push("High confidence without acknowledging any risks");
   }
   if (action !== "hold" && !/\$\d+\.?\d*/.test(reasoning)) {
@@ -515,11 +633,11 @@ function identifyWeaknesses(reasoning: string, action: string, confidence: numbe
   if (/\bI think\b|\bI feel\b|\bI believe\b/i.test(reasoning) && !/data|evidence|indicator/i.test(reasoning)) {
     weaknesses.push("Relies on subjective belief without data support");
   }
-  if (action === "buy" && normalizedConf < 0.3) {
+  if (action === "buy" && normalizedConf < CONFIDENCE_LOW_THRESHOLD) {
     weaknesses.push("Executing a buy with very low confidence suggests uncertainty");
   }
 
-  return weaknesses.slice(0, 4);
+  return weaknesses.slice(0, WEAKNESSES_DISPLAY_LIMIT);
 }
 
 // ---------------------------------------------------------------------------

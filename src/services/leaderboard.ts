@@ -4,33 +4,10 @@ import { agents, positions, trades, transactions } from "../db/schema/index.ts";
 import { agentTheses } from "../db/schema/agent-theses.ts";
 import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
-import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { getOnChainPortfolio } from "./onchain-portfolio.ts";
 
 /** Initial capital per agent ($50 USDC) - used for P&L calculation */
 const AGENT_INITIAL_CAPITAL = 50;
-
-// Mock base prices for when Jupiter API doesn't return data
-// These approximate real stock prices in USD
-const MOCK_BASE_PRICES: Record<string, number> = {
-  AAPLx: 178, AMZNx: 178, GOOGLx: 175, METAx: 505, MSFTx: 415, NVDAx: 131, TSLAx: 245,
-  AVGOx: 168, AMDx: 125, INTCx: 22, NFLXx: 875, PLTRx: 65, COINx: 225, MSTRx: 320,
-  HOODx: 25, CRCLx: 42, GMEx: 27, JPMx: 195, BACx: 38, GSx: 385, Vx: 275, MAx: 460,
-  LLYx: 850, UNHx: 520, JNJx: 155, MRKx: 105, PFEx: 28, WMTx: 165, KOx: 62, PEPx: 175,
-  MCDx: 290, XOMx: 105, CVXx: 155, SPYx: 512, QQQx: 440, TQQQx: 65, GLDx: 175, VTIx: 265,
-  TBLLx: 50, TMOx: 580, ACNx: 340, CRMx: 265, ORCLx: 125, IBMx: 168, CSCOx: 48,
-};
-
-/** Generate a mock price with small random variation */
-function generateMockPrice(symbol: string): number {
-  const base = MOCK_BASE_PRICES[symbol] ?? 100;
-  // Add ±5% random variation for realism
-  const variation = 0.95 + Math.random() * 0.1;
-  return base * variation;
-}
-
-/** Create symbol-to-mint lookup for mock prices */
-const symbolToMint = new Map(XSTOCKS_CATALOG.map(s => [s.mintAddress, s.symbol]));
 
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
@@ -143,19 +120,18 @@ async function refreshLeaderboard(): Promise<void> {
   const jupiterPrices =
     uniqueMints.length > 0 ? await getPrices(uniqueMints) : {};
 
-  // Build priceMap with mock fallback for missing prices
+  // Build priceMap from Jupiter prices only — no mock fallback.
+  // When Jupiter is unavailable for a mint, we fall back to the position's
+  // averageCostBasis in the per-agent loop below, which yields unrealized P&L = 0
+  // for that position. This is more accurate than random mock prices that would
+  // cause P&L to fluctuate ±5% on every refresh.
   const priceMap: Record<string, { usdPrice: number; priceChange24h: number } | null> = {};
   for (const mint of uniqueMints) {
     const jupiterPrice = jupiterPrices[mint];
     if (jupiterPrice) {
       priceMap[mint] = jupiterPrice;
-    } else {
-      // Use mock price as fallback
-      const symbol = symbolToMint.get(mint);
-      if (symbol) {
-        priceMap[mint] = { usdPrice: generateMockPrice(symbol), priceChange24h: 0 };
-      }
     }
+    // No mock fallback — positions without live prices use cost basis (P&L = 0)
   }
 
   // Step 4: Aggregate trade stats per agent (single SQL query)
@@ -250,31 +226,37 @@ async function refreshLeaderboard(): Promise<void> {
         });
       }
     } else {
-      // Fallback to database positions with mock prices if on-chain unavailable
+      // Fallback to database positions when on-chain data is unavailable.
+      // If Jupiter price is also missing, use cost basis as the price so that
+      // unrealized P&L = 0 (conservative) rather than random mock fluctuation.
       const agentPositions = allPositions.filter(
         (p: PositionRow) => p.agentId === agent.id
       );
       for (const pos of agentPositions) {
         const priceInfo = priceMap[pos.mintAddress];
-        if (priceInfo) {
-          const quantity = new Decimal(pos.quantity).toNumber();
-          const currentPrice = new Decimal(priceInfo.usdPrice).toNumber();
-          const value = quantity * currentPrice;
-          const costBasis = new Decimal(pos.averageCostBasis).toNumber();
-          const totalCost = quantity * costBasis;
-          const unrealizedPnl = value - totalCost;
-          const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
+        const quantity = new Decimal(pos.quantity).toNumber();
+        const costBasis = new Decimal(pos.averageCostBasis).toNumber();
 
-          marketValue = marketValue.plus(value);
-          positionSummaries.push({
-            symbol: pos.symbol,
-            quantity,
-            currentPrice,
-            value,
-            unrealizedPnl,
-            unrealizedPnlPercent,
-          });
-        }
+        // Use live Jupiter price when available, otherwise fall back to cost basis.
+        // Cost basis fallback means: value = cost (unrealized P&L = 0) — better
+        // than random mock prices that cause P&L to fluctuate ±5% per refresh.
+        const currentPrice = priceInfo
+          ? new Decimal(priceInfo.usdPrice).toNumber()
+          : costBasis;
+        const value = quantity * currentPrice;
+        const totalCost = quantity * costBasis;
+        const unrealizedPnl = value - totalCost;
+        const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
+
+        marketValue = marketValue.plus(value);
+        positionSummaries.push({
+          symbol: pos.symbol,
+          quantity,
+          currentPrice,
+          value,
+          unrealizedPnl,
+          unrealizedPnlPercent,
+        });
       }
     }
 

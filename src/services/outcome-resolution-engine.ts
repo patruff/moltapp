@@ -21,7 +21,8 @@ import {
   calibrationSnapshots,
   benchmarkLeaderboardV23,
 } from "../db/schema/benchmark-v23.ts";
-import { eq, isNull, desc } from "drizzle-orm";
+import { trades } from "../db/schema/trades.ts";
+import { eq, isNull, desc, inArray } from "drizzle-orm";
 import type { MarketData } from "../agents/base-agent.ts";
 import {
   V23_SCORING_WEIGHTS,
@@ -250,13 +251,46 @@ export async function runOutcomeResolution(
       priceMap.set(d.symbol.replace(/x$/i, "").toLowerCase(), d.price);
     }
 
+    // Query actual trade prices for justifications that have a linked trade
+    const tradeIds: number[] = [];
+    for (const j of pending) {
+      if (j.tradeId !== null) tradeIds.push(j.tradeId);
+    }
+
+    const tradePriceMap = new Map<number, number>();
+    if (tradeIds.length > 0) {
+      try {
+        const tradeRows = await db
+          .select({
+            id: trades.id,
+            pricePerToken: trades.pricePerToken,
+          })
+          .from(trades)
+          .where(inArray(trades.id, tradeIds));
+
+        for (const t of tradeRows) {
+          const price = Number(t.pricePerToken);
+          if (!isNaN(price) && price > 0) {
+            tradePriceMap.set(t.id, price);
+          }
+        }
+      } catch (err) {
+        console.warn(
+          `[OutcomeResolution] Trade price lookup failed: ${errorMessage(err)}`,
+        );
+      }
+    }
+
     for (const j of pending) {
       const currentPrice = priceMap.get(j.symbol.toLowerCase())
         ?? priceMap.get(j.symbol.replace(/x$/i, "").toLowerCase());
 
       if (!currentPrice) continue;
 
-      const entryPrice = currentPrice * ENTRY_PRICE_FALLBACK_MULTIPLIER;
+      // Use actual trade execution price when available; fall back to synthetic
+      const entryPrice = (j.tradeId !== null && tradePriceMap.has(j.tradeId))
+        ? tradePriceMap.get(j.tradeId)!
+        : currentPrice * ENTRY_PRICE_FALLBACK_MULTIPLIER;
 
       const result = resolveOutcome(
         {
