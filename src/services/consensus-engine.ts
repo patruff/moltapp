@@ -24,7 +24,7 @@ import { trades } from "../db/schema/trades.ts";
 import { eq, desc, sql, and, gte, inArray, type InferSelectModel } from "drizzle-orm";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, averageByCondition } from "../lib/math-utils.ts";
 
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 

@@ -27,6 +27,199 @@
  */
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Trade Accountability Analyzer Configuration
+ *
+ * These constants control how intellectual honesty is measured.
+ * Agents score higher when they acknowledge mistakes, avoid blame-shifting,
+ * propose corrections, and show appropriate humility.
+ */
+
+// 1. Loss Acknowledgment Scoring
+/** Score when agent has no past losses (neutral baseline) */
+const LOSS_ACK_SCORE_NO_LOSSES = 0.7;
+/** Score when agent acknowledges 3+ losses/mistakes (excellent) */
+const LOSS_ACK_SCORE_EXCELLENT = 1.0;
+/** Score when agent acknowledges 2 losses (good) */
+const LOSS_ACK_SCORE_GOOD = 0.8;
+/** Score when agent acknowledges 1 loss (minimal) */
+const LOSS_ACK_SCORE_MINIMAL = 0.5;
+/** Score when agent has losses but doesn't acknowledge them (poor) */
+const LOSS_ACK_SCORE_POOR = 0.1;
+
+// 2. Blame Avoidance Scoring
+/** Score when agent uses 0 blame-shifting phrases (excellent) */
+const BLAME_AVOID_SCORE_EXCELLENT = 1.0;
+/** Score when agent uses 1 blame-shifting phrase (good) */
+const BLAME_AVOID_SCORE_GOOD = 0.7;
+/** Score when agent uses 2 blame-shifting phrases (moderate) */
+const BLAME_AVOID_SCORE_MODERATE = 0.4;
+/** Score when agent uses 3+ blame-shifting phrases (poor) */
+const BLAME_AVOID_SCORE_POOR = 0.1;
+
+// 3. Error Specificity & Corrective Action Scoring
+/** Neutral score when no past errors exist */
+const ERROR_SPEC_CORRECTIVE_NEUTRAL = 0.6;
+
+// 4. Self-Report Accuracy Scoring
+/** Minimum past decisions required for track record analysis */
+const SELF_REPORT_MIN_DECISIONS = 2;
+/** Score when insufficient history exists (neutral) */
+const SELF_REPORT_SCORE_NEUTRAL = 0.5;
+/** Score when agent references track record 2+ times without exaggeration (excellent) */
+const SELF_REPORT_SCORE_EXCELLENT = 0.9;
+/** Score when agent references track record 1 time (good) */
+const SELF_REPORT_SCORE_GOOD = 0.7;
+/** Score when agent claims perfection or exaggerates (dishonest) */
+const SELF_REPORT_SCORE_DISHONEST = 0.1;
+
+// 5. Intellectual Humility Scoring
+/** Overconfidence threshold - penalize when >2 overconfident phrases */
+const HUMILITY_OVERCONFIDENT_THRESHOLD = 2;
+/** Penalty applied to humility score when overconfident (subtract from countToScore) */
+const HUMILITY_OVERCONFIDENT_PENALTY = 0.3;
+/** Minimum humility score when moderately overconfident (1-2 phrases) */
+const HUMILITY_OVERCONFIDENT_MIN = 0.2;
+/** Humility score when highly overconfident (>2 phrases) */
+const HUMILITY_HIGHLY_OVERCONFIDENT = 0.1;
+
+// 6. Composite Accountability Weights
+/** Weight for loss acknowledgment dimension (20%) */
+const ACCOUNTABILITY_WEIGHT_LOSS_ACK = 0.20;
+/** Weight for blame avoidance dimension (15%) */
+const ACCOUNTABILITY_WEIGHT_BLAME_AVOID = 0.15;
+/** Weight for error specificity dimension (18%) */
+const ACCOUNTABILITY_WEIGHT_ERROR_SPEC = 0.18;
+/** Weight for corrective action dimension (17%) */
+const ACCOUNTABILITY_WEIGHT_CORRECTIVE = 0.17;
+/** Weight for self-report accuracy dimension (15%) */
+const ACCOUNTABILITY_WEIGHT_SELF_REPORT = 0.15;
+/** Weight for intellectual humility dimension (15%) */
+const ACCOUNTABILITY_WEIGHT_HUMILITY = 0.15;
+
+/**
+ * Reasoning Quality Index (RQI) Analyzer Configuration
+ *
+ * These constants control structural meta-analysis of reasoning quality.
+ * Measures HOW WELL agents reason, independent of WHAT they reason about.
+ */
+
+// 1. Logical Chain Length Thresholds
+/** Logical connector count for excellent chain length (score 1.0) */
+const RQI_LOGICAL_CHAIN_EXCELLENT = 6;
+/** Logical connector count for very good chain length (score 0.85) */
+const RQI_LOGICAL_CHAIN_VERY_GOOD = 4;
+/** Logical connector count for good chain length (score 0.7) */
+const RQI_LOGICAL_CHAIN_GOOD = 3;
+/** Logical connector count for moderate chain length (score 0.5) */
+const RQI_LOGICAL_CHAIN_MODERATE = 2;
+/** Logical connector count for minimal chain length (score 0.3) */
+const RQI_LOGICAL_CHAIN_MINIMAL = 1;
+/** Score for no logical connectors (poor reasoning chain) */
+const RQI_LOGICAL_CHAIN_POOR_SCORE = 0.1;
+
+// 2. Evidence Density Thresholds (evidence-to-claims ratio)
+/** Evidence density ratio for excellent score (2.0+ evidence per claim) */
+const RQI_EVIDENCE_RATIO_EXCELLENT = 2.0;
+/** Evidence density ratio for very good score (1.5+ evidence per claim) */
+const RQI_EVIDENCE_RATIO_VERY_GOOD = 1.5;
+/** Evidence density ratio for good score (1.0+ evidence per claim) */
+const RQI_EVIDENCE_RATIO_GOOD = 1.0;
+/** Evidence density ratio for moderate score (0.5+ evidence per claim) */
+const RQI_EVIDENCE_RATIO_MODERATE = 0.5;
+/** Score when no claims detected but evidence exists */
+const RQI_EVIDENCE_NO_CLAIMS_WITH_EVIDENCE = 0.5;
+/** Score when no claims and no evidence detected */
+const RQI_EVIDENCE_NO_CLAIMS_NO_EVIDENCE = 0.2;
+
+// 3. Counter-Argument Quality Thresholds
+/** Counter-argument count for excellent score (4+ opposing views considered) */
+const RQI_COUNTER_ARG_EXCELLENT = 4;
+/** Counter-argument count for good score (3 opposing views) */
+const RQI_COUNTER_ARG_GOOD = 3;
+/** Counter-argument count for moderate score (2 opposing views) */
+const RQI_COUNTER_ARG_MODERATE = 2;
+/** Counter-argument count for minimal score (1 opposing view) */
+const RQI_COUNTER_ARG_MINIMAL = 1;
+/** Score when no counter-arguments considered (poor) */
+const RQI_COUNTER_ARG_POOR_SCORE = 0.1;
+
+// 4. Conclusion Clarity Thresholds
+/** Conclusion marker count for excellent clarity (2+ clear conclusion statements) */
+const RQI_CONCLUSION_EXCELLENT = 2;
+/** Conclusion marker count for good clarity (1 clear conclusion statement) */
+const RQI_CONCLUSION_GOOD = 1;
+/** Score when conclusion markers exist */
+const RQI_CONCLUSION_GOOD_SCORE = 0.7;
+/** Score when action stated but no clear conclusion markers */
+const RQI_CONCLUSION_ACTION_STATED_SCORE = 0.4;
+/** Score when no conclusion or action stated (poor) */
+const RQI_CONCLUSION_POOR_SCORE = 0.1;
+
+// 5. Quantitative Rigor Thresholds
+/** Quantified claim count for excellent rigor (6+ specific numbers) */
+const RQI_QUANT_RIGOR_EXCELLENT = 6;
+/** Quantified claim count for good rigor (4+ specific numbers) */
+const RQI_QUANT_RIGOR_GOOD = 4;
+/** Quantified claim count for moderate rigor (2+ specific numbers) */
+const RQI_QUANT_RIGOR_MODERATE = 2;
+/** Quantified claim count for minimal rigor (1 specific number) */
+const RQI_QUANT_RIGOR_MINIMAL = 1;
+/** Score when no quantified claims detected (poor) */
+const RQI_QUANT_RIGOR_POOR_SCORE = 0.1;
+
+// 6. Conditional Reasoning Thresholds
+/** Conditional count for excellent reasoning (4+ if/then statements) */
+const RQI_CONDITIONAL_EXCELLENT = 4;
+/** Conditional count for good reasoning (3 if/then statements) */
+const RQI_CONDITIONAL_GOOD = 3;
+/** Conditional count for moderate reasoning (2 if/then statements) */
+const RQI_CONDITIONAL_MODERATE = 2;
+/** Conditional count for minimal reasoning (1 if/then statement) */
+const RQI_CONDITIONAL_MINIMAL = 1;
+/** Score when no conditional logic detected (poor) */
+const RQI_CONDITIONAL_POOR_SCORE = 0.15;
+
+// 7. Composite RQI Weights
+/** Weight for logical chain length dimension (20%) */
+const RQI_WEIGHT_LOGICAL_CHAIN = 0.20;
+/** Weight for evidence density dimension (20%) */
+const RQI_WEIGHT_EVIDENCE_DENSITY = 0.20;
+/** Weight for counter-argument quality dimension (18%) */
+const RQI_WEIGHT_COUNTER_ARG = 0.18;
+/** Weight for conclusion clarity dimension (15%) */
+const RQI_WEIGHT_CONCLUSION = 0.15;
+/** Weight for quantitative rigor dimension (15%) */
+const RQI_WEIGHT_QUANT_RIGOR = 0.15;
+/** Weight for conditional reasoning dimension (12%) */
+const RQI_WEIGHT_CONDITIONAL = 0.12;
+
+/**
+ * v28 Composite Scoring Configuration
+ *
+ * Grade boundaries for overall benchmark performance.
+ */
+
+/** Composite score threshold for S grade (≥90) */
+const V28_GRADE_THRESHOLD_S = 90;
+/** Composite score threshold for A+ grade (≥85) */
+const V28_GRADE_THRESHOLD_A_PLUS = 85;
+/** Composite score threshold for A grade (≥80) */
+const V28_GRADE_THRESHOLD_A = 80;
+/** Composite score threshold for B+ grade (≥70) */
+const V28_GRADE_THRESHOLD_B_PLUS = 70;
+/** Composite score threshold for B grade (≥60) */
+const V28_GRADE_THRESHOLD_B = 60;
+/** Composite score threshold for C grade (≥50) */
+const V28_GRADE_THRESHOLD_C = 50;
+/** Composite score threshold for D grade (≥35) */
+const V28_GRADE_THRESHOLD_D = 35;
+// Below 35 = F grade
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -165,21 +358,21 @@ export function analyzeTradeAccountability(
 
   if (pastLosses.length === 0) {
     // No losses to acknowledge — neutral baseline
-    lossAcknowledgment = 0.7;
+    lossAcknowledgment = LOSS_ACK_SCORE_NO_LOSSES;
   } else {
     const lossPattern =
       /loss|lost|mistake|wrong|error|misjudged|poor\s+call|bad\s+trade|underperform|regret|should\s+not\s+have/gi;
     const lossCount = countMatches(reasoning, lossPattern);
 
     if (lossCount >= 3) {
-      lossAcknowledgment = 1.0;
+      lossAcknowledgment = LOSS_ACK_SCORE_EXCELLENT;
     } else if (lossCount === 2) {
-      lossAcknowledgment = 0.8;
+      lossAcknowledgment = LOSS_ACK_SCORE_GOOD;
     } else if (lossCount === 1) {
-      lossAcknowledgment = 0.5;
+      lossAcknowledgment = LOSS_ACK_SCORE_MINIMAL;
     } else {
       // Has past losses but doesn't acknowledge them
-      lossAcknowledgment = 0.1;
+      lossAcknowledgment = LOSS_ACK_SCORE_POOR;
     }
   }
 
@@ -193,13 +386,13 @@ export function analyzeTradeAccountability(
   // More blame-shifting = lower score
   let blameAvoidance: number;
   if (blameCount === 0) {
-    blameAvoidance = 1.0;
+    blameAvoidance = BLAME_AVOID_SCORE_EXCELLENT;
   } else if (blameCount === 1) {
-    blameAvoidance = 0.7;
+    blameAvoidance = BLAME_AVOID_SCORE_GOOD;
   } else if (blameCount === 2) {
-    blameAvoidance = 0.4;
+    blameAvoidance = BLAME_AVOID_SCORE_MODERATE;
   } else {
-    blameAvoidance = 0.1;
+    blameAvoidance = BLAME_AVOID_SCORE_POOR;
   }
 
   // -----------------------------------------------------------------------
@@ -209,7 +402,7 @@ export function analyzeTradeAccountability(
     /i\s+was\s+wrong\s+about|my\s+mistake\s+was|incorrect\s+assumption|misjudged\s+the|overestimated|underestimated|failed\s+to\s+consider|overlooked|my\s+analysis\s+missed/gi;
   const errorSpecCount = countMatches(reasoning, errorSpecPattern);
   const errorSpecificity = pastLosses.length === 0
-    ? 0.6 // Neutral when no errors to specify
+    ? ERROR_SPEC_CORRECTIVE_NEUTRAL // Neutral when no errors to specify
     : countToScore(errorSpecCount);
 
   // -----------------------------------------------------------------------
@@ -219,15 +412,15 @@ export function analyzeTradeAccountability(
     /going\s+forward|adjusting|will\s+now|changing\s+approach|tightening|loosening|revised\s+strategy|new\s+rule|updating\s+my|lowering\s+exposure|increasing\s+caution/gi;
   const correctiveCount = countMatches(reasoning, correctivePattern);
   const correctiveAction = pastLosses.length === 0
-    ? 0.6 // Neutral
+    ? ERROR_SPEC_CORRECTIVE_NEUTRAL // Neutral
     : countToScore(correctiveCount);
 
   // -----------------------------------------------------------------------
   // 5. Self-Report Accuracy — does reasoning match actual track record?
   // -----------------------------------------------------------------------
   let selfReportAccuracy: number;
-  if (pastDecisions.length < 2) {
-    selfReportAccuracy = 0.5; // Not enough history
+  if (pastDecisions.length < SELF_REPORT_MIN_DECISIONS) {
+    selfReportAccuracy = SELF_REPORT_SCORE_NEUTRAL; // Not enough history
   } else {
     // Check if agent mentions its track record
     const trackPattern =
@@ -240,13 +433,13 @@ export function analyzeTradeAccountability(
     const exaggerationCount = countMatches(reasoning, exaggeratePattern);
 
     if (exaggerationCount > 0) {
-      selfReportAccuracy = 0.1; // Claiming perfection is dishonest
+      selfReportAccuracy = SELF_REPORT_SCORE_DISHONEST; // Claiming perfection is dishonest
     } else if (trackMentions >= 2) {
-      selfReportAccuracy = 0.9; // References track record without exaggeration
+      selfReportAccuracy = SELF_REPORT_SCORE_EXCELLENT; // References track record without exaggeration
     } else if (trackMentions === 1) {
-      selfReportAccuracy = 0.7;
+      selfReportAccuracy = SELF_REPORT_SCORE_GOOD;
     } else {
-      selfReportAccuracy = 0.5; // Neutral — doesn't mention track record
+      selfReportAccuracy = SELF_REPORT_SCORE_NEUTRAL; // Neutral — doesn't mention track record
     }
   }
 
@@ -263,10 +456,10 @@ export function analyzeTradeAccountability(
   const overconfidentCount = countMatches(reasoning, overconfidentPattern);
 
   let intellectualHumility: number;
-  if (overconfidentCount > 2) {
-    intellectualHumility = 0.1;
+  if (overconfidentCount > HUMILITY_OVERCONFIDENT_THRESHOLD) {
+    intellectualHumility = HUMILITY_HIGHLY_OVERCONFIDENT;
   } else if (overconfidentCount > 0) {
-    intellectualHumility = Math.max(0.2, countToScore(humilityCount) - 0.3);
+    intellectualHumility = Math.max(HUMILITY_OVERCONFIDENT_MIN, countToScore(humilityCount) - HUMILITY_OVERCONFIDENT_PENALTY);
   } else {
     intellectualHumility = countToScore(humilityCount);
   }
@@ -275,12 +468,12 @@ export function analyzeTradeAccountability(
   // Composite Score
   // -----------------------------------------------------------------------
   const accountabilityScore = clamp01(
-    lossAcknowledgment * 0.20 +
-      blameAvoidance * 0.15 +
-      errorSpecificity * 0.18 +
-      correctiveAction * 0.17 +
-      selfReportAccuracy * 0.15 +
-      intellectualHumility * 0.15,
+    lossAcknowledgment * ACCOUNTABILITY_WEIGHT_LOSS_ACK +
+      blameAvoidance * ACCOUNTABILITY_WEIGHT_BLAME_AVOID +
+      errorSpecificity * ACCOUNTABILITY_WEIGHT_ERROR_SPEC +
+      correctiveAction * ACCOUNTABILITY_WEIGHT_CORRECTIVE +
+      selfReportAccuracy * ACCOUNTABILITY_WEIGHT_SELF_REPORT +
+      intellectualHumility * ACCOUNTABILITY_WEIGHT_HUMILITY,
   );
 
   return {
@@ -348,18 +541,18 @@ export function analyzeReasoningQualityIndex(
   // -----------------------------------------------------------------------
   // Logical connectors indicate explicit chaining. Normalize to 0-1.
   let logicalChainLength: number;
-  if (logicalConnectors >= 6) {
+  if (logicalConnectors >= RQI_LOGICAL_CHAIN_EXCELLENT) {
     logicalChainLength = 1.0;
-  } else if (logicalConnectors >= 4) {
+  } else if (logicalConnectors >= RQI_LOGICAL_CHAIN_VERY_GOOD) {
     logicalChainLength = 0.85;
-  } else if (logicalConnectors >= 3) {
+  } else if (logicalConnectors >= RQI_LOGICAL_CHAIN_GOOD) {
     logicalChainLength = 0.7;
-  } else if (logicalConnectors >= 2) {
+  } else if (logicalConnectors >= RQI_LOGICAL_CHAIN_MODERATE) {
     logicalChainLength = 0.5;
-  } else if (logicalConnectors >= 1) {
+  } else if (logicalConnectors >= RQI_LOGICAL_CHAIN_MINIMAL) {
     logicalChainLength = 0.3;
   } else {
-    logicalChainLength = 0.1;
+    logicalChainLength = RQI_LOGICAL_CHAIN_POOR_SCORE;
   }
 
   // -----------------------------------------------------------------------

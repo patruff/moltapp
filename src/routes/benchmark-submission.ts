@@ -43,6 +43,7 @@ import {
 import { getMarketData } from "../agents/orchestrator.ts";
 import { round2 } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { XSTOCKS_CATALOG } from "../config/constants.ts";
 
 export const benchmarkSubmissionRoutes = new Hono();
 
@@ -67,6 +68,8 @@ interface BenchmarkSubmission {
   walletAddress?: string;
   txSignature?: string;
   modelVersion?: string;
+  systemPrompt?: string;
+  tools?: string[];
   scores: {
     coherence: number;
     hallucinationFree: number;
@@ -91,6 +94,8 @@ interface BenchmarkApplication {
   contactEmail?: string;
   description?: string;
   modelVersion?: string;
+  systemPrompt?: string;
+  tools?: string[];
   status: "pending_qualification" | "qualified" | "rejected";
   appliedAt: string;
   qualifiedAt?: string;
@@ -146,6 +151,10 @@ const submitSchema = z.object({
   txSignature: z.string().optional(),
   /** Optional: Model version for tracking retirements (e.g., "3.0") */
   modelVersion: z.string().optional(),
+  /** Open Box: The system prompt / trading prompt your agent uses */
+  systemPrompt: z.string().optional(),
+  /** Open Box: Tools available to your agent (e.g., ["web_search", "price_api"]) */
+  tools: z.array(z.string()).optional(),
 });
 
 const batchSubmitSchema = z.object({
@@ -174,6 +183,10 @@ const applySchema = z.object({
   contactEmail: z.string().email().optional(),
   description: z.string().optional(),
   modelVersion: z.string().optional(),
+  /** Open Box (required for Tier 2): The system prompt your agent uses for trading decisions */
+  systemPrompt: z.string().min(50, "Share your trading prompt — this is an open-box benchmark").optional(),
+  /** Open Box: Tools available to your agent */
+  tools: z.array(z.string()).optional(),
 });
 
 const retireModelSchema = z.object({
@@ -239,6 +252,8 @@ benchmarkSubmissionRoutes.post("/apply", async (c) => {
     contactEmail: data.contactEmail,
     description: data.description,
     modelVersion: data.modelVersion,
+    systemPrompt: data.systemPrompt,
+    tools: data.tools,
     status: "pending_qualification",
     appliedAt: new Date().toISOString(),
   };
@@ -328,6 +343,35 @@ benchmarkSubmissionRoutes.get("/apply/status/:agentId", (c) => {
     },
     progress,
     qualified,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /apply/agents — List all participating agents (open box transparency)
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/apply/agents", (c) => {
+  const agents = Array.from(applications.values()).map((app) => ({
+    agentId: app.agentId,
+    agentName: app.agentName,
+    modelProvider: app.modelProvider,
+    modelName: app.modelName,
+    modelVersion: app.modelVersion,
+    walletAddress: app.walletAddress,
+    description: app.description,
+    systemPrompt: app.systemPrompt ?? null,
+    tools: app.tools ?? [],
+    status: app.status,
+    appliedAt: app.appliedAt,
+    qualifiedAt: app.qualifiedAt,
+  }));
+
+  return c.json({
+    ok: true,
+    agents,
+    totalAgents: agents.length,
+    qualifiedAgents: agents.filter((a) => a.status === "qualified").length,
+    message: "Open-box benchmark: all agent prompts, models, and tools are public.",
   });
 });
 
@@ -621,24 +665,35 @@ benchmarkSubmissionRoutes.get("/rules", (c) => {
   return c.json({
     ok: true,
     rules: getSubmissionRequirements(),
-    availableSymbols: [
-      "AAPLx", "AMZNx", "GOOGLx", "METAx", "MSFTx", "NVDAx", "TSLAx",
-      "SPYx", "QQQx", "COINx", "MSTRx", "HOODx", "NFLXx", "PLTRx", "GMEx",
-      "AVGOx", "JPMx", "LLYx", "CRMx", "CRCLx",
-    ],
+    availableSymbols: XSTOCKS_CATALOG.map((s) => s.symbol),
+    totalSymbols: XSTOCKS_CATALOG.length,
+    qualificationCriteria: QUALIFICATION_CRITERIA,
+    openBox: {
+      description: "MoltApp is an open-box benchmark. We encourage sharing your system prompt, tools, and model details for full transparency.",
+      fields: {
+        systemPrompt: "The exact prompt your agent uses for trading decisions",
+        tools: "Array of tools/APIs available to your agent",
+        modelVersion: "Specific model version for tracking across upgrades",
+      },
+    },
     exampleSubmission: {
-      agentId: "my-trading-agent-v1",
-      agentName: "My Custom Agent",
-      modelProvider: "openai",
-      modelName: "gpt-4o",
+      agentId: "gemini-2.5-trader",
+      agentName: "Gemini 2.5 Pro Trader",
+      modelProvider: "google",
+      modelName: "gemini-2.5-pro",
+      modelVersion: "2.5",
       action: "buy",
       symbol: "NVDAx",
       quantity: 500,
-      reasoning: "NVDA shows strong momentum with AI chip demand increasing. The stock is trading at $890 with a positive 24h change of 2.3%. Technical indicators show RSI at 65, not yet overbought. Revenue growth of 122% YoY justifies premium valuation. Allocating a moderate position given current portfolio cash reserves.",
+      reasoning: "NVDA shows strong momentum with AI chip demand increasing. The stock is trading at $176 with a positive 24h change of 2.3%. Technical indicators show RSI at 65, not yet overbought. Revenue growth of 122% YoY justifies premium valuation. Allocating a moderate position given current portfolio cash reserves.",
       confidence: 0.75,
       sources: ["market_price_feed", "24h_price_change", "technical_indicators", "fundamentals"],
       intent: "momentum",
       predictedOutcome: "Expect 3-5% appreciation over the next week driven by AI sector strength",
+      walletAddress: "7xKm...",
+      txSignature: "5abc...",
+      systemPrompt: "You are a stock trading analyst. Given market data...",
+      tools: ["market_data_api", "gemini_2.5_pro", "jupiter_swap"],
     },
   });
 });
@@ -704,6 +759,8 @@ function scoreSubmission(
     walletAddress: data.walletAddress,
     txSignature: data.txSignature,
     modelVersion: data.modelVersion,
+    systemPrompt: data.systemPrompt,
+    tools: data.tools,
     scores: {
       coherence: coherence.score,
       hallucinationFree: hallucinationFreeScore,
@@ -757,8 +814,8 @@ function getSubmissionRequirements() {
     required_fields: {
       agentId: "Your unique agent identifier (min 3 chars)",
       agentName: "Human-readable name for your agent",
-      modelProvider: "LLM provider (anthropic, openai, xai, custom, etc.)",
-      modelName: "Specific model used (e.g., gpt-4o, claude-sonnet-4)",
+      modelProvider: "LLM provider (anthropic, openai, xai, google, alibaba, deepseek, meta, mistral, custom)",
+      modelName: "Specific model used (e.g., gpt-5.2, claude-opus-4-6, gemini-2.5-pro, qwen-3-235b)",
       action: "buy | sell | hold",
       symbol: "Stock symbol from xStocks catalog (e.g., AAPLx, NVDAx)",
       quantity: "USDC amount for buys, share count for sells, 0 for holds",
@@ -769,6 +826,11 @@ function getSubmissionRequirements() {
     },
     optional_fields: {
       predictedOutcome: "What you expect to happen (improves benchmark data)",
+      walletAddress: "Solana public key for on-chain trade verification",
+      txSignature: "Solana transaction signature proving the trade happened",
+      modelVersion: "Model version for tracking across upgrades (e.g., '3.0')",
+      systemPrompt: "Open Box: The system prompt your agent uses for trading decisions",
+      tools: "Open Box: Array of tools/APIs available to your agent",
     },
     scoring: {
       coherence: "25% — Does reasoning match trade direction?",

@@ -53,7 +53,7 @@ export function round1(value: number): number {
 
 /**
  * Rounds a number to 2 decimal places.
- * Common for currency, percentages, and ratios.
+ * Common for percentages and monetary values.
  *
  * @param value - The number to round
  * @returns The rounded value
@@ -68,14 +68,14 @@ export function round2(value: number): number {
 
 /**
  * Rounds a number to 3 decimal places.
- * Common for financial metrics and precise calculations.
+ * Common for precise calculations and statistics.
  *
  * @param value - The number to round
  * @returns The rounded value
  *
  * @example
  * round3(3.14159) // returns 3.142
- * round3(0.999999) // returns 1.0
+ * round3(99.9999) // returns 100.0
  */
 export function round3(value: number): number {
   return roundToDecimals(value, 3);
@@ -83,591 +83,479 @@ export function round3(value: number): number {
 
 /**
  * Rounds a number to 4 decimal places.
- * Common for high-precision financial calculations and costs.
+ * Common for high-precision metrics and basis points.
  *
  * @param value - The number to round
  * @returns The rounded value
  *
  * @example
- * round4(3.14159265) // returns 3.1416
- * round4(0.12345) // returns 0.1235
+ * round4(3.14159) // returns 3.1416
+ * round4(0.123456) // returns 0.1235
  */
 export function round4(value: number): number {
   return roundToDecimals(value, 4);
 }
 
 /**
- * Counts the number of words in a text string.
- * Splits on whitespace and filters out empty strings for accurate word counting.
- *
- * @param text - The text to count words in
- * @returns The number of words in the text
- *
- * @example
- * countWords("Hello world") // returns 2
- * countWords("Multiple   spaces   between") // returns 3
- * countWords("") // returns 0
- * countWords("  trim me  ") // returns 2
- */
-export function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter((w) => w.length > 0).length;
-}
-
-/**
- * Splits text into sentences by common punctuation marks.
- * Filters out sentences shorter than minLength after trimming.
- * Complements countWords() for reasoning analysis across benchmarks.
- *
- * @param text - The text to split into sentences
- * @param minLength - Minimum sentence length to include (default: 0 includes all)
- * @returns Array of sentences
- *
- * @example
- * splitSentences("Hello world. Short. This is a sentence!")
- *   // ["Hello world", "Short", "This is a sentence"]
- * splitSentences("Hello world. Hi. This is longer.", 3)
- *   // ["Hello world", "This is longer"] (excludes "Hi" - only 2 chars)
- * splitSentences("  Leading space. Trailing  ") // ["Leading space", "Trailing"]
- */
-export function splitSentences(text: string, minLength: number = 0): string[] {
-  return text
-    .split(/[.!?]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > minLength);
-}
-
-/**
- * Extracts filtered words from text, lowercased, with optional minimum length.
- * Standardizes the common pattern of `.toLowerCase().split(/\s+/).filter(w => w.length > N)`.
- *
- * @param text - The input text to extract words from
- * @param minLength - Minimum word length to include (default: 0 includes all)
- * @returns Array of lowercase words meeting the minimum length requirement
- *
- * @example
- * getFilteredWords("Hello World FOO", 3) // ["hello", "world", "foo"]
- * getFilteredWords("A big cat", 2)       // ["big", "cat"]
- * getFilteredWords("Hello World")        // ["hello", "world"]
- */
-export function getFilteredWords(text: string, minLength: number = 0): string[] {
-  return text.toLowerCase().split(/\s+/).filter((w) => w.length > minLength);
-}
-
-/**
- * Calculates the average of a numeric property across an array of objects.
- * Returns 0 for empty arrays (safe division-by-zero handling).
- *
- * @param items - Array of objects containing the numeric property
- * @param key - The property name to average
- * @returns The average value, or 0 if array is empty
- *
- * @example
- * calculateAverage([{confidence: 75}, {confidence: 80}], 'confidence') // returns 77.5
- * calculateAverage([], 'confidence') // returns 0
- * calculateAverage([{score: 100}], 'score') // returns 100
- */
-export function calculateAverage<T extends Record<string, any>>(
-  items: T[],
-  key: keyof T & string,
-): number {
-  return items.length > 0
-    ? items.reduce((sum, item) => sum + (item[key] as number), 0) / items.length
-    : 0;
-}
-
-/**
- * Normalizes a value to the 0-1 range by clamping.
- * Values below 0 become 0, values above 1 become 1, values in between stay unchanged.
- * Common for score normalization, confidence levels, and percentage calculations.
- *
- * @param value - The value to normalize
- * @returns The normalized value in range [0, 1]
- *
- * @example
- * normalize(0.5) // returns 0.5
- * normalize(-0.3) // returns 0 (clamped)
- * normalize(1.8) // returns 1 (clamped)
- * normalize(0.999) // returns 0.999
- */
-export function normalize(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-/**
- * Computes the arithmetic mean of a number array.
- * Returns 0 for empty arrays.
- */
-export function mean(values: number[]): number {
-  return values.length > 0
-    ? values.reduce((s, v) => s + v, 0) / values.length
-    : 0;
-}
-
-/**
- * Computes the population standard deviation of a number array.
- * Returns 0 for arrays with fewer than 2 elements.
- */
-export function stdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const avg = mean(values);
-  const variance = values.reduce((s, v) => s + (v - avg) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
-
-/**
- * Finds the element with the maximum value for a given property.
- * Returns undefined if array is empty.
- * Optionally accepts a custom comparator for complex comparison logic (e.g., Math.abs).
- *
- * Replaces verbose pattern: `array.reduce((a, b) => b.prop > a.prop ? b : a, array[0])`
- *
- * @param items - Array of objects to search
- * @param key - Property name to compare
- * @param compareFn - Optional custom comparison function (defaults to direct comparison)
- * @returns The element with the maximum value, or undefined if array is empty
- *
- * @example
- * const agents = [{name: 'A', score: 85}, {name: 'B', score: 92}];
- * findMax(agents, 'score') // returns {name: 'B', score: 92}
- *
- * const trades = [{symbol: 'AAPL', beta: -0.5}, {symbol: 'MSFT', beta: 1.2}];
- * findMax(trades, 'beta', (a, b) => Math.abs(a) - Math.abs(b)) // returns {symbol: 'MSFT', beta: 1.2}
- *
- * findMax([], 'score') // returns undefined
- */
-export function findMax<T extends Record<string, any>>(
-  items: T[],
-  key: keyof T & string,
-  compareFn?: (a: number, b: number) => number,
-): T | undefined {
-  if (items.length === 0) return undefined;
-
-  return items.reduce((max, item) => {
-    const maxVal = max[key] as number;
-    const itemVal = item[key] as number;
-
-    if (compareFn) {
-      return compareFn(itemVal, maxVal) > 0 ? item : max;
-    }
-    return itemVal > maxVal ? item : max;
-  }, items[0]);
-}
-
-/**
- * Finds the element with the minimum value for a given property.
- * Returns undefined if array is empty.
- * Optionally accepts a custom comparator for complex comparison logic (e.g., Math.abs).
- *
- * Replaces verbose pattern: `array.reduce((a, b) => b.prop < a.prop ? b : a, array[0])`
- *
- * @param items - Array of objects to search
- * @param key - Property name to compare
- * @param compareFn - Optional custom comparison function (defaults to direct comparison)
- * @returns The element with the minimum value, or undefined if array is empty
- *
- * @example
- * const agents = [{name: 'A', risk: 0.15}, {name: 'B', risk: 0.08}];
- * findMin(agents, 'risk') // returns {name: 'B', risk: 0.08}
- *
- * const trades = [{symbol: 'AAPL', beta: -0.5}, {symbol: 'MSFT', beta: 1.2}];
- * findMin(trades, 'beta', (a, b) => Math.abs(a) - Math.abs(b)) // returns {symbol: 'AAPL', beta: -0.5}
- *
- * findMin([], 'risk') // returns undefined
- */
-export function findMin<T extends Record<string, any>>(
-  items: T[],
-  key: keyof T & string,
-  compareFn?: (a: number, b: number) => number,
-): T | undefined {
-  if (items.length === 0) return undefined;
-
-  return items.reduce((min, item) => {
-    const minVal = min[key] as number;
-    const itemVal = item[key] as number;
-
-    if (compareFn) {
-      return compareFn(itemVal, minVal) < 0 ? item : min;
-    }
-    return itemVal < minVal ? item : min;
-  }, items[0]);
-}
-
-/**
- * Calculates the sum of a property across an array of objects.
- * Optionally applies a transform function before summing.
- *
- * Replaces verbose pattern: `items.reduce((sum, item) => sum + item.property, 0)`
- *
- * @param items - Array of objects to sum
- * @param key - Property name to sum
- * @param getterFn - Optional transform function (e.g., Math.abs for absolute values)
- * @returns Sum of the property values
- *
- * @example
- * const trades = [{pnl: 100}, {pnl: -50}, {pnl: 200}];
- * sumByKey(trades, 'pnl') // returns 250
- *
- * const slippage = [{bps: -15}, {bps: 10}, {bps: -20}];
- * sumByKey(slippage, 'bps', Math.abs) // returns 45
- *
- * sumByKey([], 'pnl') // returns 0
- */
-export function sumByKey<T extends Record<string, any>>(
-  items: readonly T[],
-  key: keyof T & string,
-  getterFn?: (val: number) => number,
-): number {
-  return items.reduce((sum, item) => {
-    const value = item[key] as number;
-    return sum + (getterFn ? getterFn(value) : value);
-  }, 0);
-}
-
-/**
- * Calculates the average (arithmetic mean) of a property across an array of objects.
- * Optionally applies a transform function before averaging.
+ * Finds the maximum value in an array.
  * Returns 0 for empty arrays.
  *
- * Replaces verbose pattern: `items.reduce((sum, item) => sum + item.property, 0) / items.length`
- *
- * @param items - Array of objects to average
- * @param key - Property name to average
- * @param getterFn - Optional transform function (e.g., Math.abs for absolute values)
- * @returns Average of the property values, or 0 if array is empty
+ * @param values - Array of numbers
+ * @returns The maximum value, or 0 if array is empty
  *
  * @example
- * const agents = [{winRate: 0.65}, {winRate: 0.58}, {winRate: 0.72}];
- * averageByKey(agents, 'winRate') // returns 0.65
- *
- * const trades = [{slippageBps: -15}, {slippageBps: 10}, {slippageBps: -20}];
- * averageByKey(trades, 'slippageBps', Math.abs) // returns 15
- *
- * averageByKey([], 'winRate') // returns 0
+ * max([1, 5, 3, 9, 2]) // returns 9
+ * max([]) // returns 0
+ * max([-5, -2, -10]) // returns -2
  */
-export function averageByKey<T extends Record<string, any>>(
-  items: readonly T[],
-  key: keyof T & string,
-  getterFn?: (val: number) => number,
-): number {
-  if (items.length === 0) return 0;
-  return sumByKey(items, key, getterFn) / items.length;
+export function max(values: readonly number[]): number {
+  return values.length > 0 ? Math.max(...values) : 0;
 }
 
 /**
- * Sorts an array of objects in descending order by a numeric property.
- * Creates a shallow copy to avoid mutating the original array.
+ * Finds the minimum value in an array.
+ * Returns 0 for empty arrays.
  *
- * Replaces verbose pattern: `array.sort((a, b) => b.property - a.property)`
- *
- * @param items - Array of objects to sort
- * @param key - Property name to sort by (must be numeric)
- * @returns A new array sorted in descending order
+ * @param values - Array of numbers
+ * @returns The minimum value, or 0 if array is empty
  *
  * @example
- * const agents = [{name: 'A', score: 85}, {name: 'B', score: 92}, {name: 'C', score: 78}];
- * sortDescending(agents, 'score')
- * // returns [{name: 'B', score: 92}, {name: 'A', score: 85}, {name: 'C', score: 78}]
- *
- * const trades = [{symbol: 'AAPL', pnl: -5.2}, {symbol: 'MSFT', pnl: 8.3}, {symbol: 'GOOGL', pnl: 3.1}];
- * sortDescending(trades, 'pnl')
- * // returns [{symbol: 'MSFT', pnl: 8.3}, {symbol: 'GOOGL', pnl: 3.1}, {symbol: 'AAPL', pnl: -5.2}]
+ * min([1, 5, 3, 9, 2]) // returns 1
+ * min([]) // returns 0
+ * min([-5, -2, -10]) // returns -10
  */
-/**
- * Finds the key with the highest numeric value in a record.
- *
- * Replaces verbose pattern: `Object.entries(map).sort(([,a],[,b]) => b - a)[0]?.[0]`
- *
- * @param record - A record mapping string keys to numeric values
- * @returns The key with the highest value, or undefined if record is empty
- *
- * @example
- * const actionCounts = { buy: 2, sell: 1, hold: 5 };
- * getTopKey(actionCounts) // returns "hold"
- *
- * getTopKey({}) // returns undefined
- *
- * // With nullish coalescing for default:
- * getTopKey(symbolCounts) ?? "N/A" // returns "N/A" if empty
- */
-export function getTopKey(record: Record<string, number>): string | undefined {
-  let topKey: string | undefined;
-  let topVal = -Infinity;
-  for (const [key, val] of Object.entries(record)) {
-    if (val > topVal) {
-      topVal = val;
-      topKey = key;
-    }
-  }
-  return topKey;
+export function min(values: readonly number[]): number {
+  return values.length > 0 ? Math.min(...values) : 0;
 }
 
 /**
- * Finds the entry (key-value pair) with the highest numeric value in a record.
+ * Finds the item with the maximum value for a given property.
  *
- * Replaces verbose pattern: `Object.entries(map).sort(([,a],[,b]) => b - a)[0]`
- *
- * @param record - A record mapping string keys to numeric values
- * @returns A [key, value] tuple for the highest entry, or undefined if record is empty
- *
- * @example
- * const actionCounts = { buy: 2, sell: 1, hold: 5 };
- * getTopEntry(actionCounts) // returns ["hold", 5]
- *
- * const [action, count] = getTopEntry(actionCounts)!;
- * // action = "hold", count = 5
- *
- * getTopEntry({}) // returns undefined
- */
-export function getTopEntry(record: Record<string, number>): [string, number] | undefined {
-  let topEntry: [string, number] | undefined;
-  for (const [key, val] of Object.entries(record)) {
-    if (!topEntry || val > topEntry[1]) {
-      topEntry = [key, val];
-    }
-  }
-  return topEntry;
-}
-
-/**
- * Sorts a record's entries in descending order by numeric value (highest first).
- *
- * Replaces verbose pattern: `Object.entries(record).sort(([, a], [, b]) => b - a)`
- *
- * Complements getTopKey() and getTopEntry():
- * - getTopKey() → returns just the top key
- * - getTopEntry() → returns just the top [key, value] pair
- * - sortEntriesDescending() → returns ALL entries sorted descending
- *
- * @param record - A record mapping string keys to numeric values
- * @returns Array of [key, value] tuples sorted by value (highest to lowest)
+ * @param items - Array of objects
+ * @param prop - Property name to compare
+ * @returns The item with the maximum property value, or undefined if array is empty
  *
  * @example
- * const actionCounts = { buy: 2, sell: 1, hold: 5 };
- * sortEntriesDescending(actionCounts)
- * // returns [["hold", 5], ["buy", 2], ["sell", 1]]
- *
- * // Get top 3 symbols by frequency:
- * const top3 = sortEntriesDescending(symbolCounts).slice(0, 3);
- *
- * sortEntriesDescending({}) // returns []
+ * const trades = [{ symbol: 'AAPL', pnl: 100 }, { symbol: 'MSFT', pnl: 200 }];
+ * findMax(trades, 'pnl') // returns { symbol: 'MSFT', pnl: 200 }
  */
-export function sortEntriesDescending(record: Record<string, number>): [string, number][] {
-  return Object.entries(record).sort(([, a], [, b]) => b - a);
-}
-
-export function sortDescending<T extends Record<string, any>>(
-  items: T[],
-  key: keyof T & string,
-): T[] {
-  return [...items].sort((a, b) => (b[key] as number) - (a[key] as number));
-}
-
-/**
- * Sorts an array of objects in ascending order by a numeric property.
- * Creates a shallow copy to avoid mutating the original array.
- *
- * Replaces verbose pattern: `array.sort((a, b) => a.property - b.property)`
- *
- * Complements sortDescending() for bidirectional sorting needs.
- *
- * @param items - Array of objects to sort
- * @param key - Property name to sort by (must be numeric)
- * @returns A new array sorted in ascending order
- *
- * @example
- * const agents = [{name: 'A', risk: 0.15}, {name: 'B', risk: 0.08}, {name: 'C', risk: 0.22}];
- * sortAscending(agents, 'risk')
- * // returns [{name: 'B', risk: 0.08}, {name: 'A', risk: 0.15}, {name: 'C', risk: 0.22}]
- *
- * const trades = [{symbol: 'AAPL', entryPrice: 150}, {symbol: 'MSFT', entryPrice: 120}, {symbol: 'GOOGL', entryPrice: 180}];
- * sortAscending(trades, 'entryPrice')
- * // returns [{symbol: 'MSFT', entryPrice: 120}, {symbol: 'AAPL', entryPrice: 150}, {symbol: 'GOOGL', entryPrice: 180}]
- */
-export function sortAscending<T extends Record<string, any>>(
-  items: T[],
-  key: keyof T & string,
-): T[] {
-  return [...items].sort((a, b) => (a[key] as number) - (b[key] as number));
-}
-
-/**
- * Groups an array of objects by a property value.
- * Creates a record where keys are property values and values are arrays of matching objects.
- *
- * Replaces verbose pattern: `items.reduce((acc, item) => { ... }, {} as Record<string, T[]>)`
- *
- * Common use cases:
- * - Group trades by symbol
- * - Group agents by strategy
- * - Group decisions by action type (buy/sell/hold)
- * - Group rounds by date
- *
- * @param items - Array of objects to group
- * @param key - Property name to group by
- * @returns Record mapping property values to arrays of matching objects
- *
- * @example
- * const trades = [
- *   {symbol: 'AAPL', action: 'buy'},
- *   {symbol: 'MSFT', action: 'sell'},
- *   {symbol: 'AAPL', action: 'hold'}
- * ];
- * groupByKey(trades, 'symbol')
- * // returns {
- * //   AAPL: [{symbol: 'AAPL', action: 'buy'}, {symbol: 'AAPL', action: 'hold'}],
- * //   MSFT: [{symbol: 'MSFT', action: 'sell'}]
- * // }
- *
- * const decisions = [{action: 'buy', conf: 75}, {action: 'hold', conf: 60}, {action: 'buy', conf: 82}];
- * groupByKey(decisions, 'action')
- * // returns {
- * //   buy: [{action: 'buy', conf: 75}, {action: 'buy', conf: 82}],
- * //   hold: [{action: 'hold', conf: 60}]
- * // }
- *
- * groupByKey([], 'symbol') // returns {}
- */
-export function groupByKey<T extends Record<string, any>>(
-  items: readonly T[],
-  key: keyof T & string,
-): Record<string, T[]> {
-  return items.reduce(
-    (acc, item) => {
-      const groupKey = String(item[key]);
-      if (!acc[groupKey]) {
-        acc[groupKey] = [];
-      }
-      acc[groupKey].push(item);
-      return acc;
-    },
-    {} as Record<string, T[]>,
+export function findMax<T>(items: readonly T[], prop: keyof T): T | undefined {
+  if (items.length === 0) return undefined;
+  return items.reduce((max, item) =>
+    (item[prop] as number) > (max[prop] as number) ? item : max
   );
 }
 
 /**
- * Creates a key-value map from an array of objects by extracting specified property values.
- * Converts arrays to Record<string, V> for O(1) lookups instead of O(n) array scans.
+ * Finds the item with the minimum value for a given property.
+ *
+ * @param items - Array of objects
+ * @param prop - Property name to compare
+ * @returns The item with the minimum property value, or undefined if array is empty
+ *
+ * @example
+ * const trades = [{ symbol: 'AAPL', pnl: 100 }, { symbol: 'MSFT', pnl: 200 }];
+ * findMin(trades, 'pnl') // returns { symbol: 'AAPL', pnl: 100 }
+ */
+export function findMin<T>(items: readonly T[], prop: keyof T): T | undefined {
+  if (items.length === 0) return undefined;
+  return items.reduce((min, item) =>
+    (item[prop] as number) < (min[prop] as number) ? item : min
+  );
+}
+
+/**
+ * Finds the item with the maximum value for a given property, using a custom comparator.
+ *
+ * Useful for:
+ * - Comparing by absolute value
+ * - Complex comparison logic (nested properties, computed values)
+ * - Non-numeric comparisons (strings, dates)
+ *
+ * @param items - Array of objects
+ * @param prop - Property name to extract
+ * @param compareFn - Comparison function (a, b) => number (positive if a > b)
+ * @returns The item with the maximum property value, or undefined if array is empty
+ *
+ * @example
+ * const trades = [{ pnl: -50 }, { pnl: 30 }, { pnl: -100 }];
+ *
+ * // Find largest absolute P&L:
+ * findMax(trades, 'pnl', (a, b) => Math.abs(a) - Math.abs(b))
+ * // returns { pnl: -100 }
+ *
+ * // Standard max (same as findMax without comparator):
+ * findMax(trades, 'pnl', (a, b) => a - b)
+ * // returns { pnl: 30 }
+ */
+export function findMaxBy<T, K extends keyof T>(
+  items: readonly T[],
+  prop: K,
+  compareFn: (a: T[K], b: T[K]) => number
+): T | undefined {
+  if (items.length === 0) return undefined;
+  return items.reduce((max, item) =>
+    compareFn(item[prop], max[prop]) > 0 ? item : max
+  );
+}
+
+/**
+ * Finds the item with the minimum value for a given property, using a custom comparator.
+ *
+ * Useful for:
+ * - Comparing by absolute value
+ * - Complex comparison logic (nested properties, computed values)
+ * - Non-numeric comparisons (strings, dates)
+ *
+ * @param items - Array of objects
+ * @param prop - Property name to extract
+ * @param compareFn - Comparison function (a, b) => number (positive if a > b)
+ * @returns The item with the minimum property value, or undefined if array is empty
+ *
+ * @example
+ * const trades = [{ pnl: -50 }, { pnl: 30 }, { pnl: -100 }];
+ *
+ * // Find smallest absolute P&L:
+ * findMinBy(trades, 'pnl', (a, b) => Math.abs(a) - Math.abs(b))
+ * // returns { pnl: 30 }
+ *
+ * // Standard min (same as findMin without comparator):
+ * findMinBy(trades, 'pnl', (a, b) => a - b)
+ * // returns { pnl: -100 }
+ */
+export function findMinBy<T, K extends keyof T>(
+  items: readonly T[],
+  prop: K,
+  compareFn: (a: T[K], b: T[K]) => number
+): T | undefined {
+  if (items.length === 0) return undefined;
+  return items.reduce((min, item) =>
+    compareFn(item[prop], min[prop]) < 0 ? item : min
+  );
+}
+
+/**
+ * Sums all values in an array.
+ *
+ * @param values - Array of numbers
+ * @returns The sum of all values
+ *
+ * @example
+ * sum([1, 2, 3, 4, 5]) // returns 15
+ * sum([]) // returns 0
+ * sum([-5, 10, -3]) // returns 2
+ */
+export function sum(values: readonly number[]): number {
+  return values.reduce((total, value) => total + value, 0);
+}
+
+/**
+ * Calculates the mean (average) of all values in an array.
+ * Returns 0 for empty arrays.
+ *
+ * @param values - Array of numbers
+ * @returns The mean value, or 0 if array is empty
+ *
+ * @example
+ * mean([1, 2, 3, 4, 5]) // returns 3
+ * mean([]) // returns 0
+ * mean([10, 20, 30]) // returns 20
+ */
+export function mean(values: readonly number[]): number {
+  return values.length > 0 ? sum(values) / values.length : 0;
+}
+
+/**
+ * Calculates the median value of an array.
+ * Returns 0 for empty arrays.
+ *
+ * @param values - Array of numbers
+ * @returns The median value, or 0 if array is empty
+ *
+ * @example
+ * median([1, 2, 3, 4, 5]) // returns 3
+ * median([1, 2, 3, 4]) // returns 2.5
+ * median([]) // returns 0
+ */
+export function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/**
+ * Calculates a specific percentile of an array.
+ * Returns 0 for empty arrays.
+ *
+ * @param values - Array of numbers
+ * @param percentile - The percentile to calculate (0-100)
+ * @returns The value at the given percentile, or 0 if array is empty
+ *
+ * @example
+ * percentile([1, 2, 3, 4, 5], 50) // returns 3 (median)
+ * percentile([1, 2, 3, 4, 5], 100) // returns 5 (max)
+ * percentile([1, 2, 3, 4, 5], 0) // returns 1 (min)
+ */
+export function percentile(values: readonly number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.floor((p / 100) * (sorted.length - 1));
+  return sorted[index];
+}
+
+/**
+ * Calculates the standard deviation of an array.
+ * Returns 0 for empty arrays or arrays with a single element.
+ *
+ * @param values - Array of numbers
+ * @returns The standard deviation, or 0 if insufficient data
+ *
+ * @example
+ * stdDev([1, 2, 3, 4, 5]) // returns ~1.414
+ * stdDev([10, 10, 10]) // returns 0
+ * stdDev([]) // returns 0
+ */
+export function stdDev(values: readonly number[]): number {
+  if (values.length <= 1) return 0;
+  const avg = mean(values);
+  const squaredDiffs = values.map((value) => Math.pow(value - avg, 2));
+  return Math.sqrt(mean(squaredDiffs));
+}
+
+/**
+ * Sums values of a specific property across an array of objects.
+ *
+ * @param items - Array of objects
+ * @param prop - Property name to sum
+ * @returns The sum of all property values
+ *
+ * @example
+ * const trades = [{ pnl: 100 }, { pnl: -50 }, { pnl: 200 }];
+ * sumByKey(trades, 'pnl') // returns 250
+ */
+export function sumByKey<T>(items: readonly T[], prop: keyof T): number {
+  return items.reduce((total, item) => total + (item[prop] as number), 0);
+}
+
+/**
+ * Calculates the average of a specific property across an array of objects.
+ * Returns 0 for empty arrays.
+ *
+ * @param items - Array of objects
+ * @param prop - Property name to average
+ * @returns The average value, or 0 if array is empty
+ *
+ * @example
+ * const trades = [{ pnl: 100 }, { pnl: -50 }, { pnl: 200 }];
+ * averageByKey(trades, 'pnl') // returns 83.33
+ */
+export function averageByKey<T>(items: readonly T[], prop: keyof T): number {
+  return items.length > 0 ? sumByKey(items, prop) / items.length : 0;
+}
+
+/**
+ * Groups items by a property and returns a record of arrays.
+ *
+ * @param items - Array of objects to group
+ * @param keyProp - Property name OR function to extract grouping key
+ * @returns Record mapping keys to arrays of items
+ *
+ * @example
+ * const trades = [
+ *   { symbol: 'AAPL', pnl: 100 },
+ *   { symbol: 'MSFT', pnl: 200 },
+ *   { symbol: 'AAPL', pnl: -50 }
+ * ];
+ * groupByKey(trades, 'symbol')
+ * // returns { AAPL: [...], MSFT: [...] }
+ *
+ * // Using a function:
+ * groupByKey(trades, (t) => t.pnl > 0 ? 'winners' : 'losers')
+ * // returns { winners: [...], losers: [...] }
+ */
+export function groupByKey<T, K extends keyof T>(
+  items: readonly T[],
+  keyProp: K | ((item: T) => string)
+): Record<string, T[]> {
+  const groups: Record<string, T[]> = {};
+
+  for (const item of items) {
+    const key = typeof keyProp === "function" ? keyProp(item) : String(item[keyProp]);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(item);
+  }
+
+  return groups;
+}
+
+/**
+ * Groups items by a key function and aggregates values using init + aggregate functions.
+ *
+ * Useful for complex grouping patterns:
+ * - Count occurrences: initFn = () => 0, aggregateFn = (acc) => acc + 1
+ * - Sum values: initFn = () => 0, aggregateFn = (acc, item) => acc + item.value
+ * - Collect unique IDs: initFn = () => new Set(), aggregateFn = (acc, item) => acc.add(item.id)
+ * - Build objects: initFn = () => ({count: 0, total: 0}), aggregateFn = (acc, item) => ({count: acc.count + 1, total: acc.total + item.value})
+ *
+ * @param items - Array of objects to group and aggregate
+ * @param keyFn - Function OR property name to extract grouping key
+ * @param initFn - Function to create initial accumulator for each group
+ * @param aggregateFn - Function to aggregate each item into the accumulator
+ * @returns Record mapping keys to aggregated values
+ *
+ * @example
+ * const decisions = [
+ *   { symbol: 'AAPL', action: 'buy' },
+ *   { symbol: 'MSFT', action: 'sell' },
+ *   { symbol: 'AAPL', action: 'buy' }
+ * ];
+ *
+ * // Count occurrences per symbol:
+ * groupAndAggregate(
+ *   decisions,
+ *   'symbol',
+ *   () => 0,
+ *   (count) => count + 1
+ * )
+ * // returns { AAPL: 2, MSFT: 1 }
+ *
+ * // Collect unique actions per symbol:
+ * groupAndAggregate(
+ *   decisions,
+ *   'symbol',
+ *   () => new Set<string>(),
+ *   (set, item) => set.add(item.action)
+ * )
+ * // returns { AAPL: Set(['buy']), MSFT: Set(['sell']) }
+ *
+ * // Build complex objects:
+ * groupAndAggregate(
+ *   decisions,
+ *   'symbol',
+ *   () => ({ symbols: new Set<string>(), count: 0 }),
+ *   (acc, item) => {
+ *     acc.symbols.add(item.symbol);
+ *     acc.count++;
+ *     return acc;
+ *   }
+ * )
+ */
+export function groupAndAggregate<T, K, V>(
+  items: readonly T[],
+  keyFn: ((item: T) => string) | keyof T,
+  initFn: () => V,
+  aggregateFn: (accumulator: V, item: T) => V
+): Record<string, V> {
+  const groups: Record<string, V> = {};
+
+  for (const item of items) {
+    const key = typeof keyFn === "function" ? keyFn(item) : String(item[keyFn]);
+    if (!groups[key]) {
+      groups[key] = initFn();
+    }
+    groups[key] = aggregateFn(groups[key], item);
+  }
+
+  return groups;
+}
+
+/**
+ * Creates a lookup map (index) from an array by a unique key property.
  *
  * Common use cases:
- * - Dimension weight maps: createKeyMap(DIMENSIONS, 'key', 'weight') → {pnlPercent: 15, sharpeRatio: 10}
- * - Symbol price maps: createKeyMap(positions, 'symbol', 'price') → {AAPL: 150.25, MSFT: 380.50}
- * - ID entity maps: createKeyMap(users, 'id', 'name') → {123: 'Alice', 456: 'Bob'}
+ * - Index decisions by roundId for O(1) lookup
+ * - Index positions by symbol for fast access
+ * - Index users by ID for quick retrieval
  *
- * @param items - Array of objects to convert to map
- * @param keyProp - Property to use as map keys
- * @param valueProp - Property to use as map values
+ * @param items - Array of objects to index
+ * @param keyProp - Property name to use as the index key (must be unique)
+ * @returns Record mapping keys to objects
+ *
+ * @example
+ * const decisions = [
+ *   { roundId: 'r1', action: 'buy' },
+ *   { roundId: 'r2', action: 'sell' }
+ * ];
+ *
+ * const byRound = indexBy(decisions, 'roundId');
+ * // returns { r1: { roundId: 'r1', action: 'buy' }, r2: { roundId: 'r2', action: 'sell' } }
+ *
+ * // O(1) lookup:
+ * byRound['r1'] // { roundId: 'r1', action: 'buy' }
+ */
+export function indexBy<T, K extends keyof T>(
+  items: readonly T[],
+  keyProp: K
+): Record<string, T> {
+  const map: Record<string, T> = {};
+  for (const item of items) {
+    const key = String(item[keyProp]);
+    map[key] = item;
+  }
+  return map;
+}
+
+/**
+ * Converts an array to a key-value map using specified key and value properties.
+ *
+ * Common use cases:
+ * - Convert dimension arrays to weight maps: createKeyMap(dimensions, 'key', 'weight')
+ * - Convert symbol arrays to price maps: createKeyMap(prices, 'symbol', 'price')
+ * - Convert ID arrays to entity maps: createKeyMap(users, 'id', 'name')
+ *
+ * @param items - Array of objects to convert
+ * @param keyProp - Property to use as map key
+ * @param valueProp - Property to use as map value
  * @returns Record mapping keyProp values to valueProp values
  *
  * @example
  * const dimensions = [
- *   { key: 'pnlPercent', weight: 15, category: 'performance' },
- *   { key: 'sharpeRatio', weight: 10, category: 'performance' },
+ *   { key: 'financial', weight: 0.3 },
+ *   { key: 'reasoning', weight: 0.25 }
  * ];
  *
  * createKeyMap(dimensions, 'key', 'weight')
- * // returns { pnlPercent: 15, sharpeRatio: 10 }
+ * // returns { financial: 0.3, reasoning: 0.25 }
  *
- * createKeyMap(dimensions, 'category', 'weight')
- * // returns { performance: 10 } (last value wins if duplicate keys)
- *
- * createKeyMap([], 'key', 'weight') // returns {}
+ * // Type-safe: return type inferred as Record<string, number>
  */
-export function createKeyMap<T extends Record<string, any>, K extends keyof T & string, V extends keyof T>(
+export function createKeyMap<T, K extends keyof T, V extends keyof T>(
   items: readonly T[],
   keyProp: K,
-  valueProp: V,
+  valueProp: V
 ): Record<string, T[V]> {
-  return items.reduce(
-    (acc, item) => {
-      acc[String(item[keyProp])] = item[valueProp];
-      return acc;
-    },
-    {} as Record<string, T[V]>,
-  );
+  return items.reduce((map, item) => {
+    const key = String(item[keyProp]);
+    map[key] = item[valueProp];
+    return map;
+  }, {} as Record<string, T[V]>);
 }
 
 /**
- * Creates a lookup map indexed by a specified key property, mapping to the entire object.
- * Eliminates manual Map construction loops for simple key-to-object indexing.
+ * Counts how many items match a condition.
  *
- * Common use cases:
- * - Index decisions by roundId: indexBy(decisions, 'roundId') → {round_123: {decision object}}
- * - Index positions by symbol: indexBy(positions, 'symbol') → {AAPL: {position object}}
- * - Index users by ID: indexBy(users, 'id') → {123: {user object}}
- *
- * @param items - Array of objects to index
- * @param keyProp - Property to use as index key
- * @returns Record mapping key values to the full objects
+ * @param items - Array of items to test
+ * @param predicate - Function that returns true for items to count
+ * @returns Count of items matching the condition
  *
  * @example
- * const decisions = [{roundId: 'r1', action: 'buy'}, {roundId: 'r2', action: 'sell'}];
- * indexBy(decisions, 'roundId')
- * // returns { r1: {roundId: 'r1', action: 'buy'}, r2: {roundId: 'r2', action: 'sell'} }
+ * const trades = [
+ *   { symbol: 'AAPL', pnl: 100 },
+ *   { symbol: 'MSFT', pnl: -50 },
+ *   { symbol: 'GOOGL', pnl: 200 }
+ * ];
  *
- * indexBy([], 'id') // returns {}
+ * countByCondition(trades, (t) => t.pnl > 0) // returns 2
+ * countByCondition(trades, (t) => t.symbol === 'AAPL') // returns 1
  */
-export function indexBy<T extends Record<string, any>, K extends keyof T & string>(
+export function countByCondition<T>(
   items: readonly T[],
-  keyProp: K,
-): Record<string, T> {
-  return items.reduce(
-    (acc, item) => {
-      acc[String(item[keyProp])] = item;
-      return acc;
-    },
-    {} as Record<string, T>,
-  );
-}
-
-/**
- * Groups items by a key and aggregates values using custom accumulator logic.
- * Eliminates manual Map construction loops with complex value accumulation.
- *
- * Common use cases:
- * - Count occurrences: groupAndAggregate(items, 'category', () => 0, (count) => count + 1)
- * - Sum values: groupAndAggregate(items, 'sector', () => 0, (sum, item) => sum + item.value)
- * - Collect sets: groupAndAggregate(items, 'type', () => new Set(), (set, item) => set.add(item.id))
- * - Build objects: groupAndAggregate(items, 'group', () => ({count: 0, total: 0}), (agg, item) => ({count: agg.count + 1, total: agg.total + item.value}))
- *
- * @param items - Array of objects to group and aggregate
- * @param keyFn - Function that extracts grouping key from each item (or keyof T for simple property)
- * @param initFn - Function that creates initial accumulator value for each group
- * @param aggregateFn - Function that updates accumulator with each item: (accumulator, item) => newAccumulator
- * @returns Record mapping group keys to aggregated values
- *
- * @example
- * // Count decisions by sector:
- * const decisions = [{symbol: 'AAPL', sector: 'Tech'}, {symbol: 'MSFT', sector: 'Tech'}, {symbol: 'JPM', sector: 'Finance'}];
- * groupAndAggregate(decisions, (d) => d.sector, () => 0, (count) => count + 1)
- * // returns { Tech: 2, Finance: 1 }
- *
- * // Sum confidence by hour:
- * const hourly = [{hour: 9, conf: 75}, {hour: 9, conf: 80}, {hour: 10, conf: 70}];
- * groupAndAggregate(hourly, (d) => d.hour, () => ({count: 0, total: 0}), (agg, d) => ({count: agg.count + 1, total: agg.total + d.conf}))
- * // returns { '9': {count: 2, total: 155}, '10': {count: 1, total: 70} }
- *
- * // Collect unique symbols per sector:
- * groupAndAggregate(decisions, (d) => d.sector, () => new Set<string>(), (set, d) => set.add(d.symbol))
- * // returns { Tech: Set(['AAPL', 'MSFT']), Finance: Set(['JPM']) }
- */
-export function groupAndAggregate<T, K extends string | number, V>(
-  items: readonly T[],
-  keyFn: ((item: T) => K) | (keyof T & string),
-  initFn: () => V,
-  aggregateFn: (accumulator: V, item: T) => V,
-): Record<string, V> {
-  const map: Record<string, V> = {};
-  const extractKey = typeof keyFn === 'function' ? keyFn : (item: T) => item[keyFn] as unknown as K;
-
-  for (const item of items) {
-    const key = String(extractKey(item));
-    if (!(key in map)) {
-      map[key] = initFn();
-    }
-    map[key] = aggregateFn(map[key], item);
-  }
-
-  return map;
+  predicate: (item: T) => boolean
+): number {
+  return items.reduce((count, item) => (predicate(item) ? count + 1 : count), 0);
 }
 
 /**
@@ -699,175 +587,105 @@ export function groupAndAggregate<T, K extends string | number, V>(
  */
 export function sortEntriesByValue(
   record: Record<string, number>,
-  compareFn: (a: number, b: number) => number = (a, b) => a - b,
+  compareFn: (a: number, b: number) => number = (a, b) => a - b
 ): [string, number][] {
   return Object.entries(record).sort(([, a], [, b]) => compareFn(a, b));
 }
 
 /**
- * Counts the number of items in an array that match a given condition.
- * More efficient than filter().length as it avoids creating an intermediate array.
+ * Sorts a record's entries by numeric value in descending order.
+ * Convenience function for the common case of sorting largest-to-smallest.
  *
- * Replaces verbose pattern: `items.filter(predicate).length`
+ * For custom sorting (e.g., by absolute value), use sortEntriesByValue() with a comparator.
  *
- * @param items - Array of items to count
- * @param predicate - Function that returns true for items to count
- * @returns Number of items matching the condition
+ * @param record - A record mapping string keys to numeric values
+ * @returns Array of [key, value] tuples sorted descending by value
  *
  * @example
- * const decisions = [{action: 'buy'}, {action: 'hold'}, {action: 'buy'}];
- * countByCondition(decisions, d => d.action === 'buy') // returns 2
- *
- * const agents = [{confidence: 75}, {confidence: 45}, {confidence: 82}];
- * countByCondition(agents, a => a.confidence > 70) // returns 2
- *
- * countByCondition([], () => true) // returns 0
+ * const pnl = { AAPL: 100, MSFT: 200, GOOGL: -50 };
+ * sortEntriesDescending(pnl)
+ * // returns [["MSFT", 200], ["AAPL", 100], ["GOOGL", -50]]
  */
-export function countByCondition<T>(
-  items: readonly T[],
-  predicate: (item: T) => boolean,
-): number {
-  let count = 0;
-  for (const item of items) {
-    if (predicate(item)) count++;
-  }
-  return count;
+export function sortEntriesDescending(record: Record<string, number>): [string, number][] {
+  return sortEntriesByValue(record, (a, b) => b - a);
 }
 
 /**
- * Calculates a weighted sum using custom value and weight extraction functions.
- * Provides maximum flexibility for computing weighted sums from any data structure.
+ * Computes the Jaccard similarity between two strings.
+ * Jaccard = |intersection| / |union| of word sets.
+ * Returns 0 if both strings are empty, 1 if identical.
  *
- * Common use cases:
- * - Weighted gene scores: genes.map with weight array lookup
- * - Confidence-weighted predictions: extract confidence and weight per item
- * - Custom scoring: conditional logic to determine value/weight
- *
- * @param items - Array of items to process
- * @param valueFn - Function to extract numeric value from each item
- * @param weightFn - Function to extract numeric weight for each item
- * @returns Sum of (valueFn(item) * weightFn(item)) for all items
+ * @param a - First string
+ * @param b - Second string
+ * @returns Jaccard similarity (0 = no overlap, 1 = identical)
  *
  * @example
- * // Weighted gene scores with index-based weights:
- * const genes = [{score: 0.8}, {score: 0.6}, {score: 0.9}];
- * const weights = [0.5, 0.3, 0.2];
- * weightedSum(genes, (g) => g.score, (g, i) => weights[i]) // 0.8*0.5 + 0.6*0.3 + 0.9*0.2 = 0.76
- *
- * // Confidence-weighted predictions:
- * const votes = [{prediction: 1, confidence: 75, weight: 0.4}, {prediction: 0, confidence: 60, weight: 0.6}];
- * weightedSum(votes, (v) => v.confidence, (v) => v.weight) // 75*0.4 + 60*0.6 = 66
- *
- * // Custom logic (switch statement):
- * const items = [{status: 'high', weight: 0.5}, {status: 'low', weight: 0.3}];
- * weightedSum(items, (i) => i.status === 'high' ? 1.0 : 0.2, (i) => i.weight) // 1.0*0.5 + 0.2*0.3 = 0.56
+ * jaccardSimilarity("hello world", "hello there") // ~0.33 (1 shared word: "hello")
+ * jaccardSimilarity("test", "test") // 1.0 (identical)
+ * jaccardSimilarity("", "") // 0.0 (both empty)
  */
-export function weightedSum<T>(
-  items: readonly T[],
-  valueFn: (item: T, index: number) => number,
-  weightFn: (item: T, index: number) => number,
-): number;
-
-/**
- * Calculates a weighted sum of values from an array of objects.
- * Each item contributes item[valueProp] * item[weightProp] to the total.
- *
- * Common use cases:
- * - Composite scores: dimension.score * dimension.weight
- * - Weighted averages: sum of (value * weight) / sum of weights
- * - Portfolio calculations: position.value * position.allocation
- *
- * @param items - Array of objects with numeric value and weight properties
- * @param valueProp - Property name for the value to weight
- * @param weightProp - Property name for the weight to apply
- * @returns Sum of (value * weight) for all items
- *
- * @example
- * const dimensions = [
- *   {name: 'logic', score: 0.8, weight: 0.3},
- *   {name: 'evidence', score: 0.6, weight: 0.5},
- *   {name: 'risk', score: 0.9, weight: 0.2}
- * ];
- * weightedSum(dimensions, 'score', 'weight') // 0.8*0.3 + 0.6*0.5 + 0.9*0.2 = 0.72
- *
- * const positions = [{value: 1000, allocation: 0.6}, {value: 500, allocation: 0.4}];
- * weightedSum(positions, 'value', 'allocation') // 1000*0.6 + 500*0.4 = 800
- */
-export function weightedSum<T>(
-  items: readonly T[],
-  valueProp: keyof T & string,
-  weightProp: keyof T & string,
-): number;
-
-// Implementation (handles both overloads)
-export function weightedSum<T>(
-  items: readonly T[],
-  valueParam: ((item: T, index: number) => number) | (keyof T & string),
-  weightParam: ((item: T, index: number) => number) | (keyof T & string),
-): number {
-  // Function-based overload
-  if (typeof valueParam === "function" && typeof weightParam === "function") {
-    return items.reduce((sum, item, index) => {
-      const value = valueParam(item, index);
-      const weight = weightParam(item, index);
-      return sum + value * weight;
-    }, 0);
-  }
-
-  // Property-based overload
-  const valueProp = valueParam as keyof T & string;
-  const weightProp = weightParam as keyof T & string;
-  return items.reduce((sum, item) => {
-    const value = item[valueProp];
-    const weight = item[weightProp];
-    if (typeof value === "number" && typeof weight === "number") {
-      return sum + value * weight;
-    }
-    return sum;
-  }, 0);
+export function jaccardSimilarity(a: string, b: string): number {
+  if (!a && !b) return 0;
+  const setA = new Set(a.toLowerCase().split(/\s+/));
+  const setB = new Set(b.toLowerCase().split(/\s+/));
+  const intersection = new Set([...setA].filter((x) => setB.has(x)));
+  const union = new Set([...setA, ...setB]);
+  return union.size > 0 ? intersection.size / union.size : 0;
 }
 
 /**
- * Calculates the dot product of two numeric vectors.
- * Returns the sum of element-wise products: a[0]*b[0] + a[1]*b[1] + ...
+ * Computes the Jaccard distance between two strings.
+ * Distance = 1 - similarity.
+ * Returns 0 if identical, 1 if completely different.
+ *
+ * @param a - First string
+ * @param b - Second string
+ * @returns Jaccard distance (0 = identical, 1 = no overlap)
+ *
+ * @example
+ * jaccardDistance("hello world", "hello there") // ~0.67 (high distance)
+ * jaccardDistance("test", "test") // 0.0 (identical)
+ */
+export function jaccardDistance(a: string, b: string): number {
+  return 1 - jaccardSimilarity(a, b);
+}
+
+/**
+ * Computes the dot product of two numeric vectors.
+ * Returns sum of element-wise products: dot(a, b) = a[0]*b[0] + a[1]*b[1] + ...
  *
  * Common use cases:
- * - Cosine similarity calculation (numerator)
- * - Vector projection
- * - Weighted gene scores in strategy genomes
+ * - Vector similarity metrics (cosine similarity)
+ * - Weighted sums
+ * - Projection calculations
  *
  * @param a - First vector (readonly array of numbers)
  * @param b - Second vector (readonly array of numbers, must match length of a)
  * @returns Dot product of the two vectors
- * @throws Error if vectors have different lengths
  *
  * @example
- * dotProduct([1, 2, 3], [4, 5, 6]) // 1*4 + 2*5 + 3*6 = 32
- * dotProduct([0.8, 0.6], [0.3, 0.7]) // 0.8*0.3 + 0.6*0.7 = 0.66
+ * dotProduct([1, 2, 3], [4, 5, 6]) // returns 32 (1*4 + 2*5 + 3*6)
+ * dotProduct([1, 0], [0, 1]) // returns 0 (orthogonal vectors)
  */
 export function dotProduct(a: readonly number[], b: readonly number[]): number {
-  if (a.length !== b.length) {
-    throw new Error(`dotProduct: vectors must have same length (got ${a.length} and ${b.length})`);
-  }
   return a.reduce((sum, val, i) => sum + val * b[i], 0);
 }
 
 /**
- * Calculates the magnitude (Euclidean norm) of a numeric vector.
- * Returns sqrt(v[0]^2 + v[1]^2 + ... + v[n]^2)
+ * Computes the magnitude (Euclidean norm) of a numeric vector.
+ * Returns sqrt(sum of squared components): ||v|| = sqrt(v[0]^2 + v[1]^2 + ...)
  *
  * Common use cases:
- * - Cosine similarity calculation (denominator)
+ * - Vector normalization
  * - Distance calculations
- * - Normalization
+ * - Cosine similarity denominators
  *
  * @param v - Vector (readonly array of numbers)
  * @returns Magnitude of the vector
  *
  * @example
- * vectorMagnitude([3, 4]) // sqrt(3^2 + 4^2) = 5
- * vectorMagnitude([1, 0, 0]) // 1
- * vectorMagnitude([0.6, 0.8]) // 1.0
+ * vectorMagnitude([3, 4]) // returns 5 (sqrt(3^2 + 4^2))
+ * vectorMagnitude([1, 0, 0]) // returns 1 (unit vector)
  */
 export function vectorMagnitude(v: readonly number[]): number {
   return Math.sqrt(v.reduce((sum, val) => sum + val * val, 0));
@@ -903,4 +721,56 @@ export function cosineSimilarity(a: readonly number[], b: readonly number[]): nu
   }
 
   return dot / (magA * magB);
+}
+
+/**
+ * Calculates the average of a specific property for items matching a condition.
+ * Eliminates duplicate filtering in filter().reduce() / filter().length patterns.
+ *
+ * Common use cases:
+ * - Average confidence for buy decisions: averageByCondition(decisions, d => d.action === "buy", "confidence")
+ * - Average P&L for winners: averageByCondition(trades, t => t.pnl > 0, "pnl")
+ * - Average size for large positions: averageByCondition(positions, p => p.size > 1000, "size")
+ *
+ * Performance: Single-pass O(n) vs filter().reduce() + filter().length = 2× O(n)
+ *
+ * @param items - Array of objects to filter and average
+ * @param predicate - Function that returns true for items to include
+ * @param prop - Property name to average
+ * @returns Average value for matching items, or 0 if no matches
+ *
+ * @example
+ * const decisions = [
+ *   { action: "buy", confidence: 80 },
+ *   { action: "sell", confidence: 60 },
+ *   { action: "buy", confidence: 90 }
+ * ];
+ *
+ * // Old pattern (2× filtering):
+ * // decisions.filter(d => d.action === "buy").reduce((s, d) => s + d.confidence, 0) /
+ * // Math.max(1, decisions.filter(d => d.action === "buy").length)
+ *
+ * // New pattern (single pass):
+ * averageByCondition(decisions, d => d.action === "buy", "confidence")
+ * // returns 85 ((80 + 90) / 2)
+ *
+ * averageByCondition(decisions, d => d.action === "hold", "confidence")
+ * // returns 0 (no matches)
+ */
+export function averageByCondition<T>(
+  items: readonly T[],
+  predicate: (item: T) => boolean,
+  prop: keyof T
+): number {
+  let sum = 0;
+  let count = 0;
+
+  for (const item of items) {
+    if (predicate(item)) {
+      sum += item[prop] as number;
+      count++;
+    }
+  }
+
+  return count > 0 ? sum / count : 0;
 }
