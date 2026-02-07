@@ -21,6 +21,177 @@
 import { countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Strength identification thresholds for detecting agent capabilities.
+ * These control when an agent's metric qualifies as a notable strength
+ * in the intelligence report.
+ */
+
+/** Coherence threshold for "strong reasoning" strength (>= 0.7 = coherent reasoning matches actions) */
+const STRENGTH_COHERENCE_THRESHOLD = 0.7;
+
+/** Hallucination rate threshold for "low hallucination" strength (<= 0.05 = 5% hallucination rate) */
+const STRENGTH_HALLUCINATION_RATE_MAX = 0.05;
+
+/** Discipline rate threshold for "excellent rule compliance" strength (>= 0.9 = 90% discipline) */
+const STRENGTH_DISCIPLINE_RATE_MIN = 0.9;
+
+/** Word count threshold for "detailed reasoning" strength (>= 50 words = substantive analysis) */
+const STRENGTH_WORD_COUNT_MIN = 50;
+
+/**
+ * Weakness identification thresholds for detecting agent failure modes.
+ * These control when an agent's metric qualifies as a critical weakness
+ * in the intelligence report.
+ */
+
+/** Coherence threshold for "poor reasoning" weakness (< 0.5 = reasoning contradicts actions) */
+const WEAKNESS_COHERENCE_THRESHOLD = 0.5;
+
+/** Hallucination rate threshold for "frequent fabrication" weakness (> 0.15 = 15% hallucination rate) */
+const WEAKNESS_HALLUCINATION_RATE_MAX = 0.15;
+
+/** Discipline rate threshold for "poor rule compliance" weakness (< 0.7 = 70% discipline) */
+const WEAKNESS_DISCIPLINE_RATE_MIN = 0.7;
+
+/** Word count threshold for "insufficient reasoning depth" weakness (< 25 words = too brief) */
+const WEAKNESS_WORD_COUNT_MIN = 25;
+
+/** Hold rate threshold for "excessive conservatism" weakness (> 0.7 = 70% hold rate) */
+const WEAKNESS_HOLD_RATE_MAX = 0.7;
+
+/**
+ * Behavioral pattern detection thresholds.
+ * These control when specific agent behaviors are flagged as patterns.
+ */
+
+/** Confidence std dev threshold for "confidence anchoring" pattern (< 0.08 = minimal confidence variation) */
+const PATTERN_CONFIDENCE_STDDEV_THRESHOLD = 0.08;
+
+/** Minimum trades required for pattern detection (5 trades minimum for statistical significance) */
+const PATTERN_MIN_TRADES = 5;
+
+/** Symbol fixation ratio threshold (> 0.5 = >50% trades in one symbol) */
+const PATTERN_SYMBOL_FIXATION_RATIO = 0.5;
+
+/** Momentum follower threshold (> 0.4 = >40% momentum trades) */
+const PATTERN_MOMENTUM_THRESHOLD = 0.4;
+
+/** Contrarian tendency threshold (> 0.3 = >30% contrarian trades) */
+const PATTERN_CONTRARIAN_THRESHOLD = 0.3;
+
+/**
+ * Quality trend detection thresholds.
+ * Compare first half vs second half coherence to detect improvement/decline.
+ */
+
+/** Coherence improvement threshold (+0.05 = 5% coherence increase = "improving" trend) */
+const QUALITY_TREND_IMPROVEMENT_THRESHOLD = 0.05;
+
+/** Coherence decline threshold (-0.05 = 5% coherence decrease = "declining" trend) */
+const QUALITY_TREND_DECLINE_THRESHOLD = 0.05;
+
+/**
+ * Directional bias classification thresholds.
+ * Classify agent trading style based on buy/sell ratio.
+ */
+
+/** Buy-heavy threshold (> 0.65 = >65% buys = "buy-heavy" bias) */
+const DIRECTIONAL_BIAS_BUY_HEAVY_THRESHOLD = 0.65;
+
+/** Sell-heavy threshold (> 0.65 = >65% sells = "sell-heavy" bias) */
+const DIRECTIONAL_BIAS_SELL_HEAVY_THRESHOLD = 0.65;
+
+/**
+ * Intelligence grade thresholds.
+ * Define score boundaries for A+ through F letter grades.
+ */
+
+/** A+ grade threshold (>= 0.9 composite score = exceptional intelligence) */
+const GRADE_THRESHOLD_A_PLUS = 0.9;
+
+/** A grade threshold (>= 0.85 composite score = excellent intelligence) */
+const GRADE_THRESHOLD_A = 0.85;
+
+/** A- grade threshold (>= 0.8 composite score = very good intelligence) */
+const GRADE_THRESHOLD_A_MINUS = 0.8;
+
+/** B+ grade threshold (>= 0.75 composite score = good intelligence) */
+const GRADE_THRESHOLD_B_PLUS = 0.75;
+
+/** B grade threshold (>= 0.7 composite score = above average intelligence) */
+const GRADE_THRESHOLD_B = 0.7;
+
+/** B- grade threshold (>= 0.65 composite score = slightly above average intelligence) */
+const GRADE_THRESHOLD_B_MINUS = 0.65;
+
+/** C+ grade threshold (>= 0.6 composite score = average intelligence) */
+const GRADE_THRESHOLD_C_PLUS = 0.6;
+
+/** C grade threshold (>= 0.55 composite score = below average intelligence) */
+const GRADE_THRESHOLD_C = 0.55;
+
+/** C- grade threshold (>= 0.5 composite score = poor intelligence) */
+const GRADE_THRESHOLD_C_MINUS = 0.5;
+
+/** D grade threshold (>= 0.4 composite score = very poor intelligence, < 0.4 = F) */
+const GRADE_THRESHOLD_D = 0.4;
+
+/**
+ * Intelligence grade component weights.
+ * Control how much each metric contributes to the composite intelligence score.
+ */
+
+/** Coherence weight (0.3 = 30% of grade, HIGHEST weight - logical consistency is primary indicator) */
+const GRADE_WEIGHT_COHERENCE = 0.3;
+
+/** Hallucination-free weight (0.25 = 25% of grade, critical to avoid fabricated data) */
+const GRADE_WEIGHT_HALLUCINATION_FREE = 0.25;
+
+/** Discipline weight (0.2 = 20% of grade, rule compliance is important) */
+const GRADE_WEIGHT_DISCIPLINE = 0.2;
+
+/** Calibration weight (0.15 = 15% of grade, confidence accuracy matters) */
+const GRADE_WEIGHT_CALIBRATION = 0.15;
+
+/** Word depth weight (0.1 = 10% of grade, length alone doesn't guarantee quality) */
+const GRADE_WEIGHT_WORD_DEPTH = 0.1;
+
+/**
+ * Word count normalization parameters.
+ */
+
+/** Word count divisor for grade contribution (80 words = 100% contribution, 40 words = 50% contribution) */
+const WORD_COUNT_NORMALIZATION_DIVISOR = 80;
+
+/**
+ * Confidence bucket boundaries.
+ * Define confidence tier ranges for confidence profile analysis.
+ */
+
+/** Low confidence bucket upper bound (0-25% confidence range) */
+const CONFIDENCE_BUCKET_LOW_MAX = 0.25;
+
+/** Medium-low confidence bucket upper bound (25-50% confidence range) */
+const CONFIDENCE_BUCKET_MEDIUM_LOW_MAX = 0.5;
+
+/** Medium-high confidence bucket upper bound (50-75% confidence range) */
+const CONFIDENCE_BUCKET_MEDIUM_HIGH_MAX = 0.75;
+
+/** High confidence bucket upper bound (75-100% confidence range, 1.01 to include 1.0) */
+const CONFIDENCE_BUCKET_HIGH_MAX = 1.01;
+
+/**
+ * Data completeness calculation parameters.
+ */
+
+/** Trade count divisor for data completeness (20 trades = 100% completeness, 10 trades = 50% completeness) */
+const DATA_COMPLETENESS_DIVISOR = 20;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -185,7 +356,7 @@ export function generateIntelligenceReport(
     confidenceProfile,
     recommendations,
     grade,
-    dataCompleteness: Math.min(1, total / 20),
+    dataCompleteness: Math.min(1, total / DATA_COMPLETENESS_DIVISOR),
   };
 }
 
@@ -209,7 +380,7 @@ function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
   const discRate = entries.filter((e) => e.disciplinePass).length / total;
   const avgWords = entries.reduce((s, e) => s + e.wordCount, 0) / total;
 
-  if (avgCoherence >= 0.7) {
+  if (avgCoherence >= STRENGTH_COHERENCE_THRESHOLD) {
     insights.push({
       category: "Reasoning Quality",
       observation: "Consistently produces coherent reasoning that matches trading actions",
@@ -218,7 +389,7 @@ function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (halRate <= 0.05) {
+  if (halRate <= STRENGTH_HALLUCINATION_RATE_MAX) {
     insights.push({
       category: "Factual Accuracy",
       observation: "Very low hallucination rate — rarely fabricates market data",
@@ -227,7 +398,7 @@ function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (discRate >= 0.9) {
+  if (discRate >= STRENGTH_DISCIPLINE_RATE_MIN) {
     insights.push({
       category: "Rule Compliance",
       observation: "Excellent instruction discipline — follows position limits and rules",
@@ -236,7 +407,7 @@ function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (avgWords >= 50) {
+  if (avgWords >= STRENGTH_WORD_COUNT_MIN) {
     insights.push({
       category: "Reasoning Depth",
       observation: "Provides detailed, substantive reasoning for trade decisions",
@@ -257,16 +428,16 @@ function identifyWeaknesses(entries: ReasoningEntry[]): ReportInsight[] {
   const avgWords = entries.reduce((s, e) => s + e.wordCount, 0) / total;
   const holdRate = entries.filter((e) => e.action === "hold").length / total;
 
-  if (avgCoherence < 0.5) {
+  if (avgCoherence < WEAKNESS_COHERENCE_THRESHOLD) {
     insights.push({
       category: "Reasoning Quality",
       observation: "Reasoning frequently contradicts trading actions",
-      evidence: `Average coherence: ${avgCoherence.toFixed(2)} — below 0.5 threshold`,
+      evidence: `Average coherence: ${avgCoherence.toFixed(2)} — below ${WEAKNESS_COHERENCE_THRESHOLD} threshold`,
       severity: "high",
     });
   }
 
-  if (halRate > 0.15) {
+  if (halRate > WEAKNESS_HALLUCINATION_RATE_MAX) {
     insights.push({
       category: "Factual Accuracy",
       observation: "Frequently fabricates or misquotes market data in reasoning",
@@ -275,7 +446,7 @@ function identifyWeaknesses(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (discRate < 0.7) {
+  if (discRate < WEAKNESS_DISCIPLINE_RATE_MIN) {
     insights.push({
       category: "Rule Compliance",
       observation: "Frequently violates position limits or trading rules",
@@ -284,7 +455,7 @@ function identifyWeaknesses(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (avgWords < 25) {
+  if (avgWords < WEAKNESS_WORD_COUNT_MIN) {
     insights.push({
       category: "Reasoning Depth",
       observation: "Reasoning is too brief — lacks analytical depth",
@@ -293,7 +464,7 @@ function identifyWeaknesses(entries: ReasoningEntry[]): ReportInsight[] {
     });
   }
 
-  if (holdRate > 0.7) {
+  if (holdRate > WEAKNESS_HOLD_RATE_MAX) {
     insights.push({
       category: "Decision Making",
       observation: "Excessively conservative — holds too often instead of trading",
@@ -312,7 +483,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   // Pattern: Confidence anchoring (always similar confidence)
   const confidences = entries.map((e) => e.confidence);
   const confStdDev = stdDev(confidences);
-  if (confStdDev < 0.08 && total >= 5) {
+  if (confStdDev < PATTERN_CONFIDENCE_STDDEV_THRESHOLD && total >= PATTERN_MIN_TRADES) {
     patterns.push({
       name: "Confidence Anchoring",
       description: "Reports nearly the same confidence level regardless of market conditions",
@@ -328,7 +499,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   }
   const nonHoldCount = entries.filter((e) => e.action !== "hold").length;
   const topSymbolCount = Math.max(...symbolCounts.values(), 0);
-  if (nonHoldCount > 5 && topSymbolCount / nonHoldCount > 0.5) {
+  if (nonHoldCount > PATTERN_MIN_TRADES && topSymbolCount / nonHoldCount > PATTERN_SYMBOL_FIXATION_RATIO) {
     const topSymbol = [...symbolCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     patterns.push({
       name: "Symbol Fixation",
@@ -340,7 +511,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
 
   // Pattern: Momentum following
   const momentumTrades = entries.filter((e) => e.intent === "momentum").length;
-  if (momentumTrades / total > 0.4) {
+  if (momentumTrades / total > PATTERN_MOMENTUM_THRESHOLD) {
     patterns.push({
       name: "Momentum Follower",
       description: "Predominantly follows price trends rather than fundamental analysis",
@@ -351,7 +522,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
 
   // Pattern: Contrarian tendency
   const contrarianTrades = entries.filter((e) => e.intent === "contrarian").length;
-  if (contrarianTrades / total > 0.3) {
+  if (contrarianTrades / total > PATTERN_CONTRARIAN_THRESHOLD) {
     patterns.push({
       name: "Contrarian Tendency",
       description: "Frequently goes against market consensus",
@@ -405,8 +576,8 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
     : 0;
 
   let qualityTrend: "improving" | "stable" | "declining" = "stable";
-  if (secondAvg > firstAvg + 0.05) qualityTrend = "improving";
-  else if (secondAvg < firstAvg - 0.05) qualityTrend = "declining";
+  if (secondAvg > firstAvg + QUALITY_TREND_IMPROVEMENT_THRESHOLD) qualityTrend = "improving";
+  else if (secondAvg < firstAvg - QUALITY_TREND_DECLINE_THRESHOLD) qualityTrend = "declining";
 
   return {
     avgCoherence: round2(avgCoherence),
@@ -457,8 +628,8 @@ function buildMarketBias(entries: ReasoningEntry[]): MarketBiasSection {
   let directionalBias: "buy-heavy" | "sell-heavy" | "balanced" = "balanced";
   const total = buyCount + sellCount;
   if (total > 0) {
-    if (buyCount / total > 0.65) directionalBias = "buy-heavy";
-    else if (sellCount / total > 0.65) directionalBias = "sell-heavy";
+    if (buyCount / total > DIRECTIONAL_BIAS_BUY_HEAVY_THRESHOLD) directionalBias = "buy-heavy";
+    else if (sellCount / total > DIRECTIONAL_BIAS_SELL_HEAVY_THRESHOLD) directionalBias = "sell-heavy";
   }
 
   return {
@@ -474,10 +645,10 @@ function buildConfidenceProfile(entries: ReasoningEntry[]): ConfidenceProfileSec
   const avgConf = entries.reduce((s, e) => s + e.confidence, 0) / total;
 
   const buckets = [
-    { min: 0, max: 0.25, label: "0-25%" },
-    { min: 0.25, max: 0.5, label: "25-50%" },
-    { min: 0.5, max: 0.75, label: "50-75%" },
-    { min: 0.75, max: 1.01, label: "75-100%" },
+    { min: 0, max: CONFIDENCE_BUCKET_LOW_MAX, label: "0-25%" },
+    { min: CONFIDENCE_BUCKET_LOW_MAX, max: CONFIDENCE_BUCKET_MEDIUM_LOW_MAX, label: "25-50%" },
+    { min: CONFIDENCE_BUCKET_MEDIUM_LOW_MAX, max: CONFIDENCE_BUCKET_MEDIUM_HIGH_MAX, label: "50-75%" },
+    { min: CONFIDENCE_BUCKET_MEDIUM_HIGH_MAX, max: CONFIDENCE_BUCKET_HIGH_MAX, label: "75-100%" },
   ];
 
   const confidenceBuckets = buckets.map((b) => {
@@ -532,7 +703,7 @@ function generateRecommendations(
     }
   }
 
-  if (riskProfile.holdRate > 0.6) {
+  if (riskProfile.holdRate > WEAKNESS_HOLD_RATE_MAX - 0.1) {
     recs.push("Consider being more active: the hold rate is very high. Take trades when conviction is clear.");
   }
 
@@ -544,22 +715,22 @@ function computeIntelligenceGrade(
   confidence: ConfidenceProfileSection,
 ): string {
   const score =
-    quality.avgCoherence * 0.3 +
-    (1 - quality.hallucinationRate) * 0.25 +
-    quality.disciplineRate * 0.2 +
-    confidence.calibrationScore * 0.15 +
-    Math.min(1, quality.avgWordCount / 80) * 0.1;
+    quality.avgCoherence * GRADE_WEIGHT_COHERENCE +
+    (1 - quality.hallucinationRate) * GRADE_WEIGHT_HALLUCINATION_FREE +
+    quality.disciplineRate * GRADE_WEIGHT_DISCIPLINE +
+    confidence.calibrationScore * GRADE_WEIGHT_CALIBRATION +
+    Math.min(1, quality.avgWordCount / WORD_COUNT_NORMALIZATION_DIVISOR) * GRADE_WEIGHT_WORD_DEPTH;
 
-  if (score >= 0.9) return "A+";
-  if (score >= 0.85) return "A";
-  if (score >= 0.8) return "A-";
-  if (score >= 0.75) return "B+";
-  if (score >= 0.7) return "B";
-  if (score >= 0.65) return "B-";
-  if (score >= 0.6) return "C+";
-  if (score >= 0.55) return "C";
-  if (score >= 0.5) return "C-";
-  if (score >= 0.4) return "D";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D) return "D";
   return "F";
 }
 
