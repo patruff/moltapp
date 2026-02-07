@@ -21,6 +21,246 @@ import { computeGrade } from "../lib/grade-calculator.ts";
 import { round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * CONFIDENCE THRESHOLDS
+ * Used to classify agent confidence levels for humility and calibration analysis.
+ */
+
+/**
+ * Low confidence threshold: Below 50% confidence
+ * Agents should hedge more heavily (2+ hedge words) at this confidence level
+ */
+const CONFIDENCE_LOW_THRESHOLD = 0.5;
+
+/**
+ * High confidence threshold: 70%+ confidence
+ * Agents should hedge less (≤1 hedge word) at this confidence level to show decisiveness
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.7;
+
+/**
+ * HEDGE COUNT THRESHOLDS
+ * Used to detect appropriate hedging behavior relative to confidence levels.
+ */
+
+/**
+ * Minimum hedge count for low-confidence trades (conf < 50%)
+ * Appropriate humility: agent uses 2+ hedge words when uncertain
+ */
+const HEDGE_COUNT_LOW_CONF_MIN = 2;
+
+/**
+ * Maximum hedge count for high-confidence trades (conf ≥ 70%)
+ * Appropriate decisiveness: agent uses ≤1 hedge word when confident
+ */
+const HEDGE_COUNT_HIGH_CONF_MAX = 1;
+
+/**
+ * COMPOSITE SCORE WEIGHTS
+ * Dimension weights for overall metacognition score calculation.
+ * Total must sum to 1.0.
+ */
+
+/**
+ * Epistemic humility weight: 25% of overall score
+ * Does the agent acknowledge uncertainty appropriately?
+ */
+const COMPOSITE_WEIGHT_HUMILITY = 0.25;
+
+/**
+ * Calibration awareness weight: 25% of overall score
+ * Does confidence match actual performance?
+ */
+const COMPOSITE_WEIGHT_CALIBRATION = 0.25;
+
+/**
+ * Error recognition weight: 20% of overall score
+ * Does the agent learn from mistakes?
+ */
+const COMPOSITE_WEIGHT_ERROR = 0.20;
+
+/**
+ * Scope limitation weight: 15% of overall score
+ * Does the agent acknowledge limitations and avoid over-concentration?
+ */
+const COMPOSITE_WEIGHT_SCOPE = 0.15;
+
+/**
+ * Adaptive strategy weight: 15% of overall score
+ * Does the agent adjust approach based on performance?
+ */
+const COMPOSITE_WEIGHT_ADAPTIVE = 0.15;
+
+/**
+ * HUMILITY SCORING WEIGHTS
+ * Dimension weights for epistemic humility composite calculation.
+ */
+
+/**
+ * Appropriate hedging weight: 50% of humility score
+ * Primary indicator: hedging behavior matches confidence level
+ */
+const HUMILITY_WEIGHT_APPROPRIATE_HEDGING = 0.5;
+
+/**
+ * Uncertainty expression weight: 30% of humility score
+ * Uses explicit uncertainty markers ("I'm not sure", "uncertain", etc.)
+ */
+const HUMILITY_WEIGHT_UNCERTAINTY = 0.3;
+
+/**
+ * Conditional reasoning weight: 20% of humility score
+ * Uses if/then statements showing contingent thinking
+ */
+const HUMILITY_WEIGHT_CONDITIONAL = 0.2;
+
+/**
+ * ERROR RECOGNITION WEIGHTS
+ * Dimension weights for error recognition composite calculation.
+ */
+
+/**
+ * Action change after error weight: 40% of error recognition score
+ * Did agent change action (buy→sell/hold) after mistake?
+ */
+const ERROR_WEIGHT_ACTION_CHANGE = 0.4;
+
+/**
+ * Confidence adjustment after error weight: 30% of error recognition score
+ * Did agent lower confidence after being wrong?
+ */
+const ERROR_WEIGHT_CONFIDENCE_ADJUST = 0.3;
+
+/**
+ * Repeat mistake avoidance weight: 30% of error recognition score
+ * Did agent avoid repeating same mistake on same symbol?
+ */
+const ERROR_WEIGHT_REPEAT_AVOIDANCE = 0.3;
+
+/**
+ * SCOPE LIMITATION WEIGHTS
+ * Dimension weights for scope limitation composite calculation.
+ */
+
+/**
+ * Limitation mention weight: 40% of scope score
+ * Does agent explicitly acknowledge what it doesn't know?
+ */
+const SCOPE_WEIGHT_LIMITATION_MENTION = 0.4;
+
+/**
+ * Symbol diversification weight: 30% of scope score
+ * Avoids over-concentration on single symbol
+ */
+const SCOPE_WEIGHT_SYMBOL_DIVERSIFICATION = 0.3;
+
+/**
+ * Symbol breadth weight: 30% of scope score
+ * Trades across multiple symbols (normalized by 5 symbols)
+ */
+const SCOPE_WEIGHT_SYMBOL_BREADTH = 0.3;
+
+/**
+ * ADAPTIVE STRATEGY WEIGHTS
+ * Dimension weights for adaptive strategy composite calculation.
+ */
+
+/**
+ * Strategy diversity weight: 30% of adaptive score
+ * Uses multiple different intents (normalized by 4 unique intents)
+ */
+const ADAPTIVE_WEIGHT_STRATEGY_DIVERSITY = 0.3;
+
+/**
+ * Intent change after loss weight: 35% of adaptive score
+ * Changes trading intent after incorrect predictions
+ */
+const ADAPTIVE_WEIGHT_INTENT_CHANGE = 0.35;
+
+/**
+ * Confidence adaptation weight: 35% of adaptive score
+ * Adjusts confidence levels over time based on performance
+ */
+const ADAPTIVE_WEIGHT_CONFIDENCE_ADAPT = 0.35;
+
+/**
+ * MINIMUM DATA REQUIREMENTS
+ * Minimum sample sizes for statistical significance.
+ */
+
+/**
+ * Minimum trades for calibration analysis
+ * Need 5+ outcomes to compute high/low confidence accuracy
+ */
+const CALIBRATION_MIN_TRADES = 5;
+
+/**
+ * Maximum examples to display in humility evidence
+ * Show top 5 uncertainty expression examples
+ */
+const EXAMPLES_DISPLAY_LIMIT = 5;
+
+/**
+ * Symbol breadth normalization divisor
+ * Normalize symbol count by dividing by 5 (trading 5+ symbols = 1.0 score)
+ */
+const SYMBOL_BREADTH_DIVISOR = 5;
+
+/**
+ * Strategy diversity normalization divisor
+ * Normalize unique intent count by dividing by 4 (4+ intents = 1.0 score)
+ */
+const STRATEGY_DIVERSITY_DIVISOR = 4;
+
+/**
+ * TREND DETECTION THRESHOLDS
+ * Thresholds for classifying metacognition trends.
+ */
+
+/**
+ * Trend improvement threshold: > 0.5 increase
+ * Metacognition markers (hedge count + conditionals) increasing by >0.5
+ */
+const TREND_IMPROVEMENT_THRESHOLD = 0.5;
+
+/**
+ * Trend decline threshold: < -0.5 decrease
+ * Metacognition markers decreasing by >0.5
+ */
+const TREND_DECLINE_THRESHOLD = -0.5;
+
+/**
+ * COMPARISON THRESHOLDS
+ * Thresholds for declaring dimension/overall winners in agent comparisons.
+ */
+
+/**
+ * Dimension win threshold: > 0.05 (5%) difference
+ * Agent must score 5+ percentage points higher to win dimension
+ */
+const DIMENSION_WIN_THRESHOLD = 0.05;
+
+/**
+ * Overall winner threshold: > 0.02 (2%) difference
+ * Agent must score 2+ percentage points higher to win overall
+ */
+const OVERALL_WIN_THRESHOLD = 0.02;
+
+/**
+ * CALIBRATION SCORING PARAMETERS
+ * Constants for calibration awareness scoring calculation.
+ */
+
+/**
+ * Default overconfidence rate when no data available
+ * Assume 30% overconfidence rate as neutral baseline
+ */
+const OVERCONFIDENCE_DEFAULT_RATE = 0.3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -256,11 +496,11 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   let humilityScore = 0;
   let appropriateHedging = 0;
   for (const e of events) {
-    if ((e.confidence < 0.5 && e.hedgeCount >= 2) || (e.confidence >= 0.7 && e.hedgeCount <= 1)) {
+    if ((e.confidence < CONFIDENCE_LOW_THRESHOLD && e.hedgeCount >= HEDGE_COUNT_LOW_CONF_MIN) || (e.confidence >= CONFIDENCE_HIGH_THRESHOLD && e.hedgeCount <= HEDGE_COUNT_HIGH_CONF_MAX)) {
       appropriateHedging++;
     }
   }
-  humilityScore = Math.min(1, (appropriateHedging / tradeCount) * 0.5 + uncertaintyRate * 0.3 + conditionalRate * 0.2);
+  humilityScore = Math.min(1, (appropriateHedging / tradeCount) * HUMILITY_WEIGHT_APPROPRIATE_HEDGING + uncertaintyRate * HUMILITY_WEIGHT_UNCERTAINTY + conditionalRate * HUMILITY_WEIGHT_CONDITIONAL);
 
   const humilityEvidence: HumilityBreakdown = {
     avgHedgeCount: round2(avgHedge),
@@ -268,23 +508,23 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     conditionalRate: round3(conditionalRate),
     examples: events
       .flatMap((e) => e.uncertaintyExpressions)
-      .slice(0, 5),
+      .slice(0, EXAMPLES_DISPLAY_LIMIT),
   };
 
   // 2. CALIBRATION AWARENESS
   const withOutcomes = events.filter((e) => e.wasCorrect !== undefined);
   let highConfAcc = 0.5, lowConfAcc = 0.5;
-  if (withOutcomes.length >= 5) {
-    const highConf = withOutcomes.filter((e) => e.confidence >= 0.7);
-    const lowConf = withOutcomes.filter((e) => e.confidence < 0.5);
+  if (withOutcomes.length >= CALIBRATION_MIN_TRADES) {
+    const highConf = withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD);
+    const lowConf = withOutcomes.filter((e) => e.confidence < CONFIDENCE_LOW_THRESHOLD);
     highConfAcc = highConf.length > 0 ? highConf.filter((e) => e.wasCorrect).length / highConf.length : 0.5;
     lowConfAcc = lowConf.length > 0 ? lowConf.filter((e) => e.wasCorrect).length / lowConf.length : 0.5;
   }
 
   const calibrationGap = Math.abs(highConfAcc - lowConfAcc);
   const overconfidenceRate = withOutcomes.length > 0
-    ? withOutcomes.filter((e) => e.confidence >= 0.7 && !e.wasCorrect).length / Math.max(1, withOutcomes.filter((e) => e.confidence >= 0.7).length)
-    : 0.3;
+    ? withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD && !e.wasCorrect).length / Math.max(1, withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD).length)
+    : OVERCONFIDENCE_DEFAULT_RATE;
 
   // Good calibration: high confidence trades are more accurate than low confidence
   const calibrationScore = highConfAcc > lowConfAcc
@@ -319,9 +559,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   }
 
   const errorRecognition = errorCount > 0
-    ? (afterErrorActionChange / errorCount) * 0.4 +
-      (afterErrorConfidenceAdjust / errorCount) * 0.3 +
-      Math.max(0, 1 - repeatMistakes / errorCount) * 0.3
+    ? (afterErrorActionChange / errorCount) * ERROR_WEIGHT_ACTION_CHANGE +
+      (afterErrorConfidenceAdjust / errorCount) * ERROR_WEIGHT_CONFIDENCE_ADJUST +
+      Math.max(0, 1 - repeatMistakes / errorCount) * ERROR_WEIGHT_REPEAT_AVOIDANCE
     : 0.5;
 
   const errorEvidence: ErrorBreakdown = {
@@ -338,7 +578,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   }
   const topSymbols = Array.from(symbolFreq.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, EXAMPLES_DISPLAY_LIMIT)
     .map(([s]) => s);
 
   // Concentration: how focused on few symbols?
@@ -348,9 +588,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
 
   // Good scope: acknowledges limitations + doesn't over-concentrate
   const scopeScore = Math.min(1,
-    limitMentionRate * 0.4 +
-    (1 - symbolConcentration) * 0.3 +
-    Math.min(1, symbolFreq.size / 5) * 0.3,
+    limitMentionRate * SCOPE_WEIGHT_LIMITATION_MENTION +
+    (1 - symbolConcentration) * SCOPE_WEIGHT_SYMBOL_DIVERSIFICATION +
+    Math.min(1, symbolFreq.size / SYMBOL_BREADTH_DIVISOR) * SCOPE_WEIGHT_SYMBOL_BREADTH,
   );
 
   const scopeEvidence: ScopeBreakdown = {
@@ -362,7 +602,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   // 5. ADAPTIVE STRATEGY
   const intents = events.map((e) => e.intent);
   const uniqueIntents = new Set(intents);
-  const strategyDiversity = Math.min(1, uniqueIntents.size / 4);
+  const strategyDiversity = Math.min(1, uniqueIntents.size / STRATEGY_DIVERSITY_DIVISOR);
 
   // Did intent change after losses?
   let intentChangeAfterLoss = 0;
@@ -382,9 +622,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   const confAdaptation = 1 - Math.abs(firstHalfConf / firstHalfCount - secondHalfConf / secondHalfCount);
 
   const adaptiveStrategy = (
-    strategyDiversity * 0.3 +
-    (lossCount > 0 ? intentChangeAfterLoss / lossCount : 0.5) * 0.35 +
-    Math.max(0, confAdaptation) * 0.35
+    strategyDiversity * ADAPTIVE_WEIGHT_STRATEGY_DIVERSITY +
+    (lossCount > 0 ? intentChangeAfterLoss / lossCount : 0.5) * ADAPTIVE_WEIGHT_INTENT_CHANGE +
+    Math.max(0, confAdaptation) * ADAPTIVE_WEIGHT_CONFIDENCE_ADAPT
   );
 
   const adaptationEvidence: AdaptationBreakdown = {
@@ -395,11 +635,11 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
 
   // Composite
   const overallScore = (
-    humilityScore * 0.25 +
-    calibrationScore * 0.25 +
-    errorRecognition * 0.20 +
-    scopeScore * 0.15 +
-    adaptiveStrategy * 0.15
+    humilityScore * COMPOSITE_WEIGHT_HUMILITY +
+    calibrationScore * COMPOSITE_WEIGHT_CALIBRATION +
+    errorRecognition * COMPOSITE_WEIGHT_ERROR +
+    scopeScore * COMPOSITE_WEIGHT_SCOPE +
+    adaptiveStrategy * COMPOSITE_WEIGHT_ADAPTIVE
   );
 
   // Trend: compare first half vs second half metacognition markers
@@ -408,7 +648,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   const firstHalfMeta = firstHalf.reduce((s, e) => s + e.hedgeCount + e.conditionalsCount, 0) / firstHalfCount;
   const secondHalfMeta = secondHalf.reduce((s, e) => s + e.hedgeCount + e.conditionalsCount, 0) / secondHalfCount;
   const metaDiff = secondHalfMeta - firstHalfMeta;
-  const trend = metaDiff > 0.5 ? "improving" : metaDiff < -0.5 ? "declining" : "stable";
+  const trend = metaDiff > TREND_IMPROVEMENT_THRESHOLD ? "improving" : metaDiff < TREND_DECLINE_THRESHOLD ? "declining" : "stable";
   const trendDetail = `Metacognition markers ${trend}: ${firstHalfMeta.toFixed(1)} (early) -> ${secondHalfMeta.toFixed(1)} (recent)`;
 
   return {
@@ -472,12 +712,12 @@ export function compareMetacognition(agentAId: string, agentBId: string): {
   ];
 
   for (const [dim, scoreA, scoreB] of dims) {
-    if (scoreA > scoreB + 0.05) dimensionWins[agentAId].push(dim);
-    else if (scoreB > scoreA + 0.05) dimensionWins[agentBId].push(dim);
+    if (scoreA > scoreB + DIMENSION_WIN_THRESHOLD) dimensionWins[agentAId].push(dim);
+    else if (scoreB > scoreA + DIMENSION_WIN_THRESHOLD) dimensionWins[agentBId].push(dim);
   }
 
-  const winner = reportA.overallScore > reportB.overallScore + 0.02 ? agentAId
-    : reportB.overallScore > reportA.overallScore + 0.02 ? agentBId
+  const winner = reportA.overallScore > reportB.overallScore + OVERALL_WIN_THRESHOLD ? agentAId
+    : reportB.overallScore > reportA.overallScore + OVERALL_WIN_THRESHOLD ? agentBId
     : null;
 
   return { reportA, reportB, winner, dimensionWins };
