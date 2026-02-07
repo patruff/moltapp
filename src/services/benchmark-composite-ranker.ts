@@ -80,6 +80,78 @@ export interface LeaderboardSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Letter grade boundaries based on composite score.
+ *
+ * These thresholds define the grading scale shown on the leaderboard and
+ * exported to HuggingFace. They control how agents are classified for public
+ * benchmark presentation.
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95; // >= 0.95 = A+ (exceptional performance across all dimensions)
+const GRADE_THRESHOLD_A = 0.90; // >= 0.90 = A (excellent multi-factor performance)
+const GRADE_THRESHOLD_A_MINUS = 0.85; // >= 0.85 = A- (very good performance)
+const GRADE_THRESHOLD_B_PLUS = 0.80; // >= 0.80 = B+ (good performance)
+const GRADE_THRESHOLD_B = 0.75; // >= 0.75 = B (above average)
+const GRADE_THRESHOLD_B_MINUS = 0.70; // >= 0.70 = B- (slightly above average)
+const GRADE_THRESHOLD_C_PLUS = 0.65; // >= 0.65 = C+ (average)
+const GRADE_THRESHOLD_C = 0.60; // >= 0.60 = C (acceptable)
+const GRADE_THRESHOLD_C_MINUS = 0.55; // >= 0.55 = C- (below average)
+const GRADE_THRESHOLD_D_PLUS = 0.50; // >= 0.50 = D+ (poor)
+const GRADE_THRESHOLD_D = 0.45; // >= 0.45 = D (very poor)
+const GRADE_THRESHOLD_D_MINUS = 0.40; // >= 0.40 = D- (failing)
+// < 0.40 = F (critical underperformance)
+
+/**
+ * Elo rating system parameters.
+ *
+ * Industry-standard Elo uses a divisor of 400 for expected score calculation.
+ * This controls how much rating changes per head-to-head matchup.
+ */
+const ELO_EXPECTED_SCORE_DIVISOR = 400; // Standard Elo divisor for 10^(delta/400) calculation
+const ELO_TIE_THRESHOLD = 0.01; // |scoreA - scoreB| < 0.01 = tie (0.5 points each)
+const INITIAL_ELO = 1500; // Starting Elo rating for new agents (standard baseline)
+
+/**
+ * P&L normalization parameters.
+ *
+ * Sigmoid normalization maps P&L percentage to [0, 1] scale:
+ * - 0% P&L → 0.5 (neutral)
+ * - +10% P&L → ~0.73 (good)
+ * - -10% P&L → ~0.27 (poor)
+ */
+const PNL_NORMALIZATION_DIVISOR = 10; // Divides P&L% for sigmoid steepness control
+
+/**
+ * Trend detection parameters.
+ *
+ * Trends are computed by comparing recent vs older composite score averages.
+ * If the difference exceeds the threshold, the agent is classified as improving/declining.
+ */
+const TREND_IMPROVEMENT_THRESHOLD = 0.02; // Delta > 0.02 = improving trend
+const TREND_DECLINE_THRESHOLD = -0.02; // Delta < -0.02 = declining trend
+
+/**
+ * Trend history window sizes.
+ *
+ * Trend analysis uses two windows: recent and older. These sizes control
+ * how many historical scores are used to detect performance changes.
+ */
+const TREND_RECENT_WINDOW = 5; // Last 5 composite scores for recent average
+const TREND_OLDER_WINDOW_START = -10; // Older window starts 10 scores back
+const TREND_OLDER_WINDOW_END = -5; // Older window ends 5 scores back
+const TREND_MIN_HISTORY = 5; // Minimum history entries required for trend calculation
+
+/**
+ * Historical data retention limits.
+ *
+ * Prevents unbounded memory growth by limiting stored composite score history.
+ */
+const MAX_HISTORY = 200; // Maximum composite score history entries per agent
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
@@ -103,7 +175,6 @@ let currentConfig = { ...DEFAULT_CONFIG };
 // ---------------------------------------------------------------------------
 
 const eloRatings: Map<string, number> = new Map();
-const INITIAL_ELO = 1500;
 
 /**
  * Get or initialize an agent's Elo rating.
@@ -129,13 +200,13 @@ export function updateEloFromRound(
   const eloB = getElo(agentB);
 
   // Expected scores
-  const expectedA = 1 / (1 + Math.pow(10, (eloB - eloA) / 400));
-  const expectedB = 1 / (1 + Math.pow(10, (eloA - eloB) / 400));
+  const expectedA = 1 / (1 + Math.pow(10, (eloB - eloA) / ELO_EXPECTED_SCORE_DIVISOR));
+  const expectedB = 1 / (1 + Math.pow(10, (eloA - eloB) / ELO_EXPECTED_SCORE_DIVISOR));
 
   // Actual outcomes (0, 0.5, or 1)
   let actualA: number;
   let actualB: number;
-  if (Math.abs(scoreA - scoreB) < 0.01) {
+  if (Math.abs(scoreA - scoreB) < ELO_TIE_THRESHOLD) {
     actualA = 0.5;
     actualB = 0.5;
   } else if (scoreA > scoreB) {
@@ -182,7 +253,7 @@ export function processRoundElo(
  * 0% maps to 0.5, +10% maps to ~0.73, -10% maps to ~0.27
  */
 function normalizePnl(pnl: number): number {
-  return 1 / (1 + Math.exp(-pnl / 10));
+  return 1 / (1 + Math.exp(-pnl / PNL_NORMALIZATION_DIVISOR));
 }
 
 /**
@@ -246,18 +317,18 @@ export function computeComposite(
  * Assign a letter grade based on composite score.
  */
 export function assignGrade(composite: number): string {
-  if (composite >= 0.95) return "A+";
-  if (composite >= 0.90) return "A";
-  if (composite >= 0.85) return "A-";
-  if (composite >= 0.80) return "B+";
-  if (composite >= 0.75) return "B";
-  if (composite >= 0.70) return "B-";
-  if (composite >= 0.65) return "C+";
-  if (composite >= 0.60) return "C";
-  if (composite >= 0.55) return "C-";
-  if (composite >= 0.50) return "D+";
-  if (composite >= 0.45) return "D";
-  if (composite >= 0.40) return "D-";
+  if (composite >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (composite >= GRADE_THRESHOLD_A) return "A";
+  if (composite >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (composite >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (composite >= GRADE_THRESHOLD_B) return "B";
+  if (composite >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (composite >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (composite >= GRADE_THRESHOLD_C) return "C";
+  if (composite >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (composite >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (composite >= GRADE_THRESHOLD_D) return "D";
+  if (composite >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
@@ -271,7 +342,6 @@ interface HistoryEntry {
 }
 
 const scoreHistory: Map<string, HistoryEntry[]> = new Map();
-const MAX_HISTORY = 200;
 
 /**
  * Record a composite score for trend analysis.
@@ -288,10 +358,10 @@ export function recordCompositeScore(agentId: string, composite: number): void {
  */
 function computeTrend(agentId: string): "improving" | "declining" | "stable" {
   const history = scoreHistory.get(agentId) ?? [];
-  if (history.length < 5) return "stable";
+  if (history.length < TREND_MIN_HISTORY) return "stable";
 
-  const recent = history.slice(-5);
-  const older = history.slice(-10, -5);
+  const recent = history.slice(-TREND_RECENT_WINDOW);
+  const older = history.slice(TREND_OLDER_WINDOW_START, TREND_OLDER_WINDOW_END);
 
   if (older.length === 0) return "stable";
 
@@ -299,8 +369,8 @@ function computeTrend(agentId: string): "improving" | "declining" | "stable" {
   const olderAvg = older.reduce((s, e) => s + e.composite, 0) / older.length;
 
   const delta = recentAvg - olderAvg;
-  if (delta > 0.02) return "improving";
-  if (delta < -0.02) return "declining";
+  if (delta > TREND_IMPROVEMENT_THRESHOLD) return "improving";
+  if (delta < TREND_DECLINE_THRESHOLD) return "declining";
   return "stable";
 }
 
