@@ -68,9 +68,10 @@ export interface LeaderboardEntry {
   tradeCount: number;
   lastTradeAt: Date | null;
   // Enhanced data for richer display
-  topPositions: PositionSummary[]; // Top 3 positions by value
+  topPositions: PositionSummary[]; // Top 5 positions by value
   activeThesis: ThesisSummary | null; // Most recent active thesis
   stocksValue: string; // Total value in stocks (not cash)
+  cashBalance: string; // USDC cash not deployed
 }
 
 export interface LeaderboardData {
@@ -277,9 +278,9 @@ async function refreshLeaderboard(): Promise<void> {
       }
     }
 
-    // Sort positions by value descending, get top 3
+    // Sort positions by value descending, get top 5
     positionSummaries.sort((a, b) => b.value - a.value);
-    const topPositions = positionSummaries.slice(0, 3);
+    const topPositions = positionSummaries.slice(0, 5);
 
     // Get most recent active thesis for this agent
     const agentThesesList = thesesByAgent.get(agent.id) ?? [];
@@ -324,6 +325,7 @@ async function refreshLeaderboard(): Promise<void> {
       topPositions,
       activeThesis,
       stocksValue: marketValue.toFixed(2),
+      cashBalance: usdcCashBalance.toFixed(2),
     };
   });
 

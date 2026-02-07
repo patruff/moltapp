@@ -357,6 +357,14 @@ pages.get("/", async (c) => {
     // Non-critical — widget just won't show
   }
 
+  // Build map from agentId to their last round decision for inline display
+  const lastRoundByAgent = new Map<string, PersistedAgentResult>();
+  if (latestRound) {
+    for (const r of latestRound.results) {
+      lastRoundByAgent.set(r.agentId, r);
+    }
+  }
+
   // Get liquidity analysis for the Liquidity Chart widget
   // If no cached analysis exists (fresh Lambda), fetch prices to populate it
   let liquidityAnalysis = getLatestLiquidityAnalysis();
@@ -511,179 +519,247 @@ pages.get("/", async (c) => {
         </div>
       )}
 
-      {/* Liquidity Chart */}
+      {/* Liquidity Chart — Collapsible */}
       {liquidityAnalysis && (
-        <div class="mb-6 bg-gray-900 border border-cyan-800/50 rounded-lg p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-cyan-300">Liquidity Chart</h2>
-            <div class="text-xs text-gray-500">
-              <span class="text-cyan-400 font-semibold">{liquidityAnalysis.tradeableCount}</span>/{liquidityAnalysis.totalCount} tradeable
-              <span class="ml-2">Updated {formatTimeAgo(new Date(liquidityAnalysis.analyzedAt))}</span>
+        <details class="mb-6 bg-gray-900 border border-cyan-800/50 rounded-lg">
+          <summary class="cursor-pointer p-4 flex items-center justify-between select-none hover:bg-gray-800/30 rounded-lg">
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-bold text-cyan-300">Liquidity Chart</h2>
+              <span class="text-xs text-gray-500">
+                <span class="text-cyan-400 font-semibold">{liquidityAnalysis.tradeableCount}</span>/{liquidityAnalysis.totalCount} tradeable
+              </span>
+            </div>
+            <span class="text-gray-500 text-xs">Updated {formatTimeAgo(new Date(liquidityAnalysis.analyzedAt))}</span>
+          </summary>
+          <div class="px-5 pb-5">
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-gray-500 border-b border-gray-800">
+                    <th class="text-left py-1.5 pr-3">Token</th>
+                    <th class="text-right py-1.5 px-2">Price</th>
+                    <th class="text-right py-1.5 px-2">Liquidity</th>
+                    <th class="text-right py-1.5 px-2">Volume 24h</th>
+                    <th class="text-center py-1.5 px-2">Tier</th>
+                    <th class="text-center py-1.5 px-2">Tradeable</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liquidityAnalysis.tokens.map((tok: TokenLiquidity) => {
+                    const tierColor = tok.tier === "good"
+                      ? "text-green-400 bg-green-900/30"
+                      : tok.tier === "moderate"
+                        ? "text-yellow-400 bg-yellow-900/30"
+                        : tok.tier === "thin"
+                          ? "text-orange-400 bg-orange-900/30"
+                          : "text-red-400 bg-red-900/30";
+                    return (
+                      <tr class={`border-b border-gray-800/50 ${tok.tradeable ? "" : "opacity-50"}`}>
+                        <td class="py-1.5 pr-3">
+                          <span class="text-white font-semibold">{tok.symbol}</span>
+                          <span class="text-gray-500 ml-1">{tok.name}</span>
+                        </td>
+                        <td class="text-right py-1.5 px-2 text-gray-300">${formatCurrency(tok.price)}</td>
+                        <td class="text-right py-1.5 px-2">
+                          <span class={tok.liquidityUsd > 0 ? "text-white" : "text-gray-600"}>
+                            {tok.liquidityUsd > 0 ? `$${formatNumber(tok.liquidityUsd)}` : "No pool"}
+                          </span>
+                        </td>
+                        <td class="text-right py-1.5 px-2 text-gray-400">
+                          {tok.volume24h > 0 ? `$${formatNumber(tok.volume24h)}` : "-"}
+                        </td>
+                        <td class="text-center py-1.5 px-2">
+                          <span class={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${tierColor}`}>
+                            {tok.tier.toUpperCase()}
+                          </span>
+                        </td>
+                        <td class="text-center py-1.5 px-2">
+                          {tok.tradeable
+                            ? <span class="text-green-400">{"\u2713"}</span>
+                            : <span class="text-red-500">{"\u2717"}</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div class="mt-3 flex gap-4 text-xs text-gray-500">
+              <span><span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>Good ($300K+)</span>
+              <span><span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>Moderate ($50K-$300K)</span>
+              <span><span class="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1"></span>Thin (&lt;$50K)</span>
+              <span><span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>Dead (No pool)</span>
             </div>
           </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-xs">
-              <thead>
-                <tr class="text-gray-500 border-b border-gray-800">
-                  <th class="text-left py-1.5 pr-3">Token</th>
-                  <th class="text-right py-1.5 px-2">Price</th>
-                  <th class="text-right py-1.5 px-2">Liquidity</th>
-                  <th class="text-right py-1.5 px-2">Volume 24h</th>
-                  <th class="text-center py-1.5 px-2">Tier</th>
-                  <th class="text-center py-1.5 px-2">Tradeable</th>
-                </tr>
-              </thead>
-              <tbody>
-                {liquidityAnalysis.tokens.map((tok: TokenLiquidity) => {
-                  const tierColor = tok.tier === "good"
-                    ? "text-green-400 bg-green-900/30"
-                    : tok.tier === "moderate"
-                      ? "text-yellow-400 bg-yellow-900/30"
-                      : tok.tier === "thin"
-                        ? "text-orange-400 bg-orange-900/30"
-                        : "text-red-400 bg-red-900/30";
-                  return (
-                    <tr class={`border-b border-gray-800/50 ${tok.tradeable ? "" : "opacity-50"}`}>
-                      <td class="py-1.5 pr-3">
-                        <span class="text-white font-semibold">{tok.symbol}</span>
-                        <span class="text-gray-500 ml-1">{tok.name}</span>
-                      </td>
-                      <td class="text-right py-1.5 px-2 text-gray-300">${formatCurrency(tok.price)}</td>
-                      <td class="text-right py-1.5 px-2">
-                        <span class={tok.liquidityUsd > 0 ? "text-white" : "text-gray-600"}>
-                          {tok.liquidityUsd > 0 ? `$${formatNumber(tok.liquidityUsd)}` : "No pool"}
-                        </span>
-                      </td>
-                      <td class="text-right py-1.5 px-2 text-gray-400">
-                        {tok.volume24h > 0 ? `$${formatNumber(tok.volume24h)}` : "-"}
-                      </td>
-                      <td class="text-center py-1.5 px-2">
-                        <span class={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${tierColor}`}>
-                          {tok.tier.toUpperCase()}
-                        </span>
-                      </td>
-                      <td class="text-center py-1.5 px-2">
-                        {tok.tradeable
-                          ? <span class="text-green-400">{"\u2713"}</span>
-                          : <span class="text-red-500">{"\u2717"}</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div class="mt-3 flex gap-4 text-xs text-gray-500">
-            <span><span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>Good ($300K+)</span>
-            <span><span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>Moderate ($50K-$300K)</span>
-            <span><span class="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1"></span>Thin (&lt;$50K)</span>
-            <span><span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>Dead (No pool)</span>
-          </div>
-        </div>
+        </details>
       )}
 
       {/* Agent Cards */}
       <div class="space-y-6">
-        {data.entries.map((entry: LeaderboardEntry) => (
+        {data.entries.map((entry: LeaderboardEntry) => {
+          const pnlNum = Number(entry.totalPnlAbsolute);
+          const pnlPctNum = Number(entry.totalPnlPercent);
+          const isUp = pnlNum >= 0;
+          const portfolioNum = Number(entry.totalPortfolioValue);
+          const cashNum = Number(entry.cashBalance);
+          const stocksNum = Number(entry.stocksValue);
+          const deployedPct = portfolioNum > 0 ? (stocksNum / portfolioNum) * 100 : 0;
+          const lastAction = lastRoundByAgent.get(entry.agentId);
+
+          return (
           <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 hover:border-gray-700 transition-colors">
-            {/* Agent Header Row */}
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            {/* Agent Name + Rank */}
+            <div class="flex items-center justify-between mb-4">
               <div class="flex items-center gap-3">
-                <span class="text-2xl font-bold text-gray-500">#{entry.rank}</span>
-                <div>
-                  <a
-                    href={`/agent/${getAgentSlug(entry.agentId)}`}
-                    class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
-                  >
-                    {entry.agentName}
-                  </a>
-                  <span class="text-yellow-500 text-sm ml-1">{karmaBadge(entry.karma)}</span>
+                <span class="text-2xl font-bold text-gray-600">#{entry.rank}</span>
+                <a
+                  href={`/agent/${getAgentSlug(entry.agentId)}`}
+                  class="text-xl font-bold text-blue-400 hover:text-blue-300 hover:underline"
+                >
+                  {entry.agentName}
+                </a>
+                <span class="text-yellow-500 text-sm">{karmaBadge(entry.karma)}</span>
+              </div>
+              {entry.lastTradeAt && (
+                <span class="text-xs text-gray-600">{entry.tradeCount} trades &middot; last {formatTimeAgo(entry.lastTradeAt)}</span>
+              )}
+            </div>
+
+            {/* Key Numbers Row */}
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              {/* Total Portfolio */}
+              <div class="bg-gray-950 rounded-lg p-3">
+                <div class="text-gray-500 text-xs uppercase mb-1">Portfolio</div>
+                <div class="text-white text-lg font-bold">${formatCurrency(entry.totalPortfolioValue)}</div>
+              </div>
+              {/* P&L — clear green/red with arrow */}
+              <div class={`rounded-lg p-3 ${isUp ? "bg-green-950/50 border border-green-900/50" : "bg-red-950/50 border border-red-900/50"}`}>
+                <div class="text-gray-500 text-xs uppercase mb-1">Total P&amp;L</div>
+                <div class={`text-lg font-bold flex items-center gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                  <span>{isUp ? "\u25B2" : "\u25BC"}</span>
+                  <span>${formatCurrency(Math.abs(pnlNum))}</span>
+                </div>
+                <div class={`text-xs ${isUp ? "text-green-500" : "text-red-500"}`}>
+                  {isUp ? "+" : ""}{pnlPctNum.toFixed(1)}%
                 </div>
               </div>
-              <div class="flex items-center gap-4 text-sm">
-                <div class="text-right">
-                  <div class="text-gray-500 text-xs uppercase">Portfolio</div>
-                  <div class="text-white font-semibold">${formatCurrency(entry.totalPortfolioValue)}</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-gray-500 text-xs uppercase">P&amp;L</div>
-                  <div class={`font-bold ${pnlColor(entry.totalPnlPercent)}`}>
-                    {pnlSign(entry.totalPnlPercent)}{entry.totalPnlPercent}%
-                  </div>
-                  <div class={`text-xs ${pnlColor(entry.totalPnlAbsolute)}`}>
-                    {formatPnlDisplay(Number(entry.totalPnlAbsolute))}
-                  </div>
-                </div>
-                <div class="text-right">
-                  <div class="text-gray-500 text-xs uppercase">Stocks</div>
-                  <div class="text-gray-300">${formatCurrency(entry.stocksValue)}</div>
-                </div>
-                <div class="text-right hidden sm:block">
-                  <div class="text-gray-500 text-xs uppercase">Trades</div>
-                  <div class="text-gray-300">{entry.tradeCount}</div>
-                  <div class="text-gray-600 text-xs">{formatTimeAgo(entry.lastTradeAt)}</div>
-                </div>
+              {/* Deployed in Stocks */}
+              <div class="bg-gray-950 rounded-lg p-3">
+                <div class="text-gray-500 text-xs uppercase mb-1">In Stocks</div>
+                <div class="text-white text-lg font-bold">${formatCurrency(entry.stocksValue)}</div>
+                <div class="text-xs text-gray-500">{deployedPct.toFixed(0)}% deployed</div>
+              </div>
+              {/* Cash (Undeployed) */}
+              <div class="bg-gray-950 rounded-lg p-3">
+                <div class="text-gray-500 text-xs uppercase mb-1">Cash</div>
+                <div class="text-white text-lg font-bold">${formatCurrency(entry.cashBalance)}</div>
+                <div class="text-xs text-gray-500">{(100 - deployedPct).toFixed(0)}% undeployed</div>
               </div>
             </div>
 
-            {/* Current Thesis */}
-            {entry.activeThesis && (
-              <div class="mb-4 p-3 bg-gray-950 rounded-lg border-l-2 border-blue-500">
+            {/* Last Round Action — compact inline */}
+            {lastAction && (
+              <div class={`mb-4 p-3 rounded-lg border-l-2 ${
+                lastAction.action === "buy" ? "border-green-500 bg-green-950/20"
+                  : lastAction.action === "sell" ? "border-red-500 bg-red-950/20"
+                  : "border-gray-600 bg-gray-950/30"
+              }`}>
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-xs text-gray-500 uppercase">Current Thesis</span>
-                  <span class="text-white font-semibold text-sm">{stockLabel(entry.activeThesis.symbol)}</span>
-                  <DirectionBadge direction={entry.activeThesis.direction} />
-                  <span class="text-gray-500 text-xs">
-                    Conviction: {entry.activeThesis.conviction}/10
+                  <span class="text-xs text-gray-500 uppercase">Last Round</span>
+                  <span class={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                    lastAction.action === "buy" ? "text-green-400 bg-green-900/40"
+                      : lastAction.action === "sell" ? "text-red-400 bg-red-900/40"
+                      : "text-gray-400 bg-gray-800/40"
+                  }`}>
+                    {lastAction.action === "buy" ? "\u25B2 BUY" : lastAction.action === "sell" ? "\u25BC SELL" : "\u2014 HOLD"}
                   </span>
+                  {lastAction.action !== "hold" && (
+                    <span class="text-white text-sm font-semibold">{stockLabel(lastAction.symbol)}</span>
+                  )}
+                  <span class="text-gray-500 text-xs">@ {lastAction.confidence}% confidence</span>
+                  {lastAction.executed ? (
+                    <span class="text-green-500 text-xs">{"\u2713"} filled</span>
+                  ) : lastAction.action !== "hold" ? (
+                    <span class="text-red-500 text-xs">{"\u2717"} not filled</span>
+                  ) : null}
                 </div>
-                <p class="text-gray-300 text-sm leading-relaxed line-clamp-2">
-                  {entry.activeThesis.thesis}
-                </p>
+                {lastAction.reasoning && (
+                  <p class="text-xs text-gray-400 leading-relaxed">
+                    {truncateText(lastAction.reasoning.replace(/\n+/g, " ").replace(/\s+/g, " "), 180)}
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Top Positions */}
+            {/* Holdings Table */}
             {entry.topPositions.length > 0 ? (
               <div>
-                <div class="text-xs text-gray-500 uppercase mb-2">Top Holdings</div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {entry.topPositions.map((pos: PositionSummary) => (
-                    <div class="bg-gray-950 rounded p-3 flex justify-between items-center">
-                      <div>
-                        <div class="text-white font-semibold">{stockLabel(pos.symbol)}</div>
-                        <div class="text-gray-500 text-xs">{formatQuantity(pos.quantity)} shares</div>
-                      </div>
-                      <div class="text-right">
-                        <div class="text-gray-200">${formatCurrency(pos.value)}</div>
-                        <div class={`text-xs font-semibold ${pnlColor(pos.unrealizedPnlPercent)}`}>
-                          {formatPercentage(pos.unrealizedPnlPercent, 2)}
-                          <span class={`ml-1 ${pnlColor(pos.unrealizedPnl)}`}>
-                            ({pnlSign(pos.unrealizedPnl)}${formatCurrency(Math.abs(pos.unrealizedPnl))})
-                          </span>
+                <div class="text-xs text-gray-500 uppercase mb-2">Holdings</div>
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="text-gray-500 text-xs border-b border-gray-800">
+                      <th class="text-left py-1.5">Stock</th>
+                      <th class="text-right py-1.5">Value</th>
+                      <th class="text-right py-1.5">% Portfolio</th>
+                      <th class="text-right py-1.5">P&amp;L</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entry.topPositions.map((pos: PositionSummary) => {
+                      const posUp = pos.unrealizedPnl >= 0;
+                      const pctOfPortfolio = portfolioNum > 0 ? (pos.value / portfolioNum) * 100 : 0;
+                      return (
+                        <tr class="border-b border-gray-800/50">
+                          <td class="py-2">
+                            <div class="text-white font-semibold">{stockLabel(pos.symbol)}</div>
+                            <div class="text-gray-600 text-xs">{formatQuantity(pos.quantity)} shares @ ${formatCurrency(pos.currentPrice)}</div>
+                          </td>
+                          <td class="text-right py-2 text-white">${formatCurrency(pos.value)}</td>
+                          <td class="text-right py-2 text-gray-400">{pctOfPortfolio.toFixed(1)}%</td>
+                          <td class="text-right py-2">
+                            <div class={`font-semibold flex items-center justify-end gap-1 ${posUp ? "text-green-400" : "text-red-400"}`}>
+                              <span class="text-xs">{posUp ? "\u25B2" : "\u25BC"}</span>
+                              ${formatCurrency(Math.abs(pos.unrealizedPnl))}
+                            </div>
+                            <div class={`text-xs ${posUp ? "text-green-500" : "text-red-500"}`}>
+                              {posUp ? "+" : ""}{pos.unrealizedPnlPercent.toFixed(1)}%
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr class="border-t border-gray-700">
+                      <td class="py-2 text-gray-400 font-semibold text-xs">TOTAL STOCKS</td>
+                      <td class="text-right py-2 text-white font-semibold">${formatCurrency(entry.stocksValue)}</td>
+                      <td class="text-right py-2 text-gray-400">{deployedPct.toFixed(1)}%</td>
+                      <td class="text-right py-2">
+                        <div class={`font-semibold flex items-center justify-end gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                          <span class="text-xs">{isUp ? "\u25B2" : "\u25BC"}</span>
+                          ${formatCurrency(Math.abs(pnlNum))}
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             ) : (
-              <div class="text-gray-600 text-sm">No positions yet — holding cash</div>
+              <div class="text-gray-600 text-sm py-2">No positions yet — holding 100% cash</div>
             )}
 
             {/* View Full Profile Link */}
-            <div class="mt-4 pt-3 border-t border-gray-800 text-right">
+            <div class="mt-3 pt-3 border-t border-gray-800 text-right">
               <a
                 href={`/agent/${getAgentSlug(entry.agentId)}`}
                 class="text-xs text-blue-400 hover:text-blue-300 hover:underline"
               >
-                View full portfolio, theses &amp; trade history →
+                View full portfolio, theses &amp; trade history &rarr;
               </a>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {data.entries.length === 0 && (
