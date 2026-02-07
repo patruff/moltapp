@@ -252,6 +252,181 @@ const SIGNIFICANT_DRIFT_THRESHOLD = 15;
  */
 const SENSITIVITY_LOOKBACK = 30;
 
+/**
+ * Sensitivity Classification Thresholds
+ *
+ * These constants control how win/loss sensitivity scores (0-100) are
+ * interpreted in natural language personality descriptions.
+ */
+
+/**
+ * High sensitivity threshold: above this = "strong reactivity" to outcomes.
+ *
+ * Win/loss sensitivity > 65 means the agent significantly adjusts confidence
+ * and trade frequency after profitable or losing trades (reactive personality).
+ *
+ * Used in getEvolutionStory() to classify agents as showing "strong reactivity
+ * to winning trades" or "losses hit hard behaviorally".
+ *
+ * @constant {number}
+ */
+const SENSITIVITY_STRONG_THRESHOLD = 65;
+
+/**
+ * Low sensitivity threshold: below this = "stoic behavior" after outcomes.
+ *
+ * Win/loss sensitivity < 35 means the agent barely adjusts behavior after
+ * profitable or losing trades (stoic, consistent personality).
+ *
+ * Used in getEvolutionStory() to classify agents as "remarkably stoic after
+ * wins" or "handles losses with composure".
+ *
+ * @constant {number}
+ */
+const SENSITIVITY_WEAK_THRESHOLD = 35;
+
+/**
+ * Neutral sensitivity default when insufficient data exists.
+ *
+ * When fewer than 10 decisions exist in the sensitivity lookback window,
+ * return 50 (neutral score) instead of attempting calculation with unreliable
+ * sample size.
+ *
+ * @constant {number}
+ */
+const SENSITIVITY_NEUTRAL_DEFAULT = 50;
+
+/**
+ * Minimum decisions needed for sensitivity calculation.
+ *
+ * Below this threshold, insufficient outcome events exist for reliable
+ * win/loss sensitivity measurement. Return neutral default instead.
+ *
+ * @constant {number}
+ */
+const SENSITIVITY_MIN_DECISIONS = 10;
+
+/**
+ * Personality Trait Interpretation Thresholds
+ *
+ * These constants control how numeric personality trait values (0-100 scale)
+ * are converted to natural language descriptors in UI text.
+ */
+
+/**
+ * Very high trait threshold: above this = "very [trait]" (e.g., "very aggressive").
+ *
+ * Trait values > 75 are classified as extreme on the high end.
+ *
+ * Used in describeTraitLevel() to generate personality narrative text like
+ * "very aggressive", "very contrarian", "very high-conviction".
+ *
+ * @constant {number}
+ */
+const TRAIT_VERY_HIGH_THRESHOLD = 75;
+
+/**
+ * High trait threshold: above this = "[trait]" (e.g., "aggressive").
+ *
+ * Trait values > 60 are classified as high (but not extreme).
+ *
+ * Used in describeTraitLevel() to generate personality narrative text like
+ * "aggressive", "contrarian", "high-conviction".
+ *
+ * @constant {number}
+ */
+const TRAIT_HIGH_THRESHOLD = 60;
+
+/**
+ * Low trait threshold: below this = "[opposite]" (e.g., "passive").
+ *
+ * Trait values < 40 are classified as low.
+ *
+ * Used in describeTraitLevel() to generate personality narrative text like
+ * "passive", "consensus-following", "uncertain".
+ *
+ * @constant {number}
+ */
+const TRAIT_LOW_THRESHOLD = 40;
+
+/**
+ * Very low trait threshold: below this = "very [opposite]" (e.g., "very passive").
+ *
+ * Trait values < 25 are classified as extreme on the low end.
+ *
+ * Used in describeTraitLevel() to generate personality narrative text like
+ * "very passive", "very consensus-following", "very uncertain".
+ *
+ * @constant {number}
+ */
+const TRAIT_VERY_LOW_THRESHOLD = 25;
+
+/**
+ * Personality Drift Direction Classification
+ *
+ * These constants control when dimension changes are classified as "stable"
+ * vs "increased"/"decreased" in drift analysis.
+ */
+
+/**
+ * Stable drift threshold: |delta| < this = "stable" dimension change.
+ *
+ * Dimension changes < 3 points are considered normal variation, not meaningful
+ * personality shift. For example, conviction changing from 68 to 70 is stable.
+ *
+ * Used in getPersonalityDrift() to classify dimension directions as
+ * "stable", "increased", or "decreased".
+ *
+ * @constant {number}
+ */
+const DRIFT_STABLE_THRESHOLD = 3;
+
+/**
+ * Significant milestone threshold: |delta| > this = notable personality shift.
+ *
+ * Dimension changes > 5 points in the first half of trading history are
+ * classified as significant enough to warrant narrative milestone mention.
+ *
+ * Used in getEvolutionStory() to identify biggest changes worth highlighting
+ * in personality evolution narrative (e.g., "aggressiveness increased by 12
+ * points, suggesting the agent was becoming more active").
+ *
+ * @constant {number}
+ */
+const DRIFT_MILESTONE_THRESHOLD = 5;
+
+/**
+ * Timeline Analysis Parameters
+ *
+ * These constants control minimum data requirements for timeline-based
+ * personality analysis.
+ */
+
+/**
+ * Minimum snapshots needed for drift calculation.
+ *
+ * Drift analysis requires comparing baseline (earliest) vs current (latest)
+ * snapshots. Need at least 2 snapshots for meaningful comparison.
+ *
+ * Used in getPersonalityDrift() to gate drift computation.
+ *
+ * @constant {number}
+ */
+const TIMELINE_MIN_SNAPSHOTS = 2;
+
+/**
+ * Minimum snapshots needed for multi-phase evolution narrative.
+ *
+ * Evolution story "middle phase" analysis (identifying biggest changes in
+ * first half of trading history) requires at least 3 snapshots for reliable
+ * trend detection.
+ *
+ * Used in getEvolutionStory() to gate timeline trajectory analysis.
+ *
+ * @constant {number}
+ */
+const TIMELINE_NARRATIVE_MIN_SNAPSHOTS = 3;
+
 // ---------------------------------------------------------------------------
 // State (module-level in-memory stores)
 // ---------------------------------------------------------------------------
@@ -510,7 +685,7 @@ function computeOutcomeSensitivity(
   outcomeType: "win" | "loss",
 ): number {
   const recent = buffer.slice(-SENSITIVITY_LOOKBACK);
-  if (recent.length < 10) return 50; // Default to neutral with insufficient data
+  if (recent.length < SENSITIVITY_MIN_DECISIONS) return SENSITIVITY_NEUTRAL_DEFAULT; // Default to neutral with insufficient data
 
   // Find indices of outcome events
   const outcomeIndices: number[] = [];
@@ -522,7 +697,7 @@ function computeOutcomeSensitivity(
     }
   }
 
-  if (outcomeIndices.length === 0) return 50; // No data, neutral
+  if (outcomeIndices.length === 0) return SENSITIVITY_NEUTRAL_DEFAULT; // No data, neutral
 
   // For each outcome event, compare behavior before and after
   const deltas: number[] = [];
@@ -549,7 +724,7 @@ function computeOutcomeSensitivity(
     deltas.push(confDelta + aggDelta);
   }
 
-  if (deltas.length === 0) return 50;
+  if (deltas.length === 0) return SENSITIVITY_NEUTRAL_DEFAULT;
 
   // Average delta, scaled to 0-100
   const avgDelta = deltas.reduce((s, d) => s + d, 0) / deltas.length;
@@ -579,7 +754,7 @@ export function getPersonalityTimeline(agentId: string): PersonalitySnapshot[] {
  */
 export function getPersonalityDrift(agentId: string): PersonalityDrift | null {
   const timeline = snapshotTimeline.get(agentId);
-  if (!timeline || timeline.length < 2) return null;
+  if (!timeline || timeline.length < TIMELINE_MIN_SNAPSHOTS) return null;
 
   const baseline = timeline[0];
   const current = timeline[timeline.length - 1];
@@ -602,7 +777,7 @@ export function getPersonalityDrift(agentId: string): PersonalityDrift | null {
       baselineValue: baseVal,
       currentValue: curVal,
       delta: round1(delta),
-      direction: (Math.abs(delta) < 3 ? "stable" : delta > 0 ? "increased" : "decreased") as
+      direction: (Math.abs(delta) < DRIFT_STABLE_THRESHOLD ? "stable" : delta > 0 ? "increased" : "decreased") as
         "increased" | "decreased" | "stable",
     };
   });
@@ -762,7 +937,7 @@ export function getEvolutionStory(agentId: string): EvolutionStory {
   });
 
   // Middle: describe evolution trajectory
-  if (timeline.length >= 3) {
+  if (timeline.length >= TIMELINE_NARRATIVE_MIN_SNAPSHOTS) {
     const mid = timeline[Math.floor(timeline.length / 2)];
 
     // Find the biggest change in the first half
@@ -774,7 +949,7 @@ export function getEvolutionStory(agentId: string): EvolutionStory {
     ].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
     const biggestChange = firstHalfChanges[0];
-    if (Math.abs(biggestChange.delta) > 5) {
+    if (Math.abs(biggestChange.delta) > DRIFT_MILESTONE_THRESHOLD) {
       const direction = biggestChange.delta > 0 ? "increased" : "decreased";
       parts.push(
         `Over its first phase of trading, ${agentName}'s ${biggestChange.dim} ${direction} ` +
@@ -794,25 +969,25 @@ export function getEvolutionStory(agentId: string): EvolutionStory {
   }
 
   // Describe sensitivity to outcomes
-  if (latest.winSensitivity > 65) {
+  if (latest.winSensitivity > SENSITIVITY_STRONG_THRESHOLD) {
     parts.push(
       `${agentName} shows strong reactivity to winning trades — after a profitable exit, ` +
       `it tends to noticeably shift its confidence and trade frequency. ` +
       `Win sensitivity: ${latest.winSensitivity.toFixed(0)}/100.`,
     );
-  } else if (latest.winSensitivity < 35) {
+  } else if (latest.winSensitivity < SENSITIVITY_WEAK_THRESHOLD) {
     parts.push(
       `${agentName} is remarkably stoic after wins, barely adjusting its behavior ` +
       `regardless of positive outcomes. Win sensitivity: ${latest.winSensitivity.toFixed(0)}/100.`,
     );
   }
 
-  if (latest.lossSensitivity > 65) {
+  if (latest.lossSensitivity > SENSITIVITY_STRONG_THRESHOLD) {
     parts.push(
       `Losses hit ${agentName} hard behaviorally — it tends to significantly alter ` +
       `its trading patterns after a drawdown. Loss sensitivity: ${latest.lossSensitivity.toFixed(0)}/100.`,
     );
-  } else if (latest.lossSensitivity < 35) {
+  } else if (latest.lossSensitivity < SENSITIVITY_WEAK_THRESHOLD) {
     parts.push(
       `${agentName} handles losses with composure, maintaining consistent behavior ` +
       `even after negative outcomes. Loss sensitivity: ${latest.lossSensitivity.toFixed(0)}/100.`,
@@ -926,10 +1101,10 @@ function personalityDistance(a: PersonalitySnapshot, b: PersonalitySnapshot): nu
  * Returns the highLabel if value > 60, lowLabel if < 40, or "moderate" otherwise.
  */
 function describeTraitLevel(value: number, highLabel: string, lowLabel: string): string {
-  if (value > 75) return `very ${highLabel}`;
-  if (value > 60) return highLabel;
-  if (value < 25) return `very ${lowLabel}`;
-  if (value < 40) return lowLabel;
+  if (value > TRAIT_VERY_HIGH_THRESHOLD) return `very ${highLabel}`;
+  if (value > TRAIT_HIGH_THRESHOLD) return highLabel;
+  if (value < TRAIT_VERY_LOW_THRESHOLD) return `very ${lowLabel}`;
+  if (value < TRAIT_LOW_THRESHOLD) return lowLabel;
   return "moderate";
 }
 
