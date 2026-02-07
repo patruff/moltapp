@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, calculateAverage } from "../lib/math-utils.ts";
+import { round2, round4, calculateAverage, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -811,7 +811,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   const highConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_HIGH_THRESHOLD).length;
   const mediumConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_MEDIUM_FLOOR && d.confidence < CONVICTION_HIGH_THRESHOLD).length;
   const lowConviction = decisions.filter((d: typeof decisions[0]) => d.confidence < CONVICTION_MEDIUM_FLOOR).length;
-  const avgConfidence = calculateAverage(decisions, 'confidence');
+  const avgConfidence = averageByKey(decisions, 'confidence');
 
   // --- Sector preferences ---
   const sectorCounts = new Map<string, number>();
