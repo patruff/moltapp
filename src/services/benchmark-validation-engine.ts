@@ -58,11 +58,200 @@ export interface ValidationIssue {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Dimension Weights — Control how each validation dimension contributes to overall quality score.
+ * Sum must equal 1.0 for proper weighted averaging.
+ */
+const DIMENSION_WEIGHT_STRUCTURAL = 0.15; // 15% - All required fields present
+const DIMENSION_WEIGHT_REASONING_DEPTH = 0.20; // 20% - Substantive multi-factor analysis
+const DIMENSION_WEIGHT_SOURCE_VERIFICATION = 0.10; // 10% - Sources are plausible and specific
+const DIMENSION_WEIGHT_PRICE_GROUNDING = 0.15; // 15% - Price references match market data
+const DIMENSION_WEIGHT_TEMPORAL_CONSISTENCY = 0.10; // 10% - Reasoning references current conditions
+const DIMENSION_WEIGHT_CONFIDENCE_CALIBRATION = 0.10; // 10% - Confidence within historical norms
+const DIMENSION_WEIGHT_ACTION_ALIGNMENT = 0.15; // 15% - Reasoning supports chosen action
+const DIMENSION_WEIGHT_RISK_AWARENESS = 0.05; // 5% - Reasoning acknowledges relevant risks
+
+/**
+ * Grade Boundaries — Map composite scores to letter grades.
+ * These thresholds match academic grading standards (A+ = exceptional, F = failing).
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95; // 95%+ = Nearly perfect benchmark quality
+const GRADE_THRESHOLD_A = 0.90; // 90-95% = Excellent, exemplary trade reasoning
+const GRADE_THRESHOLD_A_MINUS = 0.85; // 85-90% = Very good, above-average quality
+const GRADE_THRESHOLD_B_PLUS = 0.80; // 80-85% = Good, solid benchmark entry
+const GRADE_THRESHOLD_B = 0.75; // 75-80% = Above average, meets standards well
+const GRADE_THRESHOLD_B_MINUS = 0.70; // 70-75% = Slightly above average
+const GRADE_THRESHOLD_C_PLUS = 0.65; // 65-70% = Average benchmark quality
+const GRADE_THRESHOLD_C = 0.60; // 60-65% = Below average but acceptable
+const GRADE_THRESHOLD_C_MINUS = 0.55; // 55-60% = Poor but not failing
+const GRADE_THRESHOLD_D_PLUS = 0.50; // 50-55% = Weak, marginal pass
+const GRADE_THRESHOLD_D = 0.45; // 45-50% = Very poor quality
+const GRADE_THRESHOLD_D_MINUS = 0.40; // 40-45% = Barely passing threshold
+
+/**
+ * Dimension Pass/Fail Thresholds — Minimum scores required for each dimension to pass.
+ * Dimensions weighted >= 0.15 can be blocking failures if they fall below these thresholds.
+ */
+const PASS_THRESHOLD_STRUCTURAL = 0.5; // Must have most required fields
+const PASS_THRESHOLD_REASONING_DEPTH = 0.3; // Must show some analytical depth
+const PASS_THRESHOLD_SOURCE_VERIFICATION = 0.3; // Must cite some data sources
+const PASS_THRESHOLD_PRICE_GROUNDING = 0.4; // Price claims must be reasonably accurate
+const PASS_THRESHOLD_TEMPORAL_CONSISTENCY = 0.3; // Must reference current conditions
+const PASS_THRESHOLD_CONFIDENCE_CALIBRATION = 0.3; // Confidence must be reasonable
+const PASS_THRESHOLD_ACTION_ALIGNMENT = 0.3; // Reasoning must somewhat support action
+
+/**
+ * Detail Classification Thresholds — When to show "excellent" vs "adequate" vs "poor" detail strings.
+ */
+const DETAIL_EXCELLENT_STRUCTURAL = 0.8; // 80%+ structural score = "All required fields present"
+const DETAIL_EXCELLENT_DEPTH = 0.7; // 70%+ depth = "Substantive multi-factor reasoning"
+const DETAIL_ADEQUATE_DEPTH = 0.4; // 40-70% = "Adequate but shallow reasoning"
+const DETAIL_EXCELLENT_SOURCE = 0.7; // 70%+ source score = "Sources are plausible and specific"
+const DETAIL_EXCELLENT_PRICE = 0.7; // 70%+ price score = "Price references match market data"
+const DETAIL_EXCELLENT_TEMPORAL = 0.7; // 70%+ temporal = "Reasoning references current conditions"
+const DETAIL_EXCELLENT_CALIBRATION = 0.7; // 70%+ calibration = "Confidence is within historical norms"
+const DETAIL_EXCELLENT_ALIGNMENT = 0.7; // 70%+ alignment = "Reasoning supports the chosen action"
+const DETAIL_EXCELLENT_RISK = 0.5; // 50%+ risk awareness = "Reasoning acknowledges relevant risks"
+
+/**
+ * Composite Score Threshold — Overall quality score required for validation to pass.
+ * Trade must score >= 0.25 AND have no blocking dimension failures to be valid.
+ */
+const COMPOSITE_PASS_THRESHOLD = 0.25; // 25% minimum overall quality for benchmark inclusion
+
+/**
+ * Blocking Failure Threshold — Dimension weight threshold for blocking failures.
+ * Dimensions with weight >= 0.15 can cause validation failure if they don't pass.
+ */
+const BLOCKING_DIMENSION_WEIGHT_THRESHOLD = 0.15; // 15%+ weight dimensions are critical
+
+/**
+ * Structural Validation Penalties — Points deducted for missing/invalid structural fields.
+ */
+const PENALTY_MISSING_ACTION = 0.4; // Critical field — 40% penalty
+const PENALTY_MISSING_SYMBOL = 0.3; // Critical field — 30% penalty
+const PENALTY_MISSING_REASONING = 0.3; // Critical field — 30% penalty
+const PENALTY_INVALID_CONFIDENCE = 0.1; // Warning — 10% penalty
+const PENALTY_INVALID_QUANTITY = 0.1; // Warning — 10% penalty
+const PENALTY_MISSING_TIMESTAMP = 0.05; // Info — 5% penalty
+
+/**
+ * Reasoning Depth Scoring Parameters — Thresholds for word count, sentence count, and analytical dimensions.
+ */
+const DEPTH_WORD_COUNT_EXCELLENT = 100; // 100+ words = 0.30 score bonus
+const DEPTH_WORD_COUNT_GREAT = 50; // 50-100 words = 0.25 score bonus
+const DEPTH_WORD_COUNT_GOOD = 20; // 20-50 words = 0.15 score bonus
+const DEPTH_WORD_COUNT_BONUS_EXCELLENT = 0.30; // Bonus for 100+ words
+const DEPTH_WORD_COUNT_BONUS_GREAT = 0.25; // Bonus for 50-100 words
+const DEPTH_WORD_COUNT_BONUS_GOOD = 0.15; // Bonus for 20-50 words
+
+const DEPTH_SENTENCE_COUNT_EXCELLENT = 5; // 5+ sentences = 0.20 bonus
+const DEPTH_SENTENCE_COUNT_GREAT = 3; // 3-5 sentences = 0.15 bonus
+const DEPTH_SENTENCE_COUNT_GOOD = 2; // 2-3 sentences = 0.10 bonus
+const DEPTH_SENTENCE_BONUS_EXCELLENT = 0.20; // Bonus for 5+ sentences
+const DEPTH_SENTENCE_BONUS_GREAT = 0.15; // Bonus for 3-5 sentences
+const DEPTH_SENTENCE_BONUS_GOOD = 0.10; // Bonus for 2-3 sentences
+
+const DEPTH_DIMENSION_BONUS_PER_ANGLE = 0.06; // 6% bonus per analytical dimension found
+const DEPTH_DIMENSION_BONUS_MAX = 0.30; // Cap at 30% (5+ dimensions)
+const DEPTH_DIMENSION_MIN_FOR_QUALITY = 2; // Suggest improvement if < 2 dimensions
+
+const DEPTH_QUANT_CLAIMS_EXCELLENT = 3; // 3+ numbers/percentages = 0.15 bonus
+const DEPTH_QUANT_CLAIMS_GOOD = 1; // 1-3 claims = 0.08 bonus
+const DEPTH_QUANT_BONUS_EXCELLENT = 0.15; // Bonus for 3+ quantitative claims
+const DEPTH_QUANT_BONUS_GOOD = 0.08; // Bonus for 1-3 quantitative claims
+
+const DEPTH_CAUSAL_CONNECTORS_THRESHOLD = 2; // 2+ causal connectors = 0.05 bonus
+const DEPTH_CAUSAL_BONUS = 0.05; // Bonus for logical causality
+
+/**
+ * Source Verification Scoring Parameters — Baseline scores and bonuses for source quality.
+ */
+const SOURCE_BASE_SCORE = 0.4; // Base score for having ANY sources cited
+const SOURCE_MINIMAL_SCORE = 0.2; // Minimal score when no sources cited but reasoning may reference data
+const SOURCE_RECOGNITION_BONUS_MAX = 0.3; // Max 30% bonus for recognized source patterns
+const SOURCE_MULTIPLE_BONUS_MANY = 0.2; // 20% bonus for 3+ distinct sources
+const SOURCE_MULTIPLE_BONUS_SOME = 0.1; // 10% bonus for 2 distinct sources
+const SOURCE_MULTIPLE_THRESHOLD_MANY = 3; // 3+ sources = "many"
+const SOURCE_MULTIPLE_THRESHOLD_SOME = 2; // 2+ sources = "some"
+const SOURCE_FABRICATION_LENGTH_THRESHOLD = 60; // Flag source names > 60 chars as suspicious
+
+/**
+ * Price Grounding Scoring Parameters — Accuracy thresholds for price claim validation.
+ */
+const PRICE_BASE_SCORE = 0.7; // Start with good score, deduct for errors
+const PRICE_NO_MARKET_DATA_SCORE = 0.6; // Benefit of doubt when no market data available
+const PRICE_NO_CLAIMS_SCORE = 0.6; // Neutral score when no price claims made
+const PRICE_DEVIATION_ACCURATE = 0.05; // ±5% deviation = fully accurate
+const PRICE_DEVIATION_ACCEPTABLE = 0.20; // ±20% deviation = partially accurate (0.5 credit)
+const PRICE_INACCURATE_PENALTY = 0.15; // 15% penalty per inaccurate price claim
+const PRICE_ACCURACY_BONUS_THRESHOLD = 0.8; // 80%+ accurate claims = +0.2 bonus
+const PRICE_ACCURACY_BONUS = 0.20; // 20% bonus for mostly accurate price claims
+
+/**
+ * Temporal Consistency Scoring Parameters — Weights for different temporal reference types.
+ */
+const TEMPORAL_BASE_SCORE = 0.5; // Neutral starting score
+const TEMPORAL_CURRENT_WEIGHT = 0.15; // "currently", "right now", "today"
+const TEMPORAL_RECENT_WEIGHT = 0.10; // "recently", "last week", "last month"
+const TEMPORAL_24H_WEIGHT = 0.10; // "24h", "24-hour", "intraday"
+const TEMPORAL_TRENDING_WEIGHT = 0.05; // "trending", "moving", "shifting"
+const TEMPORAL_SINCE_WEIGHT = 0.10; // "since yesterday", "since last"
+const TEMPORAL_NO_NUMBERS_PENALTY = 0.10; // 10% penalty if reasoning contains no numbers
+
+/**
+ * Confidence Calibration Scoring Parameters — Z-score thresholds and anomaly detection.
+ */
+const CALIBRATION_BASE_SCORE = 0.7; // Default good score for confidence calibration
+const CALIBRATION_MIN_HISTORY = 10; // Need 10+ trades for meaningful calibration analysis
+const CALIBRATION_Z_SCORE_EXTREME = 3; // 3+ std devs = extreme anomaly (-0.3 penalty)
+const CALIBRATION_Z_SCORE_NOTABLE = 2; // 2+ std devs = notable anomaly (-0.1 penalty)
+const CALIBRATION_Z_EXTREME_PENALTY = 0.30; // 30% penalty for extreme z-score
+const CALIBRATION_Z_NOTABLE_PENALTY = 0.10; // 10% penalty for notable z-score
+const CALIBRATION_HIGH_CONF_HOLD_THRESHOLD = 0.9; // 90%+ confidence on hold = suspicious
+const CALIBRATION_HIGH_CONF_HOLD_PENALTY = 0.10; // 10% penalty for very high confidence on hold
+const CALIBRATION_LOW_CONF_TRADE_THRESHOLD = 0.2; // <20% confidence on trade = suspicious
+const CALIBRATION_LOW_CONF_TRADE_PENALTY = 0.20; // 20% penalty for very low confidence trade
+
+/**
+ * Action-Reasoning Alignment Scoring — Sentiment word counts and alignment thresholds.
+ */
+const ALIGNMENT_BASE_SCORE = 0.5; // Neutral starting score
+const ALIGNMENT_STRONG_MATCH_SCORE = 0.85; // Reasoning strongly supports action
+const ALIGNMENT_WEAK_MATCH_SCORE = 0.5; // Mixed signals, some support
+const ALIGNMENT_CONTRARIAN_SCORE = 0.7; // Valid contrarian reasoning (oversold bounce, etc.)
+const ALIGNMENT_MISMATCH_SCORE = 0.25; // Reasoning contradicts action
+const ALIGNMENT_PROFIT_TAKING_SCORE = 0.7; // Valid profit-taking reasoning for selling on bullish signals
+const ALIGNMENT_RISK_MGMT_SCORE = 0.75; // Valid risk management reasoning for holding on strong signals
+const ALIGNMENT_HOLD_NEUTRAL_SCORE = 0.8; // Hold with low directional signals = good alignment
+const ALIGNMENT_HOLD_STRONG_SIGNALS_SCORE = 0.45; // Hold with strong directional signals = questionable
+
+/**
+ * Risk Awareness Scoring Parameters — Risk mention counts for buy/sell vs hold actions.
+ */
+const RISK_BASE_SCORE_HOLD = 0.5; // Hold actions don't need much risk discussion
+const RISK_MENTION_WEIGHT_HOLD = 0.15; // 15% bonus per risk mention for hold
+const RISK_NO_MENTION_SCORE = 0.2; // 20% score if no risk factors mentioned (for buy/sell)
+const RISK_EXCELLENT_THRESHOLD = 3; // 3+ risk mentions = 1.0 score
+const RISK_GOOD_THRESHOLD = 2; // 2 risk mentions = 0.8 score
+const RISK_ADEQUATE_SCORE = 0.5; // 1 risk mention = 0.5 score
+
+/**
+ * Memory and Display Limits — Control history retention and suggestion counts.
+ */
+const MAX_CONFIDENCE_HISTORY = 100; // Max confidence records per agent for calibration
+const MIN_CONFIDENCE_HISTORY_FOR_STATS = 5; // Min records before computing stats
+const SUGGESTIONS_DISPLAY_LIMIT = 5; // Max suggestions shown in validation result
+const COMMON_ISSUES_DISPLAY_LIMIT = 10; // Max common issues in dataset quality report
+
+// ---------------------------------------------------------------------------
 // Per-agent calibration history (in-memory sliding window)
 // ---------------------------------------------------------------------------
 
 const agentConfidenceHistory = new Map<string, number[]>();
-const MAX_CONFIDENCE_HISTORY = 100;
 
 export function recordConfidenceForCalibration(agentId: string, confidence: number): void {
   const history = agentConfidenceHistory.get(agentId) ?? [];
@@ -75,7 +264,7 @@ export function recordConfidenceForCalibration(agentId: string, confidence: numb
 
 function getConfidenceStats(agentId: string): { mean: number; stdDev: number; count: number } {
   const history = agentConfidenceHistory.get(agentId) ?? [];
-  if (history.length < 5) {
+  if (history.length < MIN_CONFIDENCE_HISTORY_FOR_STATS) {
     return { mean: 0.5, stdDev: 0.2, count: history.length };
   }
   const mean = history.reduce((s, v) => s + v, 0) / history.length;
@@ -138,84 +327,84 @@ export function validateForBenchmark(
   // Normalize confidence to 0-1
   const confidence01 = decision.confidence > 1 ? decision.confidence / 100 : decision.confidence;
 
-  // --- Dimension 1: Structural Validity (weight: 0.15) ---
+  // --- Dimension 1: Structural Validity ---
   const structuralScore = validateStructure(decision, issues);
   dimensions.push({
     name: "structural_validity",
     score: structuralScore,
-    weight: 0.15,
-    passed: structuralScore >= 0.5,
-    detail: structuralScore >= 0.8 ? "All required fields present" : "Missing or invalid fields detected",
+    weight: DIMENSION_WEIGHT_STRUCTURAL,
+    passed: structuralScore >= PASS_THRESHOLD_STRUCTURAL,
+    detail: structuralScore >= DETAIL_EXCELLENT_STRUCTURAL ? "All required fields present" : "Missing or invalid fields detected",
   });
 
-  // --- Dimension 2: Reasoning Depth (weight: 0.20) ---
+  // --- Dimension 2: Reasoning Depth ---
   const depthScore = validateReasoningDepth(decision.reasoning, issues, suggestions);
   dimensions.push({
     name: "reasoning_depth",
     score: depthScore,
-    weight: 0.20,
-    passed: depthScore >= 0.3,
-    detail: depthScore >= 0.7 ? "Substantive multi-factor reasoning" : depthScore >= 0.4 ? "Adequate but shallow reasoning" : "Insufficient reasoning depth",
+    weight: DIMENSION_WEIGHT_REASONING_DEPTH,
+    passed: depthScore >= PASS_THRESHOLD_REASONING_DEPTH,
+    detail: depthScore >= DETAIL_EXCELLENT_DEPTH ? "Substantive multi-factor reasoning" : depthScore >= DETAIL_ADEQUATE_DEPTH ? "Adequate but shallow reasoning" : "Insufficient reasoning depth",
   });
 
-  // --- Dimension 3: Source Verification (weight: 0.10) ---
+  // --- Dimension 3: Source Verification ---
   const sourceScore = validateSources(decision, issues, suggestions);
   dimensions.push({
     name: "source_verification",
     score: sourceScore,
-    weight: 0.10,
-    passed: sourceScore >= 0.3,
-    detail: sourceScore >= 0.7 ? "Sources are plausible and specific" : "Source claims need improvement",
+    weight: DIMENSION_WEIGHT_SOURCE_VERIFICATION,
+    passed: sourceScore >= PASS_THRESHOLD_SOURCE_VERIFICATION,
+    detail: sourceScore >= DETAIL_EXCELLENT_SOURCE ? "Sources are plausible and specific" : "Source claims need improvement",
   });
 
-  // --- Dimension 4: Price Grounding (weight: 0.15) ---
+  // --- Dimension 4: Price Grounding ---
   const priceScore = validatePriceGrounding(decision.reasoning, marketData, issues);
   dimensions.push({
     name: "price_grounding",
     score: priceScore,
-    weight: 0.15,
-    passed: priceScore >= 0.4,
-    detail: priceScore >= 0.7 ? "Price references match market data" : "Price claims may be inaccurate",
+    weight: DIMENSION_WEIGHT_PRICE_GROUNDING,
+    passed: priceScore >= PASS_THRESHOLD_PRICE_GROUNDING,
+    detail: priceScore >= DETAIL_EXCELLENT_PRICE ? "Price references match market data" : "Price claims may be inaccurate",
   });
 
-  // --- Dimension 5: Temporal Consistency (weight: 0.10) ---
+  // --- Dimension 5: Temporal Consistency ---
   const temporalScore = validateTemporalConsistency(decision.reasoning, issues);
   dimensions.push({
     name: "temporal_consistency",
     score: temporalScore,
-    weight: 0.10,
-    passed: temporalScore >= 0.3,
-    detail: temporalScore >= 0.7 ? "Reasoning references current conditions" : "Temporal context could be stronger",
+    weight: DIMENSION_WEIGHT_TEMPORAL_CONSISTENCY,
+    passed: temporalScore >= PASS_THRESHOLD_TEMPORAL_CONSISTENCY,
+    detail: temporalScore >= DETAIL_EXCELLENT_TEMPORAL ? "Reasoning references current conditions" : "Temporal context could be stronger",
   });
 
-  // --- Dimension 6: Confidence Calibration (weight: 0.10) ---
+  // --- Dimension 6: Confidence Calibration ---
   const calibrationScore = validateConfidenceCalibration(agentId, confidence01, decision, issues, suggestions);
   dimensions.push({
     name: "confidence_calibration",
     score: calibrationScore,
-    weight: 0.10,
-    passed: calibrationScore >= 0.3,
-    detail: calibrationScore >= 0.7 ? "Confidence is within historical norms" : "Confidence may be miscalibrated",
+    weight: DIMENSION_WEIGHT_CONFIDENCE_CALIBRATION,
+    passed: calibrationScore >= PASS_THRESHOLD_CONFIDENCE_CALIBRATION,
+    detail: calibrationScore >= DETAIL_EXCELLENT_CALIBRATION ? "Confidence is within historical norms" : "Confidence may be miscalibrated",
   });
 
-  // --- Dimension 7: Action-Reasoning Alignment (weight: 0.15) ---
+  // --- Dimension 7: Action-Reasoning Alignment ---
   const alignmentScore = validateActionAlignment(decision, issues);
   dimensions.push({
     name: "action_reasoning_alignment",
     score: alignmentScore,
-    weight: 0.15,
-    passed: alignmentScore >= 0.3,
-    detail: alignmentScore >= 0.7 ? "Reasoning supports the chosen action" : "Possible misalignment between reasoning and action",
+    weight: DIMENSION_WEIGHT_ACTION_ALIGNMENT,
+    passed: alignmentScore >= PASS_THRESHOLD_ACTION_ALIGNMENT,
+    detail: alignmentScore >= DETAIL_EXCELLENT_ALIGNMENT ? "Reasoning supports the chosen action" : "Possible misalignment between reasoning and action",
   });
 
-  // --- Dimension 8: Risk Awareness (weight: 0.05) ---
+  // --- Dimension 8: Risk Awareness ---
   const riskScore = validateRiskAwareness(decision.reasoning, decision.action, issues, suggestions);
   dimensions.push({
     name: "risk_awareness",
     score: riskScore,
-    weight: 0.05,
+    weight: DIMENSION_WEIGHT_RISK_AWARENESS,
     passed: true, // Risk awareness is never a blocking failure
-    detail: riskScore >= 0.5 ? "Reasoning acknowledges relevant risks" : "Limited risk awareness in reasoning",
+    detail: riskScore >= DETAIL_EXCELLENT_RISK ? "Reasoning acknowledges relevant risks" : "Limited risk awareness in reasoning",
   });
 
   // --- Compute composite score ---
@@ -226,8 +415,8 @@ export function validateForBenchmark(
   const grade = assignGrade(roundedScore);
 
   // Valid if no dimension has a critical failure AND composite is above threshold
-  const hasBlockingFailure = dimensions.some((d) => !d.passed && d.weight >= 0.15);
-  const valid = !hasBlockingFailure && roundedScore >= 0.25;
+  const hasBlockingFailure = dimensions.some((d) => !d.passed && d.weight >= BLOCKING_DIMENSION_WEIGHT_THRESHOLD);
+  const valid = !hasBlockingFailure && roundedScore >= COMPOSITE_PASS_THRESHOLD;
 
   // Record confidence for future calibration checks
   recordConfidenceForCalibration(agentId, confidence01);
@@ -238,7 +427,7 @@ export function validateForBenchmark(
     grade,
     dimensions,
     issues,
-    suggestions: suggestions.slice(0, 5), // Cap at 5 suggestions
+    suggestions: suggestions.slice(0, SUGGESTIONS_DISPLAY_LIMIT),
     validatedAt: new Date().toISOString(),
   };
 }
@@ -252,32 +441,32 @@ function validateStructure(decision: TradingDecision, issues: ValidationIssue[])
 
   if (!decision.action || !["buy", "sell", "hold"].includes(decision.action)) {
     issues.push({ severity: "error", dimension: "structural_validity", message: "Missing or invalid action field" });
-    score -= 0.4;
+    score -= PENALTY_MISSING_ACTION;
   }
 
   if (!decision.symbol || decision.symbol.length === 0) {
     issues.push({ severity: "error", dimension: "structural_validity", message: "Missing symbol field" });
-    score -= 0.3;
+    score -= PENALTY_MISSING_SYMBOL;
   }
 
   if (!decision.reasoning || decision.reasoning.length < 10) {
     issues.push({ severity: "error", dimension: "structural_validity", message: "Missing or too-short reasoning" });
-    score -= 0.3;
+    score -= PENALTY_MISSING_REASONING;
   }
 
   if (typeof decision.confidence !== "number") {
     issues.push({ severity: "warning", dimension: "structural_validity", message: "Confidence is not a number" });
-    score -= 0.1;
+    score -= PENALTY_INVALID_CONFIDENCE;
   }
 
   if (decision.action !== "hold" && (typeof decision.quantity !== "number" || decision.quantity <= 0)) {
     issues.push({ severity: "warning", dimension: "structural_validity", message: "Non-hold action with invalid quantity" });
-    score -= 0.1;
+    score -= PENALTY_INVALID_QUANTITY;
   }
 
   if (!decision.timestamp) {
     issues.push({ severity: "info", dimension: "structural_validity", message: "Missing timestamp" });
-    score -= 0.05;
+    score -= PENALTY_MISSING_TIMESTAMP;
   }
 
   return Math.max(0, score);
@@ -291,19 +480,19 @@ function validateReasoningDepth(reasoning: string, issues: ValidationIssue[], su
 
   let score = 0;
 
-  // Word count scoring (20+ words = good, 50+ = great, 100+ = excellent)
-  if (wordCount >= 100) score += 0.3;
-  else if (wordCount >= 50) score += 0.25;
-  else if (wordCount >= 20) score += 0.15;
+  // Word count scoring
+  if (wordCount >= DEPTH_WORD_COUNT_EXCELLENT) score += DEPTH_WORD_COUNT_BONUS_EXCELLENT;
+  else if (wordCount >= DEPTH_WORD_COUNT_GREAT) score += DEPTH_WORD_COUNT_BONUS_GREAT;
+  else if (wordCount >= DEPTH_WORD_COUNT_GOOD) score += DEPTH_WORD_COUNT_BONUS_GOOD;
   else {
-    issues.push({ severity: "warning", dimension: "reasoning_depth", message: `Reasoning is only ${wordCount} words — substantive analysis needs 50+ words` });
+    issues.push({ severity: "warning", dimension: "reasoning_depth", message: `Reasoning is only ${wordCount} words — substantive analysis needs ${DEPTH_WORD_COUNT_GREAT}+ words` });
     suggestions.push("Expand reasoning to include multiple analytical angles (price action, fundamentals, portfolio context)");
   }
 
   // Multi-sentence reasoning
-  if (sentenceCount >= 5) score += 0.2;
-  else if (sentenceCount >= 3) score += 0.15;
-  else if (sentenceCount >= 2) score += 0.1;
+  if (sentenceCount >= DEPTH_SENTENCE_COUNT_EXCELLENT) score += DEPTH_SENTENCE_BONUS_EXCELLENT;
+  else if (sentenceCount >= DEPTH_SENTENCE_COUNT_GREAT) score += DEPTH_SENTENCE_BONUS_GREAT;
+  else if (sentenceCount >= DEPTH_SENTENCE_COUNT_GOOD) score += DEPTH_SENTENCE_BONUS_GOOD;
 
   // Check for analytical dimensions
   const dimensions = [
@@ -318,23 +507,23 @@ function validateReasoningDepth(reasoning: string, issues: ValidationIssue[], su
   ];
 
   const dimensionsPresent = dimensions.filter((d) => d.pattern.test(reasoning)).length;
-  score += Math.min(0.3, dimensionsPresent * 0.06); // Up to 0.3 for 5+ dimensions
+  score += Math.min(DEPTH_DIMENSION_BONUS_MAX, dimensionsPresent * DEPTH_DIMENSION_BONUS_PER_ANGLE);
 
-  if (dimensionsPresent < 2) {
+  if (dimensionsPresent < DEPTH_DIMENSION_MIN_FOR_QUALITY) {
     suggestions.push("Include multiple analytical angles: price analysis, fundamentals, portfolio context, risk assessment");
   }
 
   // Check for quantitative claims (numbers, percentages)
   const quantClaims = (reasoning.match(/\d+\.?\d*%|\$\d+\.?\d*|\d+\.\d+/g) ?? []).length;
-  if (quantClaims >= 3) score += 0.15;
-  else if (quantClaims >= 1) score += 0.08;
+  if (quantClaims >= DEPTH_QUANT_CLAIMS_EXCELLENT) score += DEPTH_QUANT_BONUS_EXCELLENT;
+  else if (quantClaims >= DEPTH_QUANT_CLAIMS_GOOD) score += DEPTH_QUANT_BONUS_GOOD;
   else {
     suggestions.push("Include specific numbers and percentages to ground your reasoning in data");
   }
 
   // Causal connectors (because, therefore, due to, since, as a result)
   const causalConnectors = (reasoning.match(/\bbecause\b|\btherefore\b|\bdue\s+to\b|\bsince\b|\bas\s+a\s+result\b|\bconsequently\b|\bhence\b|\bthus\b/gi) ?? []).length;
-  if (causalConnectors >= 2) score += 0.05;
+  if (causalConnectors >= DEPTH_CAUSAL_CONNECTORS_THRESHOLD) score += DEPTH_CAUSAL_BONUS;
 
   return Math.min(1, score);
 }
