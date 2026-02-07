@@ -10,6 +10,14 @@
  * - GET /results/:id — Get submission results
  * - GET /leaderboard — External agent leaderboard
  * - GET /rules — Submission rules
+ * - GET /tools/market-data — Market data (level playing field)
+ * - GET /tools/price-history/:symbol — Price history candles
+ * - GET /tools/technical/:symbol — Technical indicators
+ * - GET /tools/trace/:agentId — Tool call traces
+ * - GET /meeting — Meeting of the Minds
+ * - POST /meeting/share — Share thesis
+ * - POST /meeting/respond — Respond to thesis
+ * - GET /meeting/responses — View responses
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -60,11 +68,44 @@ vi.mock("../config/constants.ts", () => ({
   ],
 }));
 
+vi.mock("../services/market-aggregator.ts", () => ({
+  fetchAggregatedPrices: vi.fn(async () => [
+    { symbol: "AAPLx", name: "Apple", price: 275.50, change24h: 1.2, volume24h: 50000, vwap: 274.80, source: "mock", updatedAt: new Date().toISOString() },
+    { symbol: "NVDAx", name: "NVIDIA", price: 176.50, change24h: -2.3, volume24h: 80000, vwap: 177.10, source: "mock", updatedAt: new Date().toISOString() },
+  ]),
+  computeIndicators: vi.fn((symbol: string) => ({
+    symbol,
+    sma20: 170.50,
+    ema12: 172.30,
+    ema26: 168.90,
+    rsi14: 45.2,
+    momentum: 2.5,
+    trend: "up",
+    signalStrength: 65,
+    updatedAt: new Date().toISOString(),
+  })),
+  buildCandles: vi.fn((symbol: string) => [
+    { symbol, open: 175, high: 177, low: 174, close: 176, volume: 1000, trades: 5, timestamp: new Date().toISOString(), periodMinutes: 30 },
+  ]),
+}));
+
+vi.mock("../db/index.ts", () => ({
+  db: null, // DB not available in tests
+}));
+
+vi.mock("../db/schema/agent-decisions.ts", () => ({
+  agentDecisions: {},
+}));
+
+vi.mock("drizzle-orm", () => ({
+  desc: vi.fn(),
+}));
+
 import { benchmarkSubmissionRoutes } from "./benchmark-submission.ts";
 
 // Helper to make requests to the routes
-function req(method: string, path: string, body?: unknown) {
-  const init: RequestInit = { method, headers: {} };
+function req(method: string, path: string, body?: unknown, headers?: Record<string, string>) {
+  const init: RequestInit = { method, headers: { ...headers } };
   if (body) {
     init.body = JSON.stringify(body);
     (init.headers as Record<string, string>)["Content-Type"] =
@@ -620,5 +661,385 @@ describe("Full agent onboarding workflow", () => {
     );
     expect(agent).toBeDefined();
     expect(agent.status).toBe("pending_qualification");
+  });
+});
+
+// =========================================================================
+// TOOL ACCESS ENDPOINTS (Level Playing Field)
+// =========================================================================
+
+describe("GET /tools/market-data", () => {
+  it("should return market data with x-agent-id header", async () => {
+    const res = await req("GET", "/tools/market-data", undefined, {
+      "x-agent-id": "tool-test-agent",
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.data).toBeDefined();
+    expect(json.data.length).toBeGreaterThan(0);
+    expect(json.data[0].symbol).toBeDefined();
+    expect(json.data[0].price).toBeDefined();
+    expect(json.totalSymbols).toBeGreaterThan(0);
+    expect(json._traceNote).toContain("logged");
+  });
+
+  it("should reject requests without x-agent-id", async () => {
+    const res = await req("GET", "/tools/market-data");
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("MISSING_AGENT_ID");
+  });
+});
+
+describe("GET /tools/price-history/:symbol", () => {
+  it("should return candles for valid symbol", async () => {
+    const res = await req("GET", "/tools/price-history/NVDAx", undefined, {
+      "x-agent-id": "tool-test-agent",
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.symbol).toBe("NVDAx");
+    expect(json.candles).toBeDefined();
+    expect(json.periodMinutes).toBe(30);
+  });
+
+  it("should reject invalid symbol", async () => {
+    const res = await req("GET", "/tools/price-history/FAKEx", undefined, {
+      "x-agent-id": "tool-test-agent",
+    });
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SYMBOL");
+  });
+
+  it("should reject without x-agent-id", async () => {
+    const res = await req("GET", "/tools/price-history/NVDAx");
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("MISSING_AGENT_ID");
+  });
+});
+
+describe("GET /tools/technical/:symbol", () => {
+  it("should return indicators for valid symbol", async () => {
+    const res = await req("GET", "/tools/technical/NVDAx", undefined, {
+      "x-agent-id": "tool-test-agent",
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.indicators).toBeDefined();
+    expect(json.indicators.symbol).toBe("NVDAx");
+    expect(json.indicators.rsi14).toBeDefined();
+    expect(json.indicators.sma20).toBeDefined();
+    expect(json.indicators.trend).toBeDefined();
+  });
+
+  it("should reject invalid symbol", async () => {
+    const res = await req("GET", "/tools/technical/FAKEx", undefined, {
+      "x-agent-id": "tool-test-agent",
+    });
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SYMBOL");
+  });
+});
+
+// =========================================================================
+// TOOL CALL TRACING
+// =========================================================================
+
+describe("GET /tools/trace/:agentId", () => {
+  it("should return empty traces for new agent", async () => {
+    const res = await req("GET", "/tools/trace/unknown-agent");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.traces).toEqual([]);
+    expect(json.totalCalls).toBe(0);
+  });
+
+  it("should record tool calls from market-data endpoint", async () => {
+    const agentId = "trace-test-agent";
+
+    // Make some tool calls
+    await req("GET", "/tools/market-data", undefined, {
+      "x-agent-id": agentId,
+    });
+    await req("GET", "/tools/technical/NVDAx", undefined, {
+      "x-agent-id": agentId,
+    });
+
+    // Check traces
+    const res = await req("GET", `/tools/trace/${agentId}`);
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.totalCalls).toBe(2);
+    expect(json.traces[0].tool).toBe("market-data");
+    expect(json.traces[1].tool).toBe("technical");
+    expect(json.traces[1].arguments.symbol).toBe("NVDAx");
+  });
+});
+
+describe("POST /submit includes tool trace info", () => {
+  it("should include toolsUsed and toolTraceUrl in response", async () => {
+    const agentId = "submit-trace-agent";
+
+    // Make a tool call first
+    await req("GET", "/tools/market-data", undefined, {
+      "x-agent-id": agentId,
+    });
+
+    // Submit
+    const res = await req("POST", "/submit", {
+      ...validSubmission,
+      agentId,
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.toolsUsed).toBeDefined();
+    expect(json.toolsUsed).toBeGreaterThanOrEqual(1);
+    expect(json.toolTraceUrl).toContain(agentId);
+  });
+});
+
+// =========================================================================
+// MEETING OF THE MINDS
+// =========================================================================
+
+describe("GET /meeting", () => {
+  it("should return meeting data", async () => {
+    const res = await req("GET", "/meeting");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.meeting).toBeDefined();
+    expect(json.meeting.theses).toBeDefined();
+    expect(json.meeting.agreements).toBeDefined();
+    expect(json.meeting.disagreements).toBeDefined();
+  });
+});
+
+describe("POST /meeting/share", () => {
+  it("should accept a valid thesis", async () => {
+    const res = await req("POST", "/meeting/share", {
+      agentId: "meeting-test-agent",
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.78,
+      thesis:
+        "AI chip demand accelerating with data center buildouts. NVDA RSI at 32 suggests oversold conditions.",
+      reasoning: "Q4 data center revenue up 400% YoY.",
+      sources: ["market-data", "technical"],
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.thesisId).toMatch(/^thesis_/);
+    expect(json.thesis.agentId).toBe("meeting-test-agent");
+    expect(json.thesis.type).toBe("external");
+    expect(json.thesis.symbol).toBe("NVDAx");
+    expect(json.meetingUrl).toContain("/meeting");
+  });
+
+  it("should reject thesis with too-short text", async () => {
+    const res = await req("POST", "/meeting/share", {
+      agentId: "meeting-test-agent",
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.5,
+      thesis: "Short thesis", // too short (< 50 chars)
+      reasoning: "Some reasoning text here",
+      sources: ["data"],
+    });
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("VALIDATION_FAILED");
+  });
+
+  it("should reject invalid symbol", async () => {
+    const res = await req("POST", "/meeting/share", {
+      agentId: "meeting-test-agent",
+      symbol: "FAKEx",
+      action: "buy",
+      confidence: 0.5,
+      thesis:
+        "This is a long enough thesis to pass validation for the minimum character requirement.",
+      reasoning: "Some reasoning text here",
+      sources: ["data"],
+    });
+    expect(res.status).toBe(400);
+
+    const json = await res.json();
+    expect(json.error).toBe("INVALID_SYMBOL");
+  });
+
+  it("should show shared thesis in meeting", async () => {
+    // Share a thesis
+    const shareRes = await req("POST", "/meeting/share", {
+      agentId: "meeting-visible-agent",
+      symbol: "AAPLx",
+      action: "hold",
+      confidence: 0.6,
+      thesis:
+        "Apple trading at fair value with stable revenue growth. No strong catalyst to buy or sell at current levels.",
+      reasoning: "PE ratio in line with 5-year average.",
+      sources: ["market-data"],
+    });
+    expect(shareRes.status).toBe(200);
+
+    // Check meeting
+    const meetingRes = await req("GET", "/meeting");
+    const meetingJson = await meetingRes.json();
+
+    const thesis = meetingJson.meeting.theses.find(
+      (t: { agentId: string }) => t.agentId === "meeting-visible-agent"
+    );
+    expect(thesis).toBeDefined();
+    expect(thesis.symbol).toBe("AAPLx");
+    expect(thesis.action).toBe("hold");
+  });
+});
+
+describe("POST /meeting/respond", () => {
+  it("should accept a valid response to existing thesis", async () => {
+    // Share a thesis first
+    const shareRes = await req("POST", "/meeting/share", {
+      agentId: "thesis-owner",
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.8,
+      thesis:
+        "Strong buy signal on NVDA based on data center revenue growth and oversold RSI conditions.",
+      reasoning: "Data center revenue up 400%.",
+      sources: ["market-data"],
+    });
+    const shareJson = await shareRes.json();
+    const thesisId = shareJson.thesisId;
+
+    // Respond to it
+    const res = await req("POST", "/meeting/respond", {
+      agentId: "responder-agent",
+      inResponseTo: thesisId,
+      position: "disagree",
+      response:
+        "Valuation stretched at 35x forward earnings despite strong fundamentals.",
+      counterEvidence: "PE ratio 35x vs 5-year average of 28x.",
+    });
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.responseId).toMatch(/^resp_/);
+    expect(json.response.position).toBe("disagree");
+    expect(json.originalThesis.id).toBe(thesisId);
+  });
+
+  it("should reject response to nonexistent thesis", async () => {
+    const res = await req("POST", "/meeting/respond", {
+      agentId: "responder-agent",
+      inResponseTo: "thesis_nonexistent",
+      position: "agree",
+      response: "I agree with the analysis and assessment here.",
+    });
+    expect(res.status).toBe(404);
+
+    const json = await res.json();
+    expect(json.error).toBe("THESIS_NOT_FOUND");
+  });
+});
+
+describe("GET /meeting/responses", () => {
+  it("should return responses", async () => {
+    const res = await req("GET", "/meeting/responses");
+    expect(res.status).toBe(200);
+
+    const json = await res.json();
+    expect(json.ok).toBe(true);
+    expect(json.responses).toBeDefined();
+    expect(json.totalResponses).toBeDefined();
+  });
+});
+
+// =========================================================================
+// Full Tool + Meeting Workflow
+// =========================================================================
+
+describe("Full tool + meeting workflow", () => {
+  it("should handle research → submit → share → respond flow", async () => {
+    const agentId = "workflow-agent";
+
+    // Step 1: Research with tools
+    const marketRes = await req("GET", "/tools/market-data", undefined, {
+      "x-agent-id": agentId,
+    });
+    expect(marketRes.status).toBe(200);
+
+    const techRes = await req("GET", "/tools/technical/NVDAx", undefined, {
+      "x-agent-id": agentId,
+    });
+    expect(techRes.status).toBe(200);
+
+    // Step 2: Check traces were recorded
+    const traceRes = await req("GET", `/tools/trace/${agentId}`);
+    const traceJson = await traceRes.json();
+    expect(traceJson.totalCalls).toBe(2);
+
+    // Step 3: Submit decision
+    const submitRes = await req("POST", "/submit", {
+      ...validSubmission,
+      agentId,
+    });
+    expect(submitRes.status).toBe(200);
+    const submitJson = await submitRes.json();
+    expect(submitJson.toolsUsed).toBe(2);
+
+    // Step 4: Share thesis
+    const shareRes = await req("POST", "/meeting/share", {
+      agentId,
+      symbol: "NVDAx",
+      action: "buy",
+      confidence: 0.75,
+      thesis:
+        "NVDA oversold with strong fundamentals. RSI at 32, data center revenue accelerating.",
+      reasoning: "AI chip demand increasing, RSI oversold.",
+      sources: ["market-data", "technical"],
+    });
+    expect(shareRes.status).toBe(200);
+    const shareJson = await shareRes.json();
+
+    // Step 5: Thesis visible in meeting with tools used
+    const meetingRes = await req("GET", "/meeting");
+    const meetingJson = await meetingRes.json();
+    const thesis = meetingJson.meeting.theses.find(
+      (t: { agentId: string }) => t.agentId === agentId
+    );
+    expect(thesis).toBeDefined();
+    expect(thesis.toolsUsed.length).toBeGreaterThan(0);
+
+    // Step 6: Another agent responds
+    const respondRes = await req("POST", "/meeting/respond", {
+      agentId: "counter-agent",
+      inResponseTo: shareJson.thesisId,
+      position: "partially_agree",
+      response:
+        "Agree on fundamentals but position sizing should be conservative given macro uncertainty.",
+    });
+    expect(respondRes.status).toBe(200);
   });
 });

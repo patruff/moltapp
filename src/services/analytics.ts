@@ -666,7 +666,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
   }
 
   // Sort by portfolio value (highest first)
-  const sortedRankings = sortDescending(rankings, "portfolioValue");
+  const sortedRankings = [...rankings].sort((a, b) => b.portfolioValue - a.portfolioValue);
   sortedRankings.forEach((r, i) => { r.rank = i + 1; });
 
   // Market conditions
@@ -728,7 +728,7 @@ function computePerformance(
   const lossesConf = calculateAverage(losses, 'confidence');
 
   // Best and worst decisions by confidence
-  const sorted = sortDescending(decisions, "confidence");
+  const sorted = [...decisions].sort((a, b) => b.confidence - a.confidence);
   const best = sorted[0] ?? null;
   const worst = sorted[sorted.length - 1] ?? null;
 
