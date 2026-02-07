@@ -33,7 +33,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, getTopEntry, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopKey, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

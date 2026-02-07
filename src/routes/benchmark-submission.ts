@@ -44,6 +44,14 @@ import { getMarketData } from "../agents/orchestrator.ts";
 import { round2 } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import {
+  fetchAggregatedPrices,
+  computeIndicators,
+  buildCandles,
+} from "../services/market-aggregator.ts";
+import { db } from "../db/index.ts";
+import { agentDecisions } from "../db/schema/agent-decisions.ts";
+import { desc } from "drizzle-orm";
 
 export const benchmarkSubmissionRoutes = new Hono();
 
@@ -110,11 +118,65 @@ interface ModelRetirement {
   archivedSubmissionCount: number;
 }
 
+// ---------------------------------------------------------------------------
+// Tool Trace Types & Storage
+// ---------------------------------------------------------------------------
+
+interface ToolTrace {
+  agentId: string;
+  tool: string;
+  arguments: Record<string, string>;
+  timestamp: string;
+}
+
+interface MeetingThesis {
+  id: string;
+  agentId: string;
+  type: "internal" | "external";
+  symbol: string;
+  action: "buy" | "sell" | "hold";
+  confidence: number;
+  thesis: string;
+  reasoning: string;
+  sources: string[];
+  toolsUsed: string[];
+  timestamp: string;
+}
+
+interface MeetingResponse {
+  id: string;
+  agentId: string;
+  inResponseTo: string;
+  position: "agree" | "disagree" | "partially_agree";
+  response: string;
+  counterEvidence?: string;
+  timestamp: string;
+}
+
 /** In-memory submission store (production would use DB) */
 const submissions = new Map<string, BenchmarkSubmission>();
 const agentSubmissions = new Map<string, string[]>(); // agentId -> submissionIds
 const applications = new Map<string, BenchmarkApplication>();
 const modelRetirements = new Map<string, ModelRetirement[]>(); // agentId -> retirements
+
+/** Tool call traces per agent (public transparency) */
+const toolTraces = new Map<string, ToolTrace[]>();
+
+/** Meeting of the Minds: external agent theses */
+const meetingTheses = new Map<string, MeetingThesis>(); // thesisId -> thesis
+/** Meeting of the Minds: responses to theses */
+const meetingResponses: MeetingResponse[] = [];
+
+/** Max tool traces per agent (ring buffer) */
+const MAX_TOOL_TRACES = 500;
+
+/** Record a tool call for an agent */
+function recordToolTrace(agentId: string, tool: string, args: Record<string, string>) {
+  const traces = toolTraces.get(agentId) ?? [];
+  traces.push({ agentId, tool, arguments: args, timestamp: new Date().toISOString() });
+  if (traces.length > MAX_TOOL_TRACES) traces.shift();
+  toolTraces.set(agentId, traces);
+}
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -195,6 +257,24 @@ const retireModelSchema = z.object({
   newModelVersion: z.string().min(1),
   newModelName: z.string().optional(),
   reorganizePortfolio: z.boolean(),
+});
+
+const meetingShareSchema = z.object({
+  agentId: z.string().min(3),
+  symbol: z.string().min(1),
+  action: z.enum(["buy", "sell", "hold"]),
+  confidence: z.number().min(0).max(1),
+  thesis: z.string().min(50, "Thesis must be at least 50 characters"),
+  reasoning: z.string().min(20),
+  sources: z.array(z.string()).min(1),
+});
+
+const meetingRespondSchema = z.object({
+  agentId: z.string().min(3),
+  inResponseTo: z.string().min(1, "Must reference a thesis ID"),
+  position: z.enum(["agree", "disagree", "partially_agree"]),
+  response: z.string().min(30, "Response must be at least 30 characters"),
+  counterEvidence: z.string().optional(),
 });
 
 /** Qualification thresholds for full benchmark inclusion */
@@ -493,12 +573,17 @@ benchmarkSubmissionRoutes.post("/submit", async (c) => {
   if (agentSubs.length > 500) agentSubs.shift();
   agentSubmissions.set(data.agentId, agentSubs);
 
+  // Include tool trace info in response
+  const agentTraces = toolTraces.get(data.agentId) ?? [];
+
   return c.json({
     ok: true,
     submissionId: submission.id,
     scores: submission.scores,
     feedback: generateFeedback(submission),
     resultsUrl: `/api/v1/benchmark-submit/results/${submission.id}`,
+    toolsUsed: agentTraces.length,
+    toolTraceUrl: `/api/v1/benchmark-submit/tools/trace/${data.agentId}`,
   });
 });
 
@@ -695,6 +780,375 @@ benchmarkSubmissionRoutes.get("/rules", (c) => {
       systemPrompt: "You are a stock trading analyst. Given market data...",
       tools: ["market_data_api", "gemini_2.5_pro", "jupiter_swap"],
     },
+  });
+});
+
+// ===========================================================================
+// LEVEL PLAYING FIELD: Tool Access Endpoints
+// ===========================================================================
+// External agents get the SAME market data as internal agents.
+// Every tool call is traced for public transparency.
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// GET /tools/market-data — Current prices for all 65 xStocks
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/tools/market-data", async (c) => {
+  const agentId = c.req.header("x-agent-id");
+  if (!agentId) {
+    return c.json({
+      ok: false,
+      error: "MISSING_AGENT_ID",
+      message: "Include x-agent-id header to identify your agent",
+    }, 400);
+  }
+
+  recordToolTrace(agentId, "market-data", {});
+
+  try {
+    const prices = await fetchAggregatedPrices();
+    return c.json({
+      ok: true,
+      data: prices.map((p) => ({
+        symbol: p.symbol,
+        name: p.name,
+        price: p.price,
+        change24h: p.change24h,
+        volume24h: p.volume24h,
+        vwap: p.vwap,
+        source: p.source,
+        updatedAt: p.updatedAt,
+      })),
+      totalSymbols: prices.length,
+      timestamp: new Date().toISOString(),
+      _traceNote: "This tool call has been logged for transparency",
+    });
+  } catch {
+    return c.json({ ok: false, error: "MARKET_DATA_UNAVAILABLE" }, 503);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /tools/price-history/:symbol — Recent price history (OHLCV candles)
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/tools/price-history/:symbol", (c) => {
+  const agentId = c.req.header("x-agent-id");
+  if (!agentId) {
+    return c.json({
+      ok: false,
+      error: "MISSING_AGENT_ID",
+      message: "Include x-agent-id header to identify your agent",
+    }, 400);
+  }
+
+  const symbol = c.req.param("symbol");
+  const validSymbol = XSTOCKS_CATALOG.find((s) => s.symbol === symbol);
+  if (!validSymbol) {
+    return c.json({
+      ok: false,
+      error: "INVALID_SYMBOL",
+      message: `Unknown symbol ${symbol}. Use GET /rules for available symbols.`,
+    }, 400);
+  }
+
+  recordToolTrace(agentId, "price-history", { symbol });
+
+  const candles = buildCandles(symbol, 30, 48); // 24h of 30-min candles
+
+  return c.json({
+    ok: true,
+    symbol,
+    periodMinutes: 30,
+    candles,
+    totalCandles: candles.length,
+    timestamp: new Date().toISOString(),
+    _traceNote: "This tool call has been logged for transparency",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /tools/technical/:symbol — RSI, SMA20, EMA12/26, momentum, trend
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/tools/technical/:symbol", (c) => {
+  const agentId = c.req.header("x-agent-id");
+  if (!agentId) {
+    return c.json({
+      ok: false,
+      error: "MISSING_AGENT_ID",
+      message: "Include x-agent-id header to identify your agent",
+    }, 400);
+  }
+
+  const symbol = c.req.param("symbol");
+  const validSymbol = XSTOCKS_CATALOG.find((s) => s.symbol === symbol);
+  if (!validSymbol) {
+    return c.json({
+      ok: false,
+      error: "INVALID_SYMBOL",
+      message: `Unknown symbol ${symbol}. Use GET /rules for available symbols.`,
+    }, 400);
+  }
+
+  recordToolTrace(agentId, "technical", { symbol });
+
+  const indicators = computeIndicators(symbol);
+
+  return c.json({
+    ok: true,
+    indicators,
+    _traceNote: "This tool call has been logged for transparency",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /tools/trace/:agentId — View an agent's tool call history (public)
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/tools/trace/:agentId", (c) => {
+  const agentId = c.req.param("agentId");
+  const traces = toolTraces.get(agentId) ?? [];
+
+  return c.json({
+    ok: true,
+    agentId,
+    traces,
+    totalCalls: traces.length,
+    message: "Tool call transparency: every data request is logged publicly.",
+  });
+});
+
+// ===========================================================================
+// MEETING OF THE MINDS: Thesis Sharing & Discussion
+// ===========================================================================
+// External agents share market theses alongside internal agents.
+// Agreements and disagreements are auto-detected.
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// GET /meeting — Current "Meeting of the Minds" — all agent theses
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/meeting", async (c) => {
+  // Gather external theses from in-memory storage
+  const externalTheses = Array.from(meetingTheses.values());
+
+  // Gather internal agent theses from recent decisions in the database
+  let internalTheses: MeetingThesis[] = [];
+  try {
+    if (db) {
+      const recentDecisions = await db
+        .select()
+        .from(agentDecisions)
+        .orderBy(desc(agentDecisions.createdAt))
+        .limit(30);
+
+      internalTheses = recentDecisions.map((d: typeof agentDecisions.$inferSelect) => ({
+        id: `internal_${d.id}`,
+        agentId: d.agentId,
+        type: "internal" as const,
+        symbol: d.symbol,
+        action: d.action as "buy" | "sell" | "hold",
+        confidence: d.confidence / 100, // DB stores 0-100, normalize to 0-1
+        thesis: d.reasoning.slice(0, 200) + (d.reasoning.length > 200 ? "..." : ""),
+        reasoning: d.reasoning,
+        sources: [],
+        toolsUsed: [],
+        timestamp: d.createdAt.toISOString(),
+      }));
+    }
+  } catch {
+    // DB unavailable — meeting still works with external theses only
+  }
+
+  const allTheses = [...internalTheses, ...externalTheses]
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  // Auto-detect agreements and disagreements
+  const agreements: Array<{ symbol: string; agents: string[]; action: string }> = [];
+  const disagreements: Array<{ symbol: string; agents: Array<{ agentId: string; action: string }> }> = [];
+
+  const bySymbol = new Map<string, MeetingThesis[]>();
+  for (const t of allTheses) {
+    const arr = bySymbol.get(t.symbol) ?? [];
+    arr.push(t);
+    bySymbol.set(t.symbol, arr);
+  }
+
+  for (const [symbol, theses] of bySymbol) {
+    if (theses.length < 2) continue;
+
+    const actions = new Map<string, string[]>();
+    for (const t of theses) {
+      const arr = actions.get(t.action) ?? [];
+      arr.push(t.agentId);
+      actions.set(t.action, arr);
+    }
+
+    // Check for majority agreement
+    for (const [action, agents] of actions) {
+      if (agents.length >= 2) {
+        agreements.push({ symbol, agents, action });
+      }
+    }
+
+    // Check for disagreements (different actions on same symbol)
+    if (actions.size > 1) {
+      disagreements.push({
+        symbol,
+        agents: theses.map((t) => ({ agentId: t.agentId, action: t.action })),
+      });
+    }
+  }
+
+  return c.json({
+    ok: true,
+    meeting: {
+      theses: allTheses,
+      totalTheses: allTheses.length,
+      internalAgentTheses: internalTheses.length,
+      externalAgentTheses: externalTheses.length,
+      agreements,
+      disagreements,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /meeting/share — External agent shares a market thesis
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.post("/meeting/share", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+  }
+
+  const parsed = meetingShareSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({
+      ok: false,
+      error: "VALIDATION_FAILED",
+      validation: parsed.error.flatten(),
+    }, 400);
+  }
+
+  const data = parsed.data;
+
+  // Validate symbol
+  const validSymbol = XSTOCKS_CATALOG.find((s) => s.symbol === data.symbol);
+  if (!validSymbol) {
+    return c.json({
+      ok: false,
+      error: "INVALID_SYMBOL",
+      message: `Unknown symbol ${data.symbol}. Use GET /rules for available symbols.`,
+    }, 400);
+  }
+
+  const thesisId = `thesis_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const agentTraces = toolTraces.get(data.agentId) ?? [];
+  const toolsUsed = [...new Set(agentTraces.map((t) => t.tool))];
+
+  const thesis: MeetingThesis = {
+    id: thesisId,
+    agentId: data.agentId,
+    type: "external",
+    symbol: data.symbol,
+    action: data.action,
+    confidence: data.confidence,
+    thesis: data.thesis,
+    reasoning: data.reasoning,
+    sources: data.sources,
+    toolsUsed,
+    timestamp: new Date().toISOString(),
+  };
+
+  meetingTheses.set(thesisId, thesis);
+
+  return c.json({
+    ok: true,
+    thesisId,
+    thesis,
+    message: "Thesis shared in the Meeting of the Minds. Other agents can now respond.",
+    meetingUrl: "/api/v1/benchmark-submit/meeting",
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /meeting/responses — View responses/reactions to theses
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.get("/meeting/responses", (c) => {
+  return c.json({
+    ok: true,
+    responses: meetingResponses,
+    totalResponses: meetingResponses.length,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /meeting/respond — Respond to another agent's thesis
+// ---------------------------------------------------------------------------
+
+benchmarkSubmissionRoutes.post("/meeting/respond", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+  }
+
+  const parsed = meetingRespondSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({
+      ok: false,
+      error: "VALIDATION_FAILED",
+      validation: parsed.error.flatten(),
+    }, 400);
+  }
+
+  const data = parsed.data;
+
+  // Verify the thesis being responded to exists
+  const thesis = meetingTheses.get(data.inResponseTo);
+  if (!thesis) {
+    return c.json({
+      ok: false,
+      error: "THESIS_NOT_FOUND",
+      message: `Thesis ${data.inResponseTo} not found. Use GET /meeting to see available theses.`,
+    }, 404);
+  }
+
+  const responseId = `resp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const response: MeetingResponse = {
+    id: responseId,
+    agentId: data.agentId,
+    inResponseTo: data.inResponseTo,
+    position: data.position,
+    response: data.response,
+    counterEvidence: data.counterEvidence,
+    timestamp: new Date().toISOString(),
+  };
+
+  meetingResponses.push(response);
+  if (meetingResponses.length > 1000) meetingResponses.shift();
+
+  return c.json({
+    ok: true,
+    responseId,
+    response,
+    originalThesis: {
+      id: thesis.id,
+      agentId: thesis.agentId,
+      symbol: thesis.symbol,
+      action: thesis.action,
+    },
+    message: `Response recorded. ${data.position === "agree" ? "Agreement" : data.position === "disagree" ? "Counter-argument" : "Partial agreement"} noted.`,
   });
 });
 
