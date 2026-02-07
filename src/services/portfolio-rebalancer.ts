@@ -25,6 +25,150 @@ import { round2, round3 } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Synthetic Return Generation Parameters
+ *
+ * When insufficient real trade history exists, synthetic returns are generated
+ * using Box-Muller transform to simulate realistic daily price movements.
+ */
+
+/**
+ * Minimum daily return data points required before triggering synthetic generation.
+ * If trade history has fewer than this many data points, use synthetic returns
+ * based on symbol volatility characteristics instead.
+ *
+ * Example: If TSLAx only has 3 trades in lookback window (< 5), generate synthetic
+ * daily returns using baseVol=3.5% to fill the gap.
+ */
+const SYNTHETIC_RETURNS_MIN_DAILY = 5;
+
+/**
+ * Daily positive drift assumption for synthetic returns (as decimal).
+ * Small upward bias (0.03% per day = ~7.6% annualized) matches long-term
+ * equity market drift without overstating expected returns.
+ *
+ * Example: Synthetic return = z * baseVol * 0.01 + 0.0003 where z ~ N(0,1)
+ */
+const SYNTHETIC_DRIFT_POSITIVE = 0.0003;
+
+/**
+ * Volatility scaling factor for normal distribution in synthetic returns.
+ * Converts baseVol percentage (e.g., 2.5%) to decimal volatility (0.025).
+ *
+ * Example: baseVol=2.5, scaling=0.01 → daily vol = 2.5 * 0.01 = 0.025 = 2.5%
+ */
+const SYNTHETIC_VOL_SCALING = 0.01;
+
+/**
+ * Annualization Parameters
+ */
+
+/**
+ * Number of trading days per year for annualizing returns and volatility.
+ * Standard assumption: 252 trading days (365 calendar days - weekends - holidays).
+ *
+ * Used for: meanReturn * 252, volatility * sqrt(252), covariance * 252
+ *
+ * Example: Daily return 0.1% → annualized return = 0.001 * 252 = 25.2%
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * Stock Base Volatility Estimates
+ *
+ * Daily volatility percentages used for synthetic return generation when
+ * insufficient trade history exists. Based on observed market characteristics.
+ */
+
+/**
+ * High volatility tier: meme stocks, crypto-exposed, high retail participation.
+ * Daily volatility ~3.5% (annualized ~55%).
+ *
+ * Stocks: TSLAx, COINx, MSTRx, HOODx, GMEx, PLTRx
+ */
+const STOCK_VOLATILITY_HIGH = 3.5;
+
+/**
+ * Medium volatility tier: growth tech stocks with moderate volatility.
+ * Daily volatility ~2.5% (annualized ~40%).
+ *
+ * Stocks: NVDAx, METAx, AMZNx, NFLXx, CRMx
+ */
+const STOCK_VOLATILITY_MEDIUM = 2.5;
+
+/**
+ * Low volatility tier: large-cap tech, indexes, stable blue chips.
+ * Daily volatility ~1.5% (annualized ~24%).
+ *
+ * Stocks: AAPLx, MSFTx, GOOGLx, SPYx, QQQx, JPMx, LLYx, AVGOx
+ */
+const STOCK_VOLATILITY_LOW = 1.5;
+
+/**
+ * Default volatility for unknown symbols.
+ * Daily volatility ~2.0% (annualized ~32%).
+ */
+const STOCK_VOLATILITY_DEFAULT = 2.0;
+
+/**
+ * Transaction Cost Parameters
+ */
+
+/**
+ * Estimated transaction cost rate per trade via Jupiter DEX (as decimal).
+ * Assumes 0.3% total cost (0.25% Jupiter fees + 0.05% slippage).
+ *
+ * Example: $1,000 rebalance trade → estimated cost = $1,000 * 0.003 = $3
+ */
+const TRANSACTION_COST_RATE = 0.003;
+
+/**
+ * Rebalancing Decision Thresholds
+ */
+
+/**
+ * Sharpe ratio improvement multiplier for net benefit calculation.
+ * Converts Sharpe improvement to dollar benefit estimate.
+ *
+ * Formula: netBenefit = sharpeImprovement * totalValue * 0.01 - estimatedCost
+ *
+ * Example: Sharpe +0.15, portfolio $10,000 → benefit = 0.15 * 10000 * 0.01 = $15
+ */
+const SHARPE_IMPROVEMENT_MULTIPLIER = 0.01;
+
+/**
+ * Minimum Sharpe ratio improvement to recommend rebalancing (when concentration low).
+ * If Sharpe improvement < 5% and HHI < 30%, skip rebalancing (already near-optimal).
+ *
+ * Example: currentSharpe=1.2, expectedSharpe=1.24 → improvement=0.04 < 0.05 → skip
+ */
+const SHARPE_IMPROVEMENT_THRESHOLD = 0.05;
+
+/**
+ * Concentration risk (HHI) threshold for triggering rebalancing.
+ * If HHI > 30% (concentrated portfolio), recommend rebalancing regardless of Sharpe.
+ *
+ * HHI = sum of squared weights. Example: 3 equal positions → HHI = 3 * (0.33)^2 = 0.33
+ * If HHI > 0.3, portfolio is too concentrated (diversification needed).
+ */
+const CONCENTRATION_RISK_THRESHOLD = 0.3;
+
+/**
+ * Query Limits
+ */
+
+/**
+ * Default limit for rebalance history queries.
+ * Prevents overwhelming API responses with full history.
+ *
+ * Example: getRebalanceHistory(agentId) returns last 20 rebalance records.
+ */
+const QUERY_LIMIT_DEFAULT = 20;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -216,7 +360,7 @@ export async function getReturnSeries(
     }
 
     // If insufficient trade data, generate from market characteristics
-    if (dailyReturns.length < 5) {
+    if (dailyReturns.length < SYNTHETIC_RETURNS_MIN_DAILY) {
       const stockConfig = XSTOCKS_CATALOG.find((s) => s.symbol === symbol);
       if (stockConfig) {
         // Use realistic but synthetic returns based on symbol characteristics
@@ -226,7 +370,7 @@ export async function getReturnSeries(
           const u1 = Math.random();
           const u2 = Math.random();
           const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-          dailyReturns.push(z * baseVol * 0.01 + 0.0003); // small positive drift
+          dailyReturns.push(z * baseVol * SYNTHETIC_VOL_SCALING + SYNTHETIC_DRIFT_POSITIVE);
         }
       }
     }
@@ -241,8 +385,8 @@ export async function getReturnSeries(
     series.push({
       symbol,
       returns: dailyReturns,
-      meanReturn: meanDaily * 252, // Annualize
-      volatility: Math.sqrt(varianceDaily * 252), // Annualize
+      meanReturn: meanDaily * TRADING_DAYS_PER_YEAR, // Annualize
+      volatility: Math.sqrt(varianceDaily * TRADING_DAYS_PER_YEAR), // Annualize
     });
   }
 
@@ -263,8 +407,8 @@ export function buildCovarianceMatrix(
   for (let i = 0; i < n; i++) {
     for (let j = i; j < n; j++) {
       const cov = calculateCovariance(series[i].returns, series[j].returns);
-      data[i][j] = cov * 252; // Annualize
-      data[j][i] = cov * 252;
+      data[i][j] = cov * TRADING_DAYS_PER_YEAR; // Annualize
+      data[j][i] = cov * TRADING_DAYS_PER_YEAR;
     }
   }
 
@@ -542,10 +686,10 @@ function getSymbolBaseVolatility(symbol: string): number {
   const medVol = ["NVDAx", "METAx", "AMZNx", "NFLXx", "CRMx"];
   const lowVol = ["AAPLx", "MSFTx", "GOOGLx", "SPYx", "QQQx", "JPMx", "LLYx", "AVGOx"];
 
-  if (highVol.includes(symbol)) return 3.5;
-  if (medVol.includes(symbol)) return 2.5;
-  if (lowVol.includes(symbol)) return 1.5;
-  return 2.0;
+  if (highVol.includes(symbol)) return STOCK_VOLATILITY_HIGH;
+  if (medVol.includes(symbol)) return STOCK_VOLATILITY_MEDIUM;
+  if (lowVol.includes(symbol)) return STOCK_VOLATILITY_LOW;
+  return STOCK_VOLATILITY_DEFAULT;
 }
 
 // ---------------------------------------------------------------------------
@@ -709,34 +853,34 @@ export async function generateRebalanceProposal(
   const estimatedCost =
     adjustments
       .filter((a) => a.action !== "hold")
-      .reduce((sum, a) => sum + a.tradeAmountUsd, 0) * 0.003;
+      .reduce((sum, a) => sum + a.tradeAmountUsd, 0) * TRANSACTION_COST_RATE;
 
   const concentrationIndex = calculateHHI(
     allSymbols.map((s) => currentWeights[s] || 0),
   );
 
   const sharpeImprovement = expectedSharpe - currentSharpe;
-  const netBenefit = sharpeImprovement * totalValue * 0.01 - estimatedCost;
+  const netBenefit = sharpeImprovement * totalValue * SHARPE_IMPROVEMENT_MULTIPLIER - estimatedCost;
 
   // Recommendation logic
   const shouldRebalance =
     tradesRequired > 0 &&
     netBenefit > 0 &&
-    (sharpeImprovement > 0.05 || concentrationIndex > 0.3);
+    (sharpeImprovement > SHARPE_IMPROVEMENT_THRESHOLD || concentrationIndex > CONCENTRATION_RISK_THRESHOLD);
 
   let reason: string;
   if (tradesRequired === 0) {
     reason = "Portfolio is within target allocation thresholds";
   } else if (netBenefit <= 0) {
     reason = `Transaction costs ($${estimatedCost.toFixed(2)}) exceed expected benefit`;
-  } else if (sharpeImprovement <= 0.05 && concentrationIndex <= 0.3) {
+  } else if (sharpeImprovement <= SHARPE_IMPROVEMENT_THRESHOLD && concentrationIndex <= CONCENTRATION_RISK_THRESHOLD) {
     reason = "Current allocation is already near-optimal";
   } else {
     const reasons: string[] = [];
-    if (sharpeImprovement > 0.05) {
+    if (sharpeImprovement > SHARPE_IMPROVEMENT_THRESHOLD) {
       reasons.push(`Sharpe improvement: ${currentSharpe.toFixed(2)} → ${expectedSharpe.toFixed(2)}`);
     }
-    if (concentrationIndex > 0.3) {
+    if (concentrationIndex > CONCENTRATION_RISK_THRESHOLD) {
       reasons.push(`High concentration (HHI=${concentrationIndex.toFixed(3)}) — diversification needed`);
     }
     reason = reasons.join("; ");
@@ -870,7 +1014,7 @@ export function recordRebalanceExecution(
  */
 export function getRebalanceHistory(
   agentId: string,
-  limit: number = 20,
+  limit: number = QUERY_LIMIT_DEFAULT,
 ): RebalanceRecord[] {
   return rebalanceHistory
     .filter((r) => r.proposal.agentId === agentId)
