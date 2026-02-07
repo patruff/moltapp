@@ -19,6 +19,135 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { clamp, findMax, findMin, findMaxBy, findMinBy } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Sector benchmark allocation weights for Brinson-Fachler attribution.
+ * These represent the equal-weighted benchmark portfolio allocation across sectors.
+ */
+const SECTOR_ALLOCATION_TECH = 0.42; // 42% Technology (largest sector)
+const SECTOR_ALLOCATION_CONSUMER = 0.06; // 6% Consumer
+const SECTOR_ALLOCATION_AUTOMOTIVE = 0.06; // 6% Automotive
+const SECTOR_ALLOCATION_INDEX = 0.11; // 11% Index ETFs (SPY, QQQ)
+const SECTOR_ALLOCATION_CRYPTO = 0.11; // 11% Crypto-adjacent
+const SECTOR_ALLOCATION_FINTECH = 0.06; // 6% Fintech
+const SECTOR_ALLOCATION_ENTERTAINMENT = 0.06; // 6% Entertainment
+const SECTOR_ALLOCATION_MEME = 0.06; // 6% Meme stocks
+const SECTOR_ALLOCATION_HEALTHCARE = 0.06; // 6% Healthcare
+const SECTOR_ALLOCATION_FINANCE = 0.06; // 6% Finance
+
+/**
+ * Factor scoring multipliers for multi-factor exposure analysis.
+ * These control how buy/sell actions map to factor loadings.
+ */
+const FACTOR_SCORE_BUY_MATCH = 1; // +1 when buy aligns with factor (e.g., buy winner = momentum)
+const FACTOR_SCORE_BUY_MISMATCH = -1; // -1 when buy opposes factor (e.g., buy loser = anti-momentum)
+const FACTOR_SCORE_SELL_MATCH = 1; // +1 when sell aligns with factor (e.g., sell loser = momentum)
+const FACTOR_SCORE_SELL_MISMATCH = -1; // -1 when sell opposes factor (e.g., sell winner = anti-momentum)
+const FACTOR_SCORE_VALUE_BUY_BELOW_AVG = 1; // +1 for buying below-average-priced stock (value)
+const FACTOR_SCORE_VALUE_BUY_ABOVE_AVG = -0.5; // -0.5 for buying above-average-priced stock (anti-value)
+const FACTOR_SCORE_VALUE_SELL_ABOVE_AVG = 0.5; // +0.5 for selling above-average-priced stock (value)
+const FACTOR_SCORE_VALUE_SELL_BELOW_AVG = -1; // -1 for selling below-average-priced stock (anti-value)
+const FACTOR_SCORE_SIZE_LARGE_CAP = 1; // +1 for buying large-cap stocks
+const FACTOR_SCORE_SIZE_SMALL_CAP = -1; // -1 for buying small-cap stocks
+const FACTOR_SCORE_VOLATILITY_HIGH_VOL = 1; // +1 for buying high-volatility stocks
+const FACTOR_SCORE_VOLATILITY_LOW_VOL = -1; // -1 for buying low-volatility stocks
+const FACTOR_SCORE_QUALITY_HIGH = 1; // +1 for buying quality stocks (stable, profitable)
+const FACTOR_SCORE_QUALITY_LOW = -1; // -1 for buying speculative stocks
+const FACTOR_SCORE_CRYPTO_BUY = 2; // +2 for buying crypto-adjacent stocks (stronger signal)
+const FACTOR_SCORE_CRYPTO_SELL = -1; // -1 for selling crypto-adjacent stocks
+
+/**
+ * Timing analysis parameters for decision-to-trade matching and scoring.
+ */
+const TIMING_DECISION_MATCH_WINDOW_MS = 60 * 1000; // 60 seconds window for matching decisions to trades
+const TIMING_SCORE_BASE = 50; // Base timing score (50 = neutral)
+const TIMING_SCORE_BONUS_MAX = 30; // Maximum bonus/penalty for timing quality (±30 points)
+const TIMING_SCORE_CHANGE_MULTIPLIER = 3; // Multiplier for change24h in timing score calculation
+const TIMING_CONVICTION_THRESHOLD = 80; // 80% confidence = conviction trade
+
+/**
+ * Market directional thresholds for momentum factor classification.
+ */
+const MARKET_DIRECTION_BULLISH_THRESHOLD = 0; // change24h > 0 = bullish
+const MARKET_DIRECTION_BEARISH_THRESHOLD = 0; // change24h < 0 = bearish
+
+/**
+ * Relative valuation parameters for value factor analysis.
+ */
+const RELATIVE_VALUATION_BASELINE = 1.0; // 1.0 = average price (relativePrice = price / avgPrice)
+
+/**
+ * Position entry cost for decision-based attribution when no open positions.
+ * Used to estimate portfolio value from decision activity alone.
+ */
+const POSITION_ENTRY_COST_USDC = 50; // 50 USDC per decision-based position estimate
+
+/**
+ * Portfolio value parameters for trade contribution calculations.
+ */
+const PORTFOLIO_MIN_VALUE_USDC = 10000; // 10,000 USDC minimum portfolio value (initial capital)
+
+/**
+ * Confidence normalization parameters for return calculations.
+ */
+const CONFIDENCE_NEUTRAL = 50; // 50 = neutral confidence baseline
+const CONFIDENCE_NORMALIZATION_DIVISOR = 50; // Divide confidence delta by 50 for normalized return
+
+/**
+ * Market timing analysis parameters: regime classification thresholds.
+ */
+const REGIME_BULL_STRONG_THRESHOLD = 2; // change24h > 2% = strong bull regime
+const REGIME_BEAR_STRONG_THRESHOLD = -2; // change24h < -2% = strong bear regime
+const REGIME_MILD_BULL_THRESHOLD = 0; // change24h 0-2% = mild bull
+const REGIME_MILD_BEAR_THRESHOLD = 0; // change24h 0 to -2% = mild bear
+const REGIME_HIGH_VOLATILITY_THRESHOLD = 5; // |change24h| > 5% = high volatility regime
+
+/**
+ * Market timing grade boundaries (A-F grading system).
+ */
+const TIMING_GRADE_A_THRESHOLD = 70; // marketTimingScore >= 70 = A
+const TIMING_GRADE_B_THRESHOLD = 60; // marketTimingScore >= 60 = B
+const TIMING_GRADE_C_THRESHOLD = 50; // marketTimingScore >= 50 = C
+const TIMING_GRADE_D_THRESHOLD = 40; // marketTimingScore >= 40 = D (< 40 = F)
+
+/**
+ * Risk contribution parameters: volatility estimation and VaR calculation.
+ */
+const RISK_DEFAULT_VOLATILITY = 0.02; // 2% daily volatility default for positions with insufficient data
+const RISK_VAR_Z_SCORE_95 = 1.645; // Z-score for 95% confidence VaR calculation
+const RISK_CONCENTRATION_HIGH_THRESHOLD = 60; // concentrationScore > 60 = highly concentrated portfolio warning
+
+/**
+ * Annualization factors for alpha/beta decomposition.
+ */
+const ANNUALIZATION_TRADING_DAYS = 252; // 252 trading days per year (standard convention)
+
+/**
+ * Factor confidence calculation parameters.
+ * Controls how decision count translates to factor loading confidence.
+ */
+const FACTOR_CONFIDENCE_MAX_TRADES = 30; // 30 trades = 100% confidence in factor loading
+const FACTOR_CONFIDENCE_MULTIPLIER = 100; // Percentage multiplier for confidence calculation
+
+/**
+ * Factor tilt narrative thresholds for style classification.
+ * Determines when factor loading is strong enough to define agent style.
+ */
+const FACTOR_TILT_STRONG_THRESHOLD = 30; // |loading| > 30 = strong factor tilt defines style
+
+/**
+ * Alpha/beta regression minimum data requirements.
+ */
+const ALPHA_BETA_MIN_OBSERVATIONS = 2; // Minimum daily returns for valid alpha/beta calculation
+
+/**
+ * Decision-to-trade matching parameters for confidence lookup.
+ */
+const DECISION_MATCH_TIME_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes tolerance for finding nearby decisions
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -224,16 +353,16 @@ const SECTOR_MAP: Record<string, string> = {
 
 /** Equal-weighted benchmark allocation by sector */
 const BENCHMARK_SECTOR_WEIGHTS: Record<string, number> = {
-  Technology: 0.42,
-  Consumer: 0.06,
-  Automotive: 0.06,
-  Index: 0.11,
-  Crypto: 0.11,
-  Fintech: 0.06,
-  Entertainment: 0.06,
-  Meme: 0.06,
-  Healthcare: 0.06,
-  Finance: 0.06,
+  Technology: SECTOR_ALLOCATION_TECH,
+  Consumer: SECTOR_ALLOCATION_CONSUMER,
+  Automotive: SECTOR_ALLOCATION_AUTOMOTIVE,
+  Index: SECTOR_ALLOCATION_INDEX,
+  Crypto: SECTOR_ALLOCATION_CRYPTO,
+  Fintech: SECTOR_ALLOCATION_FINTECH,
+  Entertainment: SECTOR_ALLOCATION_ENTERTAINMENT,
+  Meme: SECTOR_ALLOCATION_MEME,
+  Healthcare: SECTOR_ALLOCATION_HEALTHCARE,
+  Finance: SECTOR_ALLOCATION_FINANCE,
 };
 
 const VALID_AGENT_IDS = [
@@ -334,11 +463,11 @@ export async function getAttributionBreakdown(
       const entry = sectorValues.get(sector) ?? { value: 0, cost: 0, symbols: new Set<string>() };
       const qty = parseFloat(d.quantity) || 1;
       entry.value += d.confidence * qty;
-      entry.cost += 50 * qty;
+      entry.cost += POSITION_ENTRY_COST_USDC * qty;
       entry.symbols.add(d.symbol);
       sectorValues.set(sector, entry);
       totalPortfolioValue += d.confidence * qty;
-      totalPortfolioCost += 50 * qty;
+      totalPortfolioCost += POSITION_ENTRY_COST_USDC * qty;
     }
   }
 
@@ -447,10 +576,10 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     const market = data.marketData.find((m) => m.symbol.toLowerCase() === d.symbol.toLowerCase());
     if (!market || market.change24h === null) continue;
     momentumCount++;
-    if (d.action === "buy" && market.change24h > 0) momentumScore += 1;
-    else if (d.action === "buy" && market.change24h < 0) momentumScore -= 1;
-    else if (d.action === "sell" && market.change24h < 0) momentumScore += 1;
-    else if (d.action === "sell" && market.change24h > 0) momentumScore -= 1;
+    if (d.action === "buy" && market.change24h > MARKET_DIRECTION_BULLISH_THRESHOLD) momentumScore += FACTOR_SCORE_BUY_MATCH;
+    else if (d.action === "buy" && market.change24h < MARKET_DIRECTION_BEARISH_THRESHOLD) momentumScore += FACTOR_SCORE_BUY_MISMATCH;
+    else if (d.action === "sell" && market.change24h < MARKET_DIRECTION_BEARISH_THRESHOLD) momentumScore += FACTOR_SCORE_SELL_MATCH;
+    else if (d.action === "sell" && market.change24h > MARKET_DIRECTION_BULLISH_THRESHOLD) momentumScore += FACTOR_SCORE_SELL_MISMATCH;
   }
   const momentumLoading = momentumCount > 0
     ? clamp(Math.round((momentumScore / momentumCount) * 100), -100, 100)
@@ -462,7 +591,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
   for (const m of data.marketData) priceBySymbol.set(m.symbol, m.price);
   const avgPrice = data.marketData.length > 0
     ? data.marketData.reduce((s, m) => s + m.price, 0) / data.marketData.length
-    : 1;
+    : RELATIVE_VALUATION_BASELINE;
 
   let valueScore = 0;
   let valueCount = 0;
