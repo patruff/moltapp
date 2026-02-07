@@ -189,6 +189,155 @@ const CONFIDENCE_BUCKETS = [
 ];
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Pattern Recognition Thresholds
+ *
+ * These control when agent learning patterns are identified and flagged.
+ * Tuning these affects how quickly agents learn from their trading history.
+ */
+
+/** Minimum trades required for pattern discovery */
+const PATTERN_MIN_TRADES_FOR_DISCOVERY = 5;
+
+/** Minimum trades per symbol required for symbol-specific performance classification */
+const PATTERN_MIN_TRADES_PER_SYMBOL = 3;
+
+/** Win rate threshold for identifying symbol strength (70% = strong performance) */
+const PATTERN_SYMBOL_STRENGTH_WIN_RATE = 0.7;
+
+/** Win rate threshold for identifying symbol weakness (30% = weak performance) */
+const PATTERN_SYMBOL_WEAKNESS_WIN_RATE = 0.3;
+
+/** Minimum occurrences to flag overconfidence pattern (3+ high-conf wrong trades) */
+const PATTERN_OVERCONFIDENCE_MIN_OCCURRENCES = 3;
+
+/** Minimum occurrences to flag underconfidence pattern (3+ low-conf right trades) */
+const PATTERN_UNDERCONFIDENCE_MIN_OCCURRENCES = 3;
+
+/** Minimum losing streak length to trigger losing setup pattern (4+ consecutive losses) */
+const PATTERN_LOSING_STREAK_THRESHOLD = 4;
+
+/** Minimum trades per action type for buy vs sell accuracy comparison */
+const PATTERN_MIN_TRADES_PER_ACTION = 5;
+
+/** Accuracy differential threshold for buy vs sell pattern (20% difference = pattern) */
+const PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD = 0.2;
+
+/**
+ * Confidence Calibration Parameters
+ *
+ * These control calibration scoring and overconfidence/underconfidence detection.
+ * Affects how agents adjust their confidence levels based on historical accuracy.
+ */
+
+/** High confidence threshold for overconfidence detection (80%+ confidence) */
+const CALIBRATION_HIGH_CONFIDENCE_THRESHOLD = 80;
+
+/** Low confidence threshold for underconfidence detection (≤40% confidence) */
+const CALIBRATION_LOW_CONFIDENCE_THRESHOLD = 40;
+
+/** Calibration tolerance: actual accuracy within ±15% of stated confidence = calibrated */
+const CALIBRATION_TOLERANCE = 0.15;
+
+/** Minimum predictions per bucket for statistical significance in calibration analysis */
+const CALIBRATION_MIN_PREDICTIONS_PER_BUCKET = 3;
+
+/** Overconfidence bias threshold for raising confidence bar (+15 = significant overconfidence) */
+const CALIBRATION_OVERCONFIDENCE_BIAS_THRESHOLD = 15;
+
+/** Underconfidence bias threshold for lowering confidence bar (-10 = significant underconfidence) */
+const CALIBRATION_UNDERCONFIDENCE_BIAS_THRESHOLD = -10;
+
+/** Overconfidence bias threshold for prompt warning (+10 = warn agent) */
+const CALIBRATION_OVERCONFIDENCE_WARNING_THRESHOLD = 10;
+
+/**
+ * Adaptive Risk Parameters
+ *
+ * These control position sizing and confidence threshold adjustments based on performance.
+ * Directly affects agent position sizing and trade frequency.
+ */
+
+/** Lookback window for adaptive risk calculation (last 30 trades) */
+const ADAPTIVE_RISK_LOOKBACK_WINDOW = 30;
+
+/** Minimum trades required for adaptive risk calculation (5+ for statistical significance) */
+const ADAPTIVE_RISK_MIN_TRADES = 5;
+
+/** Default position size multiplier when insufficient data (1.0x = normal sizing) */
+const ADAPTIVE_RISK_DEFAULT_MULTIPLIER = 1.0;
+
+/** Default minimum confidence threshold when insufficient data (50% baseline) */
+const ADAPTIVE_RISK_DEFAULT_MIN_CONFIDENCE = 50;
+
+/** Win rate threshold for 0.5x position reduction (< 35% = poor performance) */
+const ADAPTIVE_RISK_WIN_RATE_REDUCTION_SEVERE = 0.35;
+
+/** Win rate threshold for 0.75x position reduction (35-45% = below average) */
+const ADAPTIVE_RISK_WIN_RATE_REDUCTION_MODERATE = 0.45;
+
+/** Win rate threshold for 1.3x position increase (> 65% = strong performance) */
+const ADAPTIVE_RISK_WIN_RATE_INCREASE_MODERATE = 0.65;
+
+/** Win rate threshold for 1.5x position increase (> 75% = exceptional performance) */
+const ADAPTIVE_RISK_WIN_RATE_INCREASE_STRONG = 0.75;
+
+/** Position size multiplier for severe underperformance (0.5x = half normal size) */
+const ADAPTIVE_RISK_MULTIPLIER_SEVERE_REDUCTION = 0.5;
+
+/** Position size multiplier for moderate underperformance (0.75x = 25% reduction) */
+const ADAPTIVE_RISK_MULTIPLIER_MODERATE_REDUCTION = 0.75;
+
+/** Position size multiplier for moderate outperformance (1.3x = 30% increase) */
+const ADAPTIVE_RISK_MULTIPLIER_MODERATE_INCREASE = 1.3;
+
+/** Position size multiplier for strong outperformance (1.5x = 50% increase, capped) */
+const ADAPTIVE_RISK_MULTIPLIER_STRONG_INCREASE = 1.5;
+
+/** Raised minimum confidence for overconfident agents (65% vs 50% baseline) */
+const ADAPTIVE_RISK_MIN_CONFIDENCE_OVERCONFIDENT = 65;
+
+/** Lowered minimum confidence for underconfident agents (35% vs 50% baseline) */
+const ADAPTIVE_RISK_MIN_CONFIDENCE_UNDERCONFIDENT = 35;
+
+/** Symbol win rate threshold for avoiding symbol (≤ 20% = avoid) */
+const ADAPTIVE_RISK_SYMBOL_AVOID_THRESHOLD = 0.2;
+
+/** Symbol win rate threshold for strength symbol (≥ 75% = strength) */
+const ADAPTIVE_RISK_SYMBOL_STRENGTH_THRESHOLD = 0.75;
+
+/** Minimum trades per symbol for symbol-specific risk adjustment */
+const ADAPTIVE_RISK_MIN_TRADES_PER_SYMBOL = 3;
+
+/** Losing streak length to trigger position size reduction (3+ losses = reduce) */
+const ADAPTIVE_RISK_LOSING_STREAK_THRESHOLD = 3;
+
+/** Maximum position size multiplier during losing streak (0.6x cap) */
+const ADAPTIVE_RISK_LOSING_STREAK_MAX_MULTIPLIER = 0.6;
+
+/**
+ * Prompt Generation Parameters
+ *
+ * These control which patterns and insights appear in agent learning prompts.
+ * Affects what information agents receive to inform future decisions.
+ */
+
+/** Minimum trades for generating learning prompt (5+ for meaningful insights) */
+const PROMPT_MIN_TRADES_FOR_GENERATION = 5;
+
+/** Maximum patterns shown in prompt (top 5 most relevant) */
+const PROMPT_MAX_PATTERNS_DISPLAYED = 5;
+
+/** Minimum streak length for streak awareness in prompt (3+ trades = alert) */
+const PROMPT_STREAK_AWARENESS_THRESHOLD = 3;
+
+/** Pattern confidence threshold for prompt inclusion (60%+ = include in prompt) */
+const PROMPT_PATTERN_CONFIDENCE_THRESHOLD = 60;
+
+// ---------------------------------------------------------------------------
 // Core Analysis
 // ---------------------------------------------------------------------------
 
@@ -287,7 +436,7 @@ export function analyzeRoundOutcomes(
  */
 export function discoverPatterns(agentId: string): LearningPattern[] {
   const outcomes = tradeOutcomes.get(agentId) ?? [];
-  if (outcomes.length < 5) return []; // Need minimum data
+  if (outcomes.length < PATTERN_MIN_TRADES_FOR_DISCOVERY) return []; // Need minimum data
 
   const patterns: LearningPattern[] = [];
   const now = new Date().toISOString();
@@ -311,17 +460,17 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
   }
 
   for (const [symbol, stats] of symbolStats) {
-    if (stats.count < 3) continue;
+    if (stats.count < PATTERN_MIN_TRADES_PER_SYMBOL) continue;
 
     const winRate = stats.wins / stats.count;
     const avgPnl = stats.totalPnl / stats.count;
 
-    if (winRate >= 0.7 && avgPnl > 0) {
+    if (winRate >= PATTERN_SYMBOL_STRENGTH_WIN_RATE && avgPnl > 0) {
       patterns.push(createPattern(agentId, "symbol_strength",
         `Strong performance on ${symbol}: ${(winRate * 100).toFixed(0)}% win rate, avg +${avgPnl.toFixed(2)}% per trade`,
         stats.count, avgPnl, winRate * 100, [symbol], now,
       ));
-    } else if (winRate <= 0.3 && avgPnl < 0) {
+    } else if (winRate <= PATTERN_SYMBOL_WEAKNESS_WIN_RATE && avgPnl < 0) {
       patterns.push(createPattern(agentId, "symbol_weakness",
         `Weak performance on ${symbol}: ${(winRate * 100).toFixed(0)}% win rate, avg ${avgPnl.toFixed(2)}% per trade`,
         stats.count, avgPnl, (1 - winRate) * 100, [symbol], now,
@@ -331,25 +480,25 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
 
   // --- Pattern 2: Overconfidence/Underconfidence ---
   const highConfWrong = outcomes.filter(
-    (o) => o.confidenceAtDecision >= 80 && !o.directionCorrect,
+    (o) => o.confidenceAtDecision >= CALIBRATION_HIGH_CONFIDENCE_THRESHOLD && !o.directionCorrect,
   );
   const lowConfRight = outcomes.filter(
-    (o) => o.confidenceAtDecision <= 40 && o.directionCorrect,
+    (o) => o.confidenceAtDecision <= CALIBRATION_LOW_CONFIDENCE_THRESHOLD && o.directionCorrect,
   );
 
-  if (highConfWrong.length >= 3) {
+  if (highConfWrong.length >= PATTERN_OVERCONFIDENCE_MIN_OCCURRENCES) {
     const avgLoss = averageByKey(highConfWrong, 'pnlPercent');
     patterns.push(createPattern(agentId, "overconfident",
-      `Overconfidence detected: ${highConfWrong.length} high-confidence (80%+) trades were wrong, avg loss ${avgLoss.toFixed(2)}%. Consider lowering confidence or reducing position size on high-conviction calls.`,
-      highConfWrong.length, avgLoss, 80,
+      `Overconfidence detected: ${highConfWrong.length} high-confidence (${CALIBRATION_HIGH_CONFIDENCE_THRESHOLD}%+) trades were wrong, avg loss ${avgLoss.toFixed(2)}%. Consider lowering confidence or reducing position size on high-conviction calls.`,
+      highConfWrong.length, avgLoss, CALIBRATION_HIGH_CONFIDENCE_THRESHOLD,
       [...new Set(highConfWrong.map((o) => o.symbol))], now,
     ));
   }
 
-  if (lowConfRight.length >= 3) {
+  if (lowConfRight.length >= PATTERN_UNDERCONFIDENCE_MIN_OCCURRENCES) {
     const avgGain = averageByKey(lowConfRight, 'pnlPercent');
     patterns.push(createPattern(agentId, "underconfident",
-      `Underconfidence detected: ${lowConfRight.length} low-confidence (≤40%) trades were correct, avg gain +${avgGain.toFixed(2)}%. You may be underestimating edge on some setups.`,
+      `Underconfidence detected: ${lowConfRight.length} low-confidence (≤${CALIBRATION_LOW_CONFIDENCE_THRESHOLD}%) trades were correct, avg gain +${avgGain.toFixed(2)}%. You may be underestimating edge on some setups.`,
       lowConfRight.length, avgGain, 75,
       [...new Set(lowConfRight.map((o) => o.symbol))], now,
     ));
@@ -377,7 +526,7 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
     }
   }
 
-  if (maxLossStreak >= 4) {
+  if (maxLossStreak >= PATTERN_LOSING_STREAK_THRESHOLD) {
     patterns.push(createPattern(agentId, "losing_setup",
       `Extended losing streak detected: ${maxLossStreak} consecutive wrong predictions. Consider reducing position sizes during cold streaks.`,
       maxLossStreak, -2, 70, [], now,
@@ -388,18 +537,18 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
   const buyOutcomes = outcomes.filter((o) => o.action === "buy");
   const sellOutcomes = outcomes.filter((o) => o.action === "sell");
 
-  if (buyOutcomes.length >= 5 && sellOutcomes.length >= 5) {
+  if (buyOutcomes.length >= PATTERN_MIN_TRADES_PER_ACTION && sellOutcomes.length >= PATTERN_MIN_TRADES_PER_ACTION) {
     const buyAccuracy =
       buyOutcomes.filter((o) => o.directionCorrect).length / buyOutcomes.length;
     const sellAccuracy =
       sellOutcomes.filter((o) => o.directionCorrect).length / sellOutcomes.length;
 
-    if (buyAccuracy > sellAccuracy + 0.2) {
+    if (buyAccuracy > sellAccuracy + PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD) {
       patterns.push(createPattern(agentId, "winning_setup",
         `Better at buying (${(buyAccuracy * 100).toFixed(0)}%) than selling (${(sellAccuracy * 100).toFixed(0)}%). Consider focusing on long positions.`,
         buyOutcomes.length + sellOutcomes.length, 0, 65, [], now,
       ));
-    } else if (sellAccuracy > buyAccuracy + 0.2) {
+    } else if (sellAccuracy > buyAccuracy + PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD) {
       patterns.push(createPattern(agentId, "winning_setup",
         `Better at selling (${(sellAccuracy * 100).toFixed(0)}%) than buying (${(buyAccuracy * 100).toFixed(0)}%). Consider focusing on short/exit timing.`,
         buyOutcomes.length + sellOutcomes.length, 0, 65, [], now,
@@ -456,9 +605,9 @@ export function getCalibration(agentId: string): CalibrationData {
     const correctInBucket = inBucket.filter((o) => o.directionCorrect);
     const accuracy = inBucket.length > 0 ? correctInBucket.length / inBucket.length : 0;
 
-    // "Calibrated" means actual accuracy is within 15% of stated confidence
+    // "Calibrated" means actual accuracy is within tolerance of stated confidence
     const expectedAccuracy = (bucket.min + bucket.max) / 200; // Convert to 0-1
-    const isCalibrated = inBucket.length < 3 || Math.abs(accuracy - expectedAccuracy) < 0.15;
+    const isCalibrated = inBucket.length < CALIBRATION_MIN_PREDICTIONS_PER_BUCKET || Math.abs(accuracy - expectedAccuracy) < CALIBRATION_TOLERANCE;
 
     return {
       confidenceRange: bucket.label,
@@ -512,13 +661,13 @@ export function getCalibration(agentId: string): CalibrationData {
  */
 export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
   const outcomes = tradeOutcomes.get(agentId) ?? [];
-  const recent = outcomes.slice(-30); // Last 30 trades
+  const recent = outcomes.slice(-ADAPTIVE_RISK_LOOKBACK_WINDOW);
 
-  if (recent.length < 5) {
+  if (recent.length < ADAPTIVE_RISK_MIN_TRADES) {
     const defaultParams: AdaptiveRiskParams = {
       agentId,
-      positionSizeMultiplier: 1.0,
-      minConfidenceThreshold: 50,
+      positionSizeMultiplier: ADAPTIVE_RISK_DEFAULT_MULTIPLIER,
+      minConfidenceThreshold: ADAPTIVE_RISK_DEFAULT_MIN_CONFIDENCE,
       avoidSymbols: [],
       strengthSymbols: [],
       recentWinRate: 0,
@@ -535,24 +684,26 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
   const winRate = tradingRecent.length > 0 ? wins / tradingRecent.length : 0.5;
 
   // Position size multiplier based on win rate
-  // Below 40% win rate: reduce to 0.5x
-  // 40-60%: normal 1.0x
-  // Above 60%: increase to 1.3x (but cap at 1.5x)
-  let positionSizeMultiplier = 1.0;
-  if (winRate < 0.35) positionSizeMultiplier = 0.5;
-  else if (winRate < 0.45) positionSizeMultiplier = 0.75;
-  else if (winRate > 0.65) positionSizeMultiplier = 1.3;
-  else if (winRate > 0.75) positionSizeMultiplier = 1.5;
+  let positionSizeMultiplier = ADAPTIVE_RISK_DEFAULT_MULTIPLIER;
+  if (winRate < ADAPTIVE_RISK_WIN_RATE_REDUCTION_SEVERE) {
+    positionSizeMultiplier = ADAPTIVE_RISK_MULTIPLIER_SEVERE_REDUCTION;
+  } else if (winRate < ADAPTIVE_RISK_WIN_RATE_REDUCTION_MODERATE) {
+    positionSizeMultiplier = ADAPTIVE_RISK_MULTIPLIER_MODERATE_REDUCTION;
+  } else if (winRate > ADAPTIVE_RISK_WIN_RATE_INCREASE_STRONG) {
+    positionSizeMultiplier = ADAPTIVE_RISK_MULTIPLIER_STRONG_INCREASE;
+  } else if (winRate > ADAPTIVE_RISK_WIN_RATE_INCREASE_MODERATE) {
+    positionSizeMultiplier = ADAPTIVE_RISK_MULTIPLIER_MODERATE_INCREASE;
+  }
 
   // Minimum confidence threshold
   const calibration = getCalibration(agentId);
-  let minConfidence = 50;
-  if (calibration.overconfidenceBias > 15) {
+  let minConfidence = ADAPTIVE_RISK_DEFAULT_MIN_CONFIDENCE;
+  if (calibration.overconfidenceBias > CALIBRATION_OVERCONFIDENCE_BIAS_THRESHOLD) {
     // Agent is overconfident — raise the bar
-    minConfidence = 65;
-  } else if (calibration.overconfidenceBias < -10) {
+    minConfidence = ADAPTIVE_RISK_MIN_CONFIDENCE_OVERCONFIDENT;
+  } else if (calibration.overconfidenceBias < CALIBRATION_UNDERCONFIDENCE_BIAS_THRESHOLD) {
     // Agent is underconfident — lower the bar
-    minConfidence = 35;
+    minConfidence = ADAPTIVE_RISK_MIN_CONFIDENCE_UNDERCONFIDENT;
   }
 
   // Identify strong/weak symbols
@@ -568,10 +719,10 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
   const strengthSymbols: string[] = [];
 
   for (const [symbol, perf] of symbolPerf) {
-    if (perf.total < 3) continue;
+    if (perf.total < ADAPTIVE_RISK_MIN_TRADES_PER_SYMBOL) continue;
     const symbolWinRate = perf.wins / perf.total;
-    if (symbolWinRate <= 0.2) avoidSymbols.push(symbol);
-    else if (symbolWinRate >= 0.75) strengthSymbols.push(symbol);
+    if (symbolWinRate <= ADAPTIVE_RISK_SYMBOL_AVOID_THRESHOLD) avoidSymbols.push(symbol);
+    else if (symbolWinRate >= ADAPTIVE_RISK_SYMBOL_STRENGTH_THRESHOLD) strengthSymbols.push(symbol);
   }
 
   // Current streak
@@ -593,9 +744,9 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
     }
   }
 
-  // If on a losing streak of 3+, reduce position size
-  if (streakType === "loss" && streakCount >= 3) {
-    positionSizeMultiplier = Math.min(positionSizeMultiplier, 0.6);
+  // If on a losing streak, reduce position size
+  if (streakType === "loss" && streakCount >= ADAPTIVE_RISK_LOSING_STREAK_THRESHOLD) {
+    positionSizeMultiplier = Math.min(positionSizeMultiplier, ADAPTIVE_RISK_LOSING_STREAK_MAX_MULTIPLIER);
   }
 
   const params: AdaptiveRiskParams = {
@@ -623,7 +774,7 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
  */
 export function generateLearningPrompt(agentId: string): string {
   const outcomes = tradeOutcomes.get(agentId) ?? [];
-  if (outcomes.length < 5) return "";
+  if (outcomes.length < PROMPT_MIN_TRADES_FOR_GENERATION) return "";
 
   const patterns = agentPatterns.get(agentId) ?? discoverPatterns(agentId);
   const calibration = getCalibration(agentId);
@@ -635,12 +786,12 @@ export function generateLearningPrompt(agentId: string): string {
   sections.push(`  Direction accuracy: ${calibration.directionAccuracy}%`);
   sections.push(`  Recent win rate: ${risk.recentWinRate}%`);
 
-  if (calibration.overconfidenceBias > 10) {
+  if (calibration.overconfidenceBias > CALIBRATION_OVERCONFIDENCE_WARNING_THRESHOLD) {
     sections.push(
       `  WARNING: You tend to be overconfident (bias: +${calibration.overconfidenceBias}%). Consider being more cautious with high-confidence calls.`,
     );
   }
-  if (calibration.overconfidenceBias < -10) {
+  if (calibration.overconfidenceBias < CALIBRATION_UNDERCONFIDENCE_BIAS_THRESHOLD) {
     sections.push(
       `  NOTE: You tend to be underconfident (bias: ${calibration.overconfidenceBias}%). Your low-confidence calls often succeed — trust your analysis more.`,
     );
@@ -650,7 +801,7 @@ export function generateLearningPrompt(agentId: string): string {
   const promptPatterns = patterns.filter((p) => p.includeInPrompt);
   if (promptPatterns.length > 0) {
     sections.push("  KEY PATTERNS:");
-    for (const pattern of promptPatterns.slice(0, 5)) {
+    for (const pattern of promptPatterns.slice(0, PROMPT_MAX_PATTERNS_DISPLAYED)) {
       sections.push(`    - ${pattern.description}`);
     }
   }
@@ -668,7 +819,7 @@ export function generateLearningPrompt(agentId: string): string {
   }
 
   // Streak awareness
-  if (risk.currentStreak.count >= 3) {
+  if (risk.currentStreak.count >= PROMPT_STREAK_AWARENESS_THRESHOLD) {
     if (risk.currentStreak.type === "loss") {
       sections.push(
         `  ALERT: On a ${risk.currentStreak.count}-trade losing streak. Position sizes reduced. Focus on highest-conviction setups only.`,
@@ -866,6 +1017,6 @@ function createPattern(
     symbols,
     firstSeen: now,
     lastSeen: now,
-    includeInPrompt: patternConfidence >= 60,
+    includeInPrompt: patternConfidence >= PROMPT_PATTERN_CONFIDENCE_THRESHOLD,
   };
 }
