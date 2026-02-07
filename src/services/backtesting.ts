@@ -20,6 +20,110 @@ import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round4, calculateAverage } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Synthetic Price Generation Parameters
+ */
+
+/** Daily drift (expected return) for synthetic price generation: +0.03% per day */
+const SYNTHETIC_DAILY_DRIFT = 0.0003;
+
+/** Daily volatility for synthetic price generation: 1.5% per day (realistic equity volatility) */
+const SYNTHETIC_DAILY_VOLATILITY = 0.015;
+
+/** Minimum price floor as fraction of base price to prevent nonsensical prices: 1% of base */
+const SYNTHETIC_PRICE_FLOOR_MULTIPLIER = 0.01;
+
+/** Weekend day-of-week values to skip in backtesting: Sunday=0, Saturday=6 */
+const WEEKEND_SUNDAY = 0;
+const WEEKEND_SATURDAY = 6;
+
+/**
+ * Default Backtest Parameters
+ */
+
+/** Default initial capital for backtests: $10,000 USDC */
+const DEFAULT_INITIAL_CAPITAL = 10000;
+
+/** Default backtest period: 90 calendar days */
+const DEFAULT_BACKTEST_DAYS = 90;
+
+/**
+ * Conviction Profile Classification Thresholds
+ */
+
+/** High conviction threshold: confidence >= 70% */
+const CONVICTION_HIGH_THRESHOLD = 70;
+
+/** Medium conviction floor: confidence >= 40% (and < 70%) */
+const CONVICTION_MEDIUM_FLOOR = 40;
+
+/**
+ * Trading Style Scoring Thresholds
+ */
+
+/** Contrarian style: high-confidence sell threshold (confident bearish calls) */
+const STYLE_CONTRARIAN_SELL_THRESHOLD = 60;
+
+/** Contrarian style: low-confidence buy threshold (contrarian value plays) */
+const STYLE_CONTRARIAN_BUY_THRESHOLD = 40;
+
+/** Momentum style: high-confidence buy threshold (chasing momentum) */
+const STYLE_MOMENTUM_BUY_THRESHOLD = 60;
+
+/**
+ * Risk Appetite Classification Thresholds
+ */
+
+/** Risk appetite classification: aggressive threshold (score >= 70) */
+const RISK_APPETITE_AGGRESSIVE_THRESHOLD = 70;
+
+/** Risk appetite classification: moderate threshold (score >= 40) */
+const RISK_APPETITE_MODERATE_THRESHOLD = 40;
+
+/**
+ * Conviction Label Classification Thresholds
+ */
+
+/** Conviction label: high-conviction threshold (avg confidence >= 65%) */
+const CONVICTION_LABEL_HIGH_THRESHOLD = 65;
+
+/** Conviction label: measured threshold (avg confidence >= 45%) */
+const CONVICTION_LABEL_MEASURED_THRESHOLD = 45;
+
+/**
+ * Directional Bias Thresholds
+ */
+
+/** Directional bias: bullish bias threshold (buy ratio > 50%) */
+const DIRECTIONAL_BIAS_BULLISH_THRESHOLD = 0.5;
+
+/** Directional bias: bearish bias threshold (sell ratio > 50%) */
+const DIRECTIONAL_BIAS_BEARISH_THRESHOLD = 0.5;
+
+/**
+ * Risk Metrics Parameters
+ */
+
+/** Annual risk-free rate for Sharpe/Sortino ratio calculations: 5% */
+const ANNUAL_RISK_FREE_RATE = 0.05;
+
+/** Trading days per year for annualization: 252 */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/** VaR percentile threshold: 5% (95th percentile VaR) */
+const VAR_PERCENTILE_THRESHOLD = 0.05;
+
+/**
+ * Style Score Thresholds
+ */
+
+/** Minimum style score for primary style classification: 40 */
+const STYLE_PRIMARY_MIN_SCORE = 40;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -232,27 +336,24 @@ function generateHistoricalPrices(
     return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   };
 
-  const dailyDrift = 0.0003;     // +0.03% per day
-  const dailyVolatility = 0.015; // 1.5% per day
-
   let currentPrice = basePrice;
   const current = new Date(startDate);
 
   while (current <= endDate) {
     // Skip weekends (Saturday=6, Sunday=0)
     const dayOfWeek = current.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    if (dayOfWeek !== WEEKEND_SUNDAY && dayOfWeek !== WEEKEND_SATURDAY) {
       const dateKey = current.toISOString().slice(0, 10);
       prices.set(dateKey, round2(currentPrice));
 
       // Geometric Brownian Motion step
       const shock = nextGaussian();
-      const dailyReturn = dailyDrift + dailyVolatility * shock;
+      const dailyReturn = SYNTHETIC_DAILY_DRIFT + SYNTHETIC_DAILY_VOLATILITY * shock;
       currentPrice *= (1 + dailyReturn);
 
-      // Floor at 1% of base to prevent nonsensical prices
-      if (currentPrice < basePrice * 0.01) {
-        currentPrice = basePrice * 0.01;
+      // Floor at minimum price to prevent nonsensical prices
+      if (currentPrice < basePrice * SYNTHETIC_PRICE_FLOOR_MULTIPLIER) {
+        currentPrice = basePrice * SYNTHETIC_PRICE_FLOOR_MULTIPLIER;
       }
     }
 
@@ -533,10 +634,10 @@ export async function getBacktestComparison(): Promise<BacktestComparison> {
 
   // Default to last 90 days
   const end = new Date();
-  const start = new Date(end.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const start = new Date(end.getTime() - DEFAULT_BACKTEST_DAYS * 24 * 60 * 60 * 1000);
   const startDate = start.toISOString().slice(0, 10);
   const endDate = end.toISOString().slice(0, 10);
-  const initialCapital = 10000;
+  const initialCapital = DEFAULT_INITIAL_CAPITAL;
 
   const results: BacktestResult[] = [];
 
@@ -632,7 +733,7 @@ export async function generateEquityCurve(
 
   const end = new Date();
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
-  const initialCapital = 10000;
+  const initialCapital = DEFAULT_INITIAL_CAPITAL;
 
   try {
     const result = await runBacktest({
@@ -707,9 +808,9 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
           : "very-low";
 
   // --- Conviction profile ---
-  const highConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= 70).length;
-  const mediumConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= 40 && d.confidence < 70).length;
-  const lowConviction = decisions.filter((d: typeof decisions[0]) => d.confidence < 40).length;
+  const highConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_HIGH_THRESHOLD).length;
+  const mediumConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_MEDIUM_FLOOR && d.confidence < CONVICTION_HIGH_THRESHOLD).length;
+  const lowConviction = decisions.filter((d: typeof decisions[0]) => d.confidence < CONVICTION_MEDIUM_FLOOR).length;
   const avgConfidence = calculateAverage(decisions, 'confidence');
 
   // --- Sector preferences ---
@@ -748,13 +849,13 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   // --- Style scores (0-100) ---
 
   // Contrarian score: high confidence sells + low confidence buys = more contrarian
-  const highConfSells = decisions.filter((d: typeof decisions[0]) => d.action === "sell" && d.confidence >= 60).length;
-  const lowConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence < 40).length;
+  const highConfSells = decisions.filter((d: typeof decisions[0]) => d.action === "sell" && d.confidence >= STYLE_CONTRARIAN_SELL_THRESHOLD).length;
+  const lowConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence < STYLE_CONTRARIAN_BUY_THRESHOLD).length;
   const contrarianSignals = highConfSells + lowConfBuys;
   const contrarianScore = Math.min(100, Math.round((contrarianSignals / Math.max(1, actionDecisions.length)) * 200));
 
   // Momentum score: high conviction buys dominating = momentum chasing
-  const highConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence >= 60).length;
+  const highConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence >= STYLE_MOMENTUM_BUY_THRESHOLD).length;
   const momentumScore = Math.min(100, Math.round((highConfBuys / Math.max(1, actionDecisions.length)) * 150));
 
   // Value score: holds + lower frequency + diversification
@@ -977,7 +1078,7 @@ function computeBacktestMetrics(
   const annualizedDownside = downsideDeviation * Math.sqrt(252);
 
   // Risk-free rate
-  const dailyRfr = 0.05 / 252;
+  const dailyRfr = ANNUAL_RISK_FREE_RATE / TRADING_DAYS_PER_YEAR;
 
   // Sharpe ratio
   const sharpeRatio = annualizedVol > 0
