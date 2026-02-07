@@ -293,10 +293,10 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
 
   // Consensus: if majority agrees on action
   let consensusAction: string | null = null;
-  const actionCounts = { buy: buyCount, sell: sellCount, hold: holdCount };
-  const maxAction = getTopEntry(actionCounts);
-  if (maxAction && maxAction[1] >= 2) {
-    consensusAction = maxAction[0];
+  const actionCounts: Record<string, number> = { buy: buyCount, sell: sellCount, hold: holdCount };
+  const maxAction = getTopKey(actionCounts);
+  if (maxAction && actionCounts[maxAction] >= 2) {
+    consensusAction = maxAction;
   }
 
   // Best decision: highest confidence non-hold

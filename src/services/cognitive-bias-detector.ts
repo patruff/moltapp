@@ -982,7 +982,7 @@ export function getAgentBiasStats(): Record<
   }> = {};
 
   for (const [agentId, stats] of agentBiasStats.entries()) {
-    const dominant = getTopEntry(stats.byType);
+    const dominant = getTopKey(stats.byType);
 
     result[agentId] = {
       avgBiasScore: stats.checks > 0 ? round3(stats.totalScore / stats.checks) : 0,
