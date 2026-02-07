@@ -20,6 +20,123 @@
 import { averageByKey, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * High Confidence Threshold for Conviction Accuracy Calculation
+ *
+ * Trades with confidence > 70% are classified as "high-confidence" for conviction
+ * accuracy scoring. This measures how well agents perform when they're most certain.
+ *
+ * Why 70%: Empirically separates "confident" from "uncertain" trades. Lowering to 65%
+ * would include more borderline trades; raising to 75% would only count very strong bets.
+ */
+const HIGH_CONFIDENCE_CONVICTION_THRESHOLD = 70;
+
+/**
+ * Trading Calendar Assumptions for Annualization
+ *
+ * Risk metrics (Sharpe, Sortino) are annualized using these assumptions:
+ * - 250 trading days per year (standard market convention)
+ * - 12 rounds per trading day (MoltApp's trading frequency)
+ * Total: 3000 annualized periods per year
+ *
+ * Why these values:
+ * - 250 days: NYSE standard (365 days - weekends - holidays ≈ 252)
+ * - 12 rounds/day: MoltApp benchmark executes hourly during market hours
+ */
+const TRADING_DAYS_PER_YEAR = 250;
+const ROUNDS_PER_TRADING_DAY = 12;
+
+/**
+ * Portfolio Size Assumption for Position Size Normalization
+ *
+ * Average position size is calculated as percentage of assumed $10,000 portfolio.
+ * This baseline enables cross-agent risk appetite comparison.
+ *
+ * Why $10,000: Standard benchmark portfolio size. If changed to $50k, all
+ * avgPositionSizePercent values will be 5× smaller (same absolute size = lower %).
+ */
+const ASSUMED_PORTFOLIO_SIZE_USDC = 10_000;
+
+/**
+ * Maximum Trade Size for Risk Appetite Calculation
+ *
+ * Risk appetite score is calculated as (avgQuantity / MAX_TRADE_SIZE) × 100.
+ * Assumes 50 USDC is the maximum position size for aggressive traders.
+ *
+ * Why 50 USDC: Current MoltApp position size cap. If cap increases to 100 USDC,
+ * this constant should update to maintain accurate risk appetite scoring (0-100 scale).
+ */
+const MAX_TRADE_SIZE_USDC = 50;
+
+/**
+ * Stock Universe Size for Diversification Scoring
+ *
+ * Diversification score is calculated as (uniqueSymbols / STOCK_UNIVERSE_SIZE) × 100.
+ * Assumes 20 stocks in the tradeable universe.
+ *
+ * Why 20: Current MoltApp benchmark includes ~20 xStocks (SPYx, AAPLx, TSLAx, etc.).
+ * If universe expands to 40 stocks, agent trading 10 stocks would score 25% instead of 50%.
+ */
+const STOCK_UNIVERSE_SIZE = 20;
+
+/**
+ * Confidence Standard Deviation Multiplier for Consistency Scoring
+ *
+ * Consistency score is calculated as: 100 - (confidenceStdDev × MULTIPLIER)
+ * Higher stdDev = more volatile confidence = lower consistency.
+ *
+ * Why 2×: Scales stdDev to 0-100 range. Agent with stdDev=50 (very inconsistent)
+ * would score 0. Agent with stdDev=0 (perfectly consistent) scores 100.
+ */
+const CONFIDENCE_STDDEV_MULTIPLIER = 2;
+
+/**
+ * Buy/Sell Ratio Thresholds for Trading Style Classification
+ *
+ * Trading style is classified as:
+ * - Momentum: buys > sells × MULTIPLIER (e.g., 60 buys, 25 sells → 60 > 50 → momentum)
+ * - Contrarian: sells > buys × MULTIPLIER (e.g., 60 sells, 25 buys → 60 > 50 → contrarian)
+ * - Value: neither condition met (balanced buy/sell ratio)
+ * - Passive: holds > buys + sells (mostly holding)
+ *
+ * Why 2×: Requires strong directional bias. Lowering to 1.5× would classify
+ * more agents as momentum/contrarian; raising to 3× would require extreme bias.
+ */
+const MOMENTUM_CONTRARIAN_MULTIPLIER = 2;
+
+/**
+ * Maximum Scores for Risk Appetite and Diversification Metrics
+ *
+ * Both metrics are capped at 100 to maintain 0-100 scale:
+ * - Risk appetite: min(100, (avgQty / MAX_TRADE_SIZE) × 100)
+ * - Diversification: min(100, (uniqueSymbols / STOCK_UNIVERSE_SIZE) × 100)
+ *
+ * Prevents scores exceeding 100 when agents trade larger than expected sizes
+ * or trade more stocks than assumed universe size.
+ */
+const MAX_RISK_APPETITE_SCORE = 100;
+const MAX_DIVERSIFICATION_SCORE = 100;
+
+/**
+ * Consistency Score Floor
+ *
+ * Consistency cannot go below 0 (prevents negative scores when stdDev is very high).
+ * Formula: max(0, 100 - confStdDev × 2)
+ */
+const MIN_CONSISTENCY_SCORE = 0;
+
+/**
+ * Profit Factor Infinity Cap for Display
+ *
+ * When profit factor is Infinity (no losses), cap at 999 for clean display.
+ * Actual value remains Infinity internally but rounds to 999 for reports.
+ */
+const PROFIT_FACTOR_INFINITY_CAP = 999;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -247,8 +364,8 @@ export function buildAgentSnapshot(
 
   const avgConfidenceOnLosses = averageByKey(losses, "confidence");
 
-  // Conviction accuracy: success rate on high-confidence trades (>70%)
-  const highConfTrades = tradesWithPnl.filter((t) => t.confidence > 70);
+  // Conviction accuracy: success rate on high-confidence trades
+  const highConfTrades = tradesWithPnl.filter((t) => t.confidence > HIGH_CONFIDENCE_CONVICTION_THRESHOLD);
   const highConfWins = highConfTrades.filter((t) => (t.pnl ?? 0) > 0);
   const convictionAccuracy =
     highConfTrades.length > 0
@@ -354,8 +471,8 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
       : 0;
   const volatility = Math.sqrt(variance);
 
-  // Sharpe ratio (annualized, assuming ~250 trading days, ~12 rounds/day)
-  const roundsPerYear = 250 * 12;
+  // Sharpe ratio (annualized)
+  const roundsPerYear = TRADING_DAYS_PER_YEAR * ROUNDS_PER_TRADING_DAY;
   const annualizedReturn = avgReturn * roundsPerYear;
   const annualizedVol = volatility * Math.sqrt(roundsPerYear);
   const sharpeRatio = annualizedVol > 0 ? annualizedReturn / annualizedVol : 0;
@@ -393,9 +510,9 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
   const grossLoss = Math.abs(negativeReturns.reduce((s, r) => s + r, 0));
   const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
-  // Average position size (as % of assumed $10k portfolio)
+  // Average position size (as % of assumed portfolio)
   const avgQty = averageByKey(trades, "quantity");
-  const avgPositionSizePercent = (avgQty / 10000) * 100;
+  const avgPositionSizePercent = (avgQty / ASSUMED_PORTFOLIO_SIZE_USDC) * 100;
 
   return {
     sharpeRatio: round2(sharpeRatio),
@@ -403,7 +520,7 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
     maxDrawdownPercent: round2(maxDrawdown),
     avgPositionSizePercent: round2(avgPositionSizePercent),
     calmarRatio: round2(calmarRatio),
-    profitFactor: round2(profitFactor === Infinity ? 999 : profitFactor),
+    profitFactor: round2(profitFactor === Infinity ? PROFIT_FACTOR_INFINITY_CAP : profitFactor),
     volatility: round2(volatility),
   };
 }
@@ -422,11 +539,11 @@ function computeStyleProfile(
 
   // Risk appetite: based on average quantity relative to max trade size
   const avgQty = averageByKey(trades, "quantity");
-  const riskAppetite = Math.min(100, (avgQty / 50) * 100); // 50 USDC is max
+  const riskAppetite = Math.min(MAX_RISK_APPETITE_SCORE, (avgQty / MAX_TRADE_SIZE_USDC) * 100);
 
   // Diversification: unique stocks traded / total stock universe
   const uniqueSymbols = new Set(trades.map((t) => t.symbol)).size;
-  const diversificationScore = Math.min(100, (uniqueSymbols / 20) * 100);
+  const diversificationScore = Math.min(MAX_DIVERSIFICATION_SCORE, (uniqueSymbols / STOCK_UNIVERSE_SIZE) * 100);
 
   // Conviction strength: avg confidence when not holding
   const convictionStrength = averageByKey(trades, "confidence");
@@ -439,7 +556,7 @@ function computeStyleProfile(
       ? confidences.reduce((s, c) => s + Math.pow(c - avgConf, 2), 0) / confidences.length
       : 0;
   const confStdDev = Math.sqrt(confVariance);
-  const consistencyScore = Math.max(0, 100 - confStdDev * 2);
+  const consistencyScore = Math.max(MIN_CONSISTENCY_SCORE, 100 - confStdDev * CONFIDENCE_STDDEV_MULTIPLIER);
 
   // Dominant style
   const buys = trades.filter((t) => t.action === "buy").length;
@@ -447,8 +564,8 @@ function computeStyleProfile(
   const holds = totalDecisions - trades.length;
   let dominantStyle = "passive";
   if (holds > buys + sells) dominantStyle = "passive";
-  else if (buys > sells * 2) dominantStyle = "momentum";
-  else if (sells > buys * 2) dominantStyle = "contrarian";
+  else if (buys > sells * MOMENTUM_CONTRARIAN_MULTIPLIER) dominantStyle = "momentum";
+  else if (sells > buys * MOMENTUM_CONTRARIAN_MULTIPLIER) dominantStyle = "contrarian";
   else dominantStyle = "value";
 
   return {
