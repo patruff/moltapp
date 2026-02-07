@@ -145,6 +145,114 @@ const INITIAL_ELO = 1200;
 const ELO_K_FACTOR = 32;
 const TRUST_DECAY_RATE = 0.005; // 0.5% decay per day of inactivity
 
+/**
+ * Price Movement Classification Thresholds
+ *
+ * Used for validating hold decisions and detecting market conditions.
+ */
+
+/**
+ * Hold accuracy threshold: ±2% price movement = hold was correct
+ * If |price change| < 2%, the hold decision is considered accurate (price stayed flat).
+ * Increase to 3% to be more lenient on hold accuracy validation.
+ */
+const HOLD_ACCURACY_PRICE_THRESHOLD = 2;
+
+/**
+ * Crash detection threshold: -3% 24h change = market crash
+ * When change24h < -3%, triggers "Diamond Hands" badge tracking for hold-through-dips.
+ * Used in contrarian win detection and hold discipline scoring.
+ */
+const CRASH_DETECTION_THRESHOLD = -3;
+
+/**
+ * Contrarian threshold: ±2% 24h change = contrarian trade opportunity
+ * Buy when change24h < -2% (buying into weakness) or sell when change24h > +2% (taking profit).
+ * Increase to ±3% to require stronger contrarian signals.
+ */
+const CONTRARIAN_THRESHOLD = 2;
+
+/**
+ * Sample Size and Statistical Significance Thresholds
+ *
+ * Minimum data requirements for reliable metric calculations.
+ */
+
+/**
+ * Minimum decisions for consistency calculation: 3 trades
+ * Below 3 decisions, consistency metrics return default 50 scores (insufficient data).
+ * Increase to 5 for more reliable consistency measurements.
+ */
+const MIN_DECISIONS_FOR_CONSISTENCY = 3;
+
+/**
+ * Maximum time gaps allowed for consistency: 2 gaps
+ * If gaps.length > 2, time consistency calculation adjusts for variability.
+ * Used in time consistency scoring (lines 807).
+ */
+const MAX_TIME_GAPS_FOR_CONSISTENCY = 2;
+
+/**
+ * Minimum decisions for calibration: 1 decision
+ * Empty arrays skip calibration bin calculations, but 1+ decisions trigger full analysis.
+ * Currently used implicitly (decisions.length > 0 checks).
+ */
+const MIN_DECISIONS_FOR_CALIBRATION = 1;
+
+/**
+ * Accuracy Trend Detection Thresholds
+ *
+ * Used to classify agent performance trajectory as improving/declining/stable.
+ */
+
+/**
+ * Trend detection delta: ±5% accuracy change = improving/declining
+ * recentAccuracy > accuracy + 5 = "improving", recentAccuracy < accuracy - 5 = "declining".
+ * Increase to ±7% to require stronger trend confirmation before classification.
+ */
+const ACCURACY_TREND_THRESHOLD = 5;
+
+/**
+ * Confidence Threshold Classification
+ *
+ * Thresholds for high/low confidence decision classification across multiple contexts.
+ */
+
+/**
+ * High confidence threshold: 70% confidence
+ * Used in streak discipline (line 790: prev.confidence > 70) to detect high-conviction trades.
+ * Increase to 75% to tighten high-confidence classification criteria.
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 70;
+
+/**
+ * Low confidence threshold: 30% confidence
+ * Used in streak discipline (line 791: curr.confidence < 30) to detect panic/overreaction.
+ * Paired with HIGH_CONFIDENCE_THRESHOLD to flag wild confidence swings (70 → 30 = -10 discipline penalty).
+ */
+const LOW_CONFIDENCE_THRESHOLD = 30;
+
+/**
+ * Moderate confidence threshold for style adherence: 60% confidence
+ * Used in style adherence calculation (lines 764, 768) to assess conservative/aggressive fit.
+ * Conservative agents should have avgConf < 60, aggressive agents should have avgConf > 60.
+ */
+const MODERATE_CONFIDENCE_THRESHOLD = 60;
+
+/**
+ * Calibration Bin Detection Thresholds
+ *
+ * Used to classify agents as overconfident/underconfident based on prediction vs outcome gaps.
+ */
+
+/**
+ * Calibration bias threshold: 10% gap between predicted and actual
+ * If avgPredicted > avgActual + 10, agent is overconfident.
+ * If avgActual > avgPredicted + 10, agent is underconfident.
+ * Used in calibration.isOverconfident/isUnderconfident flags (lines 715-716).
+ */
+const CALIBRATION_BIAS_THRESHOLD = 10;
+
 const ELO_TIERS: Array<{ min: number; tier: EloTier }> = [
   { min: 2000, tier: "grandmaster" },
   { min: 1800, tier: "master" },
@@ -490,7 +598,7 @@ function calculatePredictionAccuracy(
         Math.abs(
           ((currentStock.price - snapshotPrice) / snapshotPrice) * 100,
         );
-      if (change < 2) holdCorrect++; // price stayed flat = hold was right
+      if (change < HOLD_ACCURACY_PRICE_THRESHOLD) holdCorrect++; // price stayed flat = hold was right
     }
   }
   const holdAccuracy =
@@ -523,9 +631,9 @@ function calculatePredictionAccuracy(
 
   // Trend
   const accuracyTrend: "improving" | "declining" | "stable" =
-    recentAccuracy > accuracy + 5
+    recentAccuracy > accuracy + ACCURACY_TREND_THRESHOLD
       ? "improving"
-      : recentAccuracy < accuracy - 5
+      : recentAccuracy < accuracy - ACCURACY_TREND_THRESHOLD
         ? "declining"
         : "stable";
 
@@ -712,8 +820,8 @@ function calculateCalibration(
   return {
     overallCalibration: Math.round(overallCalibration * 10) / 10,
     bins,
-    isOverconfident: avgPredicted > avgActual + 10,
-    isUnderconfident: avgActual > avgPredicted + 10,
+    isOverconfident: avgPredicted > avgActual + CALIBRATION_BIAS_THRESHOLD,
+    isUnderconfident: avgActual > avgPredicted + CALIBRATION_BIAS_THRESHOLD,
     brierScore: Math.round(brierScore * 10000) / 10000,
   };
 }
@@ -731,7 +839,7 @@ function calculateConsistency(
   }>,
   config: { tradingStyle: string; riskTolerance: string },
 ): ConsistencyMetrics {
-  if (decisions.length < 3) {
+  if (decisions.length < MIN_DECISIONS_FOR_CONSISTENCY) {
     return {
       decisionConsistency: 50,
       styleAdherence: 50,
@@ -761,11 +869,11 @@ function calculateConsistency(
   if (config.riskTolerance === "conservative") {
     // Conservative agents should hold more, have lower avg confidence
     const holdRatio = holdCount / total;
-    styleAdherence = Math.min(100, holdRatio * 150 + (avgConf < 60 ? 20 : 0));
+    styleAdherence = Math.min(100, holdRatio * 150 + (avgConf < MODERATE_CONFIDENCE_THRESHOLD ? 20 : 0));
   } else if (config.riskTolerance === "aggressive") {
     // Aggressive agents should trade more (fewer holds), higher confidence
     const actionRatio = (buyCount + sellCount) / total;
-    styleAdherence = Math.min(100, actionRatio * 120 + (avgConf > 60 ? 20 : 0));
+    styleAdherence = Math.min(100, actionRatio * 120 + (avgConf > MODERATE_CONFIDENCE_THRESHOLD ? 20 : 0));
   } else {
     // Moderate: balanced approach
     const balance = 1 - Math.abs(buyCount - sellCount) / total;
@@ -787,8 +895,8 @@ function calculateConsistency(
     const curr = decisions[i - 1];
     // If previous was a high-confidence action and current swings wildly, bad
     if (
-      prev.confidence > 70 &&
-      curr.confidence < 30 &&
+      prev.confidence > HIGH_CONFIDENCE_THRESHOLD &&
+      curr.confidence < LOW_CONFIDENCE_THRESHOLD &&
       prev.action !== "hold"
     ) {
       streakDiscipline -= 10;
@@ -804,7 +912,7 @@ function calculateConsistency(
     );
   }
   let timeConsistency = 50;
-  if (gaps.length > 2) {
+  if (gaps.length > MAX_TIME_GAPS_FOR_CONSISTENCY) {
     const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
     const gapVariance =
       gaps.reduce((s, g) => s + (g - avgGap) ** 2, 0) / gaps.length;
@@ -962,8 +1070,8 @@ function calculateContrarianWins(
     const priceChange =
       ((currentStock.price - snapshotData.price) / snapshotData.price) * 100;
     const isContrarian =
-      (d.action === "buy" && snapshotData.change24h < -2) ||
-      (d.action === "sell" && snapshotData.change24h > 2);
+      (d.action === "buy" && snapshotData.change24h < -CONTRARIAN_THRESHOLD) ||
+      (d.action === "sell" && snapshotData.change24h > CONTRARIAN_THRESHOLD);
     const isCorrect =
       (d.action === "buy" && priceChange > 0) ||
       (d.action === "sell" && priceChange < 0);
@@ -991,7 +1099,7 @@ function calculateHoldThroughDips(
       { price: number; change24h: number | null }
     > | null;
     const snapshotData = snapshot?.[d.symbol];
-    if (snapshotData?.change24h !== null && snapshotData?.change24h !== undefined && snapshotData.change24h < -3) {
+    if (snapshotData?.change24h !== null && snapshotData?.change24h !== undefined && snapshotData.change24h < CRASH_DETECTION_THRESHOLD) {
       holdThroughDips++;
     }
   }
