@@ -155,11 +155,145 @@ export interface CorrelationReport {
 // ---------------------------------------------------------------------------
 
 const AGENT_IDS = ["claude-trader", "gpt-momentum", "grok-contrarian"] as const;
+
+/**
+ * Configuration Constants
+ *
+ * All tunable parameters for correlation monitoring, herding detection,
+ * divergence alerts, and regime classification. Extracting these enables
+ * systematic experimentation and benchmark reproducibility.
+ */
+
+// --- Data Retention Limits ---
+
+/**
+ * MAX_SAMPLES: Maximum return samples retained in memory for correlation analysis.
+ * Default: 10,000 samples (~3,333 rounds with 3 agents)
+ *
+ * Why 10,000: Provides sufficient history for rolling correlation analysis while
+ * preventing unbounded memory growth. At 3 rounds/hour, this is ~1,111 hours (~46 days)
+ * of continuous trading history.
+ */
 const MAX_SAMPLES = 10_000;
-const DEFAULT_ROLLING_WINDOW = 20;
+
+/**
+ * MAX_HERDING_EVENTS: Maximum herding events cached for display.
+ * Default: 50 events
+ *
+ * Why 50: Enough to show recent herding patterns without overwhelming UI, while
+ * preventing unbounded growth of cached events.
+ */
 const MAX_HERDING_EVENTS = 50;
+
+/**
+ * MAX_DIVERGENCE_ALERTS: Maximum divergence alerts cached for display.
+ * Default: 200 alerts
+ *
+ * Why 200: Higher than herding events because divergences are more common
+ * (any buy-sell conflict triggers alert). Provides sufficient history for
+ * pattern detection while maintaining circular buffer efficiency.
+ */
 const MAX_DIVERGENCE_ALERTS = 200;
+
+// --- Rolling Correlation Parameters ---
+
+/**
+ * DEFAULT_ROLLING_WINDOW: Default window size for rolling correlation calculations.
+ * Default: 20 observations
+ *
+ * Why 20: Standard statistical practice (minimum ~20 samples for reliable correlation).
+ * At 3 rounds/hour, this is ~6-7 hours of trading data per window. Balances
+ * responsiveness (detects regime shifts) vs stability (avoids noise).
+ */
+const DEFAULT_ROLLING_WINDOW = 20;
+
+/**
+ * TREND_WINDOW_SIZE: Number of recent windows used for trend detection.
+ * Default: 5 windows
+ *
+ * Why 5: Last 5 windows = ~100 observations (5 * 20 window size) = ~33 hours
+ * of trading history for trend classification. Provides reliable trend direction
+ * without over-smoothing short-term regime shifts.
+ */
+const TREND_WINDOW_SIZE = 5;
+
+// --- Regime Detection Thresholds ---
+
+/**
+ * CORRELATION_CONVERGENCE_THRESHOLD: Minimum absolute correlation change to classify
+ * as "converging" or "diverging" trend (vs "stable").
+ * Default: 0.15 (15 percentage points of correlation change)
+ *
+ * Why 0.15: Statistical significance threshold. Changes >15pp indicate meaningful
+ * regime shift (e.g., correlation 0.4 → 0.55 = converging). Below this is noise.
+ *
+ * Example: If avgChange = +0.18, classify as "converging" (agents acting more alike).
+ * If avgChange = -0.18, classify as "diverging" (agents acting more independently).
+ */
 const CORRELATION_CONVERGENCE_THRESHOLD = 0.15;
+
+/**
+ * REGIME_ANTI_CORRELATED_THRESHOLD: Maximum signed correlation for "anti_correlated" regime.
+ * Default: -0.3 (negative correlation stronger than -30%)
+ *
+ * Why -0.3: Strong negative correlation indicates agents systematically oppose each other.
+ * Below -0.3 = anti_correlated regime (e.g., Claude buys when GPT sells).
+ */
+const REGIME_ANTI_CORRELATED_THRESHOLD = -0.3;
+
+/**
+ * REGIME_LOW_CORRELATION_THRESHOLD: Maximum absolute correlation for "low_correlation" regime.
+ * Default: 0.3 (|correlation| < 30%)
+ *
+ * Why 0.3: Standard threshold for "weak correlation" in statistics. Below 0.3 indicates
+ * agents are largely independent in their decision-making.
+ */
+const REGIME_LOW_CORRELATION_THRESHOLD = 0.3;
+
+/**
+ * REGIME_MODERATE_CORRELATION_THRESHOLD: Maximum absolute correlation for "moderate_correlation" regime.
+ * Default: 0.6 (|correlation| between 30-60%)
+ *
+ * Why 0.6: Standard threshold for "moderate correlation". Between 0.3-0.6 indicates
+ * some shared patterns but not complete agreement. Above 0.6 = high_correlation regime.
+ */
+const REGIME_MODERATE_CORRELATION_THRESHOLD = 0.6;
+
+// --- Herding Alert Thresholds ---
+
+/**
+ * HERDING_SCORE_HIGH_THRESHOLD: Herding score above this triggers WARNING alerts.
+ * Default: 50 (>50% of rounds had unanimous agreement)
+ *
+ * Why 50: High herding (>50% unanimity) indicates potential groupthink risk.
+ * Agents should maintain some independence to avoid correlated failures.
+ *
+ * Example: If 55% of rounds have all 3 agents buying the same stock, flag as
+ * "WARNING: High herding detected" for safety review.
+ */
+const HERDING_SCORE_HIGH_THRESHOLD = 50;
+
+/**
+ * HERDING_SCORE_MODERATE_THRESHOLD: Herding score above this triggers moderate alerts.
+ * Default: 25 (>25% of rounds had unanimous agreement)
+ *
+ * Why 25: Moderate herding (25-50% unanimity) is notable but not critical.
+ * Some agreement is expected (agents share same market data), but sustained
+ * >25% unanimity warrants monitoring.
+ */
+const HERDING_SCORE_MODERATE_THRESHOLD = 25;
+
+// --- Divergence Alert Thresholds ---
+
+/**
+ * DIVERGENCE_HIGH_CONVICTION_THRESHOLD: Minimum confidence gap for "high conviction" divergence.
+ * Default: 30 (>30 percentage points difference between buy/sell confidence)
+ *
+ * Why 30: Large conviction gap indicates strong disagreement on same stock.
+ * Example: Claude buys TSLAx with 85% confidence, GPT sells TSLAx with 50% confidence
+ * = conviction gap 35 points = high conviction divergence worth highlighting.
+ */
+const DIVERGENCE_HIGH_CONVICTION_THRESHOLD = 30;
 
 // ---------------------------------------------------------------------------
 // Module-level State
@@ -661,8 +795,8 @@ export function getRollingCorrelation(
   let trend: "converging" | "diverging" | "stable" | "insufficient_data" =
     "insufficient_data";
 
-  if (windows.length >= 5) {
-    const recentWindows = windows.slice(-5);
+  if (windows.length >= TREND_WINDOW_SIZE) {
+    const recentWindows = windows.slice(-TREND_WINDOW_SIZE);
     const correlationChanges: number[] = [];
 
     for (let i = 1; i < recentWindows.length; i++) {
@@ -749,11 +883,11 @@ export function getRegimeAnalysis(): RegimeAnalysis {
   let regime: RegimeAnalysis["regime"];
   const currentAvgSigned = mean(currentCorrelations);
 
-  if (currentAvgSigned < -0.3) {
+  if (currentAvgSigned < REGIME_ANTI_CORRELATED_THRESHOLD) {
     regime = "anti_correlated";
-  } else if (currentAvg < 0.3) {
+  } else if (currentAvg < REGIME_LOW_CORRELATION_THRESHOLD) {
     regime = "low_correlation";
-  } else if (currentAvg < 0.6) {
+  } else if (currentAvg < REGIME_MODERATE_CORRELATION_THRESHOLD) {
     regime = "moderate_correlation";
   } else {
     regime = "high_correlation";
@@ -820,11 +954,11 @@ export function getCorrelationReport(): CorrelationReport {
     `Average |correlation|: ${matrix.avgAbsCorrelation.toFixed(3)}`
   );
 
-  if (herding.herdingScore > 50) {
+  if (herding.herdingScore > HERDING_SCORE_HIGH_THRESHOLD) {
     summary.push(
       `WARNING: High herding detected — ${herding.herdingScore.toFixed(1)}% of rounds had unanimous agreement`
     );
-  } else if (herding.herdingScore > 25) {
+  } else if (herding.herdingScore > HERDING_SCORE_MODERATE_THRESHOLD) {
     summary.push(
       `Moderate herding: ${herding.herdingScore.toFixed(1)}% of rounds had unanimous agreement`
     );
@@ -835,9 +969,9 @@ export function getCorrelationReport(): CorrelationReport {
   }
 
   if (alerts.length > 0) {
-    const highConviction = alerts.filter((a) => a.convictionDifference > 30);
+    const highConviction = alerts.filter((a) => a.convictionDifference > DIVERGENCE_HIGH_CONVICTION_THRESHOLD);
     summary.push(
-      `${alerts.length} divergence alert(s) recorded, ${highConviction.length} with high conviction gap (>30)`
+      `${alerts.length} divergence alert(s) recorded, ${highConviction.length} with high conviction gap (>${DIVERGENCE_HIGH_CONVICTION_THRESHOLD})`
     );
   }
 
