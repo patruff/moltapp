@@ -547,14 +547,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   // 5. Reasoning Length Drift (getting shorter = lazier reasoning)
   const recentLength = computeAvgMetric(recent, (s) => s.avgReasoningLength);
   const olderLength = computeAvgMetric(older, (s) => s.avgReasoningLength);
-  if (recentLength < olderLength * 0.6) {
+  if (recentLength < olderLength * REASONING_LENGTH_DRIFT_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_len`,
       type: "reasoning_length_drift",
       severity: "medium",
       description: `Avg reasoning length dropped from ${Math.round(olderLength)} to ${Math.round(recentLength)} words`,
       metric: "avg_reasoning_length",
-      expectedRange: [olderLength * 0.8, olderLength * 1.5],
+      expectedRange: [olderLength * REASONING_LENGTH_EXPECTED_MIN_RATIO, olderLength * REASONING_LENGTH_EXPECTED_MAX_RATIO],
       actualValue: recentLength,
       recommendation: "Review agent prompts or increase minimum reasoning length requirement",
       timestamp: new Date().toISOString(),
@@ -564,14 +564,14 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   // 6. Calibration Decay
   const recentCalib = computeAvgMetric(recent, (s) => s.calibrationAvg);
   const olderCalib = computeAvgMetric(older, (s) => s.calibrationAvg);
-  if (recentCalib < olderCalib - 0.1 && recentCalib < 0.5) {
+  if (recentCalib < olderCalib - CALIBRATION_DECAY_DELTA_THRESHOLD && recentCalib < CALIBRATION_DECAY_ABSOLUTE_THRESHOLD) {
     alerts.push({
       id: `reg_${Date.now()}_calib`,
       type: "calibration_decay",
-      severity: recentCalib < 0.3 ? "high" : "medium",
+      severity: recentCalib < CALIBRATION_DECAY_HIGH_THRESHOLD ? "high" : "medium",
       description: `Calibration quality dropped from ${(olderCalib * 100).toFixed(0)}% to ${(recentCalib * 100).toFixed(0)}%`,
       metric: "calibration_avg",
-      expectedRange: [0.5, 1.0],
+      expectedRange: [CALIBRATION_EXPECTED_MIN, CALIBRATION_EXPECTED_MAX],
       actualValue: recentCalib,
       recommendation: "Agents may need confidence recalibration prompting",
       timestamp: new Date().toISOString(),
@@ -582,7 +582,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
   const pillarVals = Object.values(snapshot.pillarAverages);
   if (pillarVals.length >= 3) {
     const pillarStdDev = computeStdDev(pillarVals);
-    if (pillarStdDev > 0.25) {
+    if (pillarStdDev > PILLAR_IMBALANCE_THRESHOLD) {
       const sortedPillars = sortEntriesDescending(snapshot.pillarAverages);
       const highest = sortedPillars[0];
       const lowest = sortedPillars[sortedPillars.length - 1];
@@ -592,7 +592,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
         severity: "low",
         description: `Pillar scores vary widely: ${highest[0]}=${(highest[1] * 100).toFixed(0)}% vs ${lowest[0]}=${(lowest[1] * 100).toFixed(0)}%`,
         metric: "pillar_std_dev",
-        expectedRange: [0, 0.20],
+        expectedRange: [0, PILLAR_BALANCE_EXPECTED_MAX],
         actualValue: pillarStdDev,
         recommendation: `Consider rebalancing pillar weights — ${lowest[0]} may need methodology review`,
         timestamp: new Date().toISOString(),
@@ -645,7 +645,7 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
     };
   }
 
-  const recent = healthSnapshots.slice(-10);
+  const recent = healthSnapshots.slice(-RECENT_SNAPSHOTS_WINDOW);
 
   // Scoring stability: low drift = good
   const scoreDrifts: number[] = [];
@@ -659,20 +659,20 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
     }
   }
   const avgDrift = scoreDrifts.length > 0 ? scoreDrifts.reduce((s, d) => s + d, 0) / scoreDrifts.length : 0;
-  const scoringStability = Math.max(0, 1 - avgDrift * 5);
+  const scoringStability = Math.max(0, 1 - avgDrift * HEALTH_SCORING_STABILITY_DRIFT_MULTIPLIER);
 
   // Pillar balance
   const lastSnapshot = recent[recent.length - 1];
   const pillarVals = Object.values(lastSnapshot.pillarAverages);
   const pillarStdDev = computeStdDev(pillarVals);
-  const pillarBalance = Math.max(0, 1 - pillarStdDev * 3);
+  const pillarBalance = Math.max(0, 1 - pillarStdDev * HEALTH_PILLAR_BALANCE_STDDEV_MULTIPLIER);
 
   // Agent diversity
-  const agentDiversity = Math.min(1, lastSnapshot.agentScoreSpread * 10);
+  const agentDiversity = Math.min(1, lastSnapshot.agentScoreSpread * HEALTH_AGENT_DIVERSITY_SPREAD_MULTIPLIER);
 
   // Data freshness (based on reasoning length — shorter = staler)
   const avgLength = computeAvgMetric(recent, (s) => s.avgReasoningLength);
-  const dataFreshness = Math.min(1, avgLength / 80);
+  const dataFreshness = Math.min(1, avgLength / HEALTH_DATA_FRESHNESS_BASELINE_WORDS);
 
   // Calibration quality
   const calibrationQuality = computeAvgMetric(recent, (s) => s.calibrationAvg);
@@ -687,11 +687,11 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
 
   // Overall health: weighted average
   const overallHealth = round3(
-    dimensions.scoringStability * 0.25 +
-      dimensions.pillarBalance * 0.20 +
-      dimensions.agentDiversity * 0.25 +
-      dimensions.dataFreshness * 0.15 +
-      dimensions.calibrationQuality * 0.15
+    dimensions.scoringStability * HEALTH_WEIGHT_SCORING_STABILITY +
+      dimensions.pillarBalance * HEALTH_WEIGHT_PILLAR_BALANCE +
+      dimensions.agentDiversity * HEALTH_WEIGHT_AGENT_DIVERSITY +
+      dimensions.dataFreshness * HEALTH_WEIGHT_DATA_FRESHNESS +
+      dimensions.calibrationQuality * HEALTH_WEIGHT_CALIBRATION_QUALITY
   );
 
   // Status
