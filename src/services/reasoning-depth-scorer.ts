@@ -78,6 +78,93 @@ const DIMENSION_WEIGHTS = {
 };
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Grade Boundaries
+ *
+ * Maps overall depth scores (0.0-1.0) to letter grades (A+ through F).
+ * Lower thresholds make grading more lenient; higher thresholds stricter.
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95;  // Exceptional reasoning (top 5%)
+const GRADE_THRESHOLD_A = 0.90;       // Outstanding depth and rigor
+const GRADE_THRESHOLD_A_MINUS = 0.85; // Excellent multi-dimensional analysis
+const GRADE_THRESHOLD_B_PLUS = 0.80;  // Strong analytical breadth
+const GRADE_THRESHOLD_B = 0.75;       // Good depth with minor gaps
+const GRADE_THRESHOLD_B_MINUS = 0.70; // Above average analysis
+const GRADE_THRESHOLD_C_PLUS = 0.65;  // Adequate depth
+const GRADE_THRESHOLD_C = 0.60;       // Meets minimum depth requirements
+const GRADE_THRESHOLD_C_MINUS = 0.55; // Below average depth
+const GRADE_THRESHOLD_D_PLUS = 0.50;  // Minimal depth
+const GRADE_THRESHOLD_D = 0.45;       // Poor analytical rigor
+const GRADE_THRESHOLD_D_MINUS = 0.40; // Very limited depth (< 0.40 = F)
+
+/**
+ * Scoring Divisors
+ *
+ * Normalization parameters for computing dimension scores from raw counts.
+ * Higher divisors make scoring stricter (require more evidence for high scores).
+ */
+const ANALYTICAL_BREADTH_DIVISOR = 5;        // angles / 5 = breadth score (5+ angles = 1.0)
+const EVIDENCE_SPECIFICITY_FACTOR = 0.08;    // specific references / (wordCount * 0.08 + 1)
+const CAUSAL_CHAIN_DIVISOR = 4;              // causal connectors / 4 = causal score
+const RISK_AWARENESS_DIVISOR = 4;            // risk patterns / 4 = risk score
+const TEMPORAL_REASONING_DIVISOR = 3;        // temporal patterns / 3 = temporal score
+const COMPARATIVE_ANALYSIS_DIVISOR = 3;      // comparative patterns / 3 = comparative score
+const QUANTITATIVE_RIGOR_FACTOR = 0.3;       // numbers / (sentenceCount * 0.3 + 1)
+
+/**
+ * Classification Boundaries
+ *
+ * Thresholds for classifying reasoning depth (exceptional/deep/moderate/shallow).
+ * Used in leaderboard presentation and agent profiles.
+ */
+const CLASSIFICATION_EXCEPTIONAL_THRESHOLD = 0.80; // >= 0.80 = exceptional reasoning
+const CLASSIFICATION_DEEP_THRESHOLD = 0.55;        // >= 0.55 = deep reasoning
+const CLASSIFICATION_MODERATE_THRESHOLD = 0.30;    // >= 0.30 = moderate reasoning (< 0.30 = shallow)
+
+/**
+ * Thesis Structure Scoring Weights
+ *
+ * Weight distribution for thesis structure dimension (thesis + evidence + conclusion).
+ * Must sum to 1.0 for normalized scoring.
+ */
+const THESIS_STRUCTURE_WEIGHT_THESIS = 0.35;      // 35% for thesis statement
+const THESIS_STRUCTURE_WEIGHT_EVIDENCE = 0.35;    // 35% for supporting evidence
+const THESIS_STRUCTURE_WEIGHT_CONCLUSION = 0.30;  // 30% for conclusion
+
+/**
+ * Thesis Structure Detection Thresholds
+ *
+ * Minimum evidence counts to consider thesis structure element present.
+ */
+const THESIS_EVIDENCE_MIN_NUMBERS = 2;  // >= 2 specific numbers = has evidence
+const THESIS_EVIDENCE_MIN_CAUSAL = 1;   // >= 1 causal connector = has evidence
+
+/**
+ * Quick Classification Thresholds
+ *
+ * Fast depth classification without full scoring (used in high-volume contexts).
+ * Combines word count and analytical angle count for quick triage.
+ */
+const QUICK_CLASSIFY_WORD_MIN_SHALLOW = 15;       // < 15 words = always shallow
+const QUICK_CLASSIFY_WORD_MIN_EXCEPTIONAL = 80;   // >= 80 words required for exceptional
+const QUICK_CLASSIFY_WORD_MIN_DEEP = 40;          // >= 40 words required for deep
+const QUICK_CLASSIFY_WORD_MIN_MODERATE = 20;      // >= 20 words required for moderate
+const QUICK_CLASSIFY_ANGLES_MIN_EXCEPTIONAL = 5;  // >= 5 angles required for exceptional
+const QUICK_CLASSIFY_ANGLES_MIN_DEEP = 3;         // >= 3 angles required for deep
+const QUICK_CLASSIFY_ANGLES_MIN_MODERATE = 1;     // >= 1 angle required for moderate
+
+/**
+ * Comparison Margin Thresholds
+ *
+ * Thresholds for determining winners in head-to-head depth comparisons.
+ */
+const COMPARISON_TIE_MARGIN = 0.02;              // Overall score difference < 0.02 = tie
+const COMPARISON_DIMENSION_WIN_MARGIN = 0.05;    // Dimension score difference > 0.05 = clear winner
+
+// ---------------------------------------------------------------------------
 // Analytical Angle Detection
 // ---------------------------------------------------------------------------
 
@@ -218,18 +305,18 @@ const COMPARATIVE_PATTERNS: RegExp[] = [
 // ---------------------------------------------------------------------------
 
 function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
@@ -257,7 +344,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
     }
   }
 
-  const breadthScore = Math.min(1, anglesDetected.length / 5);
+  const breadthScore = Math.min(1, anglesDetected.length / ANALYTICAL_BREADTH_DIVISOR);
   const analyticalBreadth: DimensionScore = {
     score: breadthScore,
     weight: DIMENSION_WEIGHTS.analyticalBreadth,
@@ -268,7 +355,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const specificNumbers = (reasoning.match(/\$[\d,.]+|[\d.]+%|\d+\.\d+|\d{4,}/g) ?? []).length;
   const specificSymbols = (reasoning.match(/\b[A-Z]{2,5}x?\b/g) ?? []).length;
   const totalSpecific = specificNumbers + specificSymbols;
-  const specificityScore = Math.min(1, totalSpecific / (wordCount * 0.08 + 1));
+  const specificityScore = Math.min(1, totalSpecific / (wordCount * EVIDENCE_SPECIFICITY_FACTOR + 1));
   const evidenceSpecificity: DimensionScore = {
     score: specificityScore,
     weight: DIMENSION_WEIGHTS.evidenceSpecificity,
@@ -285,7 +372,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
       causalEvidence.push(match[0]);
     }
   }
-  const causalScore = Math.min(1, causalCount / 4);
+  const causalScore = Math.min(1, causalCount / CAUSAL_CHAIN_DIVISOR);
   const causalChain: DimensionScore = {
     score: causalScore,
     weight: DIMENSION_WEIGHTS.causalChain,
@@ -302,7 +389,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
       riskEvidence.push(match[0]);
     }
   }
-  const riskScore = Math.min(1, riskCount / 4);
+  const riskScore = Math.min(1, riskCount / RISK_AWARENESS_DIVISOR);
   const riskAwareness: DimensionScore = {
     score: riskScore,
     weight: DIMENSION_WEIGHTS.riskAwareness,
@@ -319,7 +406,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
       temporalEvidence.push(match[0]);
     }
   }
-  const temporalScore = Math.min(1, temporalCount / 3);
+  const temporalScore = Math.min(1, temporalCount / TEMPORAL_REASONING_DIVISOR);
   const temporalReasoning: DimensionScore = {
     score: temporalScore,
     weight: DIMENSION_WEIGHTS.temporalReasoning,
