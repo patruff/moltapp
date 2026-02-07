@@ -76,6 +76,43 @@ const FEEDBACK_WIN_RATE_HIGH_THRESHOLD = 0.6; // >60% = strong performance, posi
  */
 const FEEDBACK_MIN_RESOLVED_FOR_CALIBRATION = 10;
 
+/**
+ * Minimum outcomes required for meaningful feedback generation.
+ * Below this threshold, agents get generic "build track record" message.
+ * Example: Agent with 2 trades doesn't have enough history for pattern insights.
+ */
+const FEEDBACK_MIN_OUTCOMES = 3;
+
+/**
+ * Streak length thresholds for feedback alerts (absolute value).
+ * Agents on 3+ win or loss streaks get specific advice (risk management).
+ * Example: 3 consecutive wins → "maintain discipline, don't oversize"
+ *          3 consecutive losses → "reduce position sizes until streak breaks"
+ */
+const FEEDBACK_STREAK_ALERT_THRESHOLD = 3;
+
+/**
+ * Profit factor classification thresholds.
+ * Profit factor = total wins / total losses (measures risk-reward efficiency).
+ *
+ * BREAK_EVEN: 1.0 — Agent is losing money (every $1 won costs $1+ to lose)
+ * EXCELLENT: 2.0 — Strong performance (every $1 lost generates $2+ in wins)
+ *
+ * Examples:
+ * - Profit factor 0.8: Losing $1.25 for every $1 gained → cut losses faster
+ * - Profit factor 2.5: Winning $2.50 for every $1 lost → excellent risk management
+ */
+const PROFIT_FACTOR_BREAK_EVEN = 1.0;
+const PROFIT_FACTOR_EXCELLENT = 2.0;
+
+/**
+ * Action performance differential threshold (0-1 scale).
+ * If buy vs sell win rate differs by >15 percentage points, flag as significant.
+ * Example: Buy 65% win rate, Sell 45% win rate → 20 point gap → "focus on buys"
+ * Used to identify if agent has directional bias (better at buying dips vs timing exits).
+ */
+const ACTION_PERFORMANCE_DIFFERENTIAL_THRESHOLD = 0.15;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -595,7 +632,7 @@ export function generateFeedbackPrompt(agentId: string): FeedbackPrompt {
   const advice: string[] = [];
 
   // Only generate meaningful feedback with enough data
-  if (profile.resolvedOutcomes < 3) {
+  if (profile.resolvedOutcomes < FEEDBACK_MIN_OUTCOMES) {
     const prompt: FeedbackPrompt = {
       agentId,
       promptText: "PERFORMANCE FEEDBACK: Not enough trade history yet. Focus on making well-reasoned decisions.",
@@ -627,17 +664,17 @@ export function generateFeedbackPrompt(agentId: string): FeedbackPrompt {
   }
 
   // Profit factor
-  if (profile.profitFactor < 1) {
-    advice.push(`Profit factor is ${profile.profitFactor.toFixed(2)} (below 1 = losing money). Cut losses faster.`);
-  } else if (profile.profitFactor > 2) {
-    insights.push(`Strong profit factor: ${profile.profitFactor.toFixed(2)} (>2 is excellent)`);
+  if (profile.profitFactor < PROFIT_FACTOR_BREAK_EVEN) {
+    advice.push(`Profit factor is ${profile.profitFactor.toFixed(2)} (below ${PROFIT_FACTOR_BREAK_EVEN} = losing money). Cut losses faster.`);
+  } else if (profile.profitFactor > PROFIT_FACTOR_EXCELLENT) {
+    insights.push(`Strong profit factor: ${profile.profitFactor.toFixed(2)} (>${PROFIT_FACTOR_EXCELLENT} is excellent)`);
   }
 
   // Streak insight
-  if (profile.currentStreak >= 3) {
+  if (profile.currentStreak >= FEEDBACK_STREAK_ALERT_THRESHOLD) {
     insights.push(`Currently on a ${profile.currentStreak}-trade winning streak`);
     advice.push("Hot streak — maintain discipline, don't let overconfidence lead to oversized bets.");
-  } else if (profile.currentStreak <= -3) {
+  } else if (profile.currentStreak <= -FEEDBACK_STREAK_ALERT_THRESHOLD) {
     insights.push(`Currently on a ${Math.abs(profile.currentStreak)}-trade losing streak`);
     advice.push("Losing streak — consider reducing position sizes until streak breaks.");
   }
@@ -668,10 +705,10 @@ export function generateFeedbackPrompt(agentId: string): FeedbackPrompt {
   const sellPerf = profile.actionPerformance["sell"];
 
   if (buyPerf && sellPerf) {
-    if (buyPerf.winRate > sellPerf.winRate + 0.15) {
+    if (buyPerf.winRate > sellPerf.winRate + ACTION_PERFORMANCE_DIFFERENTIAL_THRESHOLD) {
       insights.push(`Buy trades are significantly better than sell trades (${(buyPerf.winRate * 100).toFixed(0)}% vs ${(sellPerf.winRate * 100).toFixed(0)}%)`);
       advice.push("You're better at buying dips than timing sells. Focus on buy opportunities.");
-    } else if (sellPerf.winRate > buyPerf.winRate + 0.15) {
+    } else if (sellPerf.winRate > buyPerf.winRate + ACTION_PERFORMANCE_DIFFERENTIAL_THRESHOLD) {
       insights.push(`Sell trades outperform buys (${(sellPerf.winRate * 100).toFixed(0)}% vs ${(buyPerf.winRate * 100).toFixed(0)}%)`);
       advice.push("You're good at taking profits. Don't be afraid to lock in gains.");
     }
