@@ -72,6 +72,314 @@ const VALID_DIRECTIONS: PredictionDirection[] = ["bullish", "bearish", "neutral"
 /** Valid time horizons for validation */
 const VALID_HORIZONS: TimeHorizon[] = ["1h", "4h", "1d", "1w", "1m"];
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * AMM Odds Calculation Parameters
+ *
+ * These control the automated market maker's odds computation, which determines
+ * payout multipliers for prediction market bets.
+ */
+
+/**
+ * Even odds baseline for empty markets.
+ *
+ * When a prediction market starts with zero bets on either side, both "for"
+ * and "against" positions receive even 2.0x odds (equivalent to 50/50 probability).
+ * This ensures fair initial pricing before the AMM pool balances shift.
+ *
+ * @example Empty market: 0 tokens FOR, 0 tokens AGAINST → 2.0x odds both sides
+ */
+const ODDS_EVEN = 2.0;
+
+/**
+ * Maximum odds ceiling to prevent infinite payouts.
+ *
+ * Caps the highest payout multiplier at 100x when a market becomes extremely
+ * one-sided (e.g., 99% of pool on one side). Prevents single-sided pools from
+ * offering infinite odds when the denominator approaches zero.
+ *
+ * @example One-sided pool: 1000 FOR, 0 AGAINST → caps at 100x (not infinity)
+ */
+const MAX_ODDS = 100.0;
+
+/**
+ * Minimum odds floor to ensure payouts exceed wagers.
+ *
+ * Guarantees all winning bets receive at least 1.01x their wager, even in
+ * heavily skewed markets. Prevents scenarios where winners receive less than
+ * their original stake.
+ *
+ * @example Heavily skewed: 1000 FOR, 10 AGAINST → FOR odds floored at 1.01x
+ */
+const MIN_ODDS = 1.01;
+
+/**
+ * Decimal precision for odds rounding.
+ *
+ * Odds are rounded to 4 decimal places (e.g., 2.3456x) for display consistency
+ * and to prevent floating-point precision issues in payout calculations.
+ */
+const ODDS_DECIMAL_PRECISION = 4;
+
+/**
+ * Payout Calculation Parameters
+ *
+ * Control how bet payouts are computed and rounded after prediction resolution.
+ */
+
+/**
+ * Decimal precision for payout rounding.
+ *
+ * All payouts are rounded to 2 decimal places (cents) to match standard token
+ * display format. Prevents sub-cent payout dust in user balances.
+ *
+ * @example Payout calculation: 125.456 tokens → 125.46 tokens (rounded to cents)
+ */
+const PAYOUT_DECIMAL_PRECISION = 2;
+
+/**
+ * Bet Limits and Validation
+ *
+ * Enforce betting boundaries to prevent abuse and maintain market stability.
+ */
+
+/**
+ * Maximum single bet amount in virtual tokens.
+ *
+ * Caps individual bets at 100,000 tokens to prevent whale manipulation of odds
+ * and to maintain fair market dynamics. Large bets shift AMM odds dramatically.
+ *
+ * @example Valid bet: 50,000 tokens (allowed)
+ * @example Invalid bet: 150,000 tokens (rejected, exceeds MAX_BET_AMOUNT)
+ */
+const MAX_BET_AMOUNT = 100000;
+
+/**
+ * Prediction Resolution Thresholds
+ *
+ * Control how predictions are graded as correct/incorrect against actual market data.
+ */
+
+/**
+ * Price target tolerance as a fraction of target price.
+ *
+ * For price_target predictions, the actual price must be within ±2% of the
+ * predicted target to count as correct. Allows minor variance in exact price hits.
+ *
+ * @example Target $100, actual $98 → within 2% tolerance → CORRECT
+ * @example Target $100, actual $95 → outside 2% tolerance → INCORRECT
+ */
+const PRICE_TARGET_TOLERANCE = 0.02;
+
+/**
+ * Minimum price movement for directional predictions (percentage).
+ *
+ * Directional "bullish" or "bearish" calls must see at least 0.1% price movement
+ * in the predicted direction to count as correct. Prevents trivial sub-0.1% moves
+ * from validating predictions.
+ *
+ * @example Bullish call: +0.15% move → CORRECT (exceeds 0.1% threshold)
+ * @example Bullish call: +0.05% move → INCORRECT (below 0.1% threshold)
+ */
+const DIRECTION_MIN_MOVE_PCT = 0.1;
+
+/**
+ * Neutral direction tolerance band (percentage).
+ *
+ * For "neutral" directional predictions, the price must stay within ±0.5% of the
+ * entry price to count as correct. Defines the acceptable range for "sideways" moves.
+ *
+ * @example Neutral call: -0.3% move → CORRECT (within ±0.5% band)
+ * @example Neutral call: +0.8% move → INCORRECT (exceeds ±0.5% band)
+ */
+const DIRECTION_NEUTRAL_TOLERANCE_PCT = 0.5;
+
+/**
+ * High volatility threshold for volatility predictions (percentage).
+ *
+ * For "bullish" volatility predictions (expecting high vol), the absolute price
+ * change must exceed 2.0% to count as correct. Defines "high volatility" moves.
+ *
+ * @example Bullish vol: ±2.5% move → CORRECT (exceeds 2.0% threshold)
+ * @example Bullish vol: ±1.8% move → INCORRECT (below 2.0% threshold)
+ */
+const VOLATILITY_HIGH_THRESHOLD_PCT = 2.0;
+
+/**
+ * Low volatility threshold for volatility predictions (percentage).
+ *
+ * For "bearish" volatility predictions (expecting low vol), the absolute price
+ * change must be below 1.0% to count as correct. Defines "low volatility" range.
+ *
+ * @example Bearish vol: ±0.8% move → CORRECT (below 1.0% threshold)
+ * @example Bearish vol: ±1.2% move → INCORRECT (exceeds 1.0% threshold)
+ */
+const VOLATILITY_LOW_THRESHOLD_PCT = 1.0;
+
+/**
+ * Moderate volatility lower bound (percentage).
+ *
+ * For "neutral" volatility predictions (moderate vol), the absolute price change
+ * must be at least 0.5% to count as correct. Defines lower bound of moderate range.
+ *
+ * @example Neutral vol: ±0.7% move → CORRECT (≥0.5%, within moderate range)
+ * @example Neutral vol: ±0.3% move → INCORRECT (below 0.5% lower bound)
+ */
+const VOLATILITY_MODERATE_MIN_PCT = 0.5;
+
+/**
+ * Outperform neutral tolerance (percentage).
+ *
+ * For "neutral" outperform predictions, the price must stay within ±1.0% to count
+ * as correct. Defines acceptable range for "matched benchmark" predictions.
+ *
+ * @example Neutral outperform: +0.8% vs benchmark → CORRECT (within ±1.0%)
+ * @example Neutral outperform: +1.5% vs benchmark → INCORRECT (exceeds ±1.0%)
+ */
+const OUTPERFORM_NEUTRAL_TOLERANCE_PCT = 1.0;
+
+/**
+ * Calibration Analysis Parameters
+ *
+ * Control how agent confidence calibration is measured against actual accuracy.
+ */
+
+/**
+ * Confidence bucket size for calibration analysis (percentage points).
+ *
+ * Agent predictions are grouped into 10-point confidence buckets (0-9%, 10-19%, etc.)
+ * to compare stated confidence against actual win rate. Larger buckets = coarser analysis.
+ *
+ * @example 75% confidence → bucket 70-79% → compare 75% stated vs actual win rate in bucket
+ */
+const CALIBRATION_BUCKET_SIZE = 10;
+
+/**
+ * Minimum predictions per calibration bucket for statistical significance.
+ *
+ * Buckets with fewer than 2 predictions are excluded from calibration error calculation
+ * to avoid drawing conclusions from insufficient sample sizes.
+ *
+ * @example Bucket with 1 prediction → excluded (insufficient data)
+ * @example Bucket with 5 predictions → included (meets MIN_BUCKET_SAMPLES)
+ */
+const CALIBRATION_MIN_BUCKET_SAMPLES = 2;
+
+/**
+ * Default calibration score when insufficient data exists.
+ *
+ * If an agent has too few predictions to compute meaningful calibration error,
+ * return neutral 50/100 score. Avoids penalizing agents with limited track records.
+ *
+ * @example Agent with 0 resolved predictions → calibration score = 50 (neutral)
+ */
+const CALIBRATION_DEFAULT_SCORE = 50;
+
+/**
+ * Leaderboard Ranking Weights
+ *
+ * Control how agents are scored and ranked in the prediction leaderboard composite metric.
+ */
+
+/**
+ * Win rate weight in leaderboard profitability score.
+ *
+ * Win rate contributes 40% to the composite profitability metric. Highest weight
+ * because prediction accuracy is the primary skill being measured.
+ *
+ * @example 80% win rate → contributes 32 points (0.80 × 40) to profitability
+ */
+const LEADERBOARD_WEIGHT_WIN_RATE = 40;
+
+/**
+ * Calibration score weight in leaderboard profitability score.
+ *
+ * Calibration contributes 30% to composite profitability. Rewards agents whose
+ * confidence levels accurately match their actual win rates.
+ *
+ * @example 90 calibration score → contributes 27 points (0.90 × 30) to profitability
+ */
+const LEADERBOARD_WEIGHT_CALIBRATION = 30;
+
+/**
+ * Volume weight in leaderboard profitability score.
+ *
+ * Betting volume received contributes up to 20% to composite profitability. Rewards
+ * agents whose predictions attract market participation (trust signal).
+ *
+ * Calculated as: min(20, log10(totalPoolVolume + 1) × 5)
+ *
+ * @example 1,000 tokens volume → ~15 points, 10,000 tokens → 20 points (capped)
+ */
+const LEADERBOARD_WEIGHT_VOLUME = 20;
+
+/**
+ * Volume score logarithm multiplier.
+ *
+ * Multiplier applied to log10(volume + 1) to scale volume score to 0-20 range.
+ * Logarithmic scaling prevents whale volumes from dominating rankings.
+ */
+const LEADERBOARD_VOLUME_LOG_MULTIPLIER = 5;
+
+/**
+ * Consistency weight in leaderboard profitability score.
+ *
+ * Total predictions made contributes up to 10% to composite profitability. Rewards
+ * agents who make consistent forecasts rather than one-off predictions.
+ *
+ * Calculated as: min(10, totalPredictions × 0.5)
+ *
+ * @example 5 predictions → 2.5 points, 20+ predictions → 10 points (capped)
+ */
+const LEADERBOARD_WEIGHT_CONSISTENCY = 10;
+
+/**
+ * Consistency score per-prediction multiplier.
+ *
+ * Each prediction contributes 0.5 points to consistency score, capped at
+ * LEADERBOARD_WEIGHT_CONSISTENCY. Encourages regular prediction activity.
+ */
+const LEADERBOARD_CONSISTENCY_PER_PREDICTION = 0.5;
+
+/**
+ * Query Limits
+ *
+ * Default pagination and result set sizes for prediction history queries.
+ */
+
+/**
+ * Maximum predictions returned in single query.
+ *
+ * Hard cap for getPredictionHistory() limit parameter. Prevents resource exhaustion
+ * from requests for thousands of predictions at once.
+ *
+ * @example User requests limit=500 → clamped to 100 (MAX_QUERY_LIMIT)
+ */
+const MAX_QUERY_LIMIT = 100;
+
+/**
+ * Default predictions per page when limit not specified.
+ *
+ * Standard page size for pagination in getPredictionHistory(). Balances UX
+ * (showing meaningful results) vs performance (avoiding large query overhead).
+ *
+ * @example getPredictionHistory() with no limit → returns 20 predictions
+ */
+const DEFAULT_QUERY_LIMIT = 20;
+
+/**
+ * Maximum hot predictions displayed.
+ *
+ * Top N predictions by pool volume shown in getHotPredictions(). Focuses on
+ * the most actively traded markets with highest liquidity.
+ *
+ * @example getHotPredictions() → returns top 20 predictions by total pool size
+ */
+const HOT_PREDICTIONS_DISPLAY_LIMIT = 20;
+
 /** Aggregate stats for an agent's prediction track record */
 export interface AgentPredictionStats {
   agentId: string;
@@ -150,13 +458,10 @@ export function calculateDynamicOdds(
 
   // Empty market — return even odds
   if (totalPool === 0 || (forPool === 0 && againstPool === 0)) {
-    return { oddsFor: 2.0, oddsAgainst: 2.0 };
+    return { oddsFor: ODDS_EVEN, oddsAgainst: ODDS_EVEN };
   }
 
-  // One-sided markets — cap at 100x, floor at 1.01x
-  const MAX_ODDS = 100.0;
-  const MIN_ODDS = 1.01;
-
+  // One-sided markets — cap at MAX_ODDS, floor at MIN_ODDS
   let oddsFor = forPool > 0 ? totalPool / forPool : MAX_ODDS;
   let oddsAgainst = againstPool > 0 ? totalPool / againstPool : MAX_ODDS;
 
@@ -164,8 +469,8 @@ export function calculateDynamicOdds(
   oddsAgainst = Math.max(MIN_ODDS, Math.min(MAX_ODDS, oddsAgainst));
 
   return {
-    oddsFor: roundTo(oddsFor, 4),
-    oddsAgainst: roundTo(oddsAgainst, 4),
+    oddsFor: roundTo(oddsFor, ODDS_DECIMAL_PRECISION),
+    oddsAgainst: roundTo(oddsAgainst, ODDS_DECIMAL_PRECISION),
   };
 }
 
@@ -322,8 +627,8 @@ export async function placeBet(
   if (amount <= 0) {
     throw new Error("Bet amount must be greater than 0");
   }
-  if (amount > 100000) {
-    throw new Error("Maximum bet amount is 100,000 tokens");
+  if (amount > MAX_BET_AMOUNT) {
+    throw new Error(`Maximum bet amount is ${MAX_BET_AMOUNT.toLocaleString()} tokens`);
   }
 
   // Validate bettor type
@@ -484,8 +789,8 @@ export async function resolvePrediction(
   switch (prediction.predictionType) {
     case "price_target": {
       const target = parseFloat(prediction.targetPrice ?? "0");
-      // Correct if price is within 2% of target
-      const tolerance = target * 0.02;
+      // Correct if price is within PRICE_TARGET_TOLERANCE of target
+      const tolerance = target * PRICE_TARGET_TOLERANCE;
       const distance = Math.abs(currentPrice - target);
       isCorrect = distance <= tolerance;
 
@@ -504,15 +809,14 @@ export async function resolvePrediction(
     }
 
     case "direction": {
-      // Correct if price moved in the predicted direction by at least 0.1%
-      const threshold = 0.1;
+      // Correct if price moved in the predicted direction by at least DIRECTION_MIN_MOVE_PCT
       if (prediction.direction === "bullish") {
-        isCorrect = priceDeltaPercent >= threshold;
+        isCorrect = priceDeltaPercent >= DIRECTION_MIN_MOVE_PCT;
       } else if (prediction.direction === "bearish") {
-        isCorrect = priceDeltaPercent <= -threshold;
+        isCorrect = priceDeltaPercent <= -DIRECTION_MIN_MOVE_PCT;
       } else {
-        // Neutral: price stayed within +/- 0.5%
-        isCorrect = Math.abs(priceDeltaPercent) < 0.5;
+        // Neutral: price stayed within +/- DIRECTION_NEUTRAL_TOLERANCE_PCT
+        isCorrect = Math.abs(priceDeltaPercent) < DIRECTION_NEUTRAL_TOLERANCE_PCT;
       }
 
       resolutionDetails = isCorrect
