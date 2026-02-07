@@ -21,6 +21,101 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Outcome Evaluation Timing Parameters
+ *
+ * Controls when trade outcomes are evaluated after execution.
+ */
+
+/**
+ * OUTCOME_EVALUATION_DELAY_MINUTES
+ *
+ * Delay in minutes before evaluating trade outcomes after execution.
+ * Allows sufficient time for market prices to move and generate meaningful P&L data.
+ *
+ * @default 30 minutes
+ * @example If trade executed at 10:00 AM, outcome evaluated at 10:30 AM+
+ */
+const OUTCOME_EVALUATION_DELAY_MINUTES = 30;
+
+/**
+ * P&L Classification Thresholds
+ *
+ * Determines how trades are classified based on profit/loss percentage.
+ */
+
+/**
+ * BREAKEVEN_THRESHOLD_PERCENT
+ *
+ * Maximum absolute P&L percentage to classify trade as "breakeven" vs "profit"/"loss".
+ * Accounts for minor price fluctuations and slippage that don't indicate meaningful edge.
+ *
+ * @default 0.5% (|P&L| < 0.5% = breakeven)
+ * @example Entry $100, current $100.40 (+0.4%) = breakeven, not profit
+ * @example Entry $100, current $99.50 (-0.5%) = breakeven, not loss
+ */
+const BREAKEVEN_THRESHOLD_PERCENT = 0.5;
+
+/**
+ * Confidence Calibration Thresholds
+ *
+ * Determines what confidence level qualifies as "high confidence" for calibration analysis.
+ */
+
+/**
+ * HIGH_CONFIDENCE_THRESHOLD
+ *
+ * Minimum confidence level (0-1 scale) to classify trade as "high confidence".
+ * High confidence trades should have higher win rates than low confidence trades
+ * for the agent to be considered "calibrated".
+ *
+ * @default 0.6 (≥60% confidence = high confidence)
+ * @example confidence 0.65 → high confidence, should profit more often
+ * @example confidence 0.50 → low confidence, losses more acceptable
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 0.6;
+
+/**
+ * Memory and Query Limits
+ *
+ * Controls outcome cache size and database query limits to prevent memory bloat.
+ */
+
+/**
+ * MAX_OUTCOMES_CACHE
+ *
+ * Maximum number of outcome results to retain in memory.
+ * Older outcomes are trimmed when cache exceeds this limit.
+ *
+ * @default 500 outcomes
+ */
+const MAX_OUTCOMES_CACHE = 500;
+
+/**
+ * MAX_JUSTIFICATIONS_PER_RUN
+ *
+ * Maximum number of trade justifications to process in a single outcome tracking run.
+ * Prevents excessive database queries and processing time.
+ *
+ * @default 100 justifications
+ */
+const MAX_JUSTIFICATIONS_PER_RUN = 100;
+
+/**
+ * MIN_TRADES_FOR_CALIBRATION
+ *
+ * Minimum number of trades with P&L data required to calculate meaningful
+ * confidence calibration scores.
+ *
+ * @default 5 trades
+ * @rationale Statistical significance requires minimum sample size
+ */
+const MIN_TRADES_FOR_CALIBRATION = 5;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -63,8 +158,6 @@ const trackerState: {
   outcomes: [],
 };
 
-const MAX_OUTCOMES_CACHE = 500;
-
 // ---------------------------------------------------------------------------
 // Core: Track Outcomes
 // ---------------------------------------------------------------------------
@@ -86,8 +179,8 @@ export async function trackOutcomes(
   }
 
   try {
-    // Find justifications without outcomes that are old enough (> 30 min)
-    const cutoff = new Date(Date.now() - 30 * 60 * 1000);
+    // Find justifications without outcomes that are old enough
+    const cutoff = new Date(Date.now() - OUTCOME_EVALUATION_DELAY_MINUTES * 60 * 1000);
 
     const pendingJustifications = await db
       .select()
@@ -99,7 +192,7 @@ export async function trackOutcomes(
         ),
       )
       .orderBy(desc(tradeJustifications.timestamp))
-      .limit(100);
+      .limit(MAX_JUSTIFICATIONS_PER_RUN);
 
     for (const j of pendingJustifications) {
       const currentPrice = priceMap.get(j.symbol.toLowerCase());
@@ -165,7 +258,7 @@ export async function trackOutcomes(
           pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
         }
 
-        if (Math.abs(pnlPercent) < 0.5) {
+        if (Math.abs(pnlPercent) < BREAKEVEN_THRESHOLD_PERCENT) {
           outcome = "breakeven";
           outcomeText = `Breakeven. Entry $${entryPrice.toFixed(2)}, current $${currentPrice.toFixed(2)} (${pnlPercent >= 0 ? "+" : ""}${pnlPercent.toFixed(2)}%).`;
         } else if (pnlPercent > 0) {
@@ -182,7 +275,7 @@ export async function trackOutcomes(
 
       // Determine confidence calibration
       const confidence01 = j.confidence;
-      const highConfidence = confidence01 >= 0.6;
+      const highConfidence = confidence01 >= HIGH_CONFIDENCE_THRESHOLD;
       const wasCalibrated =
         (highConfidence && outcome === "profit") ||
         (!highConfidence && outcome !== "profit") ||
@@ -266,7 +359,7 @@ export function calculateConfidenceCalibration(
   // Only use outcomes with actual P&L data
   const withPnl = outcomes.filter((o) => o.pnlPercent !== null);
 
-  if (withPnl.length < 5) {
+  if (withPnl.length < MIN_TRADES_FOR_CALIBRATION) {
     return {
       score: 0.5, // neutral score when insufficient data
       buckets: [],
