@@ -500,6 +500,37 @@ const VOLATILITY_SCORE_MULTIPLIER = 2;
  */
 const TIME_CONSISTENCY_MULTIPLIER = 50;
 
+/**
+ * ELO Score Calculation Constants
+ *
+ * Magnitude scaling factors for converting price changes to ELO scores.
+ */
+
+/**
+ * ELO score baseline: 0.5
+ * Neutral starting point for ELO score before magnitude adjustment (50% expected score).
+ */
+const ELO_SCORE_BASELINE = 0.5;
+
+/**
+ * ELO price magnitude divisor: 10
+ * Converts price change percentage to ELO score magnitude (priceChange / 10).
+ * Example: 5% price change → ±0.5 score adjustment.
+ */
+const ELO_PRICE_MAGNITUDE_DIVISOR = 10;
+
+/**
+ * ELO score floor: 0
+ * Minimum ELO rating (prevents negative ratings).
+ */
+const ELO_SCORE_FLOOR = 0;
+
+/**
+ * ELO score ceiling: 1
+ * Maximum ELO score per decision (caps magnitude bonus at 100%).
+ */
+const ELO_SCORE_CEILING = 1;
+
 // ---------------------------------------------------------------------------
 // Badge Definitions
 // ---------------------------------------------------------------------------
@@ -916,9 +947,9 @@ function calculateEloRating(
     // Actual score: 1 if correct, 0 if wrong, scaled by magnitude
     let actualScore: number;
     if (d.action === "buy") {
-      actualScore = priceChange > 0 ? Math.min(1, 0.5 + priceChange / 10) : Math.max(0, 0.5 + priceChange / 10);
+      actualScore = priceChange > 0 ? Math.min(ELO_SCORE_CEILING, ELO_SCORE_BASELINE + priceChange / ELO_PRICE_MAGNITUDE_DIVISOR) : Math.max(ELO_SCORE_FLOOR, ELO_SCORE_BASELINE + priceChange / ELO_PRICE_MAGNITUDE_DIVISOR);
     } else {
-      actualScore = priceChange < 0 ? Math.min(1, 0.5 + Math.abs(priceChange) / 10) : Math.max(0, 0.5 - priceChange / 10);
+      actualScore = priceChange < 0 ? Math.min(ELO_SCORE_CEILING, ELO_SCORE_BASELINE + Math.abs(priceChange) / ELO_PRICE_MAGNITUDE_DIVISOR) : Math.max(ELO_SCORE_FLOOR, ELO_SCORE_BASELINE - priceChange / ELO_PRICE_MAGNITUDE_DIVISOR);
     }
 
     // ELO update
@@ -926,7 +957,7 @@ function calculateEloRating(
     elo += adjustment;
 
     // Floor at 0
-    elo = Math.max(0, elo);
+    elo = Math.max(ELO_SCORE_FLOOR, elo);
   }
 
   return Math.round(elo);
@@ -1168,12 +1199,6 @@ function calculateTrustScore(
   consistency: ConsistencyMetrics,
   decisions: Array<{ createdAt: Date }>,
 ): number {
-  // Weighted composite
-  const accuracyWeight = 0.35;
-  const calibrationWeight = 0.25;
-  const consistencyWeight = 0.20;
-  const activityWeight = 0.20;
-
   const accuracyScore = accuracy.accuracy;
   const calibrationScore = calibration.overallCalibration;
   const consistencyScore =
@@ -1183,20 +1208,20 @@ function calculateTrustScore(
     3;
 
   // Activity score: reward frequent, recent trading
-  let activityScore = 50;
+  let activityScore = DEFAULT_SCORE;
   if (decisions.length > 0) {
     const daysSinceLastTrade =
       (Date.now() - decisions[0].createdAt.getTime()) / (24 * 60 * 60 * 1000);
     const decayPenalty = daysSinceLastTrade * TRUST_DECAY_RATE * 100;
-    const volumeBonus = Math.min(30, decisions.length * 0.5);
-    activityScore = Math.max(0, 70 + volumeBonus - decayPenalty);
+    const volumeBonus = Math.min(ACTIVITY_MAX_VOLUME_BONUS, decisions.length * ACTIVITY_VOLUME_MULTIPLIER);
+    activityScore = Math.max(ELO_SCORE_FLOOR, ACTIVITY_SCORE_BASELINE + volumeBonus - decayPenalty);
   }
 
   const raw =
-    accuracyScore * accuracyWeight +
-    calibrationScore * calibrationWeight +
-    consistencyScore * consistencyWeight +
-    activityScore * activityWeight;
+    accuracyScore * TRUST_WEIGHT_ACCURACY +
+    calibrationScore * TRUST_WEIGHT_CALIBRATION +
+    consistencyScore * TRUST_WEIGHT_CONSISTENCY +
+    activityScore * TRUST_WEIGHT_ACTIVITY;
 
   return Math.round(Math.max(0, Math.min(100, raw)) * 10) / 10;
 }
@@ -1377,12 +1402,12 @@ function buildRatingHistory(
       const expectedScore = d.confidence / 100;
       let actualScore: number;
       if (d.action === "buy") {
-        actualScore = change > 0 ? Math.min(1, 0.5 + change / 10) : Math.max(0, 0.5 + change / 10);
+        actualScore = change > 0 ? Math.min(ELO_SCORE_CEILING, ELO_SCORE_BASELINE + change / ELO_PRICE_MAGNITUDE_DIVISOR) : Math.max(ELO_SCORE_FLOOR, ELO_SCORE_BASELINE + change / ELO_PRICE_MAGNITUDE_DIVISOR);
       } else {
-        actualScore = change < 0 ? Math.min(1, 0.5 + Math.abs(change) / 10) : Math.max(0, 0.5 - change / 10);
+        actualScore = change < 0 ? Math.min(ELO_SCORE_CEILING, ELO_SCORE_BASELINE + Math.abs(change) / ELO_PRICE_MAGNITUDE_DIVISOR) : Math.max(ELO_SCORE_FLOOR, ELO_SCORE_BASELINE - change / ELO_PRICE_MAGNITUDE_DIVISOR);
       }
       elo += ELO_K_FACTOR * (actualScore - expectedScore);
-      elo = Math.max(0, elo);
+      elo = Math.max(ELO_SCORE_FLOOR, elo);
     }
 
     if (i % sampleRate === 0 || i === chronological.length - 1) {
