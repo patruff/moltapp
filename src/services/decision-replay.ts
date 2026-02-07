@@ -244,6 +244,72 @@ const MINUTES_PER_HOUR = 60;
  */
 const HOURS_PER_DAY = 24;
 
+/**
+ * PORTFOLIO RECONSTRUCTION PARAMETERS
+ *
+ * Control how portfolio state is estimated when replaying historical decisions.
+ */
+
+/**
+ * Initial capital allocated to each agent at start of trading.
+ * Used to estimate cash balance by subtracting all prior trades.
+ */
+const INITIAL_CAPITAL = 10000;
+
+/**
+ * Maximum recent trades to display in portfolio snapshot.
+ * Shows the N most recent trades leading up to the decision.
+ */
+const PORTFOLIO_RECENT_TRADES_DISPLAY_LIMIT = 5;
+
+/**
+ * MARKET DIRECTION CLASSIFICATION THRESHOLDS
+ *
+ * Control how market sentiment is classified based on average 24h price change.
+ */
+
+/**
+ * Bullish market threshold (avg 24h change).
+ * avgChange > this value = "bullish" market direction.
+ */
+const MARKET_DIRECTION_BULLISH_THRESHOLD = 1;
+
+/**
+ * Bearish market threshold (avg 24h change).
+ * avgChange < negative of this value = "bearish" market direction.
+ */
+const MARKET_DIRECTION_BEARISH_THRESHOLD = -1;
+
+/**
+ * DECISION TIMELINE WINDOW
+ *
+ * Control how much historical context is shown around a decision.
+ */
+
+/**
+ * Time window (in milliseconds) before/after the decision to include in timeline.
+ * 2 hours = 2 * 60 * 60 * 1000 = 7,200,000 ms.
+ */
+const TIMELINE_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * CONSENSUS DETECTION THRESHOLDS
+ *
+ * Control how round consensus is classified based on agent agreement.
+ */
+
+/**
+ * Minimum agents required for majority consensus detection.
+ * Need at least this many agents to classify as "majority".
+ */
+const CONSENSUS_MIN_AGENTS = 3;
+
+/**
+ * Minimum agreements required for majority consensus.
+ * Need at least this many agents agreeing on same action for "majority" classification.
+ */
+const CONSENSUS_MIN_AGREEMENTS = 2;
+
 // ---------------------------------------------------------------------------
 // Core Functions
 // ---------------------------------------------------------------------------
@@ -513,7 +579,7 @@ async function buildRoundContext(
   const actions = allDecisions.map((d: { action: string }) => d.action);
   const uniqueActions = new Set(actions);
   const consensus: "unanimous" | "majority" | "split" =
-    uniqueActions.size === 1 ? "unanimous" : actions.length >= 3 && actions.filter((a: string) => a === actions[0]).length >= 2 ? "majority" : "split";
+    uniqueActions.size === 1 ? "unanimous" : actions.length >= CONSENSUS_MIN_AGENTS && actions.filter((a: string) => a === actions[0]).length >= CONSENSUS_MIN_AGREEMENTS ? "majority" : "split";
 
   // Agreement summary
   let agreementSummary: string;
@@ -546,7 +612,6 @@ async function buildPortfolioAtTime(
     .limit(PORTFOLIO_PRIOR_TRADES_LIMIT);
 
   // Estimate cash balance
-  const INITIAL_CAPITAL = 10000;
   let cashBalance = INITIAL_CAPITAL;
   for (const trade of priorTrades) {
     if (trade.side === "buy") {
@@ -562,7 +627,7 @@ async function buildPortfolioAtTime(
   return {
     estimatedCashBalance: Math.max(0, cashBalance),
     positionCount: symbols.size,
-    recentPriorTrades: priorTrades.slice(0, 5).map((t: TradeRow) => ({
+    recentPriorTrades: priorTrades.slice(0, PORTFOLIO_RECENT_TRADES_DISPLAY_LIMIT).map((t: TradeRow) => ({
       side: t.side,
       symbol: t.stockSymbol,
       quantity: t.stockQuantity,
@@ -598,7 +663,7 @@ function buildMarketContext(
   const topLoser = sorted[sorted.length - 1] ? { symbol: sorted[sorted.length - 1][0], change: sorted[sorted.length - 1][1].change24h ?? 0 } : null;
 
   const direction: "bullish" | "bearish" | "mixed" =
-    avgChange > 1 ? "bullish" : avgChange < -1 ? "bearish" : "mixed";
+    avgChange > MARKET_DIRECTION_BULLISH_THRESHOLD ? "bullish" : avgChange < MARKET_DIRECTION_BEARISH_THRESHOLD ? "bearish" : "mixed";
 
   const target = snapshot[targetSymbol];
 
@@ -735,9 +800,8 @@ async function buildDecisionTimeline(
   agentId: string,
   aroundTime: Date,
 ): Promise<TimelineEntry[]> {
-  const windowMs = 2 * 60 * 60 * 1000; // 2 hours before/after
-  const startTime = new Date(aroundTime.getTime() - windowMs);
-  const endTime = new Date(aroundTime.getTime() + windowMs);
+  const startTime = new Date(aroundTime.getTime() - TIMELINE_WINDOW_MS);
+  const endTime = new Date(aroundTime.getTime() + TIMELINE_WINDOW_MS);
 
   // Get all decisions in the time window
   const decisions = await db
