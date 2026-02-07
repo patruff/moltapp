@@ -22,7 +22,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getAgentStats } from "../agents/orchestrator.ts";
 import type { AgentStats } from "../agents/base-agent.ts";
-import { round2, sumByKey, weightedSum } from "../lib/math-utils.ts";
+import { round2, sumByKey, weightedSum, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -96,6 +96,21 @@ const DEFAULT_HISTORICAL_ACCURACY_BASE = 50;
  * Adds realistic spread: 50 + [0, 25] = [50%, 75%] accuracy range.
  */
 const DEFAULT_HISTORICAL_ACCURACY_RANGE = 25;
+
+/**
+ * Swarm Score Classification Threshold
+ *
+ * Minimum swarm score (0-100 scale) required for a consensus signal to be
+ * classified as "strong consensus" worthy of elevated attention.
+ *
+ * Swarm score calculation: (agentsAgreeing / totalAgents) × avgConfidence × accuracy
+ * - Score > 60 = Strong consensus (agents aligned with high confidence)
+ * - Score ≤ 60 = Moderate/weak consensus (either low agreement OR low confidence)
+ *
+ * Example: 3/3 agents agreeing at 80% confidence × 0.60 accuracy = 144 swarm score (strong)
+ * Example: 2/3 agents agreeing at 50% confidence × 0.60 accuracy = 60 swarm score (threshold)
+ */
+const SWARM_SCORE_STRONG_THRESHOLD = 60;
 
 /**
  * Baseline contrarian prediction accuracy (%) when agent bucks majority.
@@ -608,8 +623,8 @@ function generateSampleConsensus(
       };
     });
 
-    const bullish = agentViews.filter((v) => v.action === "buy").length;
-    const bearish = agentViews.filter((v) => v.action === "sell").length;
+    const bullish = countByCondition(agentViews, (v) => v.action === "buy");
+    const bearish = countByCondition(agentViews, (v) => v.action === "sell");
 
     let direction: ConsensusSignal["direction"];
     let agentsAgreeing: number;
@@ -811,9 +826,9 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
     let holds: number;
 
     if (agentDecisionsList.length > 0) {
-      buys = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "buy").length;
-      sells = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "sell").length;
-      holds = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action === "hold").length;
+      buys = countByCondition(agentDecisionsList, (d: typeof agentDecisionsList[0]) => d.action === "buy");
+      sells = countByCondition(agentDecisionsList, (d: typeof agentDecisionsList[0]) => d.action === "sell");
+      holds = countByCondition(agentDecisionsList, (d: typeof agentDecisionsList[0]) => d.action === "hold");
     } else {
       // Simulated defaults based on personality
       if (config.riskTolerance === "aggressive") {
@@ -868,9 +883,9 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
     const symbolDecs = decisions.filter((d: typeof decisions[0]) => d.symbol === symbol);
     if (symbolDecs.length > 0) {
       symbolMap.set(symbol, {
-        bullish: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "buy").length,
-        bearish: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "sell").length,
-        neutral: symbolDecs.filter((d: typeof symbolDecs[0]) => d.action === "hold").length,
+        bullish: countByCondition(symbolDecs, (d: typeof symbolDecs[0]) => d.action === "buy"),
+        bearish: countByCondition(symbolDecs, (d: typeof symbolDecs[0]) => d.action === "sell"),
+        neutral: countByCondition(symbolDecs, (d: typeof symbolDecs[0]) => d.action === "hold"),
       });
     } else {
       symbolMap.set(symbol, {
