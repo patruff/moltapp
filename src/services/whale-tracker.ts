@@ -600,8 +600,8 @@ export async function getWhaleAlerts(hours = WHALE_ALERTS_DEFAULT_HOURS): Promis
   for (const d of buyDecisions) bullishSymbols[d.symbol] = (bullishSymbols[d.symbol] || 0) + d.confidence;
   for (const d of sellDecisions) bearishSymbols[d.symbol] = (bearishSymbols[d.symbol] || 0) + d.confidence;
 
-  const topBullish = getTopEntry(bullishSymbols);
-  const topBearish = getTopEntry(bearishSymbols);
+  const topBullish = getTopKey(bullishSymbols);
+  const topBearish = getTopKey(bearishSymbols);
 
   let overallActivity: WhaleActivity["overallActivity"];
   if (alerts.length <= ACTIVITY_QUIET_MAX) overallActivity = "quiet";

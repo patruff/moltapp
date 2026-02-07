@@ -558,7 +558,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
   // Round confidence values
   for (const f of factors) f.confidence = round(f.confidence, 1);
 
-  const dominant = findMax(factors, "loading", (a, b) => Math.abs(a) - Math.abs(b))!;
+  const dominant = findMaxBy(factors, "loading", (a, b) => Math.abs(a) - Math.abs(b))!;
 
   // Determine tilt narrative
   let factorTilt: string;
