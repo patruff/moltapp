@@ -258,6 +258,9 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
     priceHistory.set(stock.symbol, history);
   }
 
+  // Auto-run liquidity analysis with fresh data
+  analyzeLiquidity(results);
+
   return results;
 }
 
@@ -697,6 +700,100 @@ export interface AggregatorStats {
     cachedHits: number;
     mockFallbacks: number;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Liquidity Analysis
+// ---------------------------------------------------------------------------
+
+/** Minimum liquidity (USD) for a token to be considered tradeable */
+const MIN_TRADEABLE_LIQUIDITY_USD = 50_000;
+
+export type LiquidityTier = "good" | "moderate" | "thin" | "dead";
+
+export interface TokenLiquidity {
+  symbol: string;
+  name: string;
+  mintAddress: string;
+  liquidityUsd: number;
+  tier: LiquidityTier;
+  tradeable: boolean;
+  price: number;
+  volume24h: number;
+  source: AggregatedPrice["source"];
+}
+
+export interface LiquidityAnalysis {
+  tokens: TokenLiquidity[];
+  tradeableCount: number;
+  totalCount: number;
+  analyzedAt: string;
+}
+
+function classifyLiquidityTier(liquidityUsd: number): LiquidityTier {
+  if (liquidityUsd >= 300_000) return "good";
+  if (liquidityUsd >= 50_000) return "moderate";
+  if (liquidityUsd > 0) return "thin";
+  return "dead";
+}
+
+/** Cache for the latest liquidity analysis */
+let cachedLiquidityAnalysis: LiquidityAnalysis | null = null;
+
+/**
+ * Analyze liquidity for all xStocks and classify into tiers.
+ * Uses the latest price data from fetchAggregatedPrices().
+ * Call this after fetchAggregatedPrices() to get fresh data.
+ */
+export function analyzeLiquidity(prices: AggregatedPrice[]): LiquidityAnalysis {
+  const tokens: TokenLiquidity[] = prices.map((p) => {
+    const liq = p.liquidityUsd ?? 0;
+    const tier = classifyLiquidityTier(liq);
+    return {
+      symbol: p.symbol,
+      name: p.name,
+      mintAddress: p.mintAddress,
+      liquidityUsd: liq,
+      tier,
+      tradeable: liq >= MIN_TRADEABLE_LIQUIDITY_USD,
+      price: p.price,
+      volume24h: p.volume24h,
+      source: p.source,
+    };
+  });
+
+  // Sort by liquidity descending
+  tokens.sort((a, b) => b.liquidityUsd - a.liquidityUsd);
+
+  const analysis: LiquidityAnalysis = {
+    tokens,
+    tradeableCount: tokens.filter((t) => t.tradeable).length,
+    totalCount: tokens.length,
+    analyzedAt: new Date().toISOString(),
+  };
+
+  cachedLiquidityAnalysis = analysis;
+  return analysis;
+}
+
+/**
+ * Get the cached liquidity analysis (set after each fetchAggregatedPrices call).
+ */
+export function getLatestLiquidityAnalysis(): LiquidityAnalysis | null {
+  return cachedLiquidityAnalysis;
+}
+
+/**
+ * Get the set of tradeable symbols (liquidity >= $50K).
+ * Returns null if no analysis has been run yet.
+ */
+export function getTradeableSymbols(): Set<string> | null {
+  if (!cachedLiquidityAnalysis) return null;
+  return new Set(
+    cachedLiquidityAnalysis.tokens
+      .filter((t) => t.tradeable)
+      .map((t) => t.symbol),
+  );
 }
 
 /**

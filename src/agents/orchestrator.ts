@@ -47,7 +47,7 @@ import {
 import { braveSearchProvider } from "../services/brave-search.ts";
 import { averageByKey, countByCondition, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
-import { fetchAggregatedPrices } from "../services/market-aggregator.ts";
+import { fetchAggregatedPrices, getTradeableSymbols } from "../services/market-aggregator.ts";
 
 // Register Brave Search if API key is available
 if (process.env.BRAVE_API_KEY) {
@@ -524,7 +524,17 @@ export async function getMarketData(): Promise<MarketData[]> {
     // - Has its own 10-second cache
     const aggregated = await fetchAggregatedPrices();
 
-    const results: MarketData[] = aggregated.map((p) => ({
+    // Filter to only tradeable (liquid) stocks if analysis is available
+    const tradeableSet = getTradeableSymbols();
+    const filtered = tradeableSet
+      ? aggregated.filter((p) => tradeableSet.has(p.symbol))
+      : aggregated;
+
+    if (tradeableSet) {
+      console.log(`[Orchestrator] Liquidity filter: ${filtered.length}/${aggregated.length} stocks are tradeable`);
+    }
+
+    const results: MarketData[] = filtered.map((p) => ({
       symbol: p.symbol,
       name: p.name,
       mintAddress: p.mintAddress,

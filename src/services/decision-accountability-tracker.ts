@@ -16,6 +16,229 @@
  */
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Claim Resolution Thresholds
+ *
+ * These constants control when directional and price target claims are
+ * classified as verified vs contradicted by market data.
+ */
+
+/**
+ * Directional claim resolution threshold (2%)
+ *
+ * For directional claims (up/down), require at least this % price movement
+ * to resolve the claim before expiration.
+ *
+ * Example: Buy claim with 1.5% move stays pending; 2.5% move resolves as correct
+ *
+ * Tuning impact: Lower to 1.5% to resolve claims faster; raise to 3% for stricter verification
+ */
+const CLAIM_RESOLUTION_MOVEMENT_THRESHOLD = 0.02;
+
+/**
+ * Flat direction classification threshold (1%)
+ *
+ * For "flat" directional claims, price moves ≤ this threshold classify as correct.
+ *
+ * Example: Hold claim with 0.8% move = correct; 1.5% move = incorrect
+ *
+ * Tuning impact: Raise to 2% to be more forgiving of "flat" predictions
+ */
+const CLAIM_FLAT_CLASSIFICATION_THRESHOLD = 0.01;
+
+/**
+ * Flat resolution threshold (2%)
+ *
+ * When resolving flat directional claims at expiration, movements < this
+ * threshold count as flat (correct).
+ *
+ * Example: Flat prediction with 1.8% move at expiration = correct
+ *
+ * Tuning impact: Lower to 1.5% to be stricter on flat claims
+ */
+const CLAIM_FLAT_RESOLUTION_THRESHOLD = 0.02;
+
+/**
+ * Price target tolerance (5%)
+ *
+ * For price target claims, allow ±this % tolerance around target price.
+ *
+ * Example: Target $100, current $103 = 3% deviation = correct within 5% tolerance
+ *
+ * Tuning impact: Lower to 3% for stricter price target verification
+ */
+const PRICE_TARGET_TOLERANCE = 0.05;
+
+/**
+ * Confidence Bucket Definitions
+ *
+ * Constants for grouping claims by confidence level to detect overconfidence patterns.
+ */
+
+/**
+ * Confidence bucket boundaries
+ *
+ * Array defining min/max confidence ranges for bucketing claims.
+ * Used to detect if agents are well-calibrated (high conf = high accuracy).
+ */
+const CONFIDENCE_BUCKET_BOUNDARIES = [
+  { label: "0.0-0.2", min: 0.0, max: 0.2 },
+  { label: "0.2-0.4", min: 0.2, max: 0.4 },
+  { label: "0.4-0.6", min: 0.4, max: 0.6 },
+  { label: "0.6-0.8", min: 0.6, max: 0.8 },
+  { label: "0.8-1.0", min: 0.8, max: 1.0 },
+] as const;
+
+/**
+ * Upper bound offset for max bucket inclusion
+ *
+ * Set to 1.01 to include claims with confidence = 1.0 in the 0.8-1.0 bucket
+ * (otherwise they'd be excluded by strict < comparison).
+ *
+ * Tuning impact: Not user-tunable (technical fix for inclusive upper bound)
+ */
+const CONFIDENCE_BUCKET_UPPER_OFFSET = 1.01;
+
+/**
+ * Overconfidence Detection Threshold
+ *
+ * High confidence threshold for overconfidence analysis.
+ */
+
+/**
+ * High confidence threshold (70%)
+ *
+ * Claims with confidence > this value are classified as "high confidence".
+ * Used to detect overconfidence (high conf + low accuracy = overconfident agent).
+ *
+ * Example: Confidence 75% claim that fails → contributes to overconfidence rate
+ *
+ * Tuning impact: Raise to 80% to only flag extreme overconfidence
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 0.7;
+
+/**
+ * Learning Trend Detection Thresholds
+ *
+ * Constants for detecting whether agents are improving, stable, or declining in accuracy.
+ */
+
+/**
+ * Learning trend improvement threshold (5%)
+ *
+ * If recent accuracy exceeds historical accuracy by > this %, classify as "improving".
+ *
+ * Example: Historical 60% → recent 66% = +6% improvement → "improving" trend
+ *
+ * Tuning impact: Lower to 3% to detect improvement earlier; raise to 8% for stricter classification
+ */
+const LEARNING_TREND_IMPROVEMENT_THRESHOLD = 0.05;
+
+/**
+ * Learning trend decline threshold (5%)
+ *
+ * If recent accuracy falls below historical accuracy by > this %, classify as "declining".
+ *
+ * Example: Historical 65% → recent 58% = -7% decline → "declining" trend
+ *
+ * Tuning impact: Same as improvement threshold (symmetric)
+ */
+const LEARNING_TREND_DECLINE_THRESHOLD = 0.05;
+
+/**
+ * Composite Accountability Score Weights
+ *
+ * These weights determine how different metrics combine to produce the overall
+ * accountability score (0-1). Weights must sum to 1.0.
+ */
+
+/**
+ * Accuracy rate weight (35%)
+ *
+ * Percentage of resolved claims that were correct. Primary accountability metric.
+ *
+ * Example: 80% accuracy contributes 0.8 * 0.35 = 0.28 to composite score
+ *
+ * Tuning impact: Raise to 40% to emphasize raw accuracy over calibration
+ */
+const ACCOUNTABILITY_WEIGHT_ACCURACY = 0.35;
+
+/**
+ * Overconfidence penalty weight (25%)
+ *
+ * Penalty for making high-confidence claims that fail. Rewards calibration.
+ *
+ * Example: 20% overconfidence contributes (1 - 0.2) * 0.25 = 0.20 to score
+ *
+ * Tuning impact: Raise to 30% to penalize overconfidence more heavily
+ */
+const ACCOUNTABILITY_WEIGHT_OVERCONFIDENCE = 0.25;
+
+/**
+ * Learning trend weight (20%)
+ *
+ * Bonus/penalty for improving/declining accuracy. Rewards agent learning.
+ *
+ * Example: "improving" trend contributes 0.8 * 0.20 = 0.16 to score
+ *
+ * Tuning impact: Lower to 15% to reduce emphasis on trend vs current accuracy
+ */
+const ACCOUNTABILITY_WEIGHT_LEARNING_TREND = 0.20;
+
+/**
+ * Resolved claims volume weight (20%)
+ *
+ * Bonus for having sufficient sample size. Rewards agents making verifiable claims.
+ *
+ * Example: 15 resolved claims contributes min(1, 15/20) * 0.20 = 0.15 to score
+ *
+ * Tuning impact: Lower to 15% if you want less emphasis on claim volume
+ */
+const ACCOUNTABILITY_WEIGHT_VOLUME = 0.20;
+
+/**
+ * Claims count normalization divisor
+ *
+ * Normalize resolved claim count to 0-1 by dividing by this value (20 claims).
+ * Reaching 20+ resolved claims = 1.0 volume score.
+ *
+ * Example: 10 resolved claims = 10/20 = 0.5 volume score
+ *
+ * Tuning impact: Lower to 15 to reach full volume score faster; raise to 30 for stricter requirement
+ */
+const CLAIMS_VOLUME_NORMALIZATION = 20;
+
+/**
+ * Learning Trend Score Values
+ *
+ * Score values (0-1) assigned to each learning trend classification.
+ */
+
+/**
+ * Improving trend score (0.8)
+ *
+ * Score multiplier when agent shows improving accuracy trend.
+ */
+const LEARNING_TREND_SCORE_IMPROVING = 0.8;
+
+/**
+ * Stable trend score (0.5)
+ *
+ * Score multiplier when agent shows stable accuracy (no significant change).
+ */
+const LEARNING_TREND_SCORE_STABLE = 0.5;
+
+/**
+ * Declining trend score (0.2)
+ *
+ * Score multiplier when agent shows declining accuracy trend (penalty).
+ */
+const LEARNING_TREND_SCORE_DECLINING = 0.2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 

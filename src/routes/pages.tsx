@@ -38,6 +38,7 @@ import { trades, agentDecisions, agentTheses, positions } from "../db/schema/ind
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
 import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
+import { getLatestLiquidityAnalysis, type TokenLiquidity, type LiquidityAnalysis } from "../services/market-aggregator.ts";
 import { getLatestMeetingFromDynamo, getMeetingFromDynamo, getRecentRounds, type PersistedAgentResult } from "../services/dynamo-round-persister.ts";
 import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
@@ -356,6 +357,9 @@ pages.get("/", async (c) => {
     // Non-critical — widget just won't show
   }
 
+  // Get liquidity analysis for the Liquidity Chart widget
+  const liquidityAnalysis = getLatestLiquidityAnalysis();
+
   return c.render(
     <div class="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
@@ -495,6 +499,79 @@ pages.get("/", async (c) => {
               {latestRound.errors.length} error(s) during this round
             </div>
           )}
+        </div>
+      )}
+
+      {/* Liquidity Chart */}
+      {liquidityAnalysis && (
+        <div class="mb-6 bg-gray-900 border border-cyan-800/50 rounded-lg p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-cyan-300">Liquidity Chart</h2>
+            <div class="text-xs text-gray-500">
+              <span class="text-cyan-400 font-semibold">{liquidityAnalysis.tradeableCount}</span>/{liquidityAnalysis.totalCount} tradeable
+              <span class="ml-2">Updated {formatTimeAgo(new Date(liquidityAnalysis.analyzedAt))}</span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-gray-500 border-b border-gray-800">
+                  <th class="text-left py-1.5 pr-3">Token</th>
+                  <th class="text-right py-1.5 px-2">Price</th>
+                  <th class="text-right py-1.5 px-2">Liquidity</th>
+                  <th class="text-right py-1.5 px-2">Volume 24h</th>
+                  <th class="text-center py-1.5 px-2">Tier</th>
+                  <th class="text-center py-1.5 px-2">Tradeable</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liquidityAnalysis.tokens.map((tok: TokenLiquidity) => {
+                  const tierColor = tok.tier === "good"
+                    ? "text-green-400 bg-green-900/30"
+                    : tok.tier === "moderate"
+                      ? "text-yellow-400 bg-yellow-900/30"
+                      : tok.tier === "thin"
+                        ? "text-orange-400 bg-orange-900/30"
+                        : "text-red-400 bg-red-900/30";
+                  return (
+                    <tr class={`border-b border-gray-800/50 ${tok.tradeable ? "" : "opacity-50"}`}>
+                      <td class="py-1.5 pr-3">
+                        <span class="text-white font-semibold">{tok.symbol}</span>
+                        <span class="text-gray-500 ml-1">{tok.name}</span>
+                      </td>
+                      <td class="text-right py-1.5 px-2 text-gray-300">${formatCurrency(tok.price)}</td>
+                      <td class="text-right py-1.5 px-2">
+                        <span class={tok.liquidityUsd > 0 ? "text-white" : "text-gray-600"}>
+                          {tok.liquidityUsd > 0 ? `$${formatNumber(tok.liquidityUsd)}` : "No pool"}
+                        </span>
+                      </td>
+                      <td class="text-right py-1.5 px-2 text-gray-400">
+                        {tok.volume24h > 0 ? `$${formatNumber(tok.volume24h)}` : "-"}
+                      </td>
+                      <td class="text-center py-1.5 px-2">
+                        <span class={`inline-block px-1.5 py-0.5 rounded text-xs font-semibold ${tierColor}`}>
+                          {tok.tier.toUpperCase()}
+                        </span>
+                      </td>
+                      <td class="text-center py-1.5 px-2">
+                        {tok.tradeable
+                          ? <span class="text-green-400">{"\u2713"}</span>
+                          : <span class="text-red-500">{"\u2717"}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-3 flex gap-4 text-xs text-gray-500">
+            <span><span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>Good ($300K+)</span>
+            <span><span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>Moderate ($50K-$300K)</span>
+            <span><span class="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1"></span>Thin (&lt;$50K)</span>
+            <span><span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>Dead (No pool)</span>
+          </div>
         </div>
       )}
 
