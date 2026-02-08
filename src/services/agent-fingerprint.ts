@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, gte } from "drizzle-orm";
-import { round2, round3 } from "../lib/math-utils.ts";
+import { round2, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -410,9 +410,9 @@ function computeActionDistribution(
     return { buyPercent: 0, sellPercent: 0, holdPercent: 0, totalDecisions: 0 };
   }
 
-  const buys = decisions.filter((d) => d.action === "buy").length;
-  const sells = decisions.filter((d) => d.action === "sell").length;
-  const holds = decisions.filter((d) => d.action === "hold").length;
+  const buys = countByCondition(decisions, (d) => d.action === "buy");
+  const sells = countByCondition(decisions, (d) => d.action === "sell");
+  const holds = countByCondition(decisions, (d) => d.action === "hold");
 
   return {
     buyPercent: Math.round((buys / total) * 10000) / 100,
