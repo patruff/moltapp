@@ -69,12 +69,140 @@ export interface SymbolVolatility {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Volatility analysis window and trend comparison parameters.
+ */
+
+/** Maximum history snapshots retained per agent (circular buffer) */
+const MAX_HISTORY_PER_AGENT = 200;
+
+/** Minimum rounds required for reliable trend comparison */
+const TREND_MIN_ROUNDS = 10;
+
+/** Recent trend window size (proportion of history for recency bias) */
+const TREND_RECENT_WINDOW_DIVISOR = 2;
+
+/** Minimum rounds required for agent volatility comparison ranking */
+const COMPARISON_MIN_ROUNDS = 3;
+
+/**
+ * Volatility-to-stability conversion multipliers.
+ *
+ * Each volatility metric is inverted to stability score using:
+ * stability = max(0, 1 - volatility × multiplier)
+ *
+ * Higher multiplier = stricter stability requirements (penalizes volatility more).
+ */
+
+/** Sentiment volatility multiplier (vol=0.5 → 0% stability) */
+const SENTIMENT_VOLATILITY_MULTIPLIER = 2.0;
+
+/** Confidence volatility multiplier (vol=0.25 → 0% stability) */
+const CONFIDENCE_VOLATILITY_MULTIPLIER = 4.0;
+
+/**
+ * Composite stability score component weights.
+ *
+ * Weighted average of 5 stability dimensions:
+ * - Sentiment stability (sentiment volatility inverted)
+ * - Confidence stability (confidence volatility inverted)
+ * - Intent stability (1 - intent drift rate)
+ * - Flip stability (1 - conviction flip rate)
+ * - Length stability (1 - length variability coefficient of variation)
+ */
+
+/** Weight for sentiment stability in composite score */
+const STABILITY_WEIGHT_SENTIMENT = 0.25;
+
+/** Weight for confidence stability in composite score */
+const STABILITY_WEIGHT_CONFIDENCE = 0.20;
+
+/** Weight for intent stability (consistency of strategy) in composite score */
+const STABILITY_WEIGHT_INTENT = 0.25;
+
+/** Weight for flip stability (conviction consistency) in composite score */
+const STABILITY_WEIGHT_FLIP = 0.20;
+
+/** Weight for length stability (reasoning depth consistency) in composite score */
+const STABILITY_WEIGHT_LENGTH = 0.10;
+
+/**
+ * Recent trend classification thresholds.
+ *
+ * Compares recent volatility (last N rounds) to older volatility to detect:
+ * - "stabilizing": Agent becoming more consistent (recent < older × 0.7)
+ * - "volatile": Agent becoming more erratic (recent > older × 1.3)
+ * - "consistent": Volatility roughly unchanged
+ */
+
+/** Threshold for "stabilizing" trend (recent volatility < older × 0.7) */
+const TREND_STABILIZING_THRESHOLD = 0.7;
+
+/** Threshold for "volatile" trend (recent volatility > older × 1.3) */
+const TREND_VOLATILE_THRESHOLD = 1.3;
+
+/**
+ * Stability grade boundaries (A+ through F).
+ *
+ * Grade based on composite stability score (0-1 scale):
+ * - A+ (0.90+): Highly disciplined, rock-solid reasoning
+ * - A (0.85-0.90): Very consistent approach
+ * - B/C: Moderate variation
+ * - D/F: Erratic, unreliable reasoning patterns
+ */
+
+const GRADE_THRESHOLD_A_PLUS = 0.90;
+const GRADE_THRESHOLD_A = 0.85;
+const GRADE_THRESHOLD_A_MINUS = 0.80;
+const GRADE_THRESHOLD_B_PLUS = 0.75;
+const GRADE_THRESHOLD_B = 0.70;
+const GRADE_THRESHOLD_B_MINUS = 0.65;
+const GRADE_THRESHOLD_C_PLUS = 0.60;
+const GRADE_THRESHOLD_C = 0.50;
+const GRADE_THRESHOLD_D = 0.40;
+
+/**
+ * Verbal assessment severity thresholds.
+ *
+ * Thresholds for flagging specific volatility dimensions in assessment text:
+ * - High stability: 0.8+ composite score
+ * - Moderate stability: 0.6-0.8 composite score
+ * - Low stability: <0.6 composite score
+ *
+ * Individual dimension warnings:
+ * - Sentiment volatility > 0.3 = "high sentiment swings"
+ * - Confidence volatility > 0.2 = "confidence varies significantly"
+ * - Intent drift > 0.4 = "frequently switches strategy"
+ * - Flip rate > 0.3 = "frequently reverses conviction"
+ */
+
+/** Composite score threshold for "highly consistent" assessment */
+const ASSESSMENT_HIGH_STABILITY_THRESHOLD = 0.8;
+
+/** Composite score threshold for "moderately stable" assessment */
+const ASSESSMENT_MODERATE_STABILITY_THRESHOLD = 0.6;
+
+/** Sentiment volatility threshold for "high sentiment swings" warning */
+const ASSESSMENT_SENTIMENT_VOLATILITY_THRESHOLD = 0.3;
+
+/** Confidence volatility threshold for "confidence varies significantly" warning */
+const ASSESSMENT_CONFIDENCE_VOLATILITY_THRESHOLD = 0.2;
+
+/** Intent drift rate threshold for "frequently switches strategy" warning */
+const ASSESSMENT_INTENT_DRIFT_THRESHOLD = 0.4;
+
+/** Conviction flip rate threshold for "frequently reverses conviction" warning */
+const ASSESSMENT_FLIP_RATE_THRESHOLD = 0.3;
+
+// ---------------------------------------------------------------------------
 // In-Memory Storage
 // ---------------------------------------------------------------------------
 
 /** Per-agent reasoning history (circular buffer) */
 const agentHistory: Map<string, ReasoningSnapshot[]> = new Map();
-const MAX_HISTORY_PER_AGENT = 200;
 
 // ---------------------------------------------------------------------------
 // Recording
@@ -320,28 +448,28 @@ function computeStabilityScore(
   lengthVar: number,
 ): number {
   // Each dimension contributes to instability; convert to stability
-  const sentStability = Math.max(0, 1 - sentVol * 2); // vol=0.5 → 0
-  const confStability = Math.max(0, 1 - confVol * 4); // vol=0.25 → 0
+  const sentStability = Math.max(0, 1 - sentVol * SENTIMENT_VOLATILITY_MULTIPLIER);
+  const confStability = Math.max(0, 1 - confVol * CONFIDENCE_VOLATILITY_MULTIPLIER);
   const intentStability = 1 - intentDrift;
   const flipStability = 1 - flipRate;
   const lengthStability = Math.max(0, 1 - lengthVar);
 
   // Weighted average
   return (
-    sentStability * 0.25 +
-    confStability * 0.2 +
-    intentStability * 0.25 +
-    flipStability * 0.2 +
-    lengthStability * 0.1
+    sentStability * STABILITY_WEIGHT_SENTIMENT +
+    confStability * STABILITY_WEIGHT_CONFIDENCE +
+    intentStability * STABILITY_WEIGHT_INTENT +
+    flipStability * STABILITY_WEIGHT_FLIP +
+    lengthStability * STABILITY_WEIGHT_LENGTH
   );
 }
 
 function computeRecentTrend(
   history: ReasoningSnapshot[],
 ): "stabilizing" | "volatile" | "consistent" {
-  if (history.length < 10) return "consistent";
+  if (history.length < TREND_MIN_ROUNDS) return "consistent";
 
-  const recentN = Math.min(10, Math.floor(history.length / 2));
+  const recentN = Math.min(TREND_MIN_ROUNDS, Math.floor(history.length / TREND_RECENT_WINDOW_DIVISOR));
   const recent = history.slice(-recentN);
   const older = history.slice(0, -recentN);
 
@@ -354,8 +482,8 @@ function computeRecentTrend(
   const avgRecentVol = (recentSentVol + recentConfVol) / 2;
   const avgOlderVol = (olderSentVol + olderConfVol) / 2;
 
-  if (avgRecentVol < avgOlderVol * 0.7) return "stabilizing";
-  if (avgRecentVol > avgOlderVol * 1.3) return "volatile";
+  if (avgRecentVol < avgOlderVol * TREND_STABILIZING_THRESHOLD) return "stabilizing";
+  if (avgRecentVol > avgOlderVol * TREND_VOLATILE_THRESHOLD) return "volatile";
   return "consistent";
 }
 
