@@ -15,7 +15,7 @@
  * - Cross-agent comparison signals
  */
 
-import { round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -834,8 +834,8 @@ export function getFeedbackMetrics(): FeedbackMetrics {
 
   for (const [, outcomes] of outcomesByAgent) {
     totalOutcomes += outcomes.length;
-    resolvedOutcomes += outcomes.filter((o) => o.resolvedAt !== null).length;
-    pendingOutcomes += outcomes.filter((o) => o.resolvedAt === null).length;
+    resolvedOutcomes += countByCondition(outcomes, (o) => o.resolvedAt !== null);
+    pendingOutcomes += countByCondition(outcomes, (o) => o.resolvedAt === null);
   }
 
   return {
