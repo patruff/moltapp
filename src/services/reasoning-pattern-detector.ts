@@ -168,6 +168,22 @@ const TEMPLATE_RECENT_WINDOW = 10;
 /** Divisor for word count normalization (quantMatches / (wordCount / divisor)) */
 const QUANTITATIVE_WORD_COUNT_DIVISOR = 20;
 
+/**
+ * History Management Parameters
+ * Controls reasoning history buffer size for cross-trade analysis
+ */
+
+/** Maximum reasoning entries stored per agent (prevents unbounded memory growth) */
+const MAX_HISTORY = 100;
+
+/**
+ * Text Processing Parameters
+ * Controls word filtering and tokenization
+ */
+
+/** Minimum word length for vocabulary analysis (filters short words like "is", "a") */
+const MIN_WORD_LENGTH = 2;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -366,7 +382,7 @@ export function analyzeReasoningPatterns(
 ): PatternAnalysis {
   const words = reasoning.split(/\s+/).filter((w) => w.length > 0);
   const wordCount = words.length;
-  const lowerWords = words.map((w) => w.toLowerCase().replace(/[^a-z]/g, "")).filter((w) => w.length > 2);
+  const lowerWords = words.map((w) => w.toLowerCase().replace(/[^a-z]/g, "")).filter((w) => w.length > MIN_WORD_LENGTH);
 
   // 1. Fallacy detection
   const fallacies: DetectedFallacy[] = [];
@@ -496,7 +512,6 @@ interface ReasoningHistory {
 }
 
 const agentHistory = new Map<string, ReasoningHistory[]>();
-const MAX_HISTORY = 100;
 
 /**
  * Record a reasoning entry for cross-trade analysis.
