@@ -14,6 +14,257 @@
 
 import { createHash } from "crypto";
 
+// ============================================================================
+// Configuration Constants
+// ============================================================================
+
+/**
+ * Tier Classification Thresholds
+ *
+ * Composite score boundaries for S/A/B/C/D tier assignment.
+ * These control leaderboard presentation and agent rankings.
+ */
+const TIER_THRESHOLD_S = 85; // >= 85 = S tier (exceptional performance)
+const TIER_THRESHOLD_A = 70; // >= 70 = A tier (excellent performance)
+const TIER_THRESHOLD_B = 55; // >= 55 = B tier (good performance)
+const TIER_THRESHOLD_C = 40; // >= 40 = C tier (acceptable performance)
+// < 40 = D tier (below average)
+
+/**
+ * Grade Boundaries for Individual Trade Scoring
+ *
+ * Score thresholds for A+/A/B+/B/C+/C/D/F grading of individual trades.
+ * Lower grade boundaries enable stricter quality filtering for dataset exports.
+ */
+const GRADE_THRESHOLD_A_PLUS = 95; // >= 95 = A+ (nearly perfect)
+const GRADE_THRESHOLD_A = 85; // >= 85 = A (excellent)
+const GRADE_THRESHOLD_B_PLUS = 75; // >= 75 = B+ (very good)
+const GRADE_THRESHOLD_B = 65; // >= 65 = B (good)
+const GRADE_THRESHOLD_C_PLUS = 55; // >= 55 = C+ (above average)
+const GRADE_THRESHOLD_C = 45; // >= 45 = C (acceptable)
+const GRADE_THRESHOLD_D = 30; // >= 30 = D (below average)
+// < 30 = F (failing)
+
+/**
+ * Transparency Scoring Parameters
+ *
+ * Controls how reasoning transparency is measured across 5 dimensions:
+ * - Step-by-step structure (0-25 points)
+ * - Data citations (0-20 points)
+ * - Uncertainty acknowledgment (0-15 points)
+ * - Causal chains (0-20 points)
+ * - Quantitative backing (0-20 points)
+ */
+const TRANSPARENCY_SCORE_MAX = 100; // Maximum transparency score
+
+// Step-by-step structure scoring
+const TRANSPARENCY_STEPS_MAX_POINTS = 25; // Max points for step markers
+const TRANSPARENCY_STEPS_POINTS_PER_MARKER = 5; // Points per step marker found
+
+// Data citations scoring
+const TRANSPARENCY_CITATIONS_MAX_POINTS = 20; // Max points for data citations
+const TRANSPARENCY_CITATIONS_POINTS_PER_SOURCE = 5; // Points per source cited
+
+// Uncertainty acknowledgment scoring
+const TRANSPARENCY_UNCERTAINTY_MAX_POINTS = 15; // Max points for uncertainty markers
+const TRANSPARENCY_UNCERTAINTY_POINTS_PER_MARKER = 3; // Points per uncertainty word
+
+// Causal chains scoring
+const TRANSPARENCY_CAUSAL_MAX_POINTS = 20; // Max points for causal connectors
+const TRANSPARENCY_CAUSAL_POINTS_PER_CONNECTOR = 4; // Points per causal word
+
+// Quantitative backing scoring
+const TRANSPARENCY_QUANTITATIVE_MAX_POINTS = 20; // Max points for quantitative data
+const TRANSPARENCY_QUANTITATIVE_POINTS_PER_REFERENCE = 3; // Points per numeric reference
+
+/**
+ * Accountability Scoring Parameters
+ *
+ * Controls how decision accountability is measured across 4 dimensions:
+ * - Prediction specificity (0-30 points)
+ * - Past performance references (0-25 points)
+ * - Error acknowledgment (0-25 points)
+ * - Prediction track record (0-20 points)
+ */
+const ACCOUNTABILITY_SCORE_MAX = 100; // Maximum accountability score
+
+// Prediction specificity scoring
+const ACCOUNTABILITY_SPECIFICITY_MAX_POINTS = 15; // Max points for prediction length
+const ACCOUNTABILITY_SPECIFICITY_CHAR_DIVISOR = 10; // Chars per point (e.g., 100 chars = 10 points)
+const ACCOUNTABILITY_NUMERIC_TARGET_BONUS = 15; // Bonus if prediction has numeric target
+
+// Past performance references scoring
+const ACCOUNTABILITY_PAST_REF_MAX_POINTS = 25; // Max points for past references
+const ACCOUNTABILITY_PAST_REF_POINTS_PER_REFERENCE = 8; // Points per past reference
+
+// Error acknowledgment scoring
+const ACCOUNTABILITY_ERROR_ACK_MAX_POINTS = 25; // Max points for error acknowledgment
+const ACCOUNTABILITY_ERROR_ACK_POINTS_PER_REFERENCE = 8; // Points per error acknowledgment
+
+// Prediction track record scoring
+const ACCOUNTABILITY_TRACK_RECORD_MAX_POINTS = 20; // Max points for prediction accuracy
+
+/**
+ * Trade Grading Normalization Parameters
+ *
+ * Controls how reasoning depth is normalized from word count and clause density.
+ */
+const REASONING_DEPTH_WORD_COUNT_DIVISOR = 2; // Divide word count by 2 for scoring (50 cap)
+const REASONING_DEPTH_WORD_COUNT_MAX = 50; // Max points from word count
+const REASONING_DEPTH_CLAUSE_POINTS_MULTIPLIER = 8; // Multiply clause count by 8 for scoring
+const REASONING_DEPTH_CLAUSE_COUNT_MAX = 50; // Max points from clause density
+
+/**
+ * Source Quality Scoring Parameters
+ *
+ * Controls how source citation quality is calculated.
+ */
+const SOURCE_QUALITY_POINTS_PER_SOURCE = 15; // Points per source cited
+const SOURCE_QUALITY_BASE_SCORE = 10; // Base score with no sources
+
+/**
+ * Logical Consistency Scoring
+ *
+ * Scores for detecting self-contradictions in reasoning.
+ */
+const LOGICAL_CONSISTENCY_SCORE_CONTRADICTORY = 35; // Score when reasoning contradicts action
+const LOGICAL_CONSISTENCY_SCORE_CONSISTENT = 85; // Score when reasoning aligns with action
+
+/**
+ * Hallucination Penalty
+ *
+ * Multiplier applied per hallucination flag detected.
+ */
+const HALLUCINATION_PENALTY_MULTIPLIER = 0.25; // 25% penalty per hallucination flag
+
+/**
+ * Discipline Scoring
+ *
+ * Fixed scores for instruction compliance.
+ */
+const DISCIPLINE_SCORE_PASSED = 90; // Score when agent follows instructions
+const DISCIPLINE_SCORE_FAILED = 30; // Score when agent violates instructions
+
+/**
+ * Reasoning Integrity Randomness
+ *
+ * Base score and randomness range for integrity hash scoring.
+ */
+const INTEGRITY_BASE_SCORE = 80; // Base integrity score
+const INTEGRITY_RANDOMNESS_RANGE = 15; // Random variation (0-15 added to base)
+
+/**
+ * Memory Retention Limits
+ *
+ * Controls how many historical records are retained in memory.
+ */
+const MAX_TRADE_GRADES = 2000; // Max trade grades retained
+const MAX_ROUND_SUMMARIES = 200; // Max round summaries retained
+
+/**
+ * Dimension Scoring Multipliers (scoreAgent function)
+ *
+ * Controls how raw metrics are normalized to 0-100 scale.
+ */
+// Financial dimension multipliers
+const FINANCIAL_PNL_BASE_SCORE = 50; // Neutral P&L baseline
+const FINANCIAL_PNL_MULTIPLIER = 2; // P&L percentage × 2 for scoring
+const FINANCIAL_SHARPE_BASE_SCORE = 50; // Neutral Sharpe baseline
+const FINANCIAL_SHARPE_MULTIPLIER = 20; // Sharpe ratio × 20 for scoring
+const FINANCIAL_DRAWDOWN_BASE_SCORE = 100; // Perfect drawdown baseline
+const FINANCIAL_DRAWDOWN_MULTIPLIER = 2; // |Drawdown| × 2 subtracted from base
+
+/**
+ * Risk Awareness Scoring
+ *
+ * Fixed scores for detecting risk management language.
+ */
+const RISK_AWARENESS_SCORE_WITH_REFERENCE = 80; // Score when risk language detected
+const RISK_AWARENESS_SCORE_NO_REFERENCE = 45; // Score when no risk language
+
+/**
+ * Strategy Consistency Scoring
+ *
+ * Controls how buy/sell balance affects consistency score.
+ */
+const STRATEGY_CONSISTENCY_BASE_SCORE = 40; // Minimum consistency score
+const STRATEGY_CONSISTENCY_MAX_SCORE = 100; // Maximum consistency score
+const STRATEGY_CONSISTENCY_IMBALANCE_PENALTY = 5; // Penalty per buy-sell imbalance
+
+/**
+ * Adaptability Scoring
+ *
+ * Controls how action variety affects adaptability score.
+ */
+const ADAPTABILITY_BASE_SCORE = 50; // Base adaptability score
+const ADAPTABILITY_POINTS_PER_ACTION_TYPE = 15; // Points per unique action type (buy/sell/hold)
+
+/**
+ * Confidence Calibration Scoring
+ *
+ * Controls how confidence alignment with 0.6 target affects score.
+ */
+const CALIBRATION_MIN_SCORE = 30; // Minimum calibration score
+const CALIBRATION_MAX_SCORE = 100; // Maximum calibration score
+const CALIBRATION_TARGET_CONFIDENCE = 0.6; // Ideal average confidence (60%)
+const CALIBRATION_DEVIATION_MULTIPLIER = 100; // Penalty multiplier for deviation from target
+
+/**
+ * Cross-Round Learning Scoring
+ *
+ * Controls how trade count affects learning score.
+ */
+const LEARNING_BASE_SCORE = 40; // Base learning score
+const LEARNING_POINTS_PER_TRADE = 3; // Points per trade executed
+const LEARNING_MAX_SCORE = 100; // Maximum learning score
+
+/**
+ * Market Regime Awareness Scoring
+ *
+ * Fixed scores for detecting market regime language.
+ */
+const REGIME_AWARENESS_SCORE_WITH_REFERENCE = 75; // Score when regime language detected
+const REGIME_AWARENESS_SCORE_NO_REFERENCE = 40; // Score when no regime language
+
+/**
+ * Edge Consistency Scoring
+ *
+ * Controls how high-grade trade count affects edge consistency.
+ */
+const EDGE_CONSISTENCY_BASE_SCORE = 50; // Base edge consistency score
+const EDGE_CONSISTENCY_POINTS_PER_HIGH_GRADE = 5; // Points per A/B grade trade
+const EDGE_CONSISTENCY_MAX_SCORE = 100; // Maximum edge consistency score
+
+/**
+ * Trade Accountability Scoring
+ *
+ * Fixed scores for discipline-based accountability.
+ */
+const TRADE_ACCOUNTABILITY_SCORE_PASSED = 85; // Score when discipline passed
+const TRADE_ACCOUNTABILITY_SCORE_FAILED = 35; // Score when discipline failed
+
+/**
+ * Reasoning Quality Index Normalization
+ *
+ * Controls how reasoning quality dimensions are combined.
+ */
+const REASONING_QUALITY_INDEX_MULTIPLIER = 0.01; // Divisor for normalizing average (÷ 100)
+const REASONING_QUALITY_INDEX_PERCENTAGE_MULTIPLIER = 100; // Convert to percentage
+
+/**
+ * Consensus Calculation Parameters
+ *
+ * Controls variance-based consensus detection across agents.
+ */
+const CONSENSUS_VARIANCE_DIVISOR = 50; // Divisor for normalizing variance to 0-1 range
+
+/**
+ * Fairness Index Calculation
+ *
+ * Controls standard deviation threshold for fairness assessment.
+ */
+const FAIRNESS_STDDEV_DIVISOR = 30; // Divisor for normalizing stddev to 0-1 fairness index
+
 // Types for the 22 dimensions
 export interface V31DimensionScores {
   // Financial Performance (3 dims)
@@ -126,21 +377,21 @@ const DIMENSION_WEIGHTS: Record<keyof V31DimensionScores, number> = {
 };
 
 function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
-  if (composite >= 85) return "S";
-  if (composite >= 70) return "A";
-  if (composite >= 55) return "B";
-  if (composite >= 40) return "C";
+  if (composite >= TIER_THRESHOLD_S) return "S";
+  if (composite >= TIER_THRESHOLD_A) return "A";
+  if (composite >= TIER_THRESHOLD_B) return "B";
+  if (composite >= TIER_THRESHOLD_C) return "C";
   return "D";
 }
 
 function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
-  if (score >= 95) return "A+";
-  if (score >= 85) return "A";
-  if (score >= 75) return "B+";
-  if (score >= 65) return "B";
-  if (score >= 55) return "C+";
-  if (score >= 45) return "C";
-  if (score >= 30) return "D";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_D) return "D";
   return "F";
 }
 
@@ -155,31 +406,31 @@ function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "
  */
 export function scoreTransparency(reasoning: string, sources: string[]): number {
   let score = 0;
-  const maxScore = 100;
+  const maxScore = TRANSPARENCY_SCORE_MAX;
 
   // 1. Step-by-step structure (0-25)
   const stepPatterns = /(?:step|first|second|third|next|then|finally|1\.|2\.|3\.)/gi;
   const stepMatches = reasoning.match(stepPatterns) ?? [];
-  score += Math.min(25, stepMatches.length * 5);
+  score += Math.min(TRANSPARENCY_STEPS_MAX_POINTS, stepMatches.length * TRANSPARENCY_STEPS_POINTS_PER_MARKER);
 
   // 2. Data citations (0-20)
   const citationCount = sources.length;
-  score += Math.min(20, citationCount * 5);
+  score += Math.min(TRANSPARENCY_CITATIONS_MAX_POINTS, citationCount * TRANSPARENCY_CITATIONS_POINTS_PER_SOURCE);
 
   // 3. Uncertainty acknowledgment (0-15)
   const uncertaintyPatterns = /(?:however|although|risk|uncertain|could|might|if|unless|caveat|downside)/gi;
   const uncertaintyMatches = reasoning.match(uncertaintyPatterns) ?? [];
-  score += Math.min(15, uncertaintyMatches.length * 3);
+  score += Math.min(TRANSPARENCY_UNCERTAINTY_MAX_POINTS, uncertaintyMatches.length * TRANSPARENCY_UNCERTAINTY_POINTS_PER_MARKER);
 
   // 4. Causal chains — "because", "therefore", "as a result" (0-20)
   const causalPatterns = /(?:because|therefore|thus|hence|as a result|since|due to|leads to|implies|suggests)/gi;
   const causalMatches = reasoning.match(causalPatterns) ?? [];
-  score += Math.min(20, causalMatches.length * 4);
+  score += Math.min(TRANSPARENCY_CAUSAL_MAX_POINTS, causalMatches.length * TRANSPARENCY_CAUSAL_POINTS_PER_CONNECTOR);
 
   // 5. Quantitative backing — numbers, percentages, dollar amounts (0-20)
   const quantPatterns = /(?:\$[\d,.]+|[\d.]+%|\d+\.\d+|increase|decrease)\b/gi;
   const quantMatches = reasoning.match(quantPatterns) ?? [];
-  score += Math.min(20, quantMatches.length * 3);
+  score += Math.min(TRANSPARENCY_QUANTITATIVE_MAX_POINTS, quantMatches.length * TRANSPARENCY_QUANTITATIVE_POINTS_PER_REFERENCE);
 
   return Math.round(Math.min(maxScore, score));
 }
@@ -199,27 +450,27 @@ export function scoreAccountability(
   previousPredictions: Array<{ predicted: string; actual: string | null }>,
 ): number {
   let score = 0;
-  const maxScore = 100;
+  const maxScore = ACCOUNTABILITY_SCORE_MAX;
 
   // 1. Prediction specificity (0-30)
   if (predictedOutcome) {
     const specificity = predictedOutcome.length;
-    score += Math.min(15, Math.floor(specificity / 10));
+    score += Math.min(ACCOUNTABILITY_SPECIFICITY_MAX_POINTS, Math.floor(specificity / ACCOUNTABILITY_SPECIFICITY_CHAR_DIVISOR));
     // Has a numeric target?
     if (/\$[\d,.]+|[\d.]+%/.test(predictedOutcome)) {
-      score += 15;
+      score += ACCOUNTABILITY_NUMERIC_TARGET_BONUS;
     }
   }
 
   // 2. References past performance (0-25)
   const pastRefPatterns = /(?:previously|last time|in the past|earlier|my prior|I was wrong|I was right|learned|adjusted)/gi;
   const pastRefs = reasoning.match(pastRefPatterns) ?? [];
-  score += Math.min(25, pastRefs.length * 8);
+  score += Math.min(ACCOUNTABILITY_PAST_REF_MAX_POINTS, pastRefs.length * ACCOUNTABILITY_PAST_REF_POINTS_PER_REFERENCE);
 
   // 3. Error acknowledgment (0-25)
   const errorAckPatterns = /(?:mistake|wrong|incorrect|overestimated|underestimated|failed|missed|should have|lesson)/gi;
   const errorAcks = reasoning.match(errorAckPatterns) ?? [];
-  score += Math.min(25, errorAcks.length * 8);
+  score += Math.min(ACCOUNTABILITY_ERROR_ACK_MAX_POINTS, errorAcks.length * ACCOUNTABILITY_ERROR_ACK_POINTS_PER_REFERENCE);
 
   // 4. Prediction track record (0-20)
   if (previousPredictions.length > 0) {
@@ -234,7 +485,7 @@ export function scoreAccountability(
         const actDown = /decrease|fall|down|bear|loss|lower/i.test(p.actual);
         return (predUp && actUp) || (predDown && actDown);
       }).length / resolved.length;
-      score += Math.round(accuracy * 20);
+      score += Math.round(accuracy * ACCOUNTABILITY_TRACK_RECORD_MAX_POINTS);
     }
   }
 
@@ -268,17 +519,18 @@ export function gradeTrade(input: {
   const wordCount = input.reasoning.split(/\s+/).length;
   const clauseCount = input.reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
   const reasoningDepthScore = Math.min(100, Math.round(
-    Math.min(50, wordCount / 2) + Math.min(50, clauseCount * 8),
+    Math.min(REASONING_DEPTH_WORD_COUNT_MAX, wordCount / REASONING_DEPTH_WORD_COUNT_DIVISOR) +
+    Math.min(REASONING_DEPTH_CLAUSE_COUNT_MAX, clauseCount * REASONING_DEPTH_CLAUSE_POINTS_MULTIPLIER),
   ));
 
   // Score source quality
-  const sourceQualityScore = Math.min(100, input.sources.length * 15 + 10);
+  const sourceQualityScore = Math.min(100, input.sources.length * SOURCE_QUALITY_POINTS_PER_SOURCE + SOURCE_QUALITY_BASE_SCORE);
 
   // Logical consistency (no self-contradictions)
   const hasBullish = /bullish|upside|buy|undervalued/i.test(input.reasoning);
   const hasBearish = /bearish|downside|sell|overvalued/i.test(input.reasoning);
   const isContradictory = hasBullish && hasBearish && input.action !== "hold";
-  const logicalConsistencyScore = isContradictory ? 35 : 85;
+  const logicalConsistencyScore = isContradictory ? LOGICAL_CONSISTENCY_SCORE_CONTRADICTORY : LOGICAL_CONSISTENCY_SCORE_CONSISTENT;
 
   // Transparency & accountability (NEW v31 scores)
   const transparencyScore = scoreTransparency(input.reasoning, input.sources);
