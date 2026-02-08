@@ -100,6 +100,127 @@ const previousRanks = new Map<string, number>();
 
 const WINDOW_SIZE = 200;
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Grade Boundaries (A+ through F)
+ *
+ * These thresholds determine letter grades for composite scores and individual pillars.
+ * Lower bounds are inclusive (score >= threshold).
+ */
+const GRADE_THRESHOLD_A_PLUS = 0.95;    // 95%+ = A+ (exceptional excellence)
+const GRADE_THRESHOLD_A = 0.90;         // 90-95% = A (excellent)
+const GRADE_THRESHOLD_A_MINUS = 0.85;   // 85-90% = A- (very good)
+const GRADE_THRESHOLD_B_PLUS = 0.80;    // 80-85% = B+ (good)
+const GRADE_THRESHOLD_B = 0.75;         // 75-80% = B (above average)
+const GRADE_THRESHOLD_B_MINUS = 0.70;   // 70-75% = B- (slightly above average)
+const GRADE_THRESHOLD_C_PLUS = 0.65;    // 65-70% = C+ (average)
+const GRADE_THRESHOLD_C = 0.60;         // 60-65% = C (acceptable)
+const GRADE_THRESHOLD_C_MINUS = 0.55;   // 55-60% = C- (below average)
+const GRADE_THRESHOLD_D_PLUS = 0.50;    // 50-55% = D+ (poor)
+const GRADE_THRESHOLD_D = 0.45;         // 45-50% = D (very poor)
+const GRADE_THRESHOLD_D_MINUS = 0.40;   // 40-45% = D- (failing)
+// Below 40% = F (unacceptable)
+
+/**
+ * Metacognition Scoring Parameters
+ *
+ * Controls how agent self-awareness and confidence calibration are measured.
+ */
+const META_MIN_SAMPLES = 5;                     // Minimum samples for metacognition analysis
+const META_RECENT_WINDOW = 20;                  // Look at last 20 trades for recent calibration
+const META_RECENT_MIN_SAMPLES = 3;              // Minimum samples in recent window
+const META_HEDGE_HIGH_THRESHOLD = 2;            // >2 hedge words = high uncertainty expression
+const META_HEDGE_LOW_THRESHOLD = 1;             // ≤1 hedge words = low uncertainty expression
+const META_CONFIDENCE_LOW_THRESHOLD = 0.6;      // <60% confidence = low confidence
+const META_CONFIDENCE_HIGH_THRESHOLD = 0.7;     // ≥70% confidence = high confidence
+const META_CALIBRATION_BASE_SCORE = 0.5;        // Baseline score when insufficient data
+const META_CALIBRATION_BOOST = 0.2;             // Score boost when well-calibrated
+const META_COHERENCE_AMBIGUOUS_THRESHOLD = 0.5; // <50% coherence = ambiguous reasoning
+const META_COHERENCE_CLEAR_THRESHOLD = 0.7;     // >70% coherence = clear reasoning
+const META_REGIME_ADAPTATION_MIN_SAMPLES = 10;  // Minimum regime actions for adaptation analysis
+const META_REGIME_ADAPTATION_MIN_REGIMES = 2;   // Minimum distinct regimes to analyze
+const META_REGIME_ADAPTATION_BOOST = 0.3;       // Score boost for diverse regime behavior
+
+/**
+ * Metacognition Composite Weights
+ *
+ * How much each dimension contributes to overall metacognition score.
+ */
+const META_WEIGHT_UNCERTAINTY = 0.30;   // 30% - uncertainty calibration
+const META_WEIGHT_CONFIDENCE = 0.30;    // 30% - confidence accuracy
+const META_WEIGHT_HEDGING = 0.20;       // 20% - hedging appropriacy
+const META_WEIGHT_REGIME = 0.20;        // 20% - regime adaptation
+
+/**
+ * Reasoning Efficiency Scoring Parameters
+ *
+ * Controls signal-to-noise ratio measurement in reasoning text.
+ */
+const EFFICIENCY_INFO_DENSITY_SCALING = 0.03;   // Analytical hits / (wordCount * 0.03 + 1)
+const EFFICIENCY_QUANT_RATIO_SCALING = 0.5;     // Quant claims / sentences * 0.5
+
+/**
+ * Reasoning Efficiency Composite Weights
+ *
+ * How much each dimension contributes to overall efficiency score.
+ */
+const EFFICIENCY_WEIGHT_INFO_DENSITY = 0.30;    // 30% - analytical patterns per word
+const EFFICIENCY_WEIGHT_CLAIM_DENSITY = 0.25;   // 25% - filler ratio (inverted)
+const EFFICIENCY_WEIGHT_ORIGINALITY = 0.25;     // 25% - unique bigrams / total bigrams
+const EFFICIENCY_WEIGHT_QUANT_RATIO = 0.20;     // 20% - quantitative claims ratio
+
+/**
+ * Financial Outcome Scoring
+ *
+ * Win = 0.7, Loss = 0.3 (proxy until actual P&L integrated).
+ */
+const FINANCIAL_WIN_SCORE = 0.7;    // Score assigned to winning trades
+const FINANCIAL_LOSS_SCORE = 0.3;   // Score assigned to losing trades
+
+/**
+ * Calibration Scoring Parameters
+ *
+ * Measures consistency of confidence levels across trades.
+ */
+const CALIBRATION_STDDEV_MULTIPLIER = 2;    // Multiplier for confidence stddev penalty
+
+/**
+ * Adaptability Scoring Parameters
+ *
+ * Measures diversity of trading intents (buy/sell/hold/trim).
+ */
+const ADAPTABILITY_INTENT_DIVERSITY_DIVISOR = 4;    // Divide intent count by 4
+const ADAPTABILITY_INTENT_DIVERSITY_MULTIPLIER = 0.5; // Multiply result by 0.5
+const ADAPTABILITY_BASE_SCORE = 0.3;                // Add 0.3 baseline
+
+/**
+ * Default Scores for Missing Data
+ *
+ * When insufficient data exists, use these fallback scores.
+ */
+const DEFAULT_SCORE_MISSING_DATA = 0.5; // 50% when no data available
+
+/**
+ * Sentiment Proxy Calculation
+ *
+ * Converts coherence (0-1) to sentiment (-1 to +1).
+ */
+const SENTIMENT_COHERENCE_MULTIPLIER = 2;   // coherence * 2 - 1
+const SENTIMENT_COHERENCE_OFFSET = 1;       // Subtract 1 to center at 0
+
+/**
+ * Efficiency Aggregate Fallback Values
+ *
+ * Used when computing efficiency from aggregate window stats.
+ */
+const EFFICIENCY_AGGREGATE_CLAIM_DENSITY_DEFAULT = 0.7;     // Default claim density
+const EFFICIENCY_AGGREGATE_ORIGINALITY_DEFAULT = 0.6;       // Default originality per word
+const EFFICIENCY_AGGREGATE_QUANT_SCALING = 0.15;            // Quant claims * 0.15
+const EFFICIENCY_AGGREGATE_WORD_COUNT_FALLBACK = 50;        // Default word count when missing
+
 function getWindow(agentId: string): AgentMetricWindow {
   let w = agentWindows.get(agentId);
   if (!w) {
@@ -125,18 +246,18 @@ function pushCapped<T>(arr: T[], value: T): void {
 // ---------------------------------------------------------------------------
 
 function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
@@ -191,33 +312,33 @@ function countQuantitativeClaims(reasoning: string): number {
  */
 function computeMetacognition(w: AgentMetricWindow): MetacognitionProfile {
   // 1. Uncertainty calibration: hedging should correlate with lower confidence
-  let uncertaintyCalibration = 0.5;
-  if (w.hedgeWords.length >= 5 && w.confidence.length >= 5) {
+  let uncertaintyCalibration = META_CALIBRATION_BASE_SCORE;
+  if (w.hedgeWords.length >= META_MIN_SAMPLES && w.confidence.length >= META_MIN_SAMPLES) {
     // If hedge words are higher when confidence is lower = well-calibrated
-    const recentHedge = w.hedgeWords.slice(-20);
-    const recentConf = w.confidence.slice(-20);
+    const recentHedge = w.hedgeWords.slice(-META_RECENT_WINDOW);
+    const recentConf = w.confidence.slice(-META_RECENT_WINDOW);
     const len = Math.min(recentHedge.length, recentConf.length);
-    if (len >= 3) {
+    if (len >= META_RECENT_MIN_SAMPLES) {
       let negCorrelation = 0;
       for (let i = 0; i < len; i++) {
-        if ((recentHedge[i] > 2 && recentConf[i] < 0.6) ||
-            (recentHedge[i] <= 1 && recentConf[i] > 0.7)) {
+        if ((recentHedge[i] > META_HEDGE_HIGH_THRESHOLD && recentConf[i] < META_CONFIDENCE_LOW_THRESHOLD) ||
+            (recentHedge[i] <= META_HEDGE_LOW_THRESHOLD && recentConf[i] > META_CONFIDENCE_HIGH_THRESHOLD)) {
           negCorrelation++;
         }
       }
-      uncertaintyCalibration = Math.min(1, negCorrelation / len + 0.2);
+      uncertaintyCalibration = Math.min(1, negCorrelation / len + META_CALIBRATION_BOOST);
     }
   }
 
   // 2. Confidence accuracy: high confidence should predict good outcomes
-  let confidenceAccuracy = 0.5;
-  if (w.confidence.length >= 5 && w.outcomes.length >= 5) {
+  let confidenceAccuracy = META_CALIBRATION_BASE_SCORE;
+  if (w.confidence.length >= META_MIN_SAMPLES && w.outcomes.length >= META_MIN_SAMPLES) {
     const len = Math.min(w.confidence.length, w.outcomes.length);
     let correct = 0;
     for (let i = w.confidence.length - len; i < w.confidence.length; i++) {
       const outIdx = i - (w.confidence.length - w.outcomes.length);
       if (outIdx < 0 || outIdx >= w.outcomes.length) continue;
-      const highConf = w.confidence[i] >= 0.7;
+      const highConf = w.confidence[i] >= META_CONFIDENCE_HIGH_THRESHOLD;
       const success = w.outcomes[outIdx];
       if ((highConf && success) || (!highConf && !success)) correct++;
     }
@@ -225,24 +346,24 @@ function computeMetacognition(w: AgentMetricWindow): MetacognitionProfile {
   }
 
   // 3. Hedging appropriacy: hedge more when coherence is ambiguous
-  let hedgingAppropriacy = 0.5;
-  if (w.hedgeWords.length >= 5 && w.coherence.length >= 5) {
+  let hedgingAppropriacy = META_CALIBRATION_BASE_SCORE;
+  if (w.hedgeWords.length >= META_MIN_SAMPLES && w.coherence.length >= META_MIN_SAMPLES) {
     const len = Math.min(w.hedgeWords.length, w.coherence.length);
     let appropriate = 0;
     for (let i = 0; i < len; i++) {
       const hIdx = w.hedgeWords.length - len + i;
       const cIdx = w.coherence.length - len + i;
       // Low coherence + high hedging = appropriate
-      if (w.coherence[cIdx] < 0.5 && w.hedgeWords[hIdx] >= 2) appropriate++;
+      if (w.coherence[cIdx] < META_COHERENCE_AMBIGUOUS_THRESHOLD && w.hedgeWords[hIdx] >= META_HEDGE_HIGH_THRESHOLD) appropriate++;
       // High coherence + low hedging = also appropriate (confident when clear)
-      if (w.coherence[cIdx] > 0.7 && w.hedgeWords[hIdx] <= 1) appropriate++;
+      if (w.coherence[cIdx] > META_COHERENCE_CLEAR_THRESHOLD && w.hedgeWords[hIdx] <= META_HEDGE_LOW_THRESHOLD) appropriate++;
     }
     hedgingAppropriacy = appropriate / len;
   }
 
   // 4. Regime adaptation: does agent change behavior in different regimes?
-  let regimeAdaptation = 0.5;
-  if (w.regimeActions.length >= 10) {
+  let regimeAdaptation = META_CALIBRATION_BASE_SCORE;
+  if (w.regimeActions.length >= META_REGIME_ADAPTATION_MIN_SAMPLES) {
     const regimeMap = new Map<string, { actions: string[]; successes: number; total: number }>();
     for (const r of w.regimeActions) {
       const existing = regimeMap.get(r.regime) ?? { actions: [], successes: 0, total: 0 };
@@ -253,20 +374,20 @@ function computeMetacognition(w: AgentMetricWindow): MetacognitionProfile {
     }
     // More diverse actions across regimes = better adaptation
     const regimeCount = regimeMap.size;
-    if (regimeCount >= 2) {
+    if (regimeCount >= META_REGIME_ADAPTATION_MIN_REGIMES) {
       const actionDiversity = Array.from(regimeMap.values()).reduce((sum, rd) => {
         const uniqueActions = new Set(rd.actions).size;
         return sum + uniqueActions / Math.max(1, rd.actions.length);
       }, 0) / regimeCount;
-      regimeAdaptation = Math.min(1, actionDiversity + 0.3);
+      regimeAdaptation = Math.min(1, actionDiversity + META_REGIME_ADAPTATION_BOOST);
     }
   }
 
   const composite = (
-    uncertaintyCalibration * 0.30 +
-    confidenceAccuracy * 0.30 +
-    hedgingAppropriacy * 0.20 +
-    regimeAdaptation * 0.20
+    uncertaintyCalibration * META_WEIGHT_UNCERTAINTY +
+    confidenceAccuracy * META_WEIGHT_CONFIDENCE +
+    hedgingAppropriacy * META_WEIGHT_HEDGING +
+    regimeAdaptation * META_WEIGHT_REGIME
   );
 
   return {
@@ -323,7 +444,7 @@ function computeEfficiency(reasoning: string): EfficiencyProfile {
   for (const pat of ANALYTICAL_PATTERNS) {
     if (pat.test(reasoning)) analyticalHits++;
   }
-  const informationDensity = Math.min(1, analyticalHits / (wordCount * 0.03 + 1));
+  const informationDensity = Math.min(1, analyticalHits / (wordCount * EFFICIENCY_INFO_DENSITY_SCALING + 1));
 
   // 2. Filler ratio (inverted)
   let fillerCount = 0;
@@ -350,13 +471,13 @@ function computeEfficiency(reasoning: string): EfficiencyProfile {
   // 4. Quantitative ratio
   const quantClaims = countQuantitativeClaims(reasoning);
   const sentences = splitSentences(reasoning).length;
-  const quantitativeRatio = Math.min(1, quantClaims / Math.max(1, sentences) * 0.5);
+  const quantitativeRatio = Math.min(1, quantClaims / Math.max(1, sentences) * EFFICIENCY_QUANT_RATIO_SCALING);
 
   const composite = (
-    informationDensity * 0.30 +
-    claimDensity * 0.25 +
-    originalityPerWord * 0.25 +
-    quantitativeRatio * 0.20
+    informationDensity * EFFICIENCY_WEIGHT_INFO_DENSITY +
+    claimDensity * EFFICIENCY_WEIGHT_CLAIM_DENSITY +
+    originalityPerWord * EFFICIENCY_WEIGHT_ORIGINALITY +
+    quantitativeRatio * EFFICIENCY_WEIGHT_QUANT_RATIO
   );
 
   return {
@@ -458,7 +579,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   const pillars: PillarScore[] = [];
 
   // 1. Financial (proxy — actual P&L comes from portfolio tracker)
-  const financial = mean(w.outcomes.map((o) => o ? 0.7 : 0.3));
+  const financial = mean(w.outcomes.map((o) => o ? FINANCIAL_WIN_SCORE : FINANCIAL_LOSS_SCORE));
   pillars.push({
     name: "financial",
     score: financial,
@@ -492,7 +613,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
 
   // 4. Calibration
   const confStd = stddev(w.confidence);
-  const calibration = Math.max(0, 1 - confStd * 2);
+  const calibration = Math.max(0, 1 - confStd * CALIBRATION_STDDEV_MULTIPLIER);
   pillars.push({
     name: "calibration",
     score: calibration,
@@ -503,7 +624,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 5. Patterns
-  const patterns = mean(w.depths.length > 0 ? w.depths : [0.5]);
+  const patterns = mean(w.depths.length > 0 ? w.depths : [DEFAULT_SCORE_MISSING_DATA]);
   pillars.push({
     name: "patterns",
     score: patterns,
@@ -515,7 +636,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
 
   // 6. Adaptability
   const intentSet = new Set(w.intents);
-  const adaptability = Math.min(1, intentSet.size / 4 * 0.5 + 0.3);
+  const adaptability = Math.min(1, intentSet.size / ADAPTABILITY_INTENT_DIVERSITY_DIVISOR * ADAPTABILITY_INTENT_DIVERSITY_MULTIPLIER + ADAPTABILITY_BASE_SCORE);
   pillars.push({
     name: "adaptability",
     score: adaptability,
@@ -526,7 +647,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 7. Forensic Quality
-  const forensic = mean(w.forensicScores.length > 0 ? w.forensicScores : [0.5]);
+  const forensic = mean(w.forensicScores.length > 0 ? w.forensicScores : [DEFAULT_SCORE_MISSING_DATA]);
   pillars.push({
     name: "forensicQuality",
     score: forensic,
@@ -537,7 +658,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 8. Validation Quality
-  const validation = mean(w.validationScores.length > 0 ? w.validationScores : [0.5]);
+  const validation = mean(w.validationScores.length > 0 ? w.validationScores : [DEFAULT_SCORE_MISSING_DATA]);
   pillars.push({
     name: "validationQuality",
     score: validation,
@@ -582,7 +703,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 12. Model Comparison
-  const modelComp = mean(w.modelComparisonScores.length > 0 ? w.modelComparisonScores : [0.5]);
+  const modelComp = mean(w.modelComparisonScores.length > 0 ? w.modelComparisonScores : [DEFAULT_SCORE_MISSING_DATA]);
   pillars.push({
     name: "modelComparison",
     score: modelComp,
@@ -612,17 +733,17 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   const recentReasoning = w.wordCounts.length > 0 ? "" : "";
   // Use aggregate stats from window
   const efficiencyAggregate = {
-    informationDensity: mean(w.quantClaims.map((q, i) => Math.min(1, q / Math.max(1, (w.wordCounts[i] ?? 50) * 0.03 + 1)))),
-    claimDensity: 0.7,
-    originalityPerWord: 0.6,
-    quantitativeRatio: mean(w.quantClaims.map((q) => Math.min(1, q * 0.15))),
+    informationDensity: mean(w.quantClaims.map((q, i) => Math.min(1, q / Math.max(1, (w.wordCounts[i] ?? EFFICIENCY_AGGREGATE_WORD_COUNT_FALLBACK) * EFFICIENCY_INFO_DENSITY_SCALING + 1)))),
+    claimDensity: EFFICIENCY_AGGREGATE_CLAIM_DENSITY_DEFAULT,
+    originalityPerWord: EFFICIENCY_AGGREGATE_ORIGINALITY_DEFAULT,
+    quantitativeRatio: mean(w.quantClaims.map((q) => Math.min(1, q * EFFICIENCY_AGGREGATE_QUANT_SCALING))),
     composite: 0,
   };
   efficiencyAggregate.composite = (
-    efficiencyAggregate.informationDensity * 0.30 +
-    efficiencyAggregate.claimDensity * 0.25 +
-    efficiencyAggregate.originalityPerWord * 0.25 +
-    efficiencyAggregate.quantitativeRatio * 0.20
+    efficiencyAggregate.informationDensity * EFFICIENCY_WEIGHT_INFO_DENSITY +
+    efficiencyAggregate.claimDensity * EFFICIENCY_WEIGHT_CLAIM_DENSITY +
+    efficiencyAggregate.originalityPerWord * EFFICIENCY_WEIGHT_ORIGINALITY +
+    efficiencyAggregate.quantitativeRatio * EFFICIENCY_WEIGHT_QUANT_RATIO
   );
 
   pillars.push({
