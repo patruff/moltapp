@@ -21,6 +21,104 @@ import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Quorum Thresholds
+ *
+ * Quorum is the minimum percentage of total voting power that must participate
+ * for a proposal to be valid. Higher quorum = more consensus required.
+ */
+
+/** Standard quorum for strategy changes, new pairs, rule changes (67% participation) */
+const QUORUM_THRESHOLD_STANDARD = 67;
+
+/** Emergency action quorum (75% participation - higher bar for urgent changes) */
+const QUORUM_THRESHOLD_EMERGENCY = 75;
+
+/** Rule change quorum (50% participation - lower bar for governance evolution) */
+const QUORUM_THRESHOLD_RULE_CHANGE = 50;
+
+/**
+ * Voting Duration
+ *
+ * Default time window for proposals to collect votes before expiring.
+ */
+
+/** Default voting period in hours (72 hours = 3 days for agent deliberation) */
+const VOTING_DURATION_HOURS_DEFAULT = 72;
+
+/**
+ * Position and Risk Limits
+ *
+ * Constitutional constraints on agent trading behavior to prevent excessive risk.
+ */
+
+/** Maximum portfolio allocation to single position (50% limit per constitutional rule cr_001) */
+const MAX_POSITION_ALLOCATION = 50;
+
+/** Proposed maximum allocation increase for specific high-conviction positions (25% limit) */
+const MAX_ALLOCATION_PROPOSAL = 25;
+
+/** Minimum cash reserve requirement as % of portfolio (10% per constitutional rule cr_005) */
+const MIN_CASH_RESERVE = 10;
+
+/** Initial allocation percentage for new position proposals (20% starting limit) */
+const INITIAL_ALLOCATION = 20;
+
+/**
+ * Vote Distribution
+ *
+ * Voting power allocation across agents for proposal decisions.
+ */
+
+/** Total voting power distributed across all agents (100 points total) */
+const VOTING_POWER_EQUAL_DISTRIBUTION = 100;
+
+/** Voting power assigned to first agent in seed proposals (33 points for 3-agent system) */
+const VOTING_POWER_ALLOCATION = 33;
+
+/**
+ * Performance Metrics
+ *
+ * Governance participation and voting alignment measurement parameters.
+ */
+
+/** Voting power adjustment factor for performance-weighted systems (1.0 = equal weight baseline) */
+const VOTING_POWER_ADJUSTMENT_FACTOR = 1.0;
+
+/** Minimum trades required for agent to cast valid vote (2 trades = established track record) */
+const MIN_TRADES_FOR_VALID_VOTE = 2;
+
+/** Minimum participation threshold for active governance engagement (60% of eligible proposals) */
+const AGENT_PARTICIPATION_THRESHOLD = 60;
+
+/**
+ * Passing Thresholds
+ *
+ * Percentage of "for" votes required (among for + against) for proposal to pass.
+ */
+
+/** Standard passing threshold for most proposal types (50% majority) */
+const PASSING_THRESHOLD_STANDARD = 50;
+
+/** Emergency action passing threshold (60% supermajority for high-risk changes) */
+const PASSING_THRESHOLD_EMERGENCY = 60;
+
+/**
+ * Seed Data Parameters
+ *
+ * Configuration for initial sample proposals and votes created on first load.
+ */
+
+/** Number of sample proposals to create during seedProposals() (3 diverse examples) */
+const SAMPLE_PROPOSAL_COUNT = 3;
+
+/** Number of agents that vote in sample proposals (3 agents = full participation example) */
+const SAMPLE_VOTE_AGENT_COUNT = 3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -210,8 +308,8 @@ function seedProposals() {
     status: "active",
     parameters: {
       targetSymbol: "NVDAx",
-      currentLimit: 20,
-      proposedLimit: 25,
+      currentLimit: INITIAL_ALLOCATION,
+      proposedLimit: MAX_ALLOCATION_PROPOSAL,
       rationale: "AI infrastructure dominance, strong earnings",
     },
     impact: {
@@ -225,18 +323,18 @@ function seedProposals() {
         agentId: configs[0]?.agentId ?? "agent-1",
         agentName: configs[0]?.name ?? "Agent 1",
         option: "for",
-        votingPower: 33,
+        votingPower: VOTING_POWER_ALLOCATION,
         reasoning: "NVIDIA is the most important stock in AI. We should have more flexibility here.",
         timestamp: new Date(now.getTime() - dayMs).toISOString(),
       },
     ],
     votingPower: {
-      totalFor: 33,
+      totalFor: VOTING_POWER_ALLOCATION,
       totalAgainst: 0,
       totalAbstain: 0,
       quorumReached: false,
-      quorumThreshold: 67,
-      passingThreshold: 60,
+      quorumThreshold: QUORUM_THRESHOLD_STANDARD,
+      passingThreshold: PASSING_THRESHOLD_EMERGENCY,
     },
     createdAt: new Date(now.getTime() - 2 * dayMs).toISOString(),
     votingStartsAt: new Date(now.getTime() - dayMs).toISOString(),
@@ -285,8 +383,8 @@ function seedProposals() {
       totalAgainst: 0,
       totalAbstain: 0,
       quorumReached: false,
-      quorumThreshold: 67,
-      passingThreshold: 50,
+      quorumThreshold: QUORUM_THRESHOLD_STANDARD,
+      passingThreshold: PASSING_THRESHOLD_STANDARD,
     },
     createdAt: new Date(now.getTime() - dayMs).toISOString(),
     votingStartsAt: new Date(now.getTime() - dayMs / 2).toISOString(),
@@ -321,7 +419,7 @@ function seedProposals() {
       agentId: c.agentId,
       agentName: c.name,
       option: (i < 2 ? "for" : "abstain") as VoteOption,
-      votingPower: Math.round(100 / configs.length),
+      votingPower: Math.round(VOTING_POWER_EQUAL_DISTRIBUTION / configs.length),
       reasoning: i < 2
         ? "Solana exposure makes sense for our platform"
         : "Need more data on SOLx liquidity before committing",
@@ -330,12 +428,12 @@ function seedProposals() {
       ).toISOString(),
     })),
     votingPower: {
-      totalFor: 67,
+      totalFor: QUORUM_THRESHOLD_STANDARD,
       totalAgainst: 0,
-      totalAbstain: 33,
+      totalAbstain: VOTING_POWER_ALLOCATION,
       quorumReached: true,
-      quorumThreshold: 67,
-      passingThreshold: 50,
+      quorumThreshold: QUORUM_THRESHOLD_STANDARD,
+      passingThreshold: PASSING_THRESHOLD_STANDARD,
     },
     createdAt: new Date(now.getTime() - 5 * dayMs).toISOString(),
     votingStartsAt: new Date(now.getTime() - 4 * dayMs).toISOString(),
