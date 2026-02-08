@@ -19,6 +19,11 @@ import {
   getLatestMeeting,
   getRecentMeetings,
 } from "../services/meeting-of-minds.ts";
+import {
+  getMusingsByRoundId,
+  getLatestMusings,
+  getRecentMusings,
+} from "../services/portfolio-musings.ts";
 import { apiError } from "../lib/errors.ts";
 
 export const deliberationRoutes = new Hono();
@@ -142,4 +147,40 @@ deliberationRoutes.get("/meeting/:roundId", (c) => {
     return apiError(c, "DELIBERATION_NOT_FOUND", `No meeting for round: ${roundId}`);
   }
   return c.json({ ok: true, meeting });
+});
+
+// ---------------------------------------------------------------------------
+// Portfolio Musings ("If I Had to Start Over")
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /musings/latest — Most recent musings result
+ */
+deliberationRoutes.get("/musings/latest", (c) => {
+  const musings = getLatestMusings();
+  if (!musings) {
+    return apiError(c, "DELIBERATION_NOT_FOUND", "No musings recorded yet");
+  }
+  return c.json({ ok: true, musings });
+});
+
+/**
+ * GET /musings/recent — Recent musings
+ */
+deliberationRoutes.get("/musings/recent", (c) => {
+  const limit = parseInt(c.req.query("limit") ?? "10", 10);
+  const musings = getRecentMusings(Math.min(limit, 50));
+  return c.json({ ok: true, count: musings.length, musings });
+});
+
+/**
+ * GET /musings/:roundId — Musings for a specific round
+ */
+deliberationRoutes.get("/musings/:roundId", (c) => {
+  const roundId = c.req.param("roundId");
+  const musings = getMusingsByRoundId(roundId);
+  if (!musings) {
+    return apiError(c, "DELIBERATION_NOT_FOUND", `No musings for round: ${roundId}`);
+  }
+  return c.json({ ok: true, musings });
 });

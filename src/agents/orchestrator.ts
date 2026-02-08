@@ -110,6 +110,7 @@ import { recordBenchmarkScore } from "../services/benchmark-reproducibility.ts";
 import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
 import { runLendingPhase } from "../monad/lending-engine.ts";
 import { runMeetingOfMinds } from "../services/meeting-of-minds.ts";
+import { runPortfolioMusings, type MusingsResult } from "../services/portfolio-musings.ts";
 import {
   analyzeDeepCoherence,
   recordDeepAnalysis,
@@ -1587,6 +1588,20 @@ async function executeTradingRound(
     }
   }
 
+  // --- "If I Had to Start Over" Musings ---
+  let musingsResult: MusingsResult | null = null;
+  if (process.env.MUSINGS_ENABLED !== "false") {
+    try {
+      musingsResult = await runPortfolioMusings(results, ALL_AGENTS, marketData, roundId);
+      console.log(
+        `[Round] Musings: avg regret ${musingsResult.avgRegretScore}/10, ` +
+        `consensus stocks: ${musingsResult.consensusStocks.join(", ") || "none"}`,
+      );
+    } catch (err) {
+      console.error(`[Round] Musings failed: ${errorMessage(err)}`);
+    }
+  }
+
   // --- Monad $STONKS Lending Phase ---
   if (process.env.LENDING_ENABLED === "true") {
     try {
@@ -1693,6 +1708,7 @@ async function executeTradingRound(
       consensus: computeRoundConsensus(results),
       summary: buildRoundSummaryText(results, errors),
       meetingOfMinds: meetingResult ? JSON.stringify(meetingResult) : undefined,
+      musings: musingsResult ? JSON.stringify(musingsResult) : undefined,
       ttl: Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60,
     };
 
@@ -1710,6 +1726,7 @@ async function executeTradingRound(
       circuitBreakerActivations: allCircuitBreakerActivations,
       lockSkipped: false,
       meetingOfMinds: meetingResult ? JSON.stringify(meetingResult) : undefined,
+      musings: musingsResult ? JSON.stringify(musingsResult) : undefined,
     }).catch((err) =>
       console.warn(`[Orchestrator] DynamoDB persist failed: ${errorMessage(err)}`),
     );

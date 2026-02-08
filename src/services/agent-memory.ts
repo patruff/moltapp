@@ -26,6 +26,299 @@ import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Trade Magnitude Thresholds
+ *
+ * These thresholds classify trade outcomes by P&L magnitude for lesson extraction
+ * and memory classification. Separating "big" from "small" wins/losses helps agents
+ * recognize which patterns led to meaningful results vs minor noise.
+ */
+
+/**
+ * Minimum absolute P&L percentage to classify as "big winner" or "big loser"
+ * @example
+ * - Trade with +7% P&L → "big winner" (magnitude 7 > 5)
+ * - Trade with -8% P&L → "big loser" (magnitude 8 > 5)
+ * - Trade with +3% P&L → "small winner" (magnitude 3 <= 5)
+ */
+const TRADE_MAGNITUDE_BIG_THRESHOLD = 5;
+
+/**
+ * Win Rate Thresholds for Performance Classification
+ *
+ * These thresholds determine when agent performance is classified as "strong recent",
+ * "weak recent", "strong overall", or "weak overall". Used for generating lessons
+ * and adjusting agent confidence in their own abilities.
+ */
+
+/**
+ * Win rate threshold (as decimal) for "strong recent performance" classification
+ * @example
+ * - Last 5 trades: 4 wins / 5 total = 0.80 win rate → "strong recent" (0.80 > 0.6)
+ * - Last 5 trades: 3 wins / 5 total = 0.60 win rate → borderline
+ */
+const WIN_RATE_STRONG_RECENT_THRESHOLD = 0.6;
+
+/**
+ * Win rate threshold (as decimal) for "weak recent performance" classification
+ * @example
+ * - Last 5 trades: 1 win / 5 total = 0.20 win rate → "weak recent" (0.20 < 0.4)
+ * - Last 5 trades: 2 wins / 5 total = 0.40 win rate → borderline
+ */
+const WIN_RATE_WEAK_RECENT_THRESHOLD = 0.4;
+
+/**
+ * Win rate threshold (as percentage) for "strong overall track record" lesson
+ * @example
+ * - 58% overall win rate → "strong track record" (58 > 55)
+ * - 52% overall win rate → no lesson (within normal range)
+ */
+const WIN_RATE_STRONG_OVERALL_THRESHOLD = 55;
+
+/**
+ * Win rate threshold (as percentage) for "below-average performance" lesson
+ * @example
+ * - 42% overall win rate → "below-average" (42 < 45)
+ * - 48% overall win rate → no lesson (within normal range)
+ */
+const WIN_RATE_WEAK_OVERALL_THRESHOLD = 45;
+
+/**
+ * Win rate threshold (as percentage) for individual stock "strength" classification
+ * @example
+ * - AAPLx: 75% win rate over 8 trades → "strength" (75 > 70)
+ * - TSLAx: 65% win rate over 6 trades → no special lesson
+ */
+const WIN_RATE_STOCK_STRENGTH_THRESHOLD = 70;
+
+/**
+ * Win rate threshold (as percentage) for individual stock "problematic" classification
+ * @example
+ * - GOOGx: 25% win rate over 5 trades → "problematic" (25 < 30)
+ * - METAx: 35% win rate over 4 trades → no special lesson
+ */
+const WIN_RATE_STOCK_WEAKNESS_THRESHOLD = 30;
+
+/**
+ * Price Level Clustering Threshold
+ *
+ * Controls how close two prices must be (as fraction of price) to be considered
+ * the same support/resistance level. Prevents creating redundant price levels
+ * for minor price variations.
+ */
+
+/**
+ * Maximum price distance (as fraction) to cluster prices as same level
+ * @example
+ * - Existing level: $100, New trade: $101 → |101-100|/100 = 0.01 < 0.02 → same level
+ * - Existing level: $100, New trade: $103 → |103-100|/100 = 0.03 > 0.02 → new level
+ * - 2% threshold works for most stock prices (tight enough to be meaningful, loose enough to cluster)
+ */
+const PRICE_LEVEL_PROXIMITY_THRESHOLD = 0.02;
+
+/**
+ * Pattern Detection Thresholds
+ *
+ * These thresholds control when trading patterns (streaks, timing edges, sector rotation,
+ * confidence calibration) are detected and stored in agent memory. Higher thresholds
+ * require stronger evidence before recognizing a pattern.
+ */
+
+/**
+ * Minimum consecutive wins to classify as a "win streak" pattern
+ * @example
+ * - 3 consecutive wins on NVDAx → win streak pattern created
+ * - 2 consecutive wins → no pattern yet (not enough evidence)
+ */
+const STREAK_MIN_CONSECUTIVE_WINS = 3;
+
+/**
+ * Minimum number of recent trades to analyze for sentiment classification
+ * @example
+ * - 3 recent trades → sufficient to classify as bullish/bearish/neutral
+ * - 2 recent trades → not enough data for reliable sentiment
+ */
+const SENTIMENT_MIN_TRADES = 3;
+
+/**
+ * Minimum win rate (as percentage) for timing pattern detection
+ * @example
+ * - Short-term trades (< 2h): 65% win rate → timing edge pattern created (65 > 60)
+ * - Medium-term trades (2-24h): 58% win rate → no pattern (below threshold)
+ */
+const TIMING_PATTERN_WIN_RATE_THRESHOLD = 60;
+
+/**
+ * Minimum sector avg return (as percentage) to classify as "hot sector"
+ * @example
+ * - Tech sector: +2.5% avg return over 10 trades → hot sector pattern (2.5 > 1)
+ * - Finance sector: +0.8% avg return over 8 trades → no pattern (below threshold)
+ */
+const HOT_SECTOR_MIN_RETURN_THRESHOLD = 1;
+
+/**
+ * Minimum absolute difference (as percentage) between high-conf and low-conf win rates
+ * to classify as "well-calibrated confidence"
+ * @example
+ * - High-conf: 70% win rate, Low-conf: 45% win rate → |70-45| = 25 > 15 → well-calibrated
+ * - High-conf: 62% win rate, Low-conf: 54% win rate → |62-54| = 8 < 15 → poorly calibrated
+ */
+const CONFIDENCE_CALIBRATION_MIN_DIFF = 15;
+
+/**
+ * Confidence Bucket Thresholds
+ *
+ * These thresholds split trades into "high confidence" and "low confidence" buckets
+ * for calibration analysis. Used to measure if agents' confidence predictions
+ * actually correlate with trade outcomes.
+ */
+
+/**
+ * Minimum confidence (as percentage) to classify as "high confidence" trade
+ * @example
+ * - 75% confidence trade → high-conf bucket (75 >= 70)
+ * - 65% confidence trade → neither bucket (middle ground)
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 70;
+
+/**
+ * Maximum confidence (as percentage) to classify as "low confidence" trade
+ * @example
+ * - 45% confidence trade → low-conf bucket (45 < 50)
+ * - 55% confidence trade → neither bucket (middle ground)
+ */
+const CONFIDENCE_LOW_THRESHOLD = 50;
+
+/**
+ * Memory Retention Limits
+ *
+ * These limits control how many items are kept in various memory structures
+ * to prevent unbounded memory growth while retaining the most relevant information.
+ */
+
+/**
+ * Maximum number of recent trades to keep in memory
+ * Already defined at line 181: const MAX_TRADE_MEMORIES = 200;
+ */
+
+/**
+ * Maximum number of patterns to keep in memory
+ * Already defined at line 182: const MAX_PATTERNS = 50;
+ */
+
+/**
+ * Maximum number of key lessons to keep in memory
+ * Already defined at line 183: const MAX_KEY_LESSONS = 20;
+ */
+
+/**
+ * Maximum number of notes per stock profile
+ * @example
+ * - Stock has 25 notes accumulated → trim to most recent 20
+ */
+const MAX_STOCK_NOTES = 20;
+
+/**
+ * Maximum number of price levels to track per stock
+ * @example
+ * - Stock has 15 support/resistance levels → keep 10 strongest
+ */
+const MAX_PRICE_LEVELS = 10;
+
+/**
+ * Maximum number of peer observations to keep per agent
+ * @example
+ * - Recorded 60 observations about GPT MomentumBot → keep most recent 50
+ */
+const MAX_PEER_OBSERVATIONS = 50;
+
+/**
+ * Minimum Occurrence Thresholds
+ *
+ * These thresholds control when data becomes statistically significant enough
+ * to generate lessons or classify patterns.
+ */
+
+/**
+ * Minimum total trades for overall performance lesson generation
+ * @example
+ * - 12 total trades → can generate "strong track record" or "below-average" lesson
+ * - 8 total trades → not enough data for overall performance assessment
+ */
+const MIN_TRADES_FOR_OVERALL_LESSON = 10;
+
+/**
+ * Minimum trades on a specific stock for stock-specific lesson generation
+ * @example
+ * - NVDAx: 6 trades → can generate "strength" or "problematic" lesson
+ * - AAPLx: 3 trades → not enough data for stock-specific lesson
+ */
+const MIN_TRADES_FOR_STOCK_LESSON = 5;
+
+/**
+ * Minimum trades in a sector for sector performance classification
+ * @example
+ * - Tech sector: 5 trades → can classify as hot/cold sector
+ * - Healthcare sector: 2 trades → not enough data
+ */
+const MIN_TRADES_FOR_SECTOR_CLASSIFICATION = 3;
+
+/**
+ * Minimum pattern occurrences for pattern lesson generation
+ * @example
+ * - Win streak pattern: 4 occurrences → include in key lessons (4 >= 3)
+ * - Timing pattern: 2 occurrences → not included (not enough evidence)
+ */
+const MIN_PATTERN_OCCURRENCES_FOR_LESSON = 3;
+
+/**
+ * Minimum pattern success rate (as percentage) for pattern lesson generation
+ * @example
+ * - Sector rotation pattern: 65% success rate → include in lessons (65 > 60)
+ * - Confidence pattern: 55% success rate → exclude (below threshold)
+ */
+const MIN_PATTERN_SUCCESS_RATE_FOR_LESSON = 60;
+
+/**
+ * Database Query Parameters
+ *
+ * These parameters control how much historical data is loaded from the database
+ * when bootstrapping agent memory on startup.
+ */
+
+/**
+ * Number of days of historical data to load from database
+ * @example
+ * - Load decisions and trades from last 30 days to initialize memory
+ */
+const MEMORY_LOAD_DAYS_LOOKBACK = 30;
+
+/**
+ * Maximum number of historical decisions to load per agent
+ * @example
+ * - Load up to 200 most recent decisions from database
+ */
+const MEMORY_LOAD_MAX_DECISIONS = 200;
+
+/**
+ * Maximum number of historical trades to load per agent
+ * @example
+ * - Load up to 200 most recent trades from database
+ */
+const MEMORY_LOAD_MAX_TRADES = 200;
+
+/**
+ * Maximum time difference (in milliseconds) between decision and trade to match them
+ * @example
+ * - Decision at 10:00:00, Trade at 10:05:00 → 5 min = 300,000 ms < 3,600,000 → matched
+ * - Decision at 10:00:00, Trade at 11:15:00 → 75 min = 4,500,000 ms > 3,600,000 → not matched
+ */
+const MEMORY_LOAD_MATCH_WINDOW_MS = 3600_000; // 1 hour
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -290,16 +583,16 @@ function extractLesson(trade: Omit<TradeMemory, "lesson" | "marketConditions">):
   const magnitude =
     trade.pnlPercent !== null ? Math.abs(trade.pnlPercent) : 0;
 
-  if (isWin && magnitude > 5) {
+  if (isWin && magnitude > TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Strong win on ${trade.symbol} (${trade.action}): +${magnitude.toFixed(1)}%. Confidence was ${trade.confidence}%. ${trade.reasoning.slice(0, 100)}`;
   }
-  if (isWin && magnitude <= 5) {
+  if (isWin && magnitude <= TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Small win on ${trade.symbol} (${trade.action}): +${magnitude.toFixed(1)}%. The thesis was correct but upside was limited.`;
   }
-  if (!isWin && magnitude > 5) {
+  if (!isWin && magnitude > TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Significant loss on ${trade.symbol} (${trade.action}): -${magnitude.toFixed(1)}%. Need to review: was the thesis wrong or was timing off? Original reasoning: ${trade.reasoning.slice(0, 100)}`;
   }
-  if (!isWin && magnitude <= 5) {
+  if (!isWin && magnitude <= TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Small loss on ${trade.symbol} (${trade.action}): -${magnitude.toFixed(1)}%. Minor setback, thesis may still play out over longer timeframe.`;
   }
 
@@ -374,11 +667,11 @@ function updateStockProfile(
   const recentWins = recentTrades.filter((t) => t.pnl! > 0).length;
   const recentTotal = recentTrades.length;
 
-  if (recentTotal >= 3) {
+  if (recentTotal >= SENTIMENT_MIN_TRADES) {
     profile.sentiment =
-      recentWins / recentTotal > 0.6
+      recentWins / recentTotal > WIN_RATE_STRONG_RECENT_THRESHOLD
         ? "bullish"
-        : recentWins / recentTotal < 0.4
+        : recentWins / recentTotal < WIN_RATE_WEAK_RECENT_THRESHOLD
           ? "bearish"
           : "neutral";
   }

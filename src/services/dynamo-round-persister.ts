@@ -51,6 +51,8 @@ export interface PersistedRound {
   summary: string;
   /** Serialized MeetingResult JSON from Meeting of Minds deliberation */
   meetingOfMinds?: string;
+  /** Serialized MusingsResult JSON from "If I Had to Start Over" musings */
+  musings?: string;
   /** TTL for DynamoDB auto-expiry (90 days) */
   ttl: number;
 }
@@ -174,6 +176,8 @@ export async function persistRound(params: {
   portfolioSnapshots?: Map<string, { value: number; cash: number; positionsCount: number; pnlPercent: number }>;
   /** Serialized MeetingResult JSON from Meeting of Minds */
   meetingOfMinds?: string;
+  /** Serialized MusingsResult JSON from "If I Had to Start Over" musings */
+  musings?: string;
 }): Promise<{ success: boolean; error?: string }> {
   if (!isDynamoConfigured()) {
     return { success: true }; // Silently skip when not configured
@@ -218,6 +222,7 @@ export async function persistRound(params: {
       consensus,
       summary,
       meetingOfMinds: params.meetingOfMinds,
+      musings: params.musings,
       ttl,
     };
 
@@ -501,6 +506,7 @@ function marshalRound(round: PersistedRound): Record<string, AttributeValue> {
     consensus: { S: round.consensus },
     summary: { S: round.summary },
     ...(round.meetingOfMinds ? { meetingOfMinds: { S: round.meetingOfMinds } } : {}),
+    ...(round.musings ? { musings: { S: round.musings } } : {}),
     ttl: { N: String(round.ttl) },
   };
 }
@@ -519,6 +525,7 @@ function unmarshalRound(item: Record<string, AttributeValue>): PersistedRound {
     consensus: (item.consensus?.S ?? "no_trades") as PersistedRound["consensus"],
     summary: item.summary?.S ?? "",
     meetingOfMinds: item.meetingOfMinds?.S,
+    musings: item.musings?.S,
     ttl: Number(item.ttl?.N ?? 0),
   };
 }
