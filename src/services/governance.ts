@@ -18,6 +18,7 @@
  */
 
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -588,11 +589,9 @@ export function getGovernanceStats(): GovernanceStats {
   seedProposals();
 
   const totalProposals = proposals.length;
-  const activeProposals = proposals.filter((p) => p.status === "active").length;
-  const passedProposals = proposals.filter((p) => p.status === "passed").length;
-  const rejectedProposals = proposals.filter(
-    (p) => p.status === "rejected",
-  ).length;
+  const activeProposals = countByCondition(proposals, (p: Proposal) => p.status === "active");
+  const passedProposals = countByCondition(proposals, (p: Proposal) => p.status === "passed");
+  const rejectedProposals = countByCondition(proposals, (p: Proposal) => p.status === "rejected");
 
   const allVotes = proposals.flatMap((p) => p.votes);
   const totalVotes = allVotes.length;
