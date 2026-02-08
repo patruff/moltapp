@@ -197,6 +197,29 @@ const ASSESSMENT_INTENT_DRIFT_THRESHOLD = 0.4;
 /** Conviction flip rate threshold for "frequently reverses conviction" warning */
 const ASSESSMENT_FLIP_RATE_THRESHOLD = 0.3;
 
+/**
+ * Text processing and calculation parameters.
+ */
+
+/** Maximum key phrases extracted from reasoning text for vocabulary comparison */
+const MAX_KEY_PHRASES = 10;
+
+/**
+ * Sentiment range rounding precision (2 decimal places).
+ *
+ * Example: sentimentRange = Math.round((maxSent - minSent) * 100) / 100
+ * Converts 0.1234... to 0.12 for cleaner display.
+ */
+const SENTIMENT_RANGE_ROUNDING_PRECISION = 100;
+
+/**
+ * Number of volatility dimensions averaged for trend comparison.
+ *
+ * Used in computeRecentTrend() to average sentiment and confidence volatility
+ * into a single metric for comparing recent vs older behavior.
+ */
+const TREND_VOLATILITY_DIMENSIONS = 2;
+
 // ---------------------------------------------------------------------------
 // In-Memory Storage
 // ---------------------------------------------------------------------------
@@ -272,7 +295,7 @@ export function extractKeyPhrases(reasoning: string): string[] {
   );
   if (financialTerms) phrases.push(...financialTerms.map((t) => t.toLowerCase()));
 
-  return [...new Set(phrases)].slice(0, 10);
+  return [...new Set(phrases)].slice(0, MAX_KEY_PHRASES);
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +392,7 @@ export function analyzeVolatility(agentId: string): VolatilityMetrics {
     bySymbol[symbol] = {
       symbol,
       tradeCount: symbolSnaps.length,
-      sentimentRange: Math.round((maxSent - minSent) * 100) / 100,
+      sentimentRange: Math.round((maxSent - minSent) * SENTIMENT_RANGE_ROUNDING_PRECISION) / SENTIMENT_RANGE_ROUNDING_PRECISION,
       avgConfidence: round3(mean(symbolSnaps.map((s) => s.confidence))),
       flipCount: flips,
       lastAction: actions[actions.length - 1],
@@ -414,7 +437,7 @@ export function compareAgentVolatility(): {
   const agents = agentIds.map((id) => analyzeVolatility(id));
 
   const ranked = agents
-    .filter((a) => a.roundsAnalyzed >= 3)
+    .filter((a) => a.roundsAnalyzed >= COMPARISON_MIN_ROUNDS)
     .sort((a, b) => b.stabilityScore - a.stabilityScore);
 
   return {
@@ -479,8 +502,8 @@ function computeRecentTrend(
   const recentConfVol = standardDeviation(recent.map((h) => h.confidence));
   const olderConfVol = standardDeviation(older.map((h) => h.confidence));
 
-  const avgRecentVol = (recentSentVol + recentConfVol) / 2;
-  const avgOlderVol = (olderSentVol + olderConfVol) / 2;
+  const avgRecentVol = (recentSentVol + recentConfVol) / TREND_VOLATILITY_DIMENSIONS;
+  const avgOlderVol = (olderSentVol + olderConfVol) / TREND_VOLATILITY_DIMENSIONS;
 
   if (avgRecentVol < avgOlderVol * TREND_STABILIZING_THRESHOLD) return "stabilizing";
   if (avgRecentVol > avgOlderVol * TREND_VOLATILE_THRESHOLD) return "volatile";
@@ -488,15 +511,15 @@ function computeRecentTrend(
 }
 
 function gradeStability(score: number): string {
-  if (score >= 0.9) return "A+";
-  if (score >= 0.85) return "A";
-  if (score >= 0.8) return "A-";
-  if (score >= 0.75) return "B+";
-  if (score >= 0.7) return "B";
-  if (score >= 0.65) return "B-";
-  if (score >= 0.6) return "C+";
-  if (score >= 0.5) return "C";
-  if (score >= 0.4) return "D";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_D) return "D";
   return "F";
 }
 
@@ -509,24 +532,24 @@ function assessStability(
 ): string {
   const parts: string[] = [];
 
-  if (stabilityScore >= 0.8) {
+  if (stabilityScore >= ASSESSMENT_HIGH_STABILITY_THRESHOLD) {
     parts.push("Highly consistent reasoning patterns across trading rounds.");
-  } else if (stabilityScore >= 0.6) {
+  } else if (stabilityScore >= ASSESSMENT_MODERATE_STABILITY_THRESHOLD) {
     parts.push("Moderately stable reasoning with some variation between rounds.");
   } else {
     parts.push("Volatile reasoning patterns — agent changes approach frequently.");
   }
 
-  if (sentVol > 0.3) {
+  if (sentVol > ASSESSMENT_SENTIMENT_VOLATILITY_THRESHOLD) {
     parts.push("High sentiment swings between rounds.");
   }
-  if (confVol > 0.2) {
+  if (confVol > ASSESSMENT_CONFIDENCE_VOLATILITY_THRESHOLD) {
     parts.push("Confidence levels vary significantly.");
   }
-  if (intentDrift > 0.4) {
+  if (intentDrift > ASSESSMENT_INTENT_DRIFT_THRESHOLD) {
     parts.push("Frequently switches strategy intent (momentum→value→contrarian).");
   }
-  if (flipRate > 0.3) {
+  if (flipRate > ASSESSMENT_FLIP_RATE_THRESHOLD) {
     parts.push("Frequently reverses conviction on the same stocks.");
   }
 
