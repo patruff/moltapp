@@ -22,6 +22,161 @@
 import { splitSentences, normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Reasoning Depth Scoring Weights
+ *
+ * Controls how each sub-dimension contributes to the overall depth score.
+ * Total weights sum to 1.0 for interpretability.
+ */
+
+/** Weight for normalized step count in depth score (20% of overall) */
+const DEPTH_WEIGHT_STEP_COUNT = 0.20;
+
+/** Weight for connective density in depth score (15% of overall) */
+const DEPTH_WEIGHT_CONNECTIVE_DENSITY = 0.15;
+
+/** Weight for evidence anchoring in depth score (25% of overall, HIGHEST weight) */
+const DEPTH_WEIGHT_EVIDENCE_ANCHORING = 0.25;
+
+/** Weight for counter-argument awareness in depth score (15% of overall) */
+const DEPTH_WEIGHT_COUNTER_ARGUMENT = 0.15;
+
+/** Weight for conclusion clarity in depth score (15% of overall) */
+const DEPTH_WEIGHT_CONCLUSION_CLARITY = 0.15;
+
+/** Weight for vocabulary richness in depth score (10% of overall) */
+const DEPTH_WEIGHT_VOCABULARY_RICHNESS = 0.10;
+
+/**
+ * Normalization Parameters for Depth Scoring
+ *
+ * Upper bounds for normalizing raw metrics to 0-1 range.
+ */
+
+/** Connective density normalization (0.8 connectives/sentence = max score) */
+const DEPTH_CONNECTIVE_DENSITY_MAX = 0.8;
+
+/** Vocabulary richness normalization (0.6 type-token ratio = max score) */
+const DEPTH_VOCABULARY_RICHNESS_MAX = 0.6;
+
+/** Step count normalization (5+ substantive steps = perfect score) */
+const DEPTH_STEP_COUNT_PERFECT = 5;
+
+/**
+ * Threshold Constants for Depth Scoring
+ *
+ * Controls how many signals are required for maximum score in each dimension.
+ */
+
+/** Evidence anchors required for perfect score (5+ = 1.0) */
+const DEPTH_EVIDENCE_ANCHORS_PERFECT = 5;
+
+/** Counter-argument signals required for max score (3+ = 1.0) */
+const DEPTH_COUNTER_ARGUMENT_PERFECT = 3;
+
+/** Conclusion pattern signals required for max score (2+ = 1.0) */
+const DEPTH_CONCLUSION_CLARITY_PERFECT = 2;
+
+/**
+ * Source Quality Scoring Weights
+ *
+ * Controls how each source dimension contributes to overall quality score.
+ * Total weights sum to 1.0 for interpretability.
+ */
+
+/** Weight for source count in quality score (15% of overall) */
+const SOURCE_WEIGHT_COUNT = 0.15;
+
+/** Weight for source diversity in quality score (25% of overall) */
+const SOURCE_WEIGHT_DIVERSITY = 0.25;
+
+/** Weight for data specificity in quality score (25% of overall) */
+const SOURCE_WEIGHT_SPECIFICITY = 0.25;
+
+/** Weight for cross-referencing in quality score (15% of overall) */
+const SOURCE_WEIGHT_CROSS_REFERENCE = 0.15;
+
+/** Weight for source integration in quality score (20% of overall) */
+const SOURCE_WEIGHT_INTEGRATION = 0.20;
+
+/**
+ * Source Quality Threshold Constants
+ *
+ * Controls how many signals are required for maximum score in each dimension.
+ */
+
+/** Source count required for perfect score (3+ categories = 1.0) */
+const SOURCE_COUNT_PERFECT = 3;
+
+/** Detected categories required for perfect diversity (4+ = 1.0) */
+const SOURCE_DIVERSITY_PERFECT = 4;
+
+/** Specific values required for perfect specificity (4+ = 1.0) */
+const SOURCE_SPECIFICITY_PERFECT = 4;
+
+/** Cross-reference patterns required for max score (2+ = 1.0) */
+const SOURCE_CROSS_REFERENCE_PERFECT = 2;
+
+/** Integration patterns required for max score (2+ = 1.0) */
+const SOURCE_INTEGRATION_PERFECT = 2;
+
+/**
+ * V24 Composite Scoring Weights (8 Dimensions)
+ *
+ * Controls how each benchmark dimension contributes to the overall v24 score.
+ * Total weights sum to 1.0 for interpretability.
+ */
+
+/** Weight for P&L performance in v24 composite (25% of overall, HIGHEST weight) */
+const V24_WEIGHT_PNL = 0.25;
+
+/** Weight for reasoning coherence in v24 composite (15% of overall) */
+const V24_WEIGHT_COHERENCE = 0.15;
+
+/** Weight for hallucination-free rate in v24 composite (12% of overall) */
+const V24_WEIGHT_HALLUCINATION_FREE = 0.12;
+
+/** Weight for instruction discipline in v24 composite (8% of overall) */
+const V24_WEIGHT_DISCIPLINE = 0.08;
+
+/** Weight for confidence calibration in v24 composite (12% of overall) */
+const V24_WEIGHT_CALIBRATION = 0.12;
+
+/** Weight for prediction accuracy in v24 composite (8% of overall) */
+const V24_WEIGHT_PREDICTION = 0.08;
+
+/** Weight for reasoning depth in v24 composite (10% of overall) */
+const V24_WEIGHT_REASONING_DEPTH = 0.10;
+
+/** Weight for source quality in v24 composite (10% of overall) */
+const V24_WEIGHT_SOURCE_QUALITY = 0.10;
+
+/**
+ * V24 Grade Boundaries
+ *
+ * Controls composite score thresholds for letter grade assignment.
+ * Higher scores = better overall performance across all dimensions.
+ */
+
+/** S-tier threshold (90+ composite = exceptional performance) */
+const V24_GRADE_S_THRESHOLD = 90;
+
+/** A-tier threshold (80-89 composite = excellent performance) */
+const V24_GRADE_A_THRESHOLD = 80;
+
+/** B-tier threshold (65-79 composite = good performance) */
+const V24_GRADE_B_THRESHOLD = 65;
+
+/** C-tier threshold (50-64 composite = acceptable performance) */
+const V24_GRADE_C_THRESHOLD = 50;
+
+/** D-tier threshold (35-49 composite = poor performance) */
+const V24_GRADE_D_THRESHOLD = 35;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -261,7 +416,7 @@ export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResul
     if (matches) evidenceCount += matches.length;
   }
   // Normalize: 5+ anchors = perfect score
-  const evidenceAnchoringScore = Math.min(1, evidenceCount / 5);
+  const evidenceAnchoringScore = Math.min(1, evidenceCount / DEPTH_EVIDENCE_ANCHORS_PERFECT);
 
   // 4. Counter-argument awareness
   let counterCount = 0;
@@ -269,14 +424,14 @@ export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResul
     if (pattern.test(reasoning)) counterCount++;
   }
   // 3+ counter-argument signals = max score
-  const counterArgumentScore = Math.min(1, counterCount / 3);
+  const counterArgumentScore = Math.min(1, counterCount / DEPTH_COUNTER_ARGUMENT_PERFECT);
 
   // 5. Conclusion clarity
   let conclusionCount = 0;
   for (const pattern of CONCLUSION_PATTERNS) {
     if (pattern.test(reasoning)) conclusionCount++;
   }
-  const conclusionClarity = Math.min(1, conclusionCount / 2);
+  const conclusionClarity = Math.min(1, conclusionCount / DEPTH_CONCLUSION_CLARITY_PERFECT);
 
   // 6. Vocabulary richness (type-token ratio)
   const uniqueWords = new Set(words.map((w) => w.toLowerCase().replace(/[^a-z]/g, "")));
@@ -289,12 +444,12 @@ export function analyzeReasoningDepthV24(reasoning: string): ReasoningDepthResul
 
   // Calculate composite depth score with sub-dimension weights
   const depthScore = round2(
-    normalizeStepCount(stepCount) * 0.20 +
-    Math.min(1, connectiveDensity / 0.8) * 0.15 +
-    evidenceAnchoringScore * 0.25 +
-    counterArgumentScore * 0.15 +
-    conclusionClarity * 0.15 +
-    Math.min(1, vocabularyRichness / 0.6) * 0.10
+    normalizeStepCount(stepCount) * DEPTH_WEIGHT_STEP_COUNT +
+    Math.min(1, connectiveDensity / DEPTH_CONNECTIVE_DENSITY_MAX) * DEPTH_WEIGHT_CONNECTIVE_DENSITY +
+    evidenceAnchoringScore * DEPTH_WEIGHT_EVIDENCE_ANCHORING +
+    counterArgumentScore * DEPTH_WEIGHT_COUNTER_ARGUMENT +
+    conclusionClarity * DEPTH_WEIGHT_CONCLUSION_CLARITY +
+    Math.min(1, vocabularyRichness / DEPTH_VOCABULARY_RICHNESS_MAX) * DEPTH_WEIGHT_VOCABULARY_RICHNESS
   );
 
   return {
@@ -334,7 +489,7 @@ export function analyzeSourceQualityV24(
 
   // 2. Source diversity: how many different category types are covered?
   // 10 possible categories. 4+ = good diversity.
-  const diversityScore = Math.min(1, detectedCategories.length / 4);
+  const diversityScore = Math.min(1, detectedCategories.length / SOURCE_DIVERSITY_PERFECT);
 
   // 3. Specificity: does the reasoning cite concrete data values?
   let specificValueCount = 0;
@@ -349,7 +504,7 @@ export function analyzeSourceQualityV24(
     if (matches) specificValueCount += matches.length;
   }
   // 4+ specific values = perfect specificity
-  const specificityScore = Math.min(1, specificValueCount / 4);
+  const specificityScore = Math.min(1, specificValueCount / SOURCE_SPECIFICITY_PERFECT);
 
   // 4. Cross-referencing: does the agent synthesize multiple sources?
   let crossRefCount = 0;
@@ -357,7 +512,7 @@ export function analyzeSourceQualityV24(
     if (pattern.test(reasoning)) crossRefCount++;
   }
   // 2+ cross-references = max score
-  const crossReferenceScore = Math.min(1, crossRefCount / 2);
+  const crossReferenceScore = Math.min(1, crossRefCount / SOURCE_CROSS_REFERENCE_PERFECT);
 
   // 5. Integration: are source data points used in logical argument?
   let integrationCount = 0;
@@ -365,15 +520,15 @@ export function analyzeSourceQualityV24(
     if (pattern.test(reasoning)) integrationCount++;
   }
   // 2+ integration patterns = max score
-  const integrationScore = Math.min(1, integrationCount / 2);
+  const integrationScore = Math.min(1, integrationCount / SOURCE_INTEGRATION_PERFECT);
 
   // Calculate composite source quality score
   const qualityScore = round2(
-    Math.min(1, sourceCount / 3) * 0.15 +
-    diversityScore * 0.25 +
-    specificityScore * 0.25 +
-    crossReferenceScore * 0.15 +
-    integrationScore * 0.20
+    Math.min(1, sourceCount / SOURCE_COUNT_PERFECT) * SOURCE_WEIGHT_COUNT +
+    diversityScore * SOURCE_WEIGHT_DIVERSITY +
+    specificityScore * SOURCE_WEIGHT_SPECIFICITY +
+    crossReferenceScore * SOURCE_WEIGHT_CROSS_REFERENCE +
+    integrationScore * SOURCE_WEIGHT_INTEGRATION
   );
 
   return {
@@ -444,14 +599,14 @@ export function computeV24CompositeScore(input: V24CompositeInput): {
   const calibrationNormalized = Math.max(0, 1 - input.calibrationScore);
 
   const dimensions = {
-    pnl: { score: pnlNormalized, weight: 0.25 },
-    coherence: { score: input.coherenceScore, weight: 0.15 },
-    hallucination_free: { score: input.hallucinationFreeRate, weight: 0.12 },
-    discipline: { score: input.disciplineRate, weight: 0.08 },
-    calibration: { score: calibrationNormalized, weight: 0.12 },
-    prediction: { score: input.predictionAccuracy, weight: 0.08 },
-    reasoning_depth: { score: input.reasoningDepthScore, weight: 0.10 },
-    source_quality: { score: input.sourceQualityScore, weight: 0.10 },
+    pnl: { score: pnlNormalized, weight: V24_WEIGHT_PNL },
+    coherence: { score: input.coherenceScore, weight: V24_WEIGHT_COHERENCE },
+    hallucination_free: { score: input.hallucinationFreeRate, weight: V24_WEIGHT_HALLUCINATION_FREE },
+    discipline: { score: input.disciplineRate, weight: V24_WEIGHT_DISCIPLINE },
+    calibration: { score: calibrationNormalized, weight: V24_WEIGHT_CALIBRATION },
+    prediction: { score: input.predictionAccuracy, weight: V24_WEIGHT_PREDICTION },
+    reasoning_depth: { score: input.reasoningDepthScore, weight: V24_WEIGHT_REASONING_DEPTH },
+    source_quality: { score: input.sourceQualityScore, weight: V24_WEIGHT_SOURCE_QUALITY },
   };
 
   let composite = 0;
@@ -472,11 +627,11 @@ export function computeV24CompositeScore(input: V24CompositeInput): {
 
   // Assign grade
   let grade: string;
-  if (composite >= 90) grade = "S";
-  else if (composite >= 80) grade = "A";
-  else if (composite >= 65) grade = "B";
-  else if (composite >= 50) grade = "C";
-  else if (composite >= 35) grade = "D";
+  if (composite >= V24_GRADE_S_THRESHOLD) grade = "S";
+  else if (composite >= V24_GRADE_A_THRESHOLD) grade = "A";
+  else if (composite >= V24_GRADE_B_THRESHOLD) grade = "B";
+  else if (composite >= V24_GRADE_C_THRESHOLD) grade = "C";
+  else if (composite >= V24_GRADE_D_THRESHOLD) grade = "D";
   else grade = "F";
 
   return { composite, grade, breakdown };
