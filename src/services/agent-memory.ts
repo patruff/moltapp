@@ -679,8 +679,8 @@ function updateStockProfile(
   // Add note if lesson exists
   if (trade.lesson) {
     profile.notes.push(trade.lesson);
-    if (profile.notes.length > 20) {
-      profile.notes = profile.notes.slice(-20);
+    if (profile.notes.length > MAX_STOCK_NOTES) {
+      profile.notes = profile.notes.slice(-MAX_STOCK_NOTES);
     }
   }
 
@@ -696,7 +696,7 @@ function updatePriceLevels(profile: StockProfile, trade: TradeMemory): void {
 
   // Check if this price is near an existing level (within 2%)
   const existingLevel = profile.priceLevels.find(
-    (l) => Math.abs(l.price - price) / price < 0.02,
+    (l) => Math.abs(l.price - price) / price < PRICE_LEVEL_PROXIMITY_THRESHOLD,
   );
 
   if (existingLevel) {
@@ -717,9 +717,9 @@ function updatePriceLevels(profile: StockProfile, trade: TradeMemory): void {
     });
 
     // Keep only top 10 strongest levels
-    if (profile.priceLevels.length > 10) {
+    if (profile.priceLevels.length > MAX_PRICE_LEVELS) {
       profile.priceLevels.sort((a, b) => b.strength - a.strength);
-      profile.priceLevels = profile.priceLevels.slice(0, 10);
+      profile.priceLevels = profile.priceLevels.slice(0, MAX_PRICE_LEVELS);
     }
   }
 }
