@@ -136,6 +136,390 @@ const tradeGrades: V34TradeGrade[] = [];
 const roundSummaries: V34RoundSummary[] = [];
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Scoring thresholds and parameters for v34 benchmark dimension calculations.
+ * All magic numbers extracted to named constants for improved discoverability,
+ * tunability, and benchmark reproducibility.
+ */
+
+// --- Grounding Score Parameters (scoreGrounding) ---
+
+/** Maximum quantitative reference bonus (numbers, percentages, decimals) */
+const GROUNDING_QUANTITATIVE_MAX = 20;
+/** Points per quantitative match */
+const GROUNDING_QUANTITATIVE_PER_MATCH = 4;
+
+/** Maximum plausibility bonus for price references */
+const GROUNDING_PRICE_PLAUSIBILITY_MAX = 25;
+/** Fallback bonus when no price references found */
+const GROUNDING_PRICE_FALLBACK = 5;
+
+/** Maximum quantitative/qualitative ratio bonus */
+const GROUNDING_QUANT_RATIO_MAX = 20;
+
+/** Maximum temporal reference bonus (today, 24h, current, etc.) */
+const GROUNDING_TEMPORAL_MAX = 15;
+/** Points per temporal match */
+const GROUNDING_TEMPORAL_PER_MATCH = 3;
+
+/** Maximum ticker symbol bonus */
+const GROUNDING_TICKER_MAX = 10;
+/** Points per specific ticker */
+const GROUNDING_TICKER_PER_MATCH = 2;
+
+/** Maximum threshold pattern bonus (support/resistance at $X) */
+const GROUNDING_THRESHOLD_MAX = 10;
+/** Points per threshold pattern */
+const GROUNDING_THRESHOLD_PER_MATCH = 5;
+
+// --- Consensus Quality Score Parameters (scoreConsensusQuality) ---
+
+/** Base score for consensus analysis */
+const CONSENSUS_BASE_SCORE = 50;
+
+/** Agreement rate threshold (< 50% = minority position) */
+const CONSENSUS_MINORITY_THRESHOLD = 0.5;
+
+/** High coherence threshold for minority position bonus */
+const CONSENSUS_HIGH_COHERENCE = 0.7;
+/** Bonus points when minority has high coherence */
+const CONSENSUS_HIGH_COHERENCE_BONUS = 25;
+
+/** Moderate coherence threshold for minority position */
+const CONSENSUS_MODERATE_COHERENCE = 0.5;
+/** Bonus points when minority has moderate coherence */
+const CONSENSUS_MODERATE_COHERENCE_BONUS = 10;
+
+/** Penalty when minority has low coherence */
+const CONSENSUS_LOW_COHERENCE_PENALTY = 15;
+
+/** Unanimous agreement threshold (all agents agree) */
+const CONSENSUS_UNANIMOUS = 1.0;
+/** Minimum word count for unanimous agreement */
+const CONSENSUS_UNANIMOUS_MIN_WORDS = 30;
+/** Penalty for brief reasoning with unanimous agreement */
+const CONSENSUS_UNANIMOUS_BRIEF_PENALTY = 15;
+
+/** Maximum independence indicator bonus */
+const CONSENSUS_INDEPENDENCE_MAX = 20;
+/** Points per independence pattern (however, unlike, I disagree) */
+const CONSENSUS_INDEPENDENCE_PER_MATCH = 7;
+
+/** Bonus for unique data discovery */
+const CONSENSUS_UNIQUE_DATA_BONUS = 10;
+
+// --- Transparency Score Parameters (scoreTransparency) ---
+
+/** Maximum step-by-step bonus */
+const TRANSPARENCY_STEP_MAX = 25;
+/** Points per step indicator (first, second, 1., 2., etc.) */
+const TRANSPARENCY_STEP_PER_MATCH = 5;
+
+/** Maximum source citation bonus */
+const TRANSPARENCY_SOURCE_MAX = 20;
+/** Points per cited source */
+const TRANSPARENCY_SOURCE_PER_MATCH = 5;
+
+/** Maximum uncertainty acknowledgment bonus */
+const TRANSPARENCY_UNCERTAINTY_MAX = 15;
+/** Points per uncertainty indicator (however, risk, might) */
+const TRANSPARENCY_UNCERTAINTY_PER_MATCH = 3;
+
+/** Maximum causal reasoning bonus */
+const TRANSPARENCY_CAUSAL_MAX = 20;
+/** Points per causal connector (because, therefore, thus) */
+const TRANSPARENCY_CAUSAL_PER_MATCH = 4;
+
+/** Maximum quantitative data bonus */
+const TRANSPARENCY_QUANT_MAX = 20;
+/** Points per quantitative reference */
+const TRANSPARENCY_QUANT_PER_MATCH = 3;
+
+// --- Accountability Score Parameters (scoreAccountability) ---
+
+/** Maximum specificity bonus for predicted outcome */
+const ACCOUNTABILITY_SPECIFICITY_MAX = 15;
+/** Divisor for specificity calculation (length / X) */
+const ACCOUNTABILITY_SPECIFICITY_DIVISOR = 10;
+
+/** Bonus for quantitative prediction ($X or Y%) */
+const ACCOUNTABILITY_QUANTITATIVE_PREDICTION = 15;
+
+/** Maximum past reference bonus */
+const ACCOUNTABILITY_PAST_REF_MAX = 25;
+/** Points per past reference (previously, last time, learned) */
+const ACCOUNTABILITY_PAST_REF_PER_MATCH = 8;
+
+/** Maximum error acknowledgment bonus */
+const ACCOUNTABILITY_ERROR_ACK_MAX = 25;
+/** Points per error acknowledgment (mistake, wrong, lesson) */
+const ACCOUNTABILITY_ERROR_ACK_PER_MATCH = 8;
+
+/** Maximum accuracy bonus from resolved predictions */
+const ACCOUNTABILITY_ACCURACY_MAX = 20;
+
+// --- Causal Reasoning Score Parameters (scoreCausalReasoning) ---
+
+/** Maximum chain structure bonus */
+const CAUSAL_CHAIN_MAX = 25;
+/** Points per unique step indicator */
+const CAUSAL_CHAIN_PER_STEP = 5;
+
+/** Maximum evidence connector bonus */
+const CAUSAL_EVIDENCE_MAX = 25;
+/** Points per evidence connector (because, therefore, thus) */
+const CAUSAL_EVIDENCE_PER_MATCH = 5;
+
+/** Maximum conditional reasoning bonus */
+const CAUSAL_CONDITIONAL_MAX = 20;
+/** Points per conditional pattern (if X then Y) */
+const CAUSAL_CONDITIONAL_PER_MATCH = 7;
+
+/** Maximum data-to-action bridge bonus */
+const CAUSAL_BRIDGE_MAX = 15;
+/** Maximum bridge pattern bonus (so I buy, therefore I recommend) */
+const CAUSAL_BRIDGE_PATTERN_MAX = 10;
+/** Points per bridge pattern */
+const CAUSAL_BRIDGE_PATTERN_PER_MATCH = 5;
+/** Maximum data-action link bonus (X% suggests Y) */
+const CAUSAL_BRIDGE_DATA_ACTION_MAX = 10;
+/** Points per data-action link */
+const CAUSAL_BRIDGE_DATA_ACTION_PER_MATCH = 5;
+
+/** Maximum multi-factor analysis bonus */
+const CAUSAL_MULTI_FACTOR_MAX = 15;
+/** Maximum multi-factor pattern bonus */
+const CAUSAL_MULTI_FACTOR_PATTERN_MAX = 10;
+/** Points per multi-factor pattern (combining, together with) */
+const CAUSAL_MULTI_FACTOR_PATTERN_PER_MATCH = 5;
+/** Minimum factors for bonus eligibility */
+const CAUSAL_MULTI_FACTOR_MIN_COUNT = 3;
+/** Points per factor above minimum ((count - 2) * X) */
+const CAUSAL_MULTI_FACTOR_PER_EXTRA = 2;
+/** Minimum sources for multi-factor bonus */
+const CAUSAL_MULTI_FACTOR_MIN_SOURCES = 2;
+/** Minimum evidence connectors for multi-factor bonus */
+const CAUSAL_MULTI_FACTOR_MIN_EVIDENCE = 2;
+/** Bonus when both sources and evidence present */
+const CAUSAL_MULTI_FACTOR_COMBINED_BONUS = 3;
+
+// --- Epistemic Humility Score Parameters (scoreEpistemicHumility) ---
+
+// Specificity scoring (0-30)
+/** Maximum bonus for specific numbers */
+const EPISTEMIC_SPECIFICITY_NUMBER_MAX = 10;
+/** Points per specific percentage */
+const EPISTEMIC_SPECIFICITY_NUMBER_PER_MATCH = 3;
+/** Maximum bonus for specific prices */
+const EPISTEMIC_SPECIFICITY_PRICE_MAX = 10;
+/** Points per specific price */
+const EPISTEMIC_SPECIFICITY_PRICE_PER_MATCH = 3;
+/** Maximum bonus for ticker symbols */
+const EPISTEMIC_SPECIFICITY_TICKER_MAX = 10;
+/** Points per ticker symbol */
+const EPISTEMIC_SPECIFICITY_TICKER_PER_MATCH = 3;
+/** Penalty per vague pattern (go up, probably fine) */
+const EPISTEMIC_SPECIFICITY_VAGUE_PENALTY = 3;
+/** Maximum specificity penalty */
+const EPISTEMIC_SPECIFICITY_VAGUE_PENALTY_MAX = 10;
+/** Maximum overall specificity score */
+const EPISTEMIC_SPECIFICITY_MAX = 30;
+
+// Measurability scoring (0-25)
+/** Maximum verifiable claim bonus */
+const EPISTEMIC_MEASURABILITY_VERIFIABLE_MAX = 15;
+/** Points per verifiable pattern (will reach $X) */
+const EPISTEMIC_MEASURABILITY_VERIFIABLE_PER_MATCH = 5;
+/** Bonus for quantitative predicted outcome */
+const EPISTEMIC_MEASURABILITY_OUTCOME_QUANT = 10;
+/** Bonus for descriptive predicted outcome (>20 chars) */
+const EPISTEMIC_MEASURABILITY_OUTCOME_DESC = 5;
+/** Maximum outcome pattern bonus */
+const EPISTEMIC_MEASURABILITY_OUTCOME_PATTERN_MAX = 5;
+/** Points per outcome pattern (expect X, predict Y) */
+const EPISTEMIC_MEASURABILITY_OUTCOME_PATTERN_PER_MATCH = 3;
+/** Maximum overall measurability score */
+const EPISTEMIC_MEASURABILITY_MAX = 25;
+
+// Timeframe clarity scoring (0-20)
+/** Maximum precise timeframe bonus */
+const EPISTEMIC_TIMEFRAME_PRECISE_MAX = 15;
+/** Points per precise timeframe (within 24h, by EOD) */
+const EPISTEMIC_TIMEFRAME_PRECISE_PER_MATCH = 5;
+/** Maximum moderate timeframe bonus (when no precise) */
+const EPISTEMIC_TIMEFRAME_MODERATE_MAX_NO_PRECISE = 5;
+/** Points per moderate timeframe (short-term, today) when no precise */
+const EPISTEMIC_TIMEFRAME_MODERATE_PER_MATCH_NO_PRECISE = 2;
+/** Maximum moderate timeframe bonus (when precise exists) */
+const EPISTEMIC_TIMEFRAME_MODERATE_MAX_WITH_PRECISE = 3;
+/** Points per moderate timeframe when precise exists */
+const EPISTEMIC_TIMEFRAME_MODERATE_PER_MATCH_WITH_PRECISE = 1;
+/** Penalty for vague timeframe without precision */
+const EPISTEMIC_TIMEFRAME_VAGUE_PENALTY = 5;
+/** Maximum overall timeframe score */
+const EPISTEMIC_TIMEFRAME_MAX = 20;
+
+// Magnitude precision scoring (0-15)
+/** Maximum range pattern bonus */
+const EPISTEMIC_MAGNITUDE_RANGE_MAX = 10;
+/** Points per range pattern (X% to Y%, target $Z) */
+const EPISTEMIC_MAGNITUDE_RANGE_PER_MATCH = 4;
+/** Maximum level pattern bonus */
+const EPISTEMIC_MAGNITUDE_LEVEL_MAX = 5;
+/** Points per level pattern (support at $X, resistance $Y) */
+const EPISTEMIC_MAGNITUDE_LEVEL_PER_MATCH = 3;
+/** Maximum overall magnitude score */
+const EPISTEMIC_MAGNITUDE_MAX = 15;
+
+// Conditional awareness scoring (0-10)
+/** Maximum conditional awareness bonus */
+const EPISTEMIC_CONDITIONAL_MAX = 10;
+/** Points per conditional pattern (unless, if X fails) */
+const EPISTEMIC_CONDITIONAL_PER_MATCH = 4;
+
+// --- Reasoning Traceability Score Parameters (scoreReasoningTraceability) ---
+
+/** Minimum sentence length for claim-level analysis */
+const TRACEABILITY_SENTENCE_MIN_LENGTH = 10;
+
+// Claim-Source Pairing (0-30)
+/** Maximum attribution pattern bonus */
+const TRACEABILITY_ATTRIBUTION_MAX = 15;
+/** Points per attribution pattern (according to, based on) */
+const TRACEABILITY_ATTRIBUTION_PER_MATCH = 4;
+/** Maximum research pattern bonus */
+const TRACEABILITY_RESEARCH_MAX = 10;
+/** Points per research pattern (I checked, looking at) */
+const TRACEABILITY_RESEARCH_PER_MATCH = 4;
+/** Maximum tool citation bonus */
+const TRACEABILITY_TOOL_MAX = 5;
+/** Points per tool citation (get_prices, search_news) */
+const TRACEABILITY_TOOL_PER_MATCH = 3;
+/** Maximum overall claim-source pairing score */
+const TRACEABILITY_PAIRING_MAX = 30;
+
+// Source Attribution Density (0-20)
+/** Maximum source type diversity bonus */
+const TRACEABILITY_DENSITY_SOURCE_MAX = 15;
+/** Points per distinct source type inline */
+const TRACEABILITY_DENSITY_SOURCE_PER_TYPE = 3;
+/** High source density threshold (attribution / sentence) */
+const TRACEABILITY_DENSITY_HIGH_THRESHOLD = 0.3;
+/** Bonus for high source density */
+const TRACEABILITY_DENSITY_HIGH_BONUS = 5;
+/** Moderate source density threshold */
+const TRACEABILITY_DENSITY_MODERATE_THRESHOLD = 0.15;
+/** Bonus for moderate source density */
+const TRACEABILITY_DENSITY_MODERATE_BONUS = 3;
+/** Maximum overall source density score */
+const TRACEABILITY_DENSITY_MAX = 20;
+
+// Orphan Claim Detection (0-20)
+/** Penalty per unsupported strong assertion */
+const TRACEABILITY_ORPHAN_STRONG_PENALTY = 4;
+/** Maximum orphan claim penalty */
+const TRACEABILITY_ORPHAN_CLAIM_PENALTY_MAX = 10;
+/** Penalty per orphan claim */
+const TRACEABILITY_ORPHAN_CLAIM_PENALTY = 2;
+/** Maximum overall orphan detection score */
+const TRACEABILITY_ORPHAN_MAX = 20;
+/** Context window for nearby data references (chars) */
+const TRACEABILITY_ORPHAN_CONTEXT_WINDOW = 100;
+
+// Evidence Chain Completeness (0-15)
+/** Minimum steps for chain analysis */
+const TRACEABILITY_CHAIN_MIN_STEPS = 2;
+/** Maximum evidence chain score */
+const TRACEABILITY_CHAIN_MAX = 15;
+/** Partial credit for single-step with data */
+const TRACEABILITY_CHAIN_SINGLE_STEP_CREDIT = 5;
+
+// Quantitative Backing (0-15)
+/** Maximum quant-with-source bonus */
+const TRACEABILITY_QUANT_WITH_SOURCE_MAX = 10;
+/** Points per quant-with-source pattern ($X from Y) */
+const TRACEABILITY_QUANT_WITH_SOURCE_PER_MATCH = 4;
+/** Maximum source-with-quant bonus */
+const TRACEABILITY_QUANT_SOURCE_WITH_QUANT_MAX = 5;
+/** Points per source-with-quant pattern (data shows $X) */
+const TRACEABILITY_QUANT_SOURCE_WITH_QUANT_PER_MATCH = 3;
+/** Maximum overall quantitative backing score */
+const TRACEABILITY_QUANT_BACKING_MAX = 15;
+/** Context window for quant-source proximity (chars) */
+const TRACEABILITY_QUANT_CONTEXT_WINDOW = 40;
+
+// --- Adversarial Coherence Score Parameters (scoreAdversarialCoherence) ---
+
+// Counterargument Acknowledgment (0-25)
+/** Maximum counter-thesis bonus */
+const ADVERSARIAL_COUNTER_MAX = 15;
+/** Points per counter-thesis pattern (despite, however, risk) */
+const ADVERSARIAL_COUNTER_PER_MATCH = 5;
+/** Maximum concession bonus */
+const ADVERSARIAL_CONCESSION_MAX = 10;
+/** Points per concession pattern (while, even though, granted) */
+const ADVERSARIAL_CONCESSION_PER_MATCH = 5;
+/** Maximum overall counterargument score */
+const ADVERSARIAL_COUNTERARG_MAX = 25;
+
+// Conflicting Data Handling (0-25)
+/** Bonus for acknowledging both bullish and bearish signals */
+const ADVERSARIAL_CONFLICT_BOTH_SIDES = 15;
+/** Maximum weighing pattern bonus */
+const ADVERSARIAL_CONFLICT_WEIGHING_MAX = 10;
+/** Points per weighing pattern (outweighs, on balance) */
+const ADVERSARIAL_CONFLICT_WEIGHING_PER_MATCH = 5;
+/** Bonus for acknowledging opposite signal (buy + bearish) */
+const ADVERSARIAL_CONFLICT_OPPOSITE_ACKNOWLEDGMENT = 10;
+/** Partial credit for one-sided consistency */
+const ADVERSARIAL_CONFLICT_ONE_SIDED = 5;
+/** Maximum overall conflict handling score */
+const ADVERSARIAL_CONFLICT_MAX = 25;
+
+// Risk-Factor Integration (0-20)
+/** Maximum risk-reward framing bonus */
+const ADVERSARIAL_RISK_REWARD_MAX = 10;
+/** Points per risk-reward pattern (risk/reward, asymmetric) */
+const ADVERSARIAL_RISK_REWARD_PER_MATCH = 5;
+/** Maximum mitigation strategy bonus */
+const ADVERSARIAL_RISK_MITIGATION_MAX = 10;
+/** Points per mitigation pattern (stop-loss, hedge, diversify) */
+const ADVERSARIAL_RISK_MITIGATION_PER_MATCH = 4;
+/** Maximum overall risk-factor score */
+const ADVERSARIAL_RISK_MAX = 20;
+
+// Conviction Justification (0-15)
+/** High conviction threshold (normalized 0-1) */
+const ADVERSARIAL_CONVICTION_HIGH_THRESHOLD = 0.7;
+/** Maximum justification bonus */
+const ADVERSARIAL_CONVICTION_JUSTIFICATION_MAX = 10;
+/** Points per justification pattern (my conviction, strong evidence) */
+const ADVERSARIAL_CONVICTION_JUSTIFICATION_PER_MATCH = 5;
+/** Penalty for high conviction without justification */
+const ADVERSARIAL_CONVICTION_NO_JUSTIFICATION_PENALTY = 5;
+/** Bonus for addressing counterarguments with high conviction */
+const ADVERSARIAL_CONVICTION_WITH_COUNTER_BONUS = 5;
+/** Credit for appropriate low conviction */
+const ADVERSARIAL_CONVICTION_LOW_CREDIT = 5;
+/** Maximum overall conviction score */
+const ADVERSARIAL_CONVICTION_MAX = 15;
+
+// Scenario Planning (0-15)
+/** Maximum scenario consideration bonus */
+const ADVERSARIAL_SCENARIO_MAX = 10;
+/** Points per scenario pattern (if wrong, worst case, plan B) */
+const ADVERSARIAL_SCENARIO_PER_MATCH = 5;
+/** Maximum mind-change bonus */
+const ADVERSARIAL_MIND_CHANGE_MAX = 5;
+/** Points per mind-change pattern (would reconsider if) */
+const ADVERSARIAL_MIND_CHANGE_PER_MATCH = 3;
+/** Maximum overall scenario planning score */
+const ADVERSARIAL_SCENARIO_PLANNING_MAX = 15;
+
+// ---------------------------------------------------------------------------
 // Dimension weights (must sum to 1.0) — 28 entries
 // ---------------------------------------------------------------------------
 
@@ -206,7 +590,7 @@ export function scoreGrounding(
   const maxScore = 100;
 
   const numberMatches = reasoning.match(/\$[\d,.]+|[\d.]+%|\d+\.\d{2,}/g) ?? [];
-  score += Math.min(20, numberMatches.length * 4);
+  score += Math.min(GROUNDING_QUANTITATIVE_MAX, numberMatches.length * GROUNDING_QUANTITATIVE_PER_MATCH);
 
   const priceRefs = reasoning.match(/\$(\d+(?:,\d{3})*(?:\.\d+)?)/g) ?? [];
   let plausibleCount = 0;
@@ -218,28 +602,28 @@ export function scoreGrounding(
     if (isPlausible) plausibleCount++;
   }
   if (priceRefs.length > 0) {
-    score += Math.round((plausibleCount / priceRefs.length) * 25);
+    score += Math.round((plausibleCount / priceRefs.length) * GROUNDING_PRICE_PLAUSIBILITY_MAX);
   } else {
-    score += 5;
+    score += GROUNDING_PRICE_FALLBACK;
   }
 
   const quantWords = reasoning.match(/\d+|percent|ratio|increase|decrease|higher|lower|above|below/gi) ?? [];
   const qualWords = reasoning.match(/\bfeel|think|believe|seems?|maybe|perhaps|possibly|probably\b/gi) ?? [];
   const quantRatio = quantWords.length / Math.max(1, quantWords.length + qualWords.length);
-  score += Math.round(quantRatio * 20);
+  score += Math.round(quantRatio * GROUNDING_QUANT_RATIO_MAX);
 
   const temporalPatterns = /\b(today|24h|this week|current|recent|now|latest|real-?time)\b/gi;
   const temporalMatches = reasoning.match(temporalPatterns) ?? [];
-  score += Math.min(15, temporalMatches.length * 3);
+  score += Math.min(GROUNDING_TEMPORAL_MAX, temporalMatches.length * GROUNDING_TEMPORAL_PER_MATCH);
 
   const tickerMatches = reasoning.match(/\b[A-Z]{2,5}x?\b/g) ?? [];
   const specificTickers = tickerMatches.filter(
     (t) => !["THE", "AND", "FOR", "BUT", "NOT", "MAY", "CAN", "HAS", "ITS", "ALL", "LOW", "BUY", "SELL", "HOLD", "RISK", "RSI", "ETF"].includes(t),
   );
-  score += Math.min(10, specificTickers.length * 2);
+  score += Math.min(GROUNDING_TICKER_MAX, specificTickers.length * GROUNDING_TICKER_PER_MATCH);
   const thresholdPatterns = /(?:support|resistance|target|stop.?loss|entry|exit)\s+(?:at|of|near)\s+\$?[\d,.]+/gi;
   const thresholdMatches = reasoning.match(thresholdPatterns) ?? [];
-  score += Math.min(10, thresholdMatches.length * 5);
+  score += Math.min(GROUNDING_THRESHOLD_MAX, thresholdMatches.length * GROUNDING_THRESHOLD_PER_MATCH);
 
   return Math.round(Math.min(maxScore, score));
 }
@@ -250,36 +634,36 @@ export function scoreConsensusQuality(
   peerActions: Array<{ agentId: string; action: string; symbol: string }>,
   coherenceScore: number,
 ): number {
-  let score = 50;
-  if (peerActions.length === 0) return 50;
+  let score = CONSENSUS_BASE_SCORE;
+  if (peerActions.length === 0) return CONSENSUS_BASE_SCORE;
 
   const sameAction = peerActions.filter((p) => p.action === action).length;
   const totalPeers = peerActions.length;
   const agreementRate = sameAction / totalPeers;
 
-  if (agreementRate < 0.5) {
-    if (coherenceScore >= 0.7) {
-      score += 25;
-    } else if (coherenceScore >= 0.5) {
-      score += 10;
+  if (agreementRate < CONSENSUS_MINORITY_THRESHOLD) {
+    if (coherenceScore >= CONSENSUS_HIGH_COHERENCE) {
+      score += CONSENSUS_HIGH_COHERENCE_BONUS;
+    } else if (coherenceScore >= CONSENSUS_MODERATE_COHERENCE) {
+      score += CONSENSUS_MODERATE_COHERENCE_BONUS;
     } else {
-      score -= 15;
+      score -= CONSENSUS_LOW_COHERENCE_PENALTY;
     }
   }
 
-  if (agreementRate === 1.0) {
+  if (agreementRate === CONSENSUS_UNANIMOUS) {
     const wordCount = reasoning.split(/\s+/).length;
-    if (wordCount < 30) {
-      score -= 15;
+    if (wordCount < CONSENSUS_UNANIMOUS_MIN_WORDS) {
+      score -= CONSENSUS_UNANIMOUS_BRIEF_PENALTY;
     }
   }
 
   const independencePatterns = /(?:however|unlike|my analysis|I disagree|independently|my own|contrary to|different from)/gi;
   const independenceMatches = reasoning.match(independencePatterns) ?? [];
-  score += Math.min(20, independenceMatches.length * 7);
+  score += Math.min(CONSENSUS_INDEPENDENCE_MAX, independenceMatches.length * CONSENSUS_INDEPENDENCE_PER_MATCH);
 
   const hasUniqueData = /(?:noticed|discovered|spotted|found|identified|overlooked)/gi.test(reasoning);
-  if (hasUniqueData) score += 10;
+  if (hasUniqueData) score += CONSENSUS_UNIQUE_DATA_BONUS;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
@@ -290,21 +674,21 @@ export function scoreTransparency(reasoning: string, sources: string[]): number 
 
   const stepPatterns = /(?:step|first|second|third|next|then|finally|1\.|2\.|3\.)/gi;
   const stepMatches = reasoning.match(stepPatterns) ?? [];
-  score += Math.min(25, stepMatches.length * 5);
+  score += Math.min(TRANSPARENCY_STEP_MAX, stepMatches.length * TRANSPARENCY_STEP_PER_MATCH);
 
-  score += Math.min(20, sources.length * 5);
+  score += Math.min(TRANSPARENCY_SOURCE_MAX, sources.length * TRANSPARENCY_SOURCE_PER_MATCH);
 
   const uncertaintyPatterns = /(?:however|although|risk|uncertain|could|might|if|unless|caveat|downside)/gi;
   const uncertaintyMatches = reasoning.match(uncertaintyPatterns) ?? [];
-  score += Math.min(15, uncertaintyMatches.length * 3);
+  score += Math.min(TRANSPARENCY_UNCERTAINTY_MAX, uncertaintyMatches.length * TRANSPARENCY_UNCERTAINTY_PER_MATCH);
 
   const causalPatterns = /(?:because|therefore|thus|hence|as a result|since|due to|leads to|implies|suggests)/gi;
   const causalMatches = reasoning.match(causalPatterns) ?? [];
-  score += Math.min(20, causalMatches.length * 4);
+  score += Math.min(TRANSPARENCY_CAUSAL_MAX, causalMatches.length * TRANSPARENCY_CAUSAL_PER_MATCH);
 
   const quantPatterns = /(?:\$[\d,.]+|[\d.]+%|\d+\.\d+|increase|decrease)\b/gi;
   const quantMatches = reasoning.match(quantPatterns) ?? [];
-  score += Math.min(20, quantMatches.length * 3);
+  score += Math.min(TRANSPARENCY_QUANT_MAX, quantMatches.length * TRANSPARENCY_QUANT_PER_MATCH);
 
   return Math.round(Math.min(maxScore, score));
 }
