@@ -21,6 +21,223 @@
 import { mean, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Grade Boundary Thresholds
+ *
+ * Letter grades assigned based on composite score (0-1 scale).
+ * Higher thresholds = stricter grading standards.
+ */
+
+/** Composite score >= 0.95 = A+ (exceptional performance, top 5%) */
+const GRADE_THRESHOLD_A_PLUS = 0.95;
+
+/** Composite score >= 0.90 = A (excellent performance, top 10%) */
+const GRADE_THRESHOLD_A = 0.90;
+
+/** Composite score >= 0.85 = A- (very good performance) */
+const GRADE_THRESHOLD_A_MINUS = 0.85;
+
+/** Composite score >= 0.80 = B+ (good performance, above average) */
+const GRADE_THRESHOLD_B_PLUS = 0.80;
+
+/** Composite score >= 0.75 = B (solid performance) */
+const GRADE_THRESHOLD_B = 0.75;
+
+/** Composite score >= 0.70 = B- (slightly above average) */
+const GRADE_THRESHOLD_B_MINUS = 0.70;
+
+/** Composite score >= 0.65 = C+ (average performance) */
+const GRADE_THRESHOLD_C_PLUS = 0.65;
+
+/** Composite score >= 0.60 = C (acceptable performance) */
+const GRADE_THRESHOLD_C = 0.60;
+
+/** Composite score >= 0.55 = C- (below average) */
+const GRADE_THRESHOLD_C_MINUS = 0.55;
+
+/** Composite score >= 0.50 = D+ (poor performance) */
+const GRADE_THRESHOLD_D_PLUS = 0.50;
+
+/** Composite score >= 0.45 = D (very poor performance) */
+const GRADE_THRESHOLD_D = 0.45;
+
+/** Composite score >= 0.40 = D- (critically poor performance) */
+const GRADE_THRESHOLD_D_MINUS = 0.40;
+
+/** Composite score < 0.40 = F (failing) */
+
+/**
+ * ELO Rating Parameters
+ *
+ * Chess-style pairwise comparison rating system.
+ * ELO updates based on head-to-head composite score comparisons.
+ */
+
+/** Initial ELO rating for new agents (1500 = average chess player baseline) */
+const ELO_INITIAL = 1500;
+
+/**
+ * ELO K-factor: controls rating volatility (how much ratings change per game)
+ * Higher K = faster adjustments, more volatile ratings
+ * Lower K = slower convergence, more stable ratings
+ * 32 is standard for active players in chess
+ */
+const ELO_K_FACTOR = 32;
+
+/**
+ * ELO divisor for expected score calculation
+ * Formula: expectedA = 1 / (1 + 10^((ratingB - ratingA) / 400))
+ * 400 points difference = 10:1 win probability
+ */
+const ELO_DIVISOR = 400;
+
+/**
+ * Glicko-2 Rating Parameters
+ *
+ * Enhanced ELO variant with confidence intervals (rating deviation).
+ * Better for sparse data and handles rating uncertainty.
+ */
+
+/** Initial Glicko-2 rating (same scale as ELO: 1500 = average) */
+const GLICKO_INITIAL_RATING = 1500;
+
+/**
+ * Initial Glicko-2 deviation (uncertainty in rating)
+ * 350 = high uncertainty for new agents
+ * Decreases as more games are played (converges to ~30-50)
+ */
+const GLICKO_INITIAL_DEVIATION = 350;
+
+/**
+ * Initial Glicko-2 volatility (expected rating fluctuation)
+ * 0.06 = moderate volatility baseline
+ */
+const GLICKO_INITIAL_VOLATILITY = 0.06;
+
+/**
+ * Glicko-2 tau parameter (system constant)
+ * Controls how much volatility can change
+ * 0.5 is standard recommendation from Glickman's paper
+ */
+const GLICKO_TAU = 0.5;
+
+/**
+ * Glicko-2 phi scaling divisor
+ * Converts deviation to phi scale: phi = deviation / 173.7178
+ */
+const GLICKO_PHI_SCALING_DIVISOR = 173.7178;
+
+/**
+ * Glicko-2 score scaling parameters
+ * Map composite score (0-1) to Glicko range (~900-2100)
+ * Formula: scaledScore = BASE + (score - 0.5) * RANGE
+ * Example: 0.5 composite -> 1500 Glicko, 1.0 composite -> 1800 Glicko
+ */
+const GLICKO_SCORE_BASE = 1500;
+const GLICKO_SCORE_RANGE = 600;
+
+/**
+ * Glicko-2 variance calculation parameters
+ * v = 1 / (1 + VARIANCE_FACTOR * phi^2 / PI^2)
+ */
+const GLICKO_VARIANCE_FACTOR = 3;
+
+/**
+ * Glicko-2 volatility decay factor
+ * newSigma = sigma * (1 - DECAY) + DECAY * abs(delta) / DIVISOR
+ * 0.1 = moderate decay toward stable volatility
+ */
+const GLICKO_VOLATILITY_DECAY = 0.1;
+
+/**
+ * Glicko-2 deviation reduction multiplier
+ * Deviation decreases over time: newPhi = sqrt(phi^2 + sigma^2) * REDUCTION
+ * 0.95 = gradual reduction with each game played
+ */
+const GLICKO_DEVIATION_REDUCTION = 0.95;
+
+/**
+ * Glicko-2 minimum deviation floor
+ * Prevents deviation from dropping too low (maintains some uncertainty)
+ * 30 = experienced player with ~95% confidence interval ±60 rating points
+ */
+const GLICKO_MIN_DEVIATION = 30;
+
+/**
+ * Glicko-2 minimum volatility floor
+ * Prevents volatility from becoming too stable (allows adaptation to performance changes)
+ * 0.01 = very stable but not frozen
+ */
+const GLICKO_MIN_VOLATILITY = 0.01;
+
+/**
+ * Time Window Parameters
+ *
+ * Rolling windows for trend analysis and recent performance filtering.
+ */
+
+/** 24-hour window in milliseconds (1 day = 86,400,000 ms) */
+const TIME_WINDOW_24H_MS = 24 * 60 * 60 * 1000;
+
+/** 7-day window in milliseconds (1 week = 604,800,000 ms) */
+const TIME_WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** 14-day window in milliseconds (2 weeks = 1,209,600,000 ms) */
+const TIME_WINDOW_14D_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Classify agent performance trajectory based on 7-day composite score change.
+ */
+
+/**
+ * Composite score change > 0.03 (3 percentage points) = "improving" trend
+ * Example: 0.75 -> 0.78 composite score over 7 days
+ */
+const TREND_IMPROVING_THRESHOLD = 0.03;
+
+/**
+ * Composite score change < -0.03 (-3 percentage points) = "declining" trend
+ * Example: 0.80 -> 0.77 composite score over 7 days
+ */
+const TREND_DECLINING_THRESHOLD = -0.03;
+
+/** Within ±3pp = "stable" trend (normal variation) */
+
+/**
+ * Display and History Limits
+ */
+
+/** Default leaderboard display limit (top N agents shown) */
+const LEADERBOARD_DEFAULT_LIMIT = 50;
+
+/** Maximum leaderboard snapshots retained in memory */
+const MAX_SNAPSHOTS = 500;
+
+/** Maximum history samples per metric (prevents unbounded memory growth) */
+const MAX_HISTORY_PER_METRIC = 500;
+
+/** Snapshot history query limit (getLeaderboardHistory default) */
+const SNAPSHOT_HISTORY_DEFAULT_LIMIT = 20;
+
+/** Recent scores shown in agent detail view */
+const AGENT_DETAIL_RECENT_SCORES_LIMIT = 50;
+
+/**
+ * Sharpe Ratio Calculation
+ */
+
+/**
+ * Minimum trades required for Sharpe ratio calculation
+ * 3 trades = minimum sample size for meaningful variance estimate
+ */
+const SHARPE_MIN_TRADES = 3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -274,7 +491,7 @@ export function recordScore(params: {
 // ---------------------------------------------------------------------------
 
 function updateElo(ratingA: number, ratingB: number, result: number): [number, number] {
-  const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / ELO_DIVISOR));
   const expectedB = 1 - expectedA;
 
   const newA = Math.round(ratingA + ELO_K_FACTOR * (result - expectedA));
@@ -289,24 +506,24 @@ function updateElo(ratingA: number, ratingB: number, result: number): [number, n
 
 function updateGlicko2(state: AgentState, score: number): void {
   // Simplified Glicko-2: decrease deviation over time, adjust rating toward score
-  const phi = state.glickoDeviation / 173.7178;
+  const phi = state.glickoDeviation / GLICKO_PHI_SCALING_DIVISOR;
   const sigma = state.glickoVolatility;
 
   // Scale score to Glicko range
-  const scaledScore = 1500 + (score - 0.5) * 600; // 0.5 composite -> 1500
+  const scaledScore = GLICKO_SCORE_BASE + (score - 0.5) * GLICKO_SCORE_RANGE;
 
   // Update rating (move toward performance)
-  const v = 1 / (1 + 3 * phi * phi / (Math.PI * Math.PI));
+  const v = 1 / (1 + GLICKO_VARIANCE_FACTOR * phi * phi / (Math.PI * Math.PI));
   const delta = v * (scaledScore - state.glickoRating);
 
   // Update volatility (simplified)
-  const newSigma = Math.max(0.01, sigma * (1 - 0.1) + 0.1 * Math.abs(delta) / 400);
+  const newSigma = Math.max(GLICKO_MIN_VOLATILITY, sigma * (1 - GLICKO_VOLATILITY_DECAY) + GLICKO_VOLATILITY_DECAY * Math.abs(delta) / ELO_DIVISOR);
 
   // Update deviation (decreases with more games)
-  const newPhi = Math.max(30, Math.sqrt(phi * phi + newSigma * newSigma) * 173.7178 * 0.95);
+  const newPhi = Math.max(GLICKO_MIN_DEVIATION, Math.sqrt(phi * phi + newSigma * newSigma) * GLICKO_PHI_SCALING_DIVISOR * GLICKO_DEVIATION_REDUCTION);
 
   // Update rating
-  state.glickoRating = Math.round(state.glickoRating + ELO_K_FACTOR * delta / 400);
+  state.glickoRating = Math.round(state.glickoRating + ELO_K_FACTOR * delta / ELO_DIVISOR);
   state.glickoDeviation = Math.round(newPhi);
   state.glickoVolatility = Math.round(newSigma * 10000) / 10000;
 }
@@ -325,11 +542,11 @@ export function getLeaderboard(options?: {
 }): LeaderboardSnapshot {
   const timeWindow = options?.timeWindow ?? "all";
   const includeExternal = options?.includeExternal ?? true;
-  const limit = options?.limit ?? 50;
+  const limit = options?.limit ?? LEADERBOARD_DEFAULT_LIMIT;
 
   const now = Date.now();
-  const windowMs = timeWindow === "24h" ? 24 * 60 * 60 * 1000 :
-    timeWindow === "7d" ? 7 * 24 * 60 * 60 * 1000 : Infinity;
+  const windowMs = timeWindow === "24h" ? TIME_WINDOW_24H_MS :
+    timeWindow === "7d" ? TIME_WINDOW_7D_MS : Infinity;
 
   const entries: LeaderboardEntry[] = [];
 
@@ -359,15 +576,15 @@ export function getLeaderboard(options?: {
 
     // Sharpe ratio estimate (simplified)
     const pnlSlice = slice(state.pnlHistory);
-    const sharpe = pnlSlice.length >= 3 ? sharpeRatio(pnlSlice) : 0;
+    const sharpe = pnlSlice.length >= SHARPE_MIN_TRADES ? sharpeRatio(pnlSlice) : 0;
 
     // Trend analysis
     const scores7d = state.compositeScores.filter(
-      (s) => now - s.timestamp < 7 * 24 * 60 * 60 * 1000,
+      (s) => now - s.timestamp < TIME_WINDOW_7D_MS,
     );
     const scores7dPrev = state.compositeScores.filter(
-      (s) => now - s.timestamp >= 7 * 24 * 60 * 60 * 1000 &&
-             now - s.timestamp < 14 * 24 * 60 * 60 * 1000,
+      (s) => now - s.timestamp >= TIME_WINDOW_7D_MS &&
+             now - s.timestamp < TIME_WINDOW_14D_MS,
     );
 
     const avg7d = scores7d.length > 0 ? scores7d.reduce((s, e) => s + e.score, 0) / scores7d.length : avgComposite;
