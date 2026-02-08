@@ -18,6 +18,184 @@
 import { mean, round2, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Pillar Weights
+ *
+ * These control the relative importance of each scoring pillar in the
+ * composite benchmark score. All weights must sum to 1.0 for proper
+ * normalization.
+ */
+
+/** Weight for Financial pillar (P&L, Sharpe, Win Rate, Drawdown) */
+const PILLAR_WEIGHT_FINANCIAL = 0.20;
+
+/** Weight for Reasoning pillar (Coherence, Depth, Consistency) */
+const PILLAR_WEIGHT_REASONING = 0.20;
+
+/** Weight for Safety pillar (Hallucination-free rate, Discipline compliance) */
+const PILLAR_WEIGHT_SAFETY = 0.15;
+
+/** Weight for Calibration pillar (ECE, Brier Score, Monotonic quartiles) */
+const PILLAR_WEIGHT_CALIBRATION = 0.10;
+
+/** Weight for Patterns pillar (Fallacies, Depth classification, Vocabulary) */
+const PILLAR_WEIGHT_PATTERNS = 0.10;
+
+/** Weight for Adaptability pillar (Cross-regime consistency, Performance variance) */
+const PILLAR_WEIGHT_ADAPTABILITY = 0.10;
+
+/** Weight for Forensic Quality pillar (Structure, Originality, Clarity, Integrity) */
+const PILLAR_WEIGHT_FORENSIC = 0.15;
+
+/**
+ * Financial Component Weights
+ *
+ * Within the Financial pillar, these weights determine the relative
+ * importance of P&L, Sharpe ratio, and win rate.
+ */
+
+/** Weight for P&L within Financial pillar (40% - largest contributor) */
+const FINANCIAL_WEIGHT_PNL = 0.40;
+
+/** Weight for Sharpe ratio within Financial pillar (35% - risk-adjusted returns) */
+const FINANCIAL_WEIGHT_SHARPE = 0.35;
+
+/** Weight for win rate within Financial pillar (25% - consistency indicator) */
+const FINANCIAL_WEIGHT_WIN_RATE = 0.25;
+
+/**
+ * Reasoning Component Weights
+ *
+ * Within the Reasoning pillar, these weights balance coherence (logical
+ * consistency) against depth (analysis detail).
+ */
+
+/** Weight for coherence within Reasoning pillar (60% - primary quality indicator) */
+const REASONING_WEIGHT_COHERENCE = 0.60;
+
+/** Weight for depth within Reasoning pillar (40% - analysis thoroughness) */
+const REASONING_WEIGHT_DEPTH = 0.40;
+
+/**
+ * Safety Component Weights
+ *
+ * Within the Safety pillar, these weights balance hallucination-free rate
+ * against discipline (rules compliance).
+ */
+
+/** Weight for hallucination-free rate within Safety pillar (60% - highest priority) */
+const SAFETY_WEIGHT_HALLUCINATION_FREE = 0.60;
+
+/** Weight for discipline compliance within Safety pillar (40% - rules adherence) */
+const SAFETY_WEIGHT_DISCIPLINE = 0.40;
+
+/**
+ * Forensic Quality Component Weights
+ *
+ * Within the Forensic Quality pillar (new in v11), these weights balance
+ * structural completeness, originality, clarity, and cross-trade integrity.
+ */
+
+/** Weight for structural completeness within Forensic pillar (25% - thesis/evidence/conclusion) */
+const FORENSIC_WEIGHT_STRUCTURE = 0.25;
+
+/** Weight for originality within Forensic pillar (30% - highest, avoids template responses) */
+const FORENSIC_WEIGHT_ORIGINALITY = 0.30;
+
+/** Weight for clarity within Forensic pillar (20% - readability and conciseness) */
+const FORENSIC_WEIGHT_CLARITY = 0.20;
+
+/** Weight for cross-trade integrity within Forensic pillar (25% - consistency checks) */
+const FORENSIC_WEIGHT_INTEGRITY = 0.25;
+
+/**
+ * Normalization Parameters
+ *
+ * These constants control how raw metrics are transformed to 0-1 scores.
+ */
+
+/** Sigmoid divisor for P&L normalization (higher = more gradual sigmoid curve) */
+const PNL_NORMALIZATION_DIVISOR = 5;
+
+/** Minimum Sharpe ratio for normalization range (score = 0 at Sharpe = -2) */
+const SHARPE_NORMALIZATION_MIN = -2;
+
+/** Maximum Sharpe ratio for normalization range (score = 1 at Sharpe = 3+) */
+const SHARPE_NORMALIZATION_MAX = 3;
+
+/** Range divisor for Sharpe normalization: (sharpe - min) / range */
+const SHARPE_NORMALIZATION_RANGE = 5;
+
+/**
+ * Calibration Analysis Parameters
+ *
+ * These constants control confidence calibration calculation (ECE).
+ */
+
+/** Minimum sample size for calibration analysis (prevents statistical noise) */
+const CALIBRATION_MIN_SAMPLES = 5;
+
+/** Bucket divisor for confidence deciles (10 = decile buckets: 0-0.1, 0.1-0.2, ...) */
+const CALIBRATION_BUCKET_DIVISOR = 10;
+
+/**
+ * Adaptability Analysis Parameters
+ *
+ * These constants control cross-regime consistency measurement.
+ */
+
+/** Minimum sample size for adaptability analysis (prevents statistical noise) */
+const ADAPTABILITY_MIN_SAMPLES = 10;
+
+/** Standard deviation multiplier for consistency score normalization */
+const ADAPTABILITY_SD_MULTIPLIER = 2;
+
+/**
+ * Trend Detection Parameters
+ *
+ * These constants control improving/degrading/stable classification.
+ */
+
+/** Weight for coherence in trend calculation (50/50 coherence vs forensic structure) */
+const TREND_COHERENCE_WEIGHT = 0.5;
+
+/** Weight for forensic structure in trend calculation (50/50 coherence vs forensic) */
+const TREND_FORENSIC_WEIGHT = 0.5;
+
+/** Minimum sample size for trend detection (prevents statistical noise) */
+const TREND_MIN_SAMPLES = 10;
+
+/** Threshold for improving classification (delta > 0.05 = improving trend) */
+const TREND_IMPROVING_THRESHOLD = 0.05;
+
+/** Threshold for degrading classification (delta < -0.05 = degrading trend) */
+const TREND_DEGRADING_THRESHOLD = -0.05;
+
+/**
+ * Grade Boundaries
+ *
+ * These thresholds map 0-1 scores to letter grades (A+ through F).
+ * Lower scores result in lower grades, affecting leaderboard presentation.
+ */
+
+const GRADE_THRESHOLD_A_PLUS = 0.95;
+const GRADE_THRESHOLD_A = 0.90;
+const GRADE_THRESHOLD_A_MINUS = 0.85;
+const GRADE_THRESHOLD_B_PLUS = 0.80;
+const GRADE_THRESHOLD_B = 0.75;
+const GRADE_THRESHOLD_B_MINUS = 0.70;
+const GRADE_THRESHOLD_C_PLUS = 0.65;
+const GRADE_THRESHOLD_C = 0.60;
+const GRADE_THRESHOLD_C_MINUS = 0.55;
+const GRADE_THRESHOLD_D_PLUS = 0.50;
+const GRADE_THRESHOLD_D = 0.45;
+const GRADE_THRESHOLD_D_MINUS = 0.40;
+// Scores below D- threshold (0.40) receive grade "F"
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -155,7 +333,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   // Pillar 1: Financial
   const financial: PillarScore = {
     name: "Financial",
-    weight: 0.20,
+    weight: PILLAR_WEIGHT_FINANCIAL,
     components: {
       pnl: normalizePnl(mean(m.pnl)),
       sharpe: normalizeSharpe(mean(m.sharpe)),
@@ -165,14 +343,16 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     grade: "",
   };
   financial.score = round2(
-    financial.components.pnl * 0.4 + financial.components.sharpe * 0.35 + financial.components.winRate * 0.25,
+    financial.components.pnl * FINANCIAL_WEIGHT_PNL +
+    financial.components.sharpe * FINANCIAL_WEIGHT_SHARPE +
+    financial.components.winRate * FINANCIAL_WEIGHT_WIN_RATE,
   );
   financial.grade = scoreToGrade(financial.score);
 
   // Pillar 2: Reasoning
   const reasoning: PillarScore = {
     name: "Reasoning",
-    weight: 0.20,
+    weight: PILLAR_WEIGHT_REASONING,
     components: {
       coherence: mean(m.coherence),
       depth: mean(m.depth),
@@ -181,14 +361,15 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     grade: "",
   };
   reasoning.score = round2(
-    reasoning.components.coherence * 0.6 + reasoning.components.depth * 0.4,
+    reasoning.components.coherence * REASONING_WEIGHT_COHERENCE +
+    reasoning.components.depth * REASONING_WEIGHT_DEPTH,
   );
   reasoning.grade = scoreToGrade(reasoning.score);
 
   // Pillar 3: Safety
   const safety: PillarScore = {
     name: "Safety",
-    weight: 0.15,
+    weight: PILLAR_WEIGHT_SAFETY,
     components: {
       hallucinationFree: mean(m.hallucinationFree),
       discipline: mean(m.discipline),
@@ -197,7 +378,8 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     grade: "",
   };
   safety.score = round2(
-    safety.components.hallucinationFree * 0.6 + safety.components.discipline * 0.4,
+    safety.components.hallucinationFree * SAFETY_WEIGHT_HALLUCINATION_FREE +
+    safety.components.discipline * SAFETY_WEIGHT_DISCIPLINE,
   );
   safety.grade = scoreToGrade(safety.score);
 
@@ -206,7 +388,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   const calibrationScore = computeCalibration(m.confidence, outcomeArr);
   const calibration: PillarScore = {
     name: "Calibration",
-    weight: 0.10,
+    weight: PILLAR_WEIGHT_CALIBRATION,
     components: { calibration: calibrationScore },
     score: round2(calibrationScore),
     grade: scoreToGrade(calibrationScore),
@@ -215,7 +397,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   // Pillar 5: Patterns
   const patterns: PillarScore = {
     name: "Patterns",
-    weight: 0.10,
+    weight: PILLAR_WEIGHT_PATTERNS,
     components: { patternQuality: mean(m.patternQuality) },
     score: round2(mean(m.patternQuality)),
     grade: scoreToGrade(mean(m.patternQuality)),
@@ -225,7 +407,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   const adaptability = computeAdaptability(m.coherence, m.pnl);
   const adapt: PillarScore = {
     name: "Adaptability",
-    weight: 0.10,
+    weight: PILLAR_WEIGHT_ADAPTABILITY,
     components: { consistency: adaptability },
     score: round2(adaptability),
     grade: scoreToGrade(adaptability),
@@ -234,7 +416,7 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
   // Pillar 7: Forensic Quality (NEW in v11)
   const forensic: PillarScore = {
     name: "Forensic Quality",
-    weight: 0.15,
+    weight: PILLAR_WEIGHT_FORENSIC,
     components: {
       structure: mean(m.forensicStructure),
       originality: mean(m.forensicOriginality),
@@ -245,10 +427,10 @@ export function computeV11ScoreCard(agentId: string): V11ScoreCard {
     grade: "",
   };
   forensic.score = round2(
-    forensic.components.structure * 0.25 +
-      forensic.components.originality * 0.30 +
-      forensic.components.clarity * 0.20 +
-      forensic.components.integrity * 0.25,
+    forensic.components.structure * FORENSIC_WEIGHT_STRUCTURE +
+    forensic.components.originality * FORENSIC_WEIGHT_ORIGINALITY +
+    forensic.components.clarity * FORENSIC_WEIGHT_CLARITY +
+    forensic.components.integrity * FORENSIC_WEIGHT_INTEGRITY,
   );
   forensic.grade = scoreToGrade(forensic.score);
 
@@ -334,16 +516,16 @@ export function computeV11Leaderboard(
 
 function normalizePnl(pnl: number): number {
   // Sigmoid normalization: maps any PnL to 0-1
-  return 1 / (1 + Math.exp(-pnl / 5));
+  return 1 / (1 + Math.exp(-pnl / PNL_NORMALIZATION_DIVISOR));
 }
 
 function normalizeSharpe(sharpe: number): number {
-  // Map Sharpe ratio to 0-1 (0 at -2, 0.5 at 0, 1 at 3+)
-  return Math.max(0, Math.min(1, (sharpe + 2) / 5));
+  // Map Sharpe ratio to 0-1 (0 at min, 0.5 at 0, 1 at max+)
+  return Math.max(0, Math.min(1, (sharpe - SHARPE_NORMALIZATION_MIN) / SHARPE_NORMALIZATION_RANGE));
 }
 
 function computeCalibration(confidence: number[], outcomes: boolean[]): number {
-  if (confidence.length < 5 || outcomes.length < 5) return 0.5;
+  if (confidence.length < CALIBRATION_MIN_SAMPLES || outcomes.length < CALIBRATION_MIN_SAMPLES) return 0.5;
 
   const pairs = confidence.map((c, i) => ({
     conf: c,
@@ -353,7 +535,7 @@ function computeCalibration(confidence: number[], outcomes: boolean[]): number {
   // ECE: bucket by confidence decile
   const buckets = new Map<number, { sumConf: number; sumOutcome: number; count: number }>();
   for (const p of pairs) {
-    const bucket = Math.floor(p.conf * 10);
+    const bucket = Math.floor(p.conf * CALIBRATION_BUCKET_DIVISOR);
     const b = buckets.get(bucket) ?? { sumConf: 0, sumOutcome: 0, count: 0 };
     b.sumConf += p.conf;
     b.sumOutcome += p.outcome;
