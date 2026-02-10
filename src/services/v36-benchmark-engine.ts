@@ -117,11 +117,16 @@ const REVERSIBILITY_EVIDENCE_HIGH_CONF_STRONG_DENSITY = 1.5; // Density threshol
 const REVERSIBILITY_EVIDENCE_HIGH_CONF_GOOD_DENSITY = 1.0; // Density threshold for 20 points
 const REVERSIBILITY_EVIDENCE_HIGH_CONF_MODERATE_DENSITY = 0.5; // Density threshold for 12 points
 const REVERSIBILITY_EVIDENCE_HIGH_CONF_WEAK_SCORE = 5; // Score for low evidence with high confidence
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_GOOD_SCORE = 20; // Score for good evidence density with high confidence
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_MODERATE_SCORE = 12; // Score for moderate evidence density with high confidence
 const REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
 const REVERSIBILITY_EVIDENCE_MODERATE_CONF_STRONG_DENSITY = 1.0; // Density threshold for 22 points
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_STRONG_SCORE = 22; // Score for strong evidence density with moderate confidence
 const REVERSIBILITY_EVIDENCE_MODERATE_CONF_GOOD_DENSITY = 0.5; // Density threshold for 20 points
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_GOOD_SCORE = 20; // Score for good evidence density with moderate confidence
 const REVERSIBILITY_EVIDENCE_MODERATE_CONF_BASELINE_SCORE = 15; // Score for lower evidence
 const REVERSIBILITY_EVIDENCE_LOW_CONF_GOOD_DENSITY = 0.5; // Density threshold for 20 points (low conf)
+const REVERSIBILITY_EVIDENCE_LOW_CONF_GOOD_SCORE = 20; // Score for good evidence density with low confidence
 const REVERSIBILITY_EVIDENCE_LOW_CONF_SOME_SCORE = 18; // Score when some evidence exists
 const REVERSIBILITY_EVIDENCE_LOW_CONF_BASELINE_SCORE = 12; // Score for no evidence
 const REVERSIBILITY_EVIDENCE_HALLUCINATION_CONF_THRESHOLD = 0.7; // >= 70% confidence + hallucinations = penalty
@@ -144,14 +149,24 @@ const REVERSIBILITY_SOURCE_MAX_SCORE = 25; // Category ceiling
 // 3. Hedging-Confidence Coherence (0-20 points total)
 const REVERSIBILITY_HEDGING_WORDS_PER_UNIT = 50; // Words per hedging density unit (for normalization)
 const REVERSIBILITY_HEDGING_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (limited hedging expected)
+const REVERSIBILITY_HEDGING_HIGH_CONF_MIN_DENSITY = 0.2; // Min hedging density for good score
+const REVERSIBILITY_HEDGING_HIGH_CONF_MAX_DENSITY = 1; // Max hedging density for good score
+const REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with high confidence
 const REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_MAX_DENSITY = 1; // Max hedging density for 18 points
 const REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_MAX_DENSITY = 2; // Max hedging density for 14 points
+const REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_SCORE = 14; // Score for moderate hedging with high confidence
 const REVERSIBILITY_HEDGING_HIGH_CONF_EXCESSIVE_SCORE = 6; // Score for too much hedging
 const REVERSIBILITY_HEDGING_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
+const REVERSIBILITY_HEDGING_MODERATE_CONF_MIN_DENSITY = 0.5; // Min hedging for good score
+const REVERSIBILITY_HEDGING_MODERATE_CONF_MAX_DENSITY = 3; // Max hedging for good score
+const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with moderate confidence
 const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MIN_DENSITY = 0.5; // Min hedging for 18 points
 const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MAX_DENSITY = 3; // Max hedging for 18 points
 const REVERSIBILITY_HEDGING_MODERATE_CONF_EXCESSIVE_SCORE = 12; // Score for too much hedging
+const REVERSIBILITY_HEDGING_MODERATE_CONF_LOW_SCORE = 14; // Score for less hedging than ideal
 const REVERSIBILITY_HEDGING_MODERATE_CONF_NONE_SCORE = 10; // Score for no hedging (slightly off)
+const REVERSIBILITY_HEDGING_LOW_CONF_MIN_DENSITY = 1; // Min hedging density for good score with low confidence
+const REVERSIBILITY_HEDGING_LOW_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with low confidence
 const REVERSIBILITY_HEDGING_LOW_CONF_GOOD_MIN_DENSITY = 1; // Min hedging for 18 points (low conf)
 const REVERSIBILITY_HEDGING_LOW_CONF_SOME_SCORE = 14; // Score for some hedging
 const REVERSIBILITY_HEDGING_LOW_CONF_NONE_SCORE = 6; // Score for no hedging (inconsistent)
@@ -160,11 +175,14 @@ const REVERSIBILITY_HEDGING_MAX_SCORE = 20; // Category ceiling
 
 // 4. Historical Accuracy Match (0-15 points total)
 const REVERSIBILITY_ACCURACY_MIN_OUTCOMES = 3; // Minimum outcomes needed for calibration analysis
+const REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER = 0.7; // >= 70% confidence = high (filter threshold)
 const REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER_THRESHOLD = 0.7; // >= 70% confidence = high
+const REVERSIBILITY_ACCURACY_LOW_CONF_FILTER = 0.4; // < 40% confidence = low (filter threshold)
 const REVERSIBILITY_ACCURACY_LOW_CONF_FILTER_THRESHOLD = 0.4; // < 40% confidence = low
 const REVERSIBILITY_ACCURACY_GOOD_CALIBRATION_SCORE = 12; // Score when high conf > low conf accuracy
 const REVERSIBILITY_ACCURACY_NEUTRAL_CALIBRATION_SCORE = 8; // Score when high conf = low conf accuracy
 const REVERSIBILITY_ACCURACY_INVERTED_CALIBRATION_SCORE = 3; // Score when high conf < low conf accuracy
+const REVERSIBILITY_ACCURACY_OVERALL_TOLERANCE = 0.2; // Tolerance for overall accuracy match (20%)
 const REVERSIBILITY_ACCURACY_CALIBRATION_TOLERANCE = 0.2; // Tolerance for overall accuracy match (20%)
 const REVERSIBILITY_ACCURACY_CALIBRATION_BONUS = 3; // Bonus for well-calibrated overall accuracy
 const REVERSIBILITY_ACCURACY_INSUFFICIENT_DATA_SCORE = 8; // Partial credit when < 3 outcomes
@@ -172,6 +190,8 @@ const REVERSIBILITY_ACCURACY_MAX_SCORE = 15; // Category ceiling
 
 // 5. Reasoning Depth Proportionality (0-15 points total)
 const REVERSIBILITY_DEPTH_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (deep reasoning required)
+const REVERSIBILITY_DEPTH_HIGH_CONF_WORD_COUNT = 80; // >= 80 words for deep reasoning (alias for DEEP_WORD_COUNT)
+const REVERSIBILITY_DEPTH_HIGH_CONF_CLAUSE_COUNT = 5; // >= 5 clauses for deep reasoning (alias for DEEP_CLAUSE_COUNT)
 const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_WORD_COUNT = 80; // >= 80 words for deep reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_CLAUSE_COUNT = 5; // >= 5 clauses for deep reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_SCORE = 15; // Score for deep reasoning
@@ -180,12 +200,19 @@ const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_CLAUSE_COUNT = 3; // >= 3 clauses f
 const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_SCORE = 10; // Score for moderate reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_SHALLOW_SCORE = 4; // Score for shallow reasoning + high confidence
 const REVERSIBILITY_DEPTH_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
+const REVERSIBILITY_DEPTH_MODERATE_CONF_WORD_COUNT = 40; // >= 40 words for good reasoning (alias for GOOD_WORD_COUNT)
+const REVERSIBILITY_DEPTH_MODERATE_CONF_CLAUSE_COUNT = 3; // >= 3 clauses for good reasoning (alias for GOOD_CLAUSE_COUNT)
+const REVERSIBILITY_DEPTH_MODERATE_CONF_MIN_WORD_COUNT = 25; // >= 25 words for adequate reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_BRIEF_SCORE = 7; // Score for brief reasoning with moderate confidence
 const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_WORD_COUNT = 40; // >= 40 words for good reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_CLAUSE_COUNT = 3; // >= 3 clauses for good reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_SCORE = 13; // Score for good reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_WORD_COUNT = 25; // >= 25 words for adequate reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_SCORE = 10; // Score for adequate reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_BASELINE_SCORE = 7; // Score for brief reasoning
+const REVERSIBILITY_DEPTH_LOW_CONF_MIN_WORD_COUNT = 20; // >= 20 words for low conf (brief OK)
+const REVERSIBILITY_DEPTH_LOW_CONF_GOOD_SCORE = 12; // Score for adequate low-conf reasoning
+const REVERSIBILITY_DEPTH_LOW_CONF_BRIEF_SCORE = 8; // Score for very brief low-conf reasoning
 const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_WORD_COUNT = 20; // >= 20 words for low conf (brief OK)
 const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_SCORE = 12; // Score for adequate low-conf reasoning
 const REVERSIBILITY_DEPTH_LOW_CONF_BASELINE_SCORE = 8; // Score for very brief low-conf reasoning
