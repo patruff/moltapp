@@ -47,6 +47,157 @@ import {
 } from "./v35-benchmark-engine.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Reasoning Auditability Scoring Parameters
+ *
+ * Auditability measures whether reasoning claims can be independently verified.
+ * These thresholds control pattern matching and point assignment across 5 categories:
+ * spread awareness, liquidity assessment, execution strategy, market impact, cost consciousness.
+ */
+
+// 1. Spread Awareness Scoring (0-20 points total)
+const SPREAD_AWARENESS_SPREAD_PATTERN_MAX_SCORE = 12; // Max points for spread/slippage mentions
+const SPREAD_AWARENESS_SPREAD_PATTERN_POINTS_PER_MATCH = 4; // Points per spread pattern match
+const SPREAD_AWARENESS_BPS_PATTERN_MAX_SCORE = 8; // Max points for basis point references
+const SPREAD_AWARENESS_BPS_PATTERN_POINTS_PER_MATCH = 4; // Points per bps/percentage match
+const SPREAD_AWARENESS_MAX_SCORE = 20; // Category ceiling
+
+// 2. Liquidity Assessment Scoring (0-20 points total)
+const LIQUIDITY_ASSESSMENT_LIQUIDITY_PATTERN_MAX_SCORE = 12; // Max points for liquidity mentions
+const LIQUIDITY_ASSESSMENT_LIQUIDITY_PATTERN_POINTS_PER_MATCH = 4; // Points per liquidity match
+const LIQUIDITY_ASSESSMENT_VOLUME_QUANT_MAX_SCORE = 8; // Max points for quantitative volume refs
+const LIQUIDITY_ASSESSMENT_VOLUME_QUANT_POINTS_PER_MATCH = 4; // Points per $X volume mention
+const LIQUIDITY_ASSESSMENT_MAX_SCORE = 20; // Category ceiling
+
+// 3. Execution Strategy Scoring (0-20 points total)
+const EXECUTION_STRATEGY_EXECUTION_PATTERN_MAX_SCORE = 12; // Max points for TWAP/VWAP/limit mentions
+const EXECUTION_STRATEGY_EXECUTION_PATTERN_POINTS_PER_MATCH = 5; // Points per execution strategy match
+const EXECUTION_STRATEGY_TIMING_PATTERN_MAX_SCORE = 8; // Max points for timing-related execution
+const EXECUTION_STRATEGY_TIMING_PATTERN_POINTS_PER_MATCH = 4; // Points per timing reference
+const EXECUTION_STRATEGY_MAX_SCORE = 20; // Category ceiling
+
+// 4. Market Impact Awareness Scoring (0-20 points total)
+const MARKET_IMPACT_IMPACT_PATTERN_MAX_SCORE = 12; // Max points for impact awareness mentions
+const MARKET_IMPACT_IMPACT_PATTERN_POINTS_PER_MATCH = 4; // Points per impact pattern match
+const MARKET_IMPACT_SIZE_AWARE_MAX_SCORE = 8; // Max points for size-relative awareness
+const MARKET_IMPACT_SIZE_AWARE_POINTS_PER_MATCH = 4; // Points per size-awareness match
+const MARKET_IMPACT_HOLD_PARTIAL_CREDIT = 2; // Partial credit when quantity is 0 (hold)
+const MARKET_IMPACT_MAX_SCORE = 20; // Category ceiling
+
+// 5. Cost Consciousness Scoring (0-20 points total)
+const COST_CONSCIOUSNESS_COST_PATTERN_MAX_SCORE = 12; // Max points for cost/fee mentions
+const COST_CONSCIOUSNESS_COST_PATTERN_POINTS_PER_MATCH = 4; // Points per cost pattern match
+const COST_CONSCIOUSNESS_SLIPPAGE_PATTERN_MAX_SCORE = 8; // Max points for slippage tolerance
+const COST_CONSCIOUSNESS_SLIPPAGE_PATTERN_POINTS_PER_MATCH = 4; // Points per slippage mention
+const COST_CONSCIOUSNESS_MAX_SCORE = 20; // Category ceiling
+
+// 6. Source Bonus for Execution-Related References (0-5 bonus points)
+const AUDITABILITY_SOURCE_BONUS_MAX = 5; // Max bonus for execution-related sources
+const AUDITABILITY_SOURCE_BONUS_POINTS_PER_SOURCE = 3; // Points per execution source
+
+// 7. Overall Auditability Limits
+const AUDITABILITY_MAX_SCORE = 100; // Maximum auditability score
+const AUDITABILITY_MIN_SCORE = 0; // Minimum auditability score
+
+/**
+ * Decision Reversibility Scoring Parameters
+ *
+ * Reversibility measures whether agents plan for when their thesis breaks.
+ * These thresholds control evidence-confidence alignment, source calibration,
+ * hedging coherence, historical accuracy, and reasoning depth scoring.
+ */
+
+// 1. Evidence-Confidence Alignment (0-25 points total)
+const REVERSIBILITY_EVIDENCE_WORDS_PER_UNIT = 50; // Words per evidence density unit (for normalization)
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (strict evidence required)
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_STRONG_DENSITY = 1.5; // Density threshold for 25 points
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_GOOD_DENSITY = 1.0; // Density threshold for 20 points
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_MODERATE_DENSITY = 0.5; // Density threshold for 12 points
+const REVERSIBILITY_EVIDENCE_HIGH_CONF_WEAK_SCORE = 5; // Score for low evidence with high confidence
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_STRONG_DENSITY = 1.0; // Density threshold for 22 points
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_GOOD_DENSITY = 0.5; // Density threshold for 20 points
+const REVERSIBILITY_EVIDENCE_MODERATE_CONF_BASELINE_SCORE = 15; // Score for lower evidence
+const REVERSIBILITY_EVIDENCE_LOW_CONF_GOOD_DENSITY = 0.5; // Density threshold for 20 points (low conf)
+const REVERSIBILITY_EVIDENCE_LOW_CONF_SOME_SCORE = 18; // Score when some evidence exists
+const REVERSIBILITY_EVIDENCE_LOW_CONF_BASELINE_SCORE = 12; // Score for no evidence
+const REVERSIBILITY_EVIDENCE_HALLUCINATION_CONF_THRESHOLD = 0.7; // >= 70% confidence + hallucinations = penalty
+const REVERSIBILITY_EVIDENCE_HALLUCINATION_PENALTY_PER_FLAG = 5; // Penalty points per hallucination flag
+const REVERSIBILITY_EVIDENCE_MAX_SCORE = 25; // Category ceiling
+
+// 2. Source-Confidence Calibration (0-25 points total)
+const REVERSIBILITY_SOURCE_HIGH_CONF_EXPECTED = 4; // Expected sources for >= 80% confidence
+const REVERSIBILITY_SOURCE_MODERATE_CONF_EXPECTED = 2; // Expected sources for >= 50% confidence
+const REVERSIBILITY_SOURCE_LOW_CONF_EXPECTED = 1; // Expected sources for < 50% confidence
+const REVERSIBILITY_SOURCE_BASELINE_SCORE = 20; // Base score when meeting expectations
+const REVERSIBILITY_SOURCE_BONUS_POINTS_PER_EXTRA = 2; // Bonus points per extra source
+const REVERSIBILITY_SOURCE_BONUS_MAX = 5; // Max bonus for extra sources
+const REVERSIBILITY_SOURCE_SHORTFALL_PENALTY = 5; // Penalty per missing source
+const REVERSIBILITY_SOURCE_MIN_SCORE = 5; // Minimum score for source calibration
+const REVERSIBILITY_SOURCE_DIVERSITY_THRESHOLD = 3; // >= 3 unique source types = bonus
+const REVERSIBILITY_SOURCE_DIVERSITY_BONUS = 3; // Bonus for diverse source types
+const REVERSIBILITY_SOURCE_MAX_SCORE = 25; // Category ceiling
+
+// 3. Hedging-Confidence Coherence (0-20 points total)
+const REVERSIBILITY_HEDGING_WORDS_PER_UNIT = 50; // Words per hedging density unit (for normalization)
+const REVERSIBILITY_HEDGING_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (limited hedging expected)
+const REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_MAX_DENSITY = 1; // Max hedging density for 18 points
+const REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_MAX_DENSITY = 2; // Max hedging density for 14 points
+const REVERSIBILITY_HEDGING_HIGH_CONF_EXCESSIVE_SCORE = 6; // Score for too much hedging
+const REVERSIBILITY_HEDGING_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
+const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MIN_DENSITY = 0.5; // Min hedging for 18 points
+const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MAX_DENSITY = 3; // Max hedging for 18 points
+const REVERSIBILITY_HEDGING_MODERATE_CONF_EXCESSIVE_SCORE = 12; // Score for too much hedging
+const REVERSIBILITY_HEDGING_MODERATE_CONF_NONE_SCORE = 10; // Score for no hedging (slightly off)
+const REVERSIBILITY_HEDGING_LOW_CONF_GOOD_MIN_DENSITY = 1; // Min hedging for 18 points (low conf)
+const REVERSIBILITY_HEDGING_LOW_CONF_SOME_SCORE = 14; // Score for some hedging
+const REVERSIBILITY_HEDGING_LOW_CONF_NONE_SCORE = 6; // Score for no hedging (inconsistent)
+const REVERSIBILITY_HEDGING_UNCERTAINTY_QUANT_BONUS = 3; // Bonus for explicit % probability mentions
+const REVERSIBILITY_HEDGING_MAX_SCORE = 20; // Category ceiling
+
+// 4. Historical Accuracy Match (0-15 points total)
+const REVERSIBILITY_ACCURACY_MIN_OUTCOMES = 3; // Minimum outcomes needed for calibration analysis
+const REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER_THRESHOLD = 0.7; // >= 70% confidence = high
+const REVERSIBILITY_ACCURACY_LOW_CONF_FILTER_THRESHOLD = 0.4; // < 40% confidence = low
+const REVERSIBILITY_ACCURACY_GOOD_CALIBRATION_SCORE = 12; // Score when high conf > low conf accuracy
+const REVERSIBILITY_ACCURACY_NEUTRAL_CALIBRATION_SCORE = 8; // Score when high conf = low conf accuracy
+const REVERSIBILITY_ACCURACY_INVERTED_CALIBRATION_SCORE = 3; // Score when high conf < low conf accuracy
+const REVERSIBILITY_ACCURACY_CALIBRATION_TOLERANCE = 0.2; // Tolerance for overall accuracy match (20%)
+const REVERSIBILITY_ACCURACY_CALIBRATION_BONUS = 3; // Bonus for well-calibrated overall accuracy
+const REVERSIBILITY_ACCURACY_INSUFFICIENT_DATA_SCORE = 8; // Partial credit when < 3 outcomes
+const REVERSIBILITY_ACCURACY_MAX_SCORE = 15; // Category ceiling
+
+// 5. Reasoning Depth Proportionality (0-15 points total)
+const REVERSIBILITY_DEPTH_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (deep reasoning required)
+const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_WORD_COUNT = 80; // >= 80 words for deep reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_CLAUSE_COUNT = 5; // >= 5 clauses for deep reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_SCORE = 15; // Score for deep reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_WORD_COUNT = 50; // >= 50 words for moderate reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_CLAUSE_COUNT = 3; // >= 3 clauses for moderate reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_SCORE = 10; // Score for moderate reasoning
+const REVERSIBILITY_DEPTH_HIGH_CONF_SHALLOW_SCORE = 4; // Score for shallow reasoning + high confidence
+const REVERSIBILITY_DEPTH_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
+const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_WORD_COUNT = 40; // >= 40 words for good reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_CLAUSE_COUNT = 3; // >= 3 clauses for good reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_SCORE = 13; // Score for good reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_WORD_COUNT = 25; // >= 25 words for adequate reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_SCORE = 10; // Score for adequate reasoning
+const REVERSIBILITY_DEPTH_MODERATE_CONF_BASELINE_SCORE = 7; // Score for brief reasoning
+const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_WORD_COUNT = 20; // >= 20 words for low conf (brief OK)
+const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_SCORE = 12; // Score for adequate low-conf reasoning
+const REVERSIBILITY_DEPTH_LOW_CONF_BASELINE_SCORE = 8; // Score for very brief low-conf reasoning
+const REVERSIBILITY_DEPTH_COHERENCE_BONUS_THRESHOLD = 0.7; // >= 70% coherence = bonus
+const REVERSIBILITY_DEPTH_COHERENCE_BONUS = 2; // Bonus points for high coherence
+const REVERSIBILITY_DEPTH_MAX_SCORE = 15; // Category ceiling
+
+// 6. Overall Reversibility Limits
+const REVERSIBILITY_MAX_SCORE = 100; // Maximum reversibility score
+const REVERSIBILITY_MIN_SCORE = 0; // Minimum reversibility score
+
+// ---------------------------------------------------------------------------
 // Types for the 32 dimensions
 // ---------------------------------------------------------------------------
 
@@ -255,91 +406,91 @@ export function scoreReasoningAuditability(
   quantity: number,
 ): number {
   let score = 0;
-  const maxScore = 100;
+  const maxScore = AUDITABILITY_MAX_SCORE;
 
   // 1. Spread Awareness (0-20)
   let spreadScore = 0;
 
   const spreadPatterns = /\b(?:bid[- ]?ask\s+spread|spread\s+(?:is|at|of|around)|slippage\s+(?:risk|estimate|expected|of)|price\s+impact|execution\s+cost|market\s+order\s+cost|limit\s+order|fill\s+price|crossing\s+the\s+spread)\b/gi;
   const spreadMatches = reasoning.match(spreadPatterns) ?? [];
-  spreadScore += Math.min(12, spreadMatches.length * 4);
+  spreadScore += Math.min(SPREAD_AWARENESS_SPREAD_PATTERN_MAX_SCORE, spreadMatches.length * SPREAD_AWARENESS_SPREAD_PATTERN_POINTS_PER_MATCH);
 
   // Specific basis point or percentage spread references
   const bpsPatterns = /\b(?:\d+\s*(?:bps|basis\s+points?)|spread\s+of\s+\$?[\d.]+%?|[\d.]+%?\s+spread)\b/gi;
   const bpsMatches = reasoning.match(bpsPatterns) ?? [];
-  spreadScore += Math.min(8, bpsMatches.length * 4);
+  spreadScore += Math.min(SPREAD_AWARENESS_BPS_PATTERN_MAX_SCORE, bpsMatches.length * SPREAD_AWARENESS_BPS_PATTERN_POINTS_PER_MATCH);
 
-  score += Math.min(20, spreadScore);
+  score += Math.min(SPREAD_AWARENESS_MAX_SCORE, spreadScore);
 
   // 2. Liquidity Assessment (0-20)
   let liquidityScore = 0;
 
   const liquidityPatterns = /\b(?:liquid(?:ity)?|volume\s+(?:is|at|of|supports?)|order\s+book\s+depth|thin(?:ly)?\s+traded|depth\s+of\s+(?:market|book)|average\s+daily\s+volume|ADV|market\s+depth|bid\s+size|ask\s+size|level\s*2|book\s+is\s+(?:thick|thin|deep|shallow))\b/gi;
   const liquidityMatches = reasoning.match(liquidityPatterns) ?? [];
-  liquidityScore += Math.min(12, liquidityMatches.length * 4);
+  liquidityScore += Math.min(LIQUIDITY_ASSESSMENT_LIQUIDITY_PATTERN_MAX_SCORE, liquidityMatches.length * LIQUIDITY_ASSESSMENT_LIQUIDITY_PATTERN_POINTS_PER_MATCH);
 
   // Quantitative volume references
   const volumeQuantPatterns = /\b(?:\$[\d.]+[MBK]?\s+(?:volume|traded)|[\d,]+\s+shares?\s+(?:volume|traded)|volume\s+of\s+[\d,.]+|[\d.]+[xX]\s+(?:average|normal)\s+volume)\b/gi;
   const volumeQuantMatches = reasoning.match(volumeQuantPatterns) ?? [];
-  liquidityScore += Math.min(8, volumeQuantMatches.length * 4);
+  liquidityScore += Math.min(LIQUIDITY_ASSESSMENT_VOLUME_QUANT_MAX_SCORE, volumeQuantMatches.length * LIQUIDITY_ASSESSMENT_VOLUME_QUANT_POINTS_PER_MATCH);
 
-  score += Math.min(20, liquidityScore);
+  score += Math.min(LIQUIDITY_ASSESSMENT_MAX_SCORE, liquidityScore);
 
   // 3. Execution Strategy (0-20)
   let executionScore = 0;
 
   const executionPatterns = /\b(?:TWAP|VWAP|iceberg\s+order|DCA|dollar[- ]cost\s+averag|scale\s+(?:in|out)|partial\s+fill|limit\s+(?:order|price)|market\s+(?:on\s+close|on\s+open)|staged\s+execution|split\s+(?:the\s+)?order|time[- ]weighted)\b/gi;
   const executionMatches = reasoning.match(executionPatterns) ?? [];
-  executionScore += Math.min(12, executionMatches.length * 5);
+  executionScore += Math.min(EXECUTION_STRATEGY_EXECUTION_PATTERN_MAX_SCORE, executionMatches.length * EXECUTION_STRATEGY_EXECUTION_PATTERN_POINTS_PER_MATCH);
 
   // Timing-related execution
   const timingPatterns = /\b(?:trade\s+during\s+(?:high|peak)\s+volume|avoid\s+(?:open|close|low\s+volume)|execute\s+(?:at|near|around)|best\s+execution|minimize\s+(?:impact|slippage|cost))\b/gi;
   const timingMatches = reasoning.match(timingPatterns) ?? [];
-  executionScore += Math.min(8, timingMatches.length * 4);
+  executionScore += Math.min(EXECUTION_STRATEGY_TIMING_PATTERN_MAX_SCORE, timingMatches.length * EXECUTION_STRATEGY_TIMING_PATTERN_POINTS_PER_MATCH);
 
-  score += Math.min(20, executionScore);
+  score += Math.min(EXECUTION_STRATEGY_MAX_SCORE, executionScore);
 
   // 4. Market Impact Awareness (0-20)
   let impactScore = 0;
 
   const impactPatterns = /\b(?:market\s+impact|price\s+impact|move\s+the\s+(?:market|price)|footprint|information\s+leakage|front[- ]running\s+risk|signaling|adverse\s+selection|toxic\s+flow|order\s+flow)\b/gi;
   const impactMatches = reasoning.match(impactPatterns) ?? [];
-  impactScore += Math.min(12, impactMatches.length * 4);
+  impactScore += Math.min(MARKET_IMPACT_IMPACT_PATTERN_MAX_SCORE, impactMatches.length * MARKET_IMPACT_IMPACT_PATTERN_POINTS_PER_MATCH);
 
   // Size-relative impact awareness
   if (quantity > 0) {
     const sizeAwarePatterns = /\b(?:position\s+size\s+relative|too\s+large\s+for|appropriate\s+size|sizing\s+based\s+on\s+(?:liquidity|volume)|size\s+vs\s+ADV|percentage\s+of\s+(?:volume|float))\b/gi;
     const sizeAwareMatches = reasoning.match(sizeAwarePatterns) ?? [];
-    impactScore += Math.min(8, sizeAwareMatches.length * 4);
+    impactScore += Math.min(MARKET_IMPACT_SIZE_AWARE_MAX_SCORE, sizeAwareMatches.length * MARKET_IMPACT_SIZE_AWARE_POINTS_PER_MATCH);
   } else {
-    impactScore += 2; // Partial credit if quantity is 0 (hold)
+    impactScore += MARKET_IMPACT_HOLD_PARTIAL_CREDIT; // Partial credit if quantity is 0 (hold)
   }
 
-  score += Math.min(20, impactScore);
+  score += Math.min(MARKET_IMPACT_MAX_SCORE, impactScore);
 
   // 5. Cost Consciousness (0-20)
   let costScore = 0;
 
   const costPatterns = /\b(?:transaction\s+cost|trading\s+cost|commission|fee(?:s)?\s+(?:of|at|around)|gas\s+(?:fee|cost)|network\s+fee|Jupiter\s+(?:fee|route)|swap\s+fee|total\s+cost|all[- ]in\s+cost|net\s+(?:of|after)\s+(?:fees|costs))\b/gi;
   const costMatches = reasoning.match(costPatterns) ?? [];
-  costScore += Math.min(12, costMatches.length * 4);
+  costScore += Math.min(COST_CONSCIOUSNESS_COST_PATTERN_MAX_SCORE, costMatches.length * COST_CONSCIOUSNESS_COST_PATTERN_POINTS_PER_MATCH);
 
   // Slippage tolerance
   const slippagePatterns = /\b(?:slippage\s+(?:tolerance|limit|of|around|expected)|max\s+slippage|acceptable\s+slippage|[\d.]+%?\s+slippage)\b/gi;
   const slippageMatches = reasoning.match(slippagePatterns) ?? [];
-  costScore += Math.min(8, slippageMatches.length * 4);
+  costScore += Math.min(COST_CONSCIOUSNESS_SLIPPAGE_PATTERN_MAX_SCORE, slippageMatches.length * COST_CONSCIOUSNESS_SLIPPAGE_PATTERN_POINTS_PER_MATCH);
 
-  score += Math.min(20, costScore);
+  score += Math.min(COST_CONSCIOUSNESS_MAX_SCORE, costScore);
 
   // Bonus: agent references sources related to execution
   const execSources = sources.filter((s) =>
     /volume|liquidity|order.*book|execution|slippage/i.test(s),
   );
   if (execSources.length > 0) {
-    score += Math.min(5, execSources.length * 3);
+    score += Math.min(AUDITABILITY_SOURCE_BONUS_MAX, execSources.length * AUDITABILITY_SOURCE_BONUS_POINTS_PER_SOURCE);
   }
 
-  return Math.round(Math.min(maxScore, Math.max(0, score)));
+  return Math.round(Math.min(maxScore, Math.max(AUDITABILITY_MIN_SCORE, score)));
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +519,7 @@ export function scoreDecisionReversibility(
   previousOutcomes: Array<{ confidence: number; correct: boolean }>,
 ): number {
   let score = 0;
-  const maxScore = 100;
+  const maxScore = REVERSIBILITY_MAX_SCORE;
 
   // Normalize confidence to 0-1 if needed
   const conf = confidence > 1 ? confidence / 100 : confidence;
@@ -379,53 +530,53 @@ export function scoreDecisionReversibility(
 
   const specificEvidencePatterns = /\b(?:specifically|in particular|data shows|evidence suggests|according to|based on (?:the|specific)|the numbers indicate|quantitatively|measured at|confirmed by)\b/gi;
   const evidenceMatches = reasoning.match(specificEvidencePatterns) ?? [];
-  const evidenceDensity = evidenceMatches.length / Math.max(1, reasoning.split(/\s+/).length / 50);
+  const evidenceDensity = evidenceMatches.length / Math.max(1, reasoning.split(/\s+/).length / REVERSIBILITY_EVIDENCE_WORDS_PER_UNIT);
 
   // Higher confidence needs more evidence
-  if (conf >= 0.8) {
+  if (conf >= REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD) {
     // High confidence: need strong evidence
-    if (evidenceDensity >= 1.5) evidenceScore = 25;
-    else if (evidenceDensity >= 1.0) evidenceScore = 20;
-    else if (evidenceDensity >= 0.5) evidenceScore = 12;
-    else evidenceScore = 5; // High confidence + low evidence = bad
-  } else if (conf >= 0.5) {
+    if (evidenceDensity >= REVERSIBILITY_EVIDENCE_HIGH_CONF_STRONG_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_MAX_SCORE;
+    else if (evidenceDensity >= REVERSIBILITY_EVIDENCE_HIGH_CONF_GOOD_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_HIGH_CONF_GOOD_SCORE;
+    else if (evidenceDensity >= REVERSIBILITY_EVIDENCE_HIGH_CONF_MODERATE_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_HIGH_CONF_MODERATE_SCORE;
+    else evidenceScore = REVERSIBILITY_EVIDENCE_HIGH_CONF_WEAK_SCORE; // High confidence + low evidence = bad
+  } else if (conf >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD) {
     // Moderate confidence: moderate evidence is fine
-    if (evidenceDensity >= 1.0) evidenceScore = 22;
-    else if (evidenceDensity >= 0.5) evidenceScore = 20;
-    else evidenceScore = 15;
+    if (evidenceDensity >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_STRONG_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_MODERATE_CONF_STRONG_SCORE;
+    else if (evidenceDensity >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_GOOD_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_MODERATE_CONF_GOOD_SCORE;
+    else evidenceScore = REVERSIBILITY_EVIDENCE_MODERATE_CONF_BASELINE_SCORE;
   } else {
     // Low confidence: some evidence should still exist
-    if (evidenceDensity >= 0.5) evidenceScore = 20;
-    else if (evidenceDensity > 0) evidenceScore = 18;
-    else evidenceScore = 12;
+    if (evidenceDensity >= REVERSIBILITY_EVIDENCE_LOW_CONF_GOOD_DENSITY) evidenceScore = REVERSIBILITY_EVIDENCE_LOW_CONF_GOOD_SCORE;
+    else if (evidenceDensity > 0) evidenceScore = REVERSIBILITY_EVIDENCE_LOW_CONF_SOME_SCORE;
+    else evidenceScore = REVERSIBILITY_EVIDENCE_LOW_CONF_BASELINE_SCORE;
   }
 
   // Penalize high confidence when hallucinations present
-  if (conf >= 0.7 && hallucinationFlags.length > 0) {
-    evidenceScore = Math.max(0, evidenceScore - hallucinationFlags.length * 5);
+  if (conf >= REVERSIBILITY_EVIDENCE_HALLUCINATION_CONF_THRESHOLD && hallucinationFlags.length > 0) {
+    evidenceScore = Math.max(0, evidenceScore - hallucinationFlags.length * REVERSIBILITY_EVIDENCE_HALLUCINATION_PENALTY_PER_FLAG);
   }
 
-  score += Math.min(25, evidenceScore);
+  score += Math.min(REVERSIBILITY_EVIDENCE_MAX_SCORE, evidenceScore);
 
   // 2. Source-Confidence Calibration (0-25)
   // More sources + high confidence = good. Few sources + high confidence = bad.
   let sourceScore = 0;
 
   const sourceCount = sources.length;
-  const expectedSources = conf >= 0.8 ? 4 : conf >= 0.5 ? 2 : 1;
+  const expectedSources = conf >= REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD ? REVERSIBILITY_SOURCE_HIGH_CONF_EXPECTED : conf >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD ? REVERSIBILITY_SOURCE_MODERATE_CONF_EXPECTED : REVERSIBILITY_SOURCE_LOW_CONF_EXPECTED;
 
   if (sourceCount >= expectedSources) {
-    sourceScore = 20 + Math.min(5, (sourceCount - expectedSources) * 2);
+    sourceScore = REVERSIBILITY_SOURCE_BASELINE_SCORE + Math.min(REVERSIBILITY_SOURCE_BONUS_MAX, (sourceCount - expectedSources) * REVERSIBILITY_SOURCE_BONUS_POINTS_PER_EXTRA);
   } else {
     const shortfall = expectedSources - sourceCount;
-    sourceScore = Math.max(5, 20 - shortfall * 5);
+    sourceScore = Math.max(REVERSIBILITY_SOURCE_MIN_SCORE, REVERSIBILITY_SOURCE_BASELINE_SCORE - shortfall * REVERSIBILITY_SOURCE_SHORTFALL_PENALTY);
   }
 
   // Bonus for diverse source types
   const uniqueSourceTypes = new Set(sources.map((s) => s.split("_")[0]));
-  if (uniqueSourceTypes.size >= 3) sourceScore += 3;
+  if (uniqueSourceTypes.size >= REVERSIBILITY_SOURCE_DIVERSITY_THRESHOLD) sourceScore += REVERSIBILITY_SOURCE_DIVERSITY_BONUS;
 
-  score += Math.min(25, sourceScore);
+  score += Math.min(REVERSIBILITY_SOURCE_MAX_SCORE, sourceScore);
 
   // 3. Hedging-Confidence Coherence (0-20)
   // High confidence + lots of hedging = inconsistent
@@ -434,40 +585,40 @@ export function scoreDecisionReversibility(
 
   const hedgingPatterns = /\b(?:however|although|but|risk|uncertain|might|could|possibly|potential downside|caveat|on the other hand|that said|admittedly|if (?:the|this) fails)\b/gi;
   const hedgingMatches = reasoning.match(hedgingPatterns) ?? [];
-  const hedgingDensity = hedgingMatches.length / Math.max(1, reasoning.split(/\s+/).length / 50);
+  const hedgingDensity = hedgingMatches.length / Math.max(1, reasoning.split(/\s+/).length / REVERSIBILITY_HEDGING_WORDS_PER_UNIT);
 
-  if (conf >= 0.8) {
+  if (conf >= REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD) {
     // High confidence: some hedging is OK (shows awareness), too much is inconsistent
-    if (hedgingDensity >= 0 && hedgingDensity <= 1) hedgingScore = 18;
-    else if (hedgingDensity <= 2) hedgingScore = 14;
-    else hedgingScore = 6; // Too much hedging for high confidence
-  } else if (conf >= 0.5) {
+    if (hedgingDensity >= REVERSIBILITY_HEDGING_HIGH_CONF_MIN_DENSITY && hedgingDensity <= REVERSIBILITY_HEDGING_HIGH_CONF_MAX_DENSITY) hedgingScore = REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_SCORE;
+    else if (hedgingDensity <= REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_MAX_DENSITY) hedgingScore = REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_SCORE;
+    else hedgingScore = REVERSIBILITY_HEDGING_HIGH_CONF_EXCESSIVE_SCORE; // Too much hedging for high confidence
+  } else if (conf >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD) {
     // Moderate confidence: hedging is expected
-    if (hedgingDensity >= 0.5 && hedgingDensity <= 3) hedgingScore = 18;
-    else if (hedgingDensity > 3) hedgingScore = 12;
-    else hedgingScore = 10; // No hedging at moderate confidence is slightly off
+    if (hedgingDensity >= REVERSIBILITY_HEDGING_MODERATE_CONF_MIN_DENSITY && hedgingDensity <= REVERSIBILITY_HEDGING_MODERATE_CONF_MAX_DENSITY) hedgingScore = REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_SCORE;
+    else if (hedgingDensity > REVERSIBILITY_HEDGING_MODERATE_CONF_MAX_DENSITY) hedgingScore = REVERSIBILITY_HEDGING_MODERATE_CONF_EXCESSIVE_SCORE;
+    else hedgingScore = REVERSIBILITY_HEDGING_MODERATE_CONF_LOW_SCORE; // No hedging at moderate confidence is slightly off
   } else {
     // Low confidence: hedging should be present
-    if (hedgingDensity >= 1) hedgingScore = 18;
-    else if (hedgingDensity > 0) hedgingScore = 14;
-    else hedgingScore = 6; // Low confidence but no hedging = weird
+    if (hedgingDensity >= REVERSIBILITY_HEDGING_LOW_CONF_MIN_DENSITY) hedgingScore = REVERSIBILITY_HEDGING_LOW_CONF_GOOD_SCORE;
+    else if (hedgingDensity > 0) hedgingScore = REVERSIBILITY_HEDGING_LOW_CONF_SOME_SCORE;
+    else hedgingScore = REVERSIBILITY_HEDGING_LOW_CONF_NONE_SCORE; // Low confidence but no hedging = weird
   }
 
   // Bonus for explicit uncertainty quantification
   const uncertaintyQuantPatterns = /\b(?:probability\s+(?:of|around|at)\s+[\d]+%|[\d]+%\s+(?:chance|probability|likelihood)|odds (?:are|of)|risk[- ]reward\s+(?:ratio|of))\b/gi;
   const uncertaintyQuantMatches = reasoning.match(uncertaintyQuantPatterns) ?? [];
-  if (uncertaintyQuantMatches.length > 0) hedgingScore += 3;
+  if (uncertaintyQuantMatches.length > 0) hedgingScore += REVERSIBILITY_HEDGING_UNCERTAINTY_QUANT_BONUS;
 
-  score += Math.min(20, hedgingScore);
+  score += Math.min(REVERSIBILITY_HEDGING_MAX_SCORE, hedgingScore);
 
   // 4. Historical Accuracy Match (0-15)
   // Does this agent's confidence historically predict outcomes?
   let accuracyScore = 0;
 
-  if (previousOutcomes.length >= 3) {
+  if (previousOutcomes.length >= REVERSIBILITY_ACCURACY_MIN_OUTCOMES) {
     // Bin outcomes by confidence level
-    const highConfTrades = previousOutcomes.filter((o) => o.confidence >= 0.7);
-    const lowConfTrades = previousOutcomes.filter((o) => o.confidence < 0.4);
+    const highConfTrades = previousOutcomes.filter((o) => o.confidence >= REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER);
+    const lowConfTrades = previousOutcomes.filter((o) => o.confidence < REVERSIBILITY_ACCURACY_LOW_CONF_FILTER);
 
     const highConfAccuracy = highConfTrades.length > 0
       ? highConfTrades.filter((o) => o.correct).length / highConfTrades.length
@@ -478,22 +629,22 @@ export function scoreDecisionReversibility(
 
     // High confidence should be more accurate than low confidence
     if (highConfAccuracy > lowConfAccuracy) {
-      accuracyScore = 12; // Good calibration
+      accuracyScore = REVERSIBILITY_ACCURACY_GOOD_CALIBRATION_SCORE; // Good calibration
     } else if (highConfAccuracy === lowConfAccuracy) {
-      accuracyScore = 8; // Neutral
+      accuracyScore = REVERSIBILITY_ACCURACY_NEUTRAL_CALIBRATION_SCORE; // Neutral
     } else {
-      accuracyScore = 3; // Inverted — high confidence is LESS accurate
+      accuracyScore = REVERSIBILITY_ACCURACY_INVERTED_CALIBRATION_SCORE; // Inverted — high confidence is LESS accurate
     }
 
     // Bonus for overall calibration
     const overallAccuracy = previousOutcomes.filter((o) => o.correct).length / previousOutcomes.length;
-    if (Math.abs(overallAccuracy - conf) < 0.2) accuracyScore += 3;
+    if (Math.abs(overallAccuracy - conf) < REVERSIBILITY_ACCURACY_OVERALL_TOLERANCE) accuracyScore += REVERSIBILITY_ACCURACY_CALIBRATION_BONUS;
   } else {
     // Not enough data — partial credit
-    accuracyScore = 8;
+    accuracyScore = REVERSIBILITY_ACCURACY_INSUFFICIENT_DATA_SCORE;
   }
 
-  score += Math.min(15, accuracyScore);
+  score += Math.min(REVERSIBILITY_ACCURACY_MAX_SCORE, accuracyScore);
 
   // 5. Reasoning Depth Proportionality (0-15)
   // More words/clauses should correlate with higher confidence
@@ -502,27 +653,27 @@ export function scoreDecisionReversibility(
   const wordCount = reasoning.split(/\s+/).length;
   const clauseCount = reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
 
-  if (conf >= 0.8) {
+  if (conf >= REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD) {
     // High confidence needs deep reasoning
-    if (wordCount >= 80 && clauseCount >= 5) depthScore = 15;
-    else if (wordCount >= 50 && clauseCount >= 3) depthScore = 10;
-    else depthScore = 4; // Shallow reasoning + high confidence
-  } else if (conf >= 0.5) {
-    if (wordCount >= 40 && clauseCount >= 3) depthScore = 13;
-    else if (wordCount >= 25) depthScore = 10;
-    else depthScore = 7;
+    if (wordCount >= REVERSIBILITY_DEPTH_HIGH_CONF_WORD_COUNT && clauseCount >= REVERSIBILITY_DEPTH_HIGH_CONF_CLAUSE_COUNT) depthScore = REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_SCORE;
+    else if (wordCount >= REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_WORD_COUNT && clauseCount >= REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_CLAUSE_COUNT) depthScore = REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_SCORE;
+    else depthScore = REVERSIBILITY_DEPTH_HIGH_CONF_SHALLOW_SCORE; // Shallow reasoning + high confidence
+  } else if (conf >= REVERSIBILITY_EVIDENCE_MODERATE_CONF_THRESHOLD) {
+    if (wordCount >= REVERSIBILITY_DEPTH_MODERATE_CONF_WORD_COUNT && clauseCount >= REVERSIBILITY_DEPTH_MODERATE_CONF_CLAUSE_COUNT) depthScore = REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_SCORE;
+    else if (wordCount >= REVERSIBILITY_DEPTH_MODERATE_CONF_MIN_WORD_COUNT) depthScore = REVERSIBILITY_DEPTH_MODERATE_CONF_BASELINE_SCORE;
+    else depthScore = REVERSIBILITY_DEPTH_MODERATE_CONF_BRIEF_SCORE;
   } else {
     // Low confidence: even brief reasoning is OK
-    if (wordCount >= 20) depthScore = 12;
-    else depthScore = 8;
+    if (wordCount >= REVERSIBILITY_DEPTH_LOW_CONF_MIN_WORD_COUNT) depthScore = REVERSIBILITY_DEPTH_LOW_CONF_GOOD_SCORE;
+    else depthScore = REVERSIBILITY_DEPTH_LOW_CONF_BRIEF_SCORE;
   }
 
   // Coherence bonus — if reasoning and action are coherent, conviction is more trustworthy
-  if (coherenceScore >= 0.7) depthScore = Math.min(15, depthScore + 2);
+  if (coherenceScore >= REVERSIBILITY_DEPTH_COHERENCE_BONUS_THRESHOLD) depthScore = Math.min(REVERSIBILITY_DEPTH_MAX_SCORE, depthScore + REVERSIBILITY_DEPTH_COHERENCE_BONUS);
 
-  score += Math.min(15, depthScore);
+  score += Math.min(REVERSIBILITY_DEPTH_MAX_SCORE, depthScore);
 
-  return Math.round(Math.min(maxScore, Math.max(0, score)));
+  return Math.round(Math.min(maxScore, Math.max(REVERSIBILITY_MIN_SCORE, score)));
 }
 
 // ---------------------------------------------------------------------------
