@@ -34,6 +34,73 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Pattern Tracking Parameters
+ * Control how many historical submissions are retained for adversarial detection
+ */
+
+/** Maximum confidence history entries per agent for pattern analysis */
+const PATTERN_TRACKING_MAX_ENTRIES = 100;
+
+/**
+ * Adversarial Detection Thresholds
+ * Control sensitivity of gaming/manipulation detection
+ */
+
+/** Minimum submissions required for confidence manipulation detection */
+const ADVERSARIAL_CONFIDENCE_MIN_SUBMISSIONS = 10;
+
+/** Maximum variance for confidence manipulation flag (very low variance = always same confidence) */
+const ADVERSARIAL_CONFIDENCE_VARIANCE_THRESHOLD = 0.005;
+
+/** Minimum average confidence for manipulation detection (high mean + low variance = gaming) */
+const ADVERSARIAL_CONFIDENCE_HIGH_AVG_THRESHOLD = 0.85;
+
+/** Minimum submissions required for reasoning templating detection */
+const ADVERSARIAL_TEMPLATING_MIN_SUBMISSIONS = 5;
+
+/** Maximum acceptable repetition rate before flagging templated responses (50% duplicates) */
+const ADVERSARIAL_TEMPLATING_REPETITION_THRESHOLD = 0.5;
+
+/** Minimum submissions required for volume manipulation detection */
+const ADVERSARIAL_VOLUME_MIN_SUBMISSIONS = 5;
+
+/** Minimum time gap between submissions in milliseconds (< 1 second = automated gaming) */
+const ADVERSARIAL_VOLUME_MIN_GAP_MS = 1000;
+
+/** Maximum coherence score for gaming detection (very low coherence + high confidence = gaming) */
+const ADVERSARIAL_GAMING_LOW_COHERENCE_THRESHOLD = 0.2;
+
+/** Minimum confidence for gaming detection (low coherence but high confidence = suspicious) */
+const ADVERSARIAL_GAMING_HIGH_CONFIDENCE_THRESHOLD = 0.8;
+
+/**
+ * Adversarial Report Parameters
+ * Control risk level classification thresholds
+ */
+
+/** Minimum submissions required for adversarial report generation */
+const ADVERSARIAL_REPORT_MIN_SUBMISSIONS = 5;
+
+/** Recent evaluations to analyze for adversarial report (last N evaluations) */
+const ADVERSARIAL_REPORT_RECENT_EVAL_LIMIT = 20;
+
+/** High severity flags required to block agent (3+ high severity = blocked) */
+const ADVERSARIAL_RISK_BLOCKED_HIGH_THRESHOLD = 3;
+
+/** High severity flags to flag agent (1+ high = flagged) */
+const ADVERSARIAL_RISK_FLAGGED_HIGH_THRESHOLD = 1;
+
+/** Medium severity flags to flag agent (5+ medium = flagged) */
+const ADVERSARIAL_RISK_FLAGGED_MEDIUM_THRESHOLD = 5;
+
+/** Medium severity flags to mark suspicious (2+ medium = suspicious) */
+const ADVERSARIAL_RISK_SUSPICIOUS_MEDIUM_THRESHOLD = 2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -358,18 +425,18 @@ function detectAdversarialPatterns(
   patterns.intentCounts.set(trade.intent, (patterns.intentCounts.get(trade.intent) ?? 0) + 1);
   patterns.lastSubmissions.push(Date.now());
 
-  // Keep only last 100 entries
-  if (patterns.confidences.length > 100) {
-    patterns.confidences = patterns.confidences.slice(-100);
-    patterns.reasoningHashes = patterns.reasoningHashes.slice(-100);
-    patterns.lastSubmissions = patterns.lastSubmissions.slice(-100);
+  // Keep only last N entries
+  if (patterns.confidences.length > PATTERN_TRACKING_MAX_ENTRIES) {
+    patterns.confidences = patterns.confidences.slice(-PATTERN_TRACKING_MAX_ENTRIES);
+    patterns.reasoningHashes = patterns.reasoningHashes.slice(-PATTERN_TRACKING_MAX_ENTRIES);
+    patterns.lastSubmissions = patterns.lastSubmissions.slice(-PATTERN_TRACKING_MAX_ENTRIES);
   }
 
   // Check 1: Confidence manipulation — always very high or very low confidence
-  if (patterns.confidences.length >= 10) {
+  if (patterns.confidences.length >= ADVERSARIAL_CONFIDENCE_MIN_SUBMISSIONS) {
     const avgConf = patterns.confidences.reduce((s, c) => s + c, 0) / patterns.confidences.length;
     const confVariance = patterns.confidences.reduce((s, c) => s + (c - avgConf) ** 2, 0) / patterns.confidences.length;
-    if (confVariance < 0.005 && avgConf > 0.85) {
+    if (confVariance < ADVERSARIAL_CONFIDENCE_VARIANCE_THRESHOLD && avgConf > ADVERSARIAL_CONFIDENCE_HIGH_AVG_THRESHOLD) {
       flags.push({
         type: "confidence_manipulation",
         severity: "medium",
@@ -380,11 +447,11 @@ function detectAdversarialPatterns(
   }
 
   // Check 2: Reasoning templating — same reasoning structure repeated
-  if (patterns.reasoningHashes.length >= 5) {
+  if (patterns.reasoningHashes.length >= ADVERSARIAL_TEMPLATING_MIN_SUBMISSIONS) {
     const recent = patterns.reasoningHashes.slice(-10);
     const uniqueHashes = new Set(recent).size;
     const repetitionRate = 1 - uniqueHashes / recent.length;
-    if (repetitionRate > 0.5) {
+    if (repetitionRate > ADVERSARIAL_TEMPLATING_REPETITION_THRESHOLD) {
       flags.push({
         type: "reasoning_templating",
         severity: "high",
@@ -395,21 +462,21 @@ function detectAdversarialPatterns(
   }
 
   // Check 3: Volume manipulation — burst submissions
-  if (patterns.lastSubmissions.length >= 5) {
-    const recent = patterns.lastSubmissions.slice(-5);
+  if (patterns.lastSubmissions.length >= ADVERSARIAL_VOLUME_MIN_SUBMISSIONS) {
+    const recent = patterns.lastSubmissions.slice(-ADVERSARIAL_VOLUME_MIN_SUBMISSIONS);
     const minGap = Math.min(...recent.slice(1).map((t, i) => t - recent[i]));
-    if (minGap < 1000) { // Less than 1 second between submissions
+    if (minGap < ADVERSARIAL_VOLUME_MIN_GAP_MS) {
       flags.push({
         type: "volume_manipulation",
         severity: "medium",
         evidence: `Submissions arriving ${minGap}ms apart. Possible automated gaming.`,
-        score: Math.min(1, 1000 / (minGap + 1)),
+        score: Math.min(1, ADVERSARIAL_VOLUME_MIN_GAP_MS / (minGap + 1)),
       });
     }
   }
 
   // Check 4: Hallucination pattern — agent consistently hallucinates same things
-  if (coherence.score < 0.2 && trade.confidence > 0.8) {
+  if (coherence.score < ADVERSARIAL_GAMING_LOW_COHERENCE_THRESHOLD && trade.confidence > ADVERSARIAL_GAMING_HIGH_CONFIDENCE_THRESHOLD) {
     flags.push({
       type: "gaming",
       severity: "medium",
@@ -426,17 +493,17 @@ function detectAdversarialPatterns(
  */
 export function getAdversarialReport(agentId: string): AdversarialReport {
   const patterns = agentPatterns.get(agentId);
-  if (!patterns || patterns.confidences.length < 5) {
+  if (!patterns || patterns.confidences.length < ADVERSARIAL_REPORT_MIN_SUBMISSIONS) {
     return {
       agentId,
       flags: [],
       riskLevel: "clean",
-      explanation: "Insufficient data for adversarial analysis (need at least 5 submissions)",
+      explanation: `Insufficient data for adversarial analysis (need at least ${ADVERSARIAL_REPORT_MIN_SUBMISSIONS} submissions)`,
     };
   }
 
   // Aggregate all flags from recent evaluations
-  const recentEvals = evaluationHistory.filter((e) => e.agentId === agentId).slice(0, 20);
+  const recentEvals = evaluationHistory.filter((e) => e.agentId === agentId).slice(0, ADVERSARIAL_REPORT_RECENT_EVAL_LIMIT);
   const allFlags: AdversarialFlag[] = [];
   for (const eval_ of recentEvals) {
     for (const flagStr of eval_.adversarialFlags) {
@@ -453,9 +520,9 @@ export function getAdversarialReport(agentId: string): AdversarialReport {
   // Determine risk level
   const highSeverity = allFlags.filter((f) => f.severity === "high").length;
   const mediumSeverity = allFlags.filter((f) => f.severity === "medium").length;
-  const riskLevel = highSeverity >= 3 ? "blocked" :
-    highSeverity >= 1 || mediumSeverity >= 5 ? "flagged" :
-    mediumSeverity >= 2 ? "suspicious" : "clean";
+  const riskLevel = highSeverity >= ADVERSARIAL_RISK_BLOCKED_HIGH_THRESHOLD ? "blocked" :
+    highSeverity >= ADVERSARIAL_RISK_FLAGGED_HIGH_THRESHOLD || mediumSeverity >= ADVERSARIAL_RISK_FLAGGED_MEDIUM_THRESHOLD ? "flagged" :
+    mediumSeverity >= ADVERSARIAL_RISK_SUSPICIOUS_MEDIUM_THRESHOLD ? "suspicious" : "clean";
 
   return {
     agentId,
