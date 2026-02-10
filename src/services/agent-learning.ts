@@ -17,7 +17,7 @@
  */
 
 import { eventBus } from "./event-stream.ts";
-import { averageByKey, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
