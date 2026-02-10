@@ -9,7 +9,9 @@
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "test": "vitest run"
+    "test": "vitest run",
+    "onboard": "tsx src/cli/onboard.ts",
+    "onboard:devnet": "tsx src/cli/onboard.ts --devnet"
   },
   "keywords": [],
   "author": "",

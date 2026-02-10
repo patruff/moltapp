@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countWords, mean, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
+import { countByCondition, countWords, mean, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types

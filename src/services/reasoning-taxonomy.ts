@@ -20,7 +20,7 @@
  * - Build structured datasets for reasoning quality research
  */
 
-import { countWords, round2 } from "../lib/math-utils.ts";
+import { countByCondition, countWords, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
