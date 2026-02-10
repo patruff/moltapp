@@ -73,6 +73,15 @@ function extractAnalystId(path: string): string {
 }
 
 /**
+ * Extract job ID from the request path.
+ * Paths look like: /jobs/job_123_abc/fulfill
+ */
+function extractJobId(path: string): string {
+  const match = path.match(/\/jobs\/(job_[^/]+)\//);
+  return match?.[1] ?? "";
+}
+
+/**
  * Build x402 route config for a given tier.
  * Uses DynamicPrice (based on analyst model + markup) and
  * DynamicPayTo (routes payment to analyst's Solana wallet).
@@ -103,6 +112,31 @@ const financeX402Routes: Record<string, ReturnType<typeof buildX402TierConfig>> 
   "GET /analyze/:analystId/quick": buildX402TierConfig("quick"),
   "GET /analyze/:analystId/standard": buildX402TierConfig("standard"),
   "GET /analyze/:analystId/deep": buildX402TierConfig("deep"),
+  // Job board: client pays analyst's budget on fulfillment
+  "POST /jobs/:id/fulfill": {
+    accepts: [
+      {
+        scheme: "exact" as const,
+        price: (ctx: { path: string }) => {
+          const jobId = extractJobId(ctx.path);
+          const job = getJob(jobId);
+          return job ? `$${job.budgetUsd.toFixed(4)}` : `$0.01`;
+        },
+        network: SOLANA_NETWORK,
+        payTo: (ctx: { path: string }) => {
+          const jobId = extractJobId(ctx.path);
+          const job = getJob(jobId);
+          if (job?.acceptedBy) {
+            const analyst = getAnalyst(job.acceptedBy);
+            return analyst?.walletAddress ?? FALLBACK_WALLET;
+          }
+          return FALLBACK_WALLET;
+        },
+      },
+    ],
+    description: "Fulfill analysis job — payment routes to analyst wallet",
+    mimeType: "application/json",
+  },
 };
 
 // Initialize x402 facilitator and middleware

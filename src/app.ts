@@ -26,6 +26,7 @@ import { tournamentRoutes } from "./routes/tournaments.ts";
 import { paymentRoutes } from "./routes/payments.ts";
 import { adviceRoutes } from "./routes/advice.ts";
 import { financeRoutes } from "./routes/finance.ts";
+import { financePageRoutes } from "./routes/finance-page.ts";
 import { backtestRoutes } from "./routes/backtesting.ts";
 import { marketRegimeRoutes } from "./routes/market-regime.ts";
 import { debateRoutes } from "./routes/debates.ts";
@@ -692,6 +693,9 @@ app.route("/api-docs", apiDocsRoutes);
 
 // Arena web dashboard (public)
 app.route("/arena", arenaPageRoutes);
+
+// Financial Analysis Marketplace (public -- job board web page)
+app.route("/finance", financePageRoutes);
 
 // Live Competition Dashboard (public -- real-time agent battle view)
 app.route("/compete", competitionRoutes);
