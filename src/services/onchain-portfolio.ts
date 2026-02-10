@@ -11,6 +11,7 @@
  */
 
 import { getAgentWalletStatus, getAgentWallet, getAllAgentWallets } from "./agent-wallets.ts";
+import { getTokenBalances, getBalance } from "./solana-tracker.ts";
 import { getPrices } from "./jupiter.ts";
 import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
@@ -344,4 +345,73 @@ export async function getAllOnChainPortfolios(): Promise<OnChainPortfolio[]> {
   }
 
   return portfolios;
+}
+
+/**
+ * Get portfolio for an arbitrary Solana wallet address.
+ * Used by the Finance-as-a-Service marketplace to read external client wallets.
+ *
+ * Unlike getOnChainPortfolio(), this does NOT calculate cost basis (no trade
+ * history for external wallets) — sets averageCostBasis: 0.
+ */
+export async function getWalletPortfolio(walletAddress: string): Promise<OnChainPortfolio> {
+  // Get SOL balance
+  const solResult = await getBalance(walletAddress);
+
+  // Get all token balances
+  const tokenBalances = await getTokenBalances(walletAddress);
+
+  // Get current prices from Jupiter for all xStocks + USDC
+  const mintAddresses = XSTOCKS_CATALOG.map(s => s.mintAddress);
+  mintAddresses.push(USDC_MINT_MAINNET);
+  const priceData = await getPrices(mintAddresses);
+
+  // Find USDC balance
+  let cashBalance = 0;
+  const usdcToken = tokenBalances.find(t => t.mintAddress === USDC_MINT_MAINNET);
+  if (usdcToken) {
+    cashBalance = usdcToken.amount;
+  }
+
+  // Build positions from xStock holdings (match token balances against catalog)
+  const xstockMints = new Map(XSTOCKS_CATALOG.map(s => [s.mintAddress, s]));
+  const positionList = tokenBalances
+    .filter(t => xstockMints.has(t.mintAddress))
+    .map(t => {
+      const stockInfo = xstockMints.get(t.mintAddress)!;
+      const price = priceData[t.mintAddress]?.usdPrice ?? 0;
+      const value = t.amount * price;
+
+      return {
+        symbol: stockInfo.symbol,
+        name: stockInfo.name,
+        mintAddress: t.mintAddress,
+        quantity: t.amount,
+        currentPrice: price,
+        value,
+        averageCostBasis: 0,
+        unrealizedPnl: 0,
+        unrealizedPnlPercent: 0,
+      };
+    });
+
+  const solValueUsd = solResult.sol * SOL_PRICE_USD;
+  const positionsValue = positionList.reduce((sum, p) => sum + p.value, 0);
+  const totalValue = cashBalance + positionsValue + solValueUsd;
+
+  return {
+    agentId: "external",
+    agentName: "External Wallet",
+    walletAddress,
+    cashBalance,
+    solBalance: solResult.sol,
+    solValueUsd,
+    positions: positionList,
+    totalValue,
+    totalPnl: 0,
+    totalPnlPercent: 0,
+    initialCapital: 0,
+    lastSyncedAt: new Date().toISOString(),
+    source: "on-chain",
+  };
 }
