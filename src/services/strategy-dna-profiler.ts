@@ -25,6 +25,79 @@
 import { countWords, getTopKey, normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum number of trades required to compute meaningful DNA profile.
+ * Below this threshold, agent gets default 0.5 values across all dimensions.
+ */
+const DNA_MIN_SAMPLE_SIZE = 3;
+
+/**
+ * Default DNA dimension value when insufficient data.
+ * 0.5 represents neutral/unknown across all dimensions.
+ */
+const DNA_DEFAULT_VALUE = 0.5;
+
+/**
+ * Confidence normalization threshold.
+ * Confidence values > 1 are treated as percentages (e.g., 75 → 0.75).
+ */
+const CONFIDENCE_NORMALIZATION_THRESHOLD = 1;
+
+/**
+ * Reasoning depth normalization divisor (words → [0, 1] scale).
+ * 200 words = 1.0 depth score (very detailed reasoning).
+ * Example: 100 words = 0.5, 300 words = 1.5 (capped at 1.0 by normalize()).
+ */
+const REASONING_DEPTH_WORD_DIVISOR = 200;
+
+/**
+ * Minimum confidence-coherence pairs for correlation calculation.
+ * Below this threshold, confidence accuracy defaults to 0.5.
+ * Statistical significance requires >= 5 data points.
+ */
+const CONFIDENCE_ACCURACY_MIN_PAIRS = 5;
+
+/**
+ * Correlation coefficient normalization divisor.
+ * Maps correlation [-1, 1] to [0, 1] scale: (correlation + 1) / 2.
+ */
+const CORRELATION_NORMALIZATION_ADDEND = 1;
+const CORRELATION_NORMALIZATION_DIVISOR = 2;
+
+/**
+ * Minimum trades required for style drift detection.
+ * Need enough data to split into two meaningful halves for comparison.
+ */
+const DRIFT_DETECTION_MIN_TRADES = 20;
+
+/**
+ * Drift detection threshold (average dimension delta).
+ * avgDrift > 0.1 across all dimensions = significant drift detected.
+ */
+const DRIFT_DETECTION_THRESHOLD = 0.1;
+
+/**
+ * Per-dimension drift threshold.
+ * |delta| > 0.15 in any single dimension = dimension flagged as drifting.
+ */
+const DRIFT_DIMENSION_THRESHOLD = 0.15;
+
+/**
+ * Entropy calculation minimum value for maxEntropy denominator.
+ * Prevents division by zero when calculating consistency score.
+ */
+const ENTROPY_MIN_INTENTS = 2;
+
+/**
+ * DNA comparison display limit.
+ * Show top 3 biggest differences and top 3 most similar dimensions.
+ */
+const DNA_COMPARISON_TOP_N = 3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -115,17 +188,17 @@ export function recordTradeForDNA(data: TradeDataPoint): void {
 export function computeDNA(agentId: string): StrategyDNA {
   const trades = tradeHistory.get(agentId) ?? [];
 
-  if (trades.length < 3) {
+  if (trades.length < DNA_MIN_SAMPLE_SIZE) {
     const defaultDna: StrategyDNA = {
       agentId,
-      riskAppetite: 0.5,
-      conviction: 0.5,
-      patience: 0.5,
-      sectorConcentration: 0.5,
-      contrarianism: 0.5,
-      adaptability: 0.5,
-      reasoningDepth: 0.5,
-      confidenceAccuracy: 0.5,
+      riskAppetite: DNA_DEFAULT_VALUE,
+      conviction: DNA_DEFAULT_VALUE,
+      patience: DNA_DEFAULT_VALUE,
+      sectorConcentration: DNA_DEFAULT_VALUE,
+      contrarianism: DNA_DEFAULT_VALUE,
+      adaptability: DNA_DEFAULT_VALUE,
+      reasoningDepth: DNA_DEFAULT_VALUE,
+      confidenceAccuracy: DNA_DEFAULT_VALUE,
       dominantStrategy: "unknown",
       consistency: 0,
       sampleSize: trades.length,
@@ -139,8 +212,8 @@ export function computeDNA(agentId: string): StrategyDNA {
   const nonHold = trades.filter((t) => t.action !== "hold");
   const avgConfidence =
     nonHold.length > 0
-      ? nonHold.reduce((s, t) => s + Math.min(1, t.confidence > 1 ? t.confidence / 100 : t.confidence), 0) / nonHold.length
-      : 0.5;
+      ? nonHold.reduce((s, t) => s + Math.min(CONFIDENCE_NORMALIZATION_THRESHOLD, t.confidence > CONFIDENCE_NORMALIZATION_THRESHOLD ? t.confidence / 100 : t.confidence), 0) / nonHold.length
+      : DNA_DEFAULT_VALUE;
   const riskAppetite = normalize(avgConfidence);
 
   // 2. Conviction: relative trade sizes (normalized by max)
@@ -149,7 +222,7 @@ export function computeDNA(agentId: string): StrategyDNA {
   const avgRelativeSize =
     quantities.length > 0
       ? quantities.reduce((s, q) => s + q / maxQty, 0) / quantities.length
-      : 0.5;
+      : DNA_DEFAULT_VALUE;
   const conviction = normalize(avgRelativeSize);
 
   // 3. Patience: hold rate
@@ -185,7 +258,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     }
   }
   const contrarianism =
-    peerComparisons > 0 ? normalize(contrarianCount / peerComparisons) : 0.5;
+    peerComparisons > 0 ? normalize(contrarianCount / peerComparisons) : DNA_DEFAULT_VALUE;
 
   // 6. Adaptability: variance in intent distribution across time halves
   const half = Math.floor(trades.length / 2);
@@ -206,13 +279,13 @@ export function computeDNA(agentId: string): StrategyDNA {
   for (const intent of allIntents) {
     intentShift += Math.abs((dist1[intent] ?? 0) - (dist2[intent] ?? 0));
   }
-  const adaptability = normalize(intentShift / 2); // normalize
+  const adaptability = normalize(intentShift / CORRELATION_NORMALIZATION_DIVISOR); // normalize to [0, 1]
 
-  // 7. Reasoning Depth: average word count / 200 (200 words = 1.0)
+  // 7. Reasoning Depth: average word count / REASONING_DEPTH_WORD_DIVISOR
   const avgWordCount =
     trades.reduce((s, t) => s + countWords(t.reasoning), 0) /
     trades.length;
-  const reasoningDepth = normalize(avgWordCount / 200);
+  const reasoningDepth = normalize(avgWordCount / REASONING_DEPTH_WORD_DIVISOR);
 
   // 8. Confidence Accuracy: correlation between confidence and coherence
   const confCoherencePairs = trades
@@ -222,8 +295,8 @@ export function computeDNA(agentId: string): StrategyDNA {
       coh: t.coherenceScore,
     }));
 
-  let confidenceAccuracy = 0.5;
-  if (confCoherencePairs.length >= 5) {
+  let confidenceAccuracy = DNA_DEFAULT_VALUE;
+  if (confCoherencePairs.length >= CONFIDENCE_ACCURACY_MIN_PAIRS) {
     const avgConf =
       confCoherencePairs.reduce((s, p) => s + p.conf, 0) /
       confCoherencePairs.length;
@@ -243,7 +316,7 @@ export function computeDNA(agentId: string): StrategyDNA {
 
     const denom = Math.sqrt(varConf * varCoh);
     if (denom > 0) {
-      confidenceAccuracy = normalize((covariance / denom + 1) / 2); // map [-1,1] to [0,1]
+      confidenceAccuracy = normalize((covariance / denom + CORRELATION_NORMALIZATION_ADDEND) / CORRELATION_NORMALIZATION_DIVISOR); // map [-1,1] to [0,1]
     }
   }
 
@@ -343,8 +416,8 @@ export function compareDNA(agentA: string, agentB: string): DNAComparison {
     agentB,
     similarity: round3(similarity),
     distance: round3(distance),
-    biggestDifferences: sorted.slice(0, 3),
-    mostSimilar: sorted.slice(-3).reverse(),
+    biggestDifferences: sorted.slice(0, DNA_COMPARISON_TOP_N),
+    mostSimilar: sorted.slice(-DNA_COMPARISON_TOP_N).reverse(),
   };
 }
 
@@ -375,7 +448,7 @@ export function detectStyleDrift(agentId: string): {
   driftingDimensions: string[];
 } {
   const trades = tradeHistory.get(agentId) ?? [];
-  if (trades.length < 20) {
+  if (trades.length < DRIFT_DETECTION_MIN_TRADES) {
     return { hasDrift: false, driftAmount: 0, driftingDimensions: [] };
   }
 
@@ -410,7 +483,7 @@ export function detectStyleDrift(agentId: string): {
   for (const dim of dimensions) {
     const delta = Math.abs(dnaFirst[dim] - dnaSecond[dim]);
     totalDrift += delta;
-    if (delta > 0.15) {
+    if (delta > DRIFT_DIMENSION_THRESHOLD) {
       driftingDimensions.push(dim);
     }
   }
@@ -421,7 +494,7 @@ export function detectStyleDrift(agentId: string): {
   computeDNA(agentId);
 
   return {
-    hasDrift: avgDrift > 0.1,
+    hasDrift: avgDrift > DRIFT_DETECTION_THRESHOLD,
     driftAmount: round3(avgDrift),
     driftingDimensions,
   };
