@@ -100,10 +100,77 @@ export interface ModelDivergenceReport {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Data Retention Limits
+ */
+
+/**
+ * Maximum comparison entries stored per agent for sliding window analysis.
+ * 500 entries = ~500 rounds of trading history per agent for fingerprinting.
+ */
 const MAX_ENTRIES_PER_AGENT = 500;
+
+/**
+ * Divergence Detection Thresholds
+ */
+
+/**
+ * Confidence spread threshold for flagging divergence points.
+ * When max confidence - min confidence > 0.3 across agents in a round,
+ * flag as "confidence_spread" divergence type.
+ * Example: Agent A conf 90%, Agent B conf 50% = 40% spread > threshold.
+ */
+const DIVERGENCE_CONFIDENCE_SPREAD_THRESHOLD = 0.3;
+
+/**
+ * High confidence threshold for overconfidence ratio calculation.
+ * Confidence > 0.8 (80%) is considered "high confidence" for fingerprinting.
+ * Used to compute overconfidenceRatio = (entries with conf > threshold) / total.
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.8;
+
+/**
+ * Vocabulary DNA Parameters
+ */
+
+/**
+ * Top N bigrams to include in model vocabulary fingerprint.
+ * 20 most frequent bigrams provide signature reasoning patterns per model.
+ * Example: Claude might favor "however given", GPT might favor "based on".
+ */
+const VOCABULARY_TOP_BIGRAMS_LIMIT = 20;
+
+/**
+ * Unique words to include in model vocabulary fingerprint.
+ * 30 words unique to this agent (not used by other agents) show distinctive vocabulary.
+ * Example: Grok might uniquely use "obviously" or "clearly".
+ */
+const VOCABULARY_UNIQUE_WORDS_LIMIT = 30;
+
+/**
+ * Herding Trend Analysis
+ */
+
+/**
+ * Recent rounds window for herding trend calculation.
+ * Last 50 rounds of round comparisons used to compute herding trend over time.
+ * Shows whether agents are converging (herding) or diverging over recent history.
+ */
+const HERDING_TREND_WINDOW = 50;
+
+/**
+ * Systematic Disagreement Analysis
+ */
+
+/**
+ * Top N symbols to display for agent pairs that systematically disagree.
+ * Shows the 5 most frequently disagreed-upon stocks per agent pair.
+ * Example: Claude-GPT pair might systematically disagree on TSLAx.
+ */
+const SYSTEMATIC_DISAGREEMENT_TOP_SYMBOLS = 5;
 
 // ---------------------------------------------------------------------------
 // Internal state
@@ -205,7 +272,7 @@ export function compareRoundReasoning(
     });
   }
 
-  if (confSpread > 0.3) {
+  if (confSpread > DIVERGENCE_CONFIDENCE_SPREAD_THRESHOLD) {
     divergencePoints.push({
       roundId,
       symbol: roundDecisions[0]?.symbol ?? "",
@@ -228,9 +295,9 @@ export function compareRoundReasoning(
     const holds = countByCondition(agentEntries, (e) => e.action === "hold");
     const confs = agentEntries.map((e) => e.confidence);
     const avgConf = mean(confs);
-    // Overconfidence: confidence > 0.8 while historically wrong is hard to
-    // measure without outcomes, so we proxy as % of entries with conf > 0.8
-    const highConf = countByCondition(agentEntries, (e) => e.confidence > 0.8);
+    // Overconfidence: confidence > threshold while historically wrong is hard to
+    // measure without outcomes, so we proxy as % of entries with conf > threshold
+    const highConf = countByCondition(agentEntries, (e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD);
     return {
       agentId: d.agentId,
       bullishRate: buys / total,
@@ -282,7 +349,7 @@ export function computeModelFingerprint(agentId: string): ModelFingerprint | nul
 
   const sortedBigrams = [...bigramCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20);
+    .slice(0, VOCABULARY_TOP_BIGRAMS_LIMIT);
 
   // Words unique to this agent vs. all other agents
   const otherWords = new Set<string>();
@@ -292,7 +359,7 @@ export function computeModelFingerprint(agentId: string): ModelFingerprint | nul
       tokenize(e.reasoning).forEach((t) => otherWords.add(t));
     }
   }
-  const uniqueWords = [...wordSet].filter((w) => !otherWords.has(w)).slice(0, 30);
+  const uniqueWords = [...wordSet].filter((w) => !otherWords.has(w)).slice(0, VOCABULARY_UNIQUE_WORDS_LIMIT);
 
   const avgWordCount =
     entries.reduce((s, e) => s + tokenize(e.reasoning).length, 0) / entries.length;
@@ -312,7 +379,7 @@ export function computeModelFingerprint(agentId: string): ModelFingerprint | nul
 
   // --- Confidence pattern ---
   const confs = entries.map((e) => e.confidence);
-  const highConf = entries.filter((e) => e.confidence > 0.8).length;
+  const highConf = entries.filter((e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD).length;
 
   // --- Reasoning style ---
   const lengths = entries.map((e) => tokenize(e.reasoning).length);
@@ -384,7 +451,7 @@ export function getModelDivergenceReport(): ModelDivergenceReport {
       const [a, b] = key.split("|");
       const topSymbols = [...ps.symbolMap.entries()]
         .sort((x, y) => y[1] - x[1])
-        .slice(0, 5)
+        .slice(0, SYSTEMATIC_DISAGREEMENT_TOP_SYMBOLS)
         .map(([s]) => s);
       return {
         agentPair: [a, b] as [string, string],
@@ -427,7 +494,7 @@ export function getModelDivergenceReport(): ModelDivergenceReport {
   });
 
   // --- Herding trend ---
-  const herdingTrend = roundComparisons.slice(-50).map((c) => c.herdingScore);
+  const herdingTrend = roundComparisons.slice(-HERDING_TREND_WINDOW).map((c) => c.herdingScore);
 
   return {
     systematicDisagreements,
