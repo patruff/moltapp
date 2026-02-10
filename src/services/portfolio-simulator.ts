@@ -145,6 +145,41 @@ interface BenchmarkComparison {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Position Sizing Parameters
+ *
+ * Controls how much capital is allocated per copied trade.
+ */
+
+/**
+ * Position size multiplier per trade
+ *
+ * Each followed trade allocates this percentage of the weighted portfolio value.
+ * Example: 10% means a $10,000 portfolio with 100% agent weight allocates $1,000 per trade.
+ *
+ * Impact: Lower values (0.05) = more conservative, slower capital deployment
+ *         Higher values (0.15) = more aggressive, faster capital deployment
+ */
+const POSITION_SIZE_PER_TRADE_MULTIPLIER = 0.1;
+
+/**
+ * Cash reserve ratio for buy orders
+ *
+ * Only use this percentage of available cash for buys (keeps remainder as safety buffer).
+ * Example: 0.95 means if you have $1,000 cash, only $950 is available for buys.
+ *
+ * Impact: Lower values (0.90) = larger safety buffer, fewer consecutive buys
+ *         Higher values (0.98) = smaller buffer, more consecutive buys possible
+ *
+ * Rationale: Prevents simulation from becoming 100% invested, maintains liquidity
+ * for following multiple agents' buy signals in quick succession.
+ */
+const CASH_RESERVE_RATIO = 0.95;
+
+// ---------------------------------------------------------------------------
 // Simulation Engine
 // ---------------------------------------------------------------------------
 
@@ -236,11 +271,11 @@ export async function runSimulation(config: SimulationConfig): Promise<Simulatio
 
     // Calculate trade amount based on weight and capital
     const portfolioValue = calculatePortfolioValue(cashBalance, portfolioPositions, marketSnapshot);
-    const tradeAmount = portfolioValue * weight * 0.1; // 10% of weighted portfolio per trade
+    const tradeAmount = portfolioValue * weight * POSITION_SIZE_PER_TRADE_MULTIPLIER;
 
     if (decision.action === "buy") {
       // Check cash availability
-      const actualAmount = Math.min(tradeAmount, cashBalance * 0.95); // Keep 5% cash reserve
+      const actualAmount = Math.min(tradeAmount, cashBalance * CASH_RESERVE_RATIO);
       if (actualAmount < 1) {
         tradesSkipped++;
         continue;
