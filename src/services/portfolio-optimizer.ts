@@ -228,6 +228,101 @@ export interface RebalanceRecommendation {
 }
 
 // ---------------------------------------------------------------------------
+// Stock Return and Volatility Assumptions
+// ---------------------------------------------------------------------------
+
+/**
+ * Expected Annual Returns by Stock
+ * Historical risk premium estimates for portfolio optimization. Based on:
+ * - Historical performance analysis
+ * - Sector growth expectations
+ * - Risk-adjusted return profiles
+ *
+ * Values range from 5% (GMEx - meme stock uncertainty) to 40% (MSTRx - high-risk Bitcoin proxy).
+ * Used in mean-variance optimization, Sharpe ratio calculation, and efficient frontier generation.
+ */
+const STOCK_RETURN_AAPLx = 0.12;  // 12% - Mature tech leader, stable growth
+const STOCK_RETURN_MSFTx = 0.15;  // 15% - Enterprise + cloud dominance
+const STOCK_RETURN_GOOGLx = 0.10; // 10% - Search monopoly, regulatory headwinds
+const STOCK_RETURN_METAx = 0.18;  // 18% - Social media leader, metaverse upside
+const STOCK_RETURN_NVDAx = 0.35;  // 35% - AI chip leader, highest growth potential
+const STOCK_RETURN_AVGOx = 0.20;  // 20% - Semiconductor strength
+const STOCK_RETURN_CRMx = 0.14;   // 14% - SaaS leader, consistent growth
+const STOCK_RETURN_PLTRx = 0.25;  // 25% - Government contracts, AI pivot
+const STOCK_RETURN_NFLXx = 0.16;  // 16% - Streaming leader, content moat
+const STOCK_RETURN_COINx = 0.30;  // 30% - Crypto exchange, high volatility
+const STOCK_RETURN_MSTRx = 0.40;  // 40% - Bitcoin proxy, highest risk/return
+const STOCK_RETURN_HOODx = 0.22;  // 22% - Retail trading platform
+const STOCK_RETURN_SPYx = 0.10;   // 10% - S&P 500 benchmark
+const STOCK_RETURN_QQQx = 0.14;   // 14% - Nasdaq 100, tech-heavy
+const STOCK_RETURN_GMEx = 0.05;   // 5% - Meme stock, highly speculative
+const STOCK_RETURN_TSLAx = 0.20;  // 20% - EV leader, execution risk
+const STOCK_RETURN_LLYx = 0.18;   // 18% - Pharma leader, obesity drug upside
+const STOCK_RETURN_CRCLx = 0.12;  // 12% - Fintech, niche market
+const STOCK_RETURN_JPMx = 0.11;   // 11% - Banking giant, stable returns
+
+/**
+ * Annual Volatility by Stock
+ * Historical standard deviation estimates for risk calculation. Based on:
+ * - 1-year historical volatility
+ * - Sector volatility profiles
+ * - Liquidity and market cap considerations
+ *
+ * Values range from 15% (SPYx - index stability) to 70% (GMEx - extreme meme volatility).
+ * Used in portfolio variance calculation, risk parity allocation, and drawdown estimates.
+ */
+const STOCK_VOLATILITY_AAPLx = 0.22;  // 22% - Mature but still growth stock
+const STOCK_VOLATILITY_MSFTx = 0.20;  // 20% - Stable enterprise business
+const STOCK_VOLATILITY_GOOGLx = 0.25; // 25% - Search moat, some regulatory uncertainty
+const STOCK_VOLATILITY_METAx = 0.30;  // 30% - Social media risks, product cycles
+const STOCK_VOLATILITY_NVDAx = 0.40;  // 40% - High growth, chip cycle volatility
+const STOCK_VOLATILITY_AVGOx = 0.28;  // 28% - Semiconductor exposure
+const STOCK_VOLATILITY_CRMx = 0.26;   // 26% - SaaS growth stock
+const STOCK_VOLATILITY_PLTRx = 0.45;  // 45% - Polarizing stock, unpredictable contracts
+const STOCK_VOLATILITY_NFLXx = 0.28;  // 28% - Streaming competition, subscriber churn
+const STOCK_VOLATILITY_COINx = 0.55;  // 55% - Crypto exposure, regulatory risk
+const STOCK_VOLATILITY_MSTRx = 0.65;  // 65% - Bitcoin volatility amplified
+const STOCK_VOLATILITY_HOODx = 0.50;  // 50% - Retail trading platform, meme correlation
+const STOCK_VOLATILITY_SPYx = 0.15;   // 15% - Diversified index, lowest volatility
+const STOCK_VOLATILITY_QQQx = 0.18;   // 18% - Tech-heavy index, moderate volatility
+const STOCK_VOLATILITY_GMEx = 0.70;   // 70% - Extreme meme stock volatility
+const STOCK_VOLATILITY_TSLAx = 0.45;  // 45% - Execution risk, meme characteristics
+const STOCK_VOLATILITY_LLYx = 0.25;   // 25% - Pharma, drug pipeline risk
+const STOCK_VOLATILITY_CRCLx = 0.35;  // 35% - Fintech, competitive pressures
+const STOCK_VOLATILITY_JPMx = 0.20;   // 20% - Banking stability
+
+/**
+ * Correlation Generation Parameters
+ * Controls synthetic correlation between stocks for portfolio optimization when
+ * insufficient historical data is available. Based on sector relationships and
+ * empirical correlation studies.
+ */
+
+// Same-sector correlation bounds
+const CORRELATION_SAME_SECTOR_BASE = 0.55;   // Base correlation for stocks in same sector
+const CORRELATION_SAME_SECTOR_RANGE = 0.30;  // Range: 0.55 to 0.85 (55-85% correlation)
+
+// Tech-Index correlation bounds (Tech stocks vs SPY/QQQ)
+const CORRELATION_TECH_INDEX_BASE = 0.60;    // Tech stocks correlate highly with tech indexes
+const CORRELATION_TECH_INDEX_RANGE = 0.20;   // Range: 0.60 to 0.80 (60-80% correlation)
+
+// Crypto-Meme correlation bounds (speculative asset overlap)
+const CORRELATION_CRYPTO_MEME_BASE = 0.35;   // Moderate correlation from retail speculation
+const CORRELATION_CRYPTO_MEME_RANGE = 0.25;  // Range: 0.35 to 0.60 (35-60% correlation)
+
+// Cross-sector correlation bounds (diversification benefit)
+const CORRELATION_CROSS_SECTOR_BASE = 0.15;  // Low base correlation between different sectors
+const CORRELATION_CROSS_SECTOR_RANGE = 0.35; // Range: 0.15 to 0.50 (15-50% correlation)
+
+/**
+ * Hash Function Modulo Parameters
+ * Constants for deterministic pseudorandom correlation generation.
+ * Ensures correlations are consistent across runs for reproducibility.
+ */
+const HASH_SEED_SHIFT = 5;        // Bit shift for hash mixing
+const HASH_MODULO_DIVISOR = 100;  // Convert hash to percentage range
+
+// ---------------------------------------------------------------------------
 // Price generation helpers (consistent with orchestrator.ts)
 // ---------------------------------------------------------------------------
 
@@ -242,23 +337,47 @@ const STOCK_SECTORS: Record<string, string> = {
 };
 
 const BASE_RETURNS: Record<string, number> = {
-  AAPLx: 0.12, MSFTx: 0.15, GOOGLx: 0.10, METAx: 0.18, NVDAx: 0.35,
-  AVGOx: 0.20, CRMx: 0.14, PLTRx: 0.25, NFLXx: 0.16,
-  COINx: 0.30, MSTRx: 0.40, HOODx: 0.22,
-  SPYx: 0.10, QQQx: 0.14,
-  GMEx: 0.05, TSLAx: 0.20,
-  LLYx: 0.18, CRCLx: 0.12,
-  JPMx: 0.11,
+  AAPLx: STOCK_RETURN_AAPLx,
+  MSFTx: STOCK_RETURN_MSFTx,
+  GOOGLx: STOCK_RETURN_GOOGLx,
+  METAx: STOCK_RETURN_METAx,
+  NVDAx: STOCK_RETURN_NVDAx,
+  AVGOx: STOCK_RETURN_AVGOx,
+  CRMx: STOCK_RETURN_CRMx,
+  PLTRx: STOCK_RETURN_PLTRx,
+  NFLXx: STOCK_RETURN_NFLXx,
+  COINx: STOCK_RETURN_COINx,
+  MSTRx: STOCK_RETURN_MSTRx,
+  HOODx: STOCK_RETURN_HOODx,
+  SPYx: STOCK_RETURN_SPYx,
+  QQQx: STOCK_RETURN_QQQx,
+  GMEx: STOCK_RETURN_GMEx,
+  TSLAx: STOCK_RETURN_TSLAx,
+  LLYx: STOCK_RETURN_LLYx,
+  CRCLx: STOCK_RETURN_CRCLx,
+  JPMx: STOCK_RETURN_JPMx,
 };
 
 const BASE_VOLATILITIES: Record<string, number> = {
-  AAPLx: 0.22, MSFTx: 0.20, GOOGLx: 0.25, METAx: 0.30, NVDAx: 0.40,
-  AVGOx: 0.28, CRMx: 0.26, PLTRx: 0.45, NFLXx: 0.28,
-  COINx: 0.55, MSTRx: 0.65, HOODx: 0.50,
-  SPYx: 0.15, QQQx: 0.18,
-  GMEx: 0.70, TSLAx: 0.45,
-  LLYx: 0.25, CRCLx: 0.35,
-  JPMx: 0.20,
+  AAPLx: STOCK_VOLATILITY_AAPLx,
+  MSFTx: STOCK_VOLATILITY_MSFTx,
+  GOOGLx: STOCK_VOLATILITY_GOOGLx,
+  METAx: STOCK_VOLATILITY_METAx,
+  NVDAx: STOCK_VOLATILITY_NVDAx,
+  AVGOx: STOCK_VOLATILITY_AVGOx,
+  CRMx: STOCK_VOLATILITY_CRMx,
+  PLTRx: STOCK_VOLATILITY_PLTRx,
+  NFLXx: STOCK_VOLATILITY_NFLXx,
+  COINx: STOCK_VOLATILITY_COINx,
+  MSTRx: STOCK_VOLATILITY_MSTRx,
+  HOODx: STOCK_VOLATILITY_HOODx,
+  SPYx: STOCK_VOLATILITY_SPYx,
+  QQQx: STOCK_VOLATILITY_QQQx,
+  GMEx: STOCK_VOLATILITY_GMEx,
+  TSLAx: STOCK_VOLATILITY_TSLAx,
+  LLYx: STOCK_VOLATILITY_LLYx,
+  CRCLx: STOCK_VOLATILITY_CRCLx,
+  JPMx: STOCK_VOLATILITY_JPMx,
 };
 
 /** Generate realistic correlation between two stocks based on sector */
@@ -272,7 +391,7 @@ function generateCorrelation(sym1: string, sym2: string): number {
   if (sec1 === sec2) {
     // Deterministic based on symbol pair
     const seed = hashPair(sym1, sym2);
-    return 0.55 + (seed % 30) / 100; // 0.55 to 0.85
+    return CORRELATION_SAME_SECTOR_BASE + (seed % (CORRELATION_SAME_SECTOR_RANGE * HASH_MODULO_DIVISOR)) / HASH_MODULO_DIVISOR;
   }
 
   // Cross-sector correlations
@@ -281,24 +400,24 @@ function generateCorrelation(sym1: string, sym2: string): number {
     (sec1 === "Tech" && sec2 === "Index") ||
     (sec1 === "Index" && sec2 === "Tech")
   ) {
-    return 0.60 + (seed % 20) / 100; // Tech-Index: 0.60-0.80
+    return CORRELATION_TECH_INDEX_BASE + (seed % (CORRELATION_TECH_INDEX_RANGE * HASH_MODULO_DIVISOR)) / HASH_MODULO_DIVISOR;
   }
   if (
     (sec1 === "Crypto" && sec2 === "Meme") ||
     (sec1 === "Meme" && sec2 === "Crypto")
   ) {
-    return 0.35 + (seed % 25) / 100; // Crypto-Meme: 0.35-0.60
+    return CORRELATION_CRYPTO_MEME_BASE + (seed % (CORRELATION_CRYPTO_MEME_RANGE * HASH_MODULO_DIVISOR)) / HASH_MODULO_DIVISOR;
   }
 
   // Default cross-sector
-  return 0.15 + (seed % 35) / 100; // 0.15-0.50
+  return CORRELATION_CROSS_SECTOR_BASE + (seed % (CORRELATION_CROSS_SECTOR_RANGE * HASH_MODULO_DIVISOR)) / HASH_MODULO_DIVISOR;
 }
 
 function hashPair(a: string, b: string): number {
   const combined = [a, b].sort().join("|");
   let hash = 0;
   for (let i = 0; i < combined.length; i++) {
-    hash = ((hash << 5) - hash + combined.charCodeAt(i)) | 0;
+    hash = ((hash << HASH_SEED_SHIFT) - hash + combined.charCodeAt(i)) | 0;
   }
   return Math.abs(hash);
 }
