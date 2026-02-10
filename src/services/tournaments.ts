@@ -19,6 +19,60 @@ import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Tournament Timing Parameters
+ *
+ * These constants control tournament format timing windows, completion thresholds,
+ * minimum participation requirements, reputation rewards, and display precision.
+ */
+
+// Daily Sprint Timing
+/** Hour threshold for daily sprint completion (23 = 11 PM) */
+const DAILY_SPRINT_COMPLETION_HOUR = 23;
+
+/** Minimum decisions required for daily sprint participation */
+const DAILY_SPRINT_MIN_DECISIONS = 1;
+
+/** Reputation points awarded for daily sprint victory */
+const DAILY_SPRINT_REPUTATION_REWARD = 50;
+
+// Weekly Showdown Timing
+/** Number of days in weekly showdown (7-day competition) */
+const WEEKLY_SHOWDOWN_DAYS = 7;
+
+/** Total rounds in weekly showdown metadata */
+const WEEKLY_SHOWDOWN_TOTAL_ROUNDS = 7;
+
+/** Minimum decisions required for weekly showdown participation */
+const WEEKLY_SHOWDOWN_MIN_DECISIONS = 3;
+
+/** Reputation points awarded for weekly showdown victory */
+const WEEKLY_SHOWDOWN_REPUTATION_REWARD = 200;
+
+// Monthly Championship Timing
+/** Milliseconds per week (7 days) for championship bracket calculations */
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Milliseconds for 2-week championship bracket calculations */
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Total rounds in monthly championship (Qualifiers, Semifinals, Finals) */
+const MONTHLY_CHAMPIONSHIP_TOTAL_ROUNDS = 3;
+
+/** Minimum decisions required for monthly championship participation */
+const MONTHLY_CHAMPIONSHIP_MIN_DECISIONS = 10;
+
+/** Reputation points awarded for monthly championship victory */
+const MONTHLY_CHAMPIONSHIP_REPUTATION_REWARD = 500;
+
+// Accuracy Rounding Precision
+/** Precision multiplier for accuracy rounding (10 = tenths place, e.g., 0.847 → 0.8) */
+const ACCURACY_ROUNDING_PRECISION = 10;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -218,7 +272,7 @@ export async function generateDailySprint(): Promise<Tournament> {
 
   // Generate single round with round-robin matchups
   const matchups = generateRoundRobinMatchups(participants, marketData);
-  const isComplete = now.getHours() >= 23;
+  const isComplete = now.getHours() >= DAILY_SPRINT_COMPLETION_HOUR;
 
   const tournament: Tournament = {
     id,
@@ -230,7 +284,7 @@ export async function generateDailySprint(): Promise<Tournament> {
     description: "24-hour trading sprint. Agents compete based on prediction accuracy, confidence calibration, and trading volume.",
     rules: {
       scoringMethod: "composite",
-      minDecisions: 1,
+      minDecisions: DAILY_SPRINT_MIN_DECISIONS,
       allowedSymbols: "all",
       tiebreaker: "confidence",
     },
@@ -246,7 +300,7 @@ export async function generateDailySprint(): Promise<Tournament> {
       },
     ],
     winner: isComplete ? participants[0] ?? null : null,
-    prizes: ["Daily Sprint Champion Title", "+50 Reputation Points"],
+    prizes: ["Daily Sprint Champion Title", `+${DAILY_SPRINT_REPUTATION_REWARD} Reputation Points`],
     metadata: {
       createdAt: now.toISOString(),
       totalDecisions: participants.reduce((s, p) => s + p.stats.decisions, 0),
@@ -256,8 +310,8 @@ export async function generateDailySprint(): Promise<Tournament> {
           ? Math.round(
               (participants.reduce((s, p) => s + p.stats.accuracy, 0) /
                 participants.length) *
-                10,
-            ) / 10
+                ACCURACY_ROUNDING_PRECISION,
+            ) / ACCURACY_ROUNDING_PRECISION
           : 0,
       mostTradedSymbol: findMostTradedSymbol(participants),
       mostControversialRound: null,
@@ -325,7 +379,7 @@ export async function generateWeeklyShowdown(): Promise<Tournament> {
 
   // Generate matchups for each day of the week
   const rounds: TournamentRound[] = [];
-  for (let day = 0; day < 7; day++) {
+  for (let day = 0; day < WEEKLY_SHOWDOWN_DAYS; day++) {
     const roundDate = new Date(startOfWeek);
     roundDate.setDate(roundDate.getDate() + day);
     const dayEnd = new Date(roundDate);
@@ -358,7 +412,7 @@ export async function generateWeeklyShowdown(): Promise<Tournament> {
       "7-day round-robin showdown. Agents accumulate points across daily matchups. Best weekly performer wins.",
     rules: {
       scoringMethod: "composite",
-      minDecisions: 3,
+      minDecisions: WEEKLY_SHOWDOWN_MIN_DECISIONS,
       allowedSymbols: "all",
       tiebreaker: "total_trades",
     },
@@ -379,8 +433,8 @@ export async function generateWeeklyShowdown(): Promise<Tournament> {
           ? Math.round(
               (participants.reduce((s, p) => s + p.stats.accuracy, 0) /
                 participants.length) *
-                10,
-            ) / 10
+                ACCURACY_ROUNDING_PRECISION,
+            ) / ACCURACY_ROUNDING_PRECISION
           : 0,
       mostTradedSymbol: findMostTradedSymbol(participants),
       mostControversialRound: null,
@@ -492,8 +546,8 @@ export async function generateMonthlyChampionship(): Promise<Tournament> {
           ? Math.round(
               (participants.reduce((s, p) => s + p.stats.accuracy, 0) /
                 participants.length) *
-                10,
-            ) / 10
+                ACCURACY_ROUNDING_PRECISION,
+            ) / ACCURACY_ROUNDING_PRECISION
           : 0,
       mostTradedSymbol: findMostTradedSymbol(participants),
       mostControversialRound: null,
