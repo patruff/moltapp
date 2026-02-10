@@ -104,25 +104,76 @@ export interface PriceValidatorMetrics {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Live trading validation thresholds.
+ * These are strict to ensure safety and prevent stale-price exploitation.
+ */
+const LIVE_MAX_SOURCE_DEVIATION_PERCENT = 2; // 2% max deviation between price sources
+const LIVE_MAX_STALENESS_MS = 60_000; // 60 seconds max age for live trades
+const LIVE_HISTORICAL_RANGE_BUFFER_PERCENT = 5; // 5% buffer outside 24h range
+const LIVE_MIN_SOURCES_REQUIRED = 1; // Minimum 1 source for validation
+const LIVE_MAX_SLIPPAGE_PERCENT = 1; // 1% max slippage for live trades
+const LIVE_STRICT_MODE = true; // Enforce all validation checks
+
+/**
+ * Paper trading validation thresholds.
+ * These are more relaxed for backtesting and simulation.
+ */
+const PAPER_MAX_SOURCE_DEVIATION_PERCENT = 5; // 5% max deviation for paper trades
+const PAPER_MAX_STALENESS_MS = 300_000; // 5 minutes max age for paper trades
+const PAPER_HISTORICAL_RANGE_BUFFER_PERCENT = 10; // 10% buffer for paper trades
+const PAPER_MIN_SOURCES_REQUIRED = 1; // Minimum 1 source for paper trades
+const PAPER_MAX_SLIPPAGE_PERCENT = 5; // 5% max slippage for paper trades
+const PAPER_STRICT_MODE = false; // Relaxed validation for paper trades
+
+/**
+ * Confidence scoring parameters.
+ * These control how the confidence score (0-100) is calculated.
+ */
+const CONFIDENCE_BASE_SCORE = 50; // Starting confidence before adjustments
+const CONFIDENCE_PER_SOURCE_BONUS = 15; // Bonus per additional price source
+const CONFIDENCE_FRESH_RATIO_MULTIPLIER = 20; // Multiplier for fresh price ratio
+const CONFIDENCE_LOW_DEVIATION_TIER1_THRESHOLD = 0.5; // <0.5% deviation = tier 1 bonus
+const CONFIDENCE_LOW_DEVIATION_TIER1_BONUS = 10; // Bonus for very low deviation
+const CONFIDENCE_LOW_DEVIATION_TIER2_THRESHOLD = 1.0; // <1.0% deviation = tier 2 bonus
+const CONFIDENCE_LOW_DEVIATION_TIER2_BONUS = 5; // Bonus for low deviation
+const CONFIDENCE_MAX_SCORE = 100; // Cap confidence at 100%
+
+/**
+ * Slippage protection multiplier.
+ * Extreme slippage is rejected when deviation exceeds maxSlippagePercent × this multiplier.
+ */
+const SLIPPAGE_EXTREME_MULTIPLIER = 2; // 2× maxSlippagePercent = extreme slippage rejection
+
+/**
+ * Quick validation confidence threshold.
+ * Prices must exceed this confidence to pass quickValidate() check.
+ */
+const QUICK_VALIDATE_MIN_CONFIDENCE = 50; // Minimum confidence for quick validation
+
+// ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
 const DEFAULT_LIVE_CONFIG: PriceValidationConfig = {
-  maxSourceDeviationPercent: 2,
-  maxStalenessMs: 60_000,
-  historicalRangeBufferPercent: 5,
-  minSourcesRequired: 1,
-  maxSlippagePercent: 1,
-  strictMode: true,
+  maxSourceDeviationPercent: LIVE_MAX_SOURCE_DEVIATION_PERCENT,
+  maxStalenessMs: LIVE_MAX_STALENESS_MS,
+  historicalRangeBufferPercent: LIVE_HISTORICAL_RANGE_BUFFER_PERCENT,
+  minSourcesRequired: LIVE_MIN_SOURCES_REQUIRED,
+  maxSlippagePercent: LIVE_MAX_SLIPPAGE_PERCENT,
+  strictMode: LIVE_STRICT_MODE,
 };
 
 const DEFAULT_PAPER_CONFIG: PriceValidationConfig = {
-  maxSourceDeviationPercent: 5,
-  maxStalenessMs: 300_000,
-  historicalRangeBufferPercent: 10,
-  minSourcesRequired: 1,
-  maxSlippagePercent: 5,
-  strictMode: false,
+  maxSourceDeviationPercent: PAPER_MAX_SOURCE_DEVIATION_PERCENT,
+  maxStalenessMs: PAPER_MAX_STALENESS_MS,
+  historicalRangeBufferPercent: PAPER_HISTORICAL_RANGE_BUFFER_PERCENT,
+  minSourcesRequired: PAPER_MIN_SOURCES_REQUIRED,
+  maxSlippagePercent: PAPER_MAX_SLIPPAGE_PERCENT,
+  strictMode: PAPER_STRICT_MODE,
 };
 
 let liveConfig = { ...DEFAULT_LIVE_CONFIG };
@@ -247,7 +298,7 @@ export async function validatePrice(
     slippageProtection = true;
     slippageProtectionTriggers++;
 
-    if (proposedDeviation > config.maxSlippagePercent * 2) {
+    if (proposedDeviation > config.maxSlippagePercent * SLIPPAGE_EXTREME_MULTIPLIER) {
       // Extreme slippage — reject
       const reason = `Excessive slippage: proposed $${request.proposedPrice.toFixed(4)} vs validated $${validatedPrice.toFixed(4)} (${proposedDeviation.toFixed(2)}% deviation)`;
       return rejectPrice(request, reason, sourceDetails, config);
@@ -271,21 +322,24 @@ export async function validatePrice(
   updatePriceRange(request.mintAddress, validatedPrice);
 
   // --- Calculate confidence ---
-  let confidence = 50;
+  let confidence = CONFIDENCE_BASE_SCORE;
 
   // More sources = higher confidence
-  confidence += sourceDetails.length * 15;
+  confidence += sourceDetails.length * CONFIDENCE_PER_SOURCE_BONUS;
 
   // Fresh prices = higher confidence
   const freshRatio = sourceDetails.filter((s) => !s.isStale).length / sourceDetails.length;
-  confidence += freshRatio * 20;
+  confidence += freshRatio * CONFIDENCE_FRESH_RATIO_MULTIPLIER;
 
   // Low deviation = higher confidence
-  if (maxDeviation < 0.5) confidence += 10;
-  else if (maxDeviation < 1) confidence += 5;
+  if (maxDeviation < CONFIDENCE_LOW_DEVIATION_TIER1_THRESHOLD) {
+    confidence += CONFIDENCE_LOW_DEVIATION_TIER1_BONUS;
+  } else if (maxDeviation < CONFIDENCE_LOW_DEVIATION_TIER2_THRESHOLD) {
+    confidence += CONFIDENCE_LOW_DEVIATION_TIER2_BONUS;
+  }
 
   // Cap confidence
-  confidence = Math.min(100, Math.round(confidence));
+  confidence = Math.min(CONFIDENCE_MAX_SCORE, Math.round(confidence));
 
   // Track metrics
   validPrices++;
@@ -371,7 +425,7 @@ export function quickValidate(symbol: string): {
   }
 
   return {
-    valid: !cached.isStale && cached.confidence > 50,
+    valid: !cached.isStale && cached.confidence > QUICK_VALIDATE_MIN_CONFIDENCE,
     price: cached.price,
     ageMs: cached.ageMs,
     confidence: cached.confidence,
