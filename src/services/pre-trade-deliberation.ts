@@ -24,6 +24,106 @@ import type {
 import { getTopKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Risk Assessment Thresholds
+ *
+ * These thresholds control when risk factors are flagged during
+ * deliberation proposal generation.
+ */
+
+/** Confidence below 40% triggers "low confidence suggests uncertainty" risk flag */
+const RISK_LOW_CONFIDENCE_THRESHOLD = 40;
+
+/** Confidence above 85% triggers "overconfidence bias" risk flag */
+const RISK_HIGH_CONFIDENCE_THRESHOLD = 85;
+
+/** Position size above 500 USDC triggers "large position increases concentration risk" flag */
+const RISK_LARGE_POSITION_THRESHOLD = 500;
+
+/**
+ * Deliberation Quality Scoring Parameters
+ *
+ * These control how deliberation quality is assessed based on
+ * proposal diversity, critique substance, and consensus strength.
+ */
+
+/** Base score for any deliberation (starting point before adjustments) */
+const QUALITY_SCORE_BASE = 50;
+
+/** Points added per unique action type in proposals (buy/sell/hold diversity) */
+const QUALITY_SCORE_PER_UNIQUE_ACTION = 5;
+
+/** Points added per unique symbol (capped at 3 symbols for diminishing returns) */
+const QUALITY_SCORE_PER_UNIQUE_SYMBOL = 3;
+
+/** Maximum number of unique symbols counted for quality scoring (prevents excessive credit) */
+const QUALITY_SCORE_MAX_UNIQUE_SYMBOLS = 3;
+
+/** Points added per substantive critique (one that suggests an adjustment) */
+const QUALITY_SCORE_PER_SUBSTANTIVE_CRITIQUE = 3;
+
+/** Maximum number of substantive critiques counted (cap at 6 to prevent score inflation) */
+const QUALITY_SCORE_MAX_SUBSTANTIVE_CRITIQUES = 6;
+
+/** Points added per agent that revised their decision (shows responsiveness to feedback) */
+const QUALITY_SCORE_PER_REVISION = 5;
+
+/** Bonus points when consensus agreement score >= 80% (strong alignment) */
+const QUALITY_SCORE_STRONG_CONSENSUS_BONUS = 10;
+
+/** Agreement threshold (percentage) for strong consensus bonus classification */
+const QUALITY_STRONG_CONSENSUS_THRESHOLD = 80;
+
+/** Penalty points when consensus type is deadlock (equal buy/sell split) */
+const QUALITY_SCORE_DEADLOCK_PENALTY = 10;
+
+/** Bonus points when average confidence in [40, 80] range (calibrated decision-making) */
+const QUALITY_SCORE_CALIBRATED_CONFIDENCE_BONUS = 5;
+
+/** Minimum confidence for calibrated range (avoids coin-flip decisions) */
+const QUALITY_CALIBRATED_CONFIDENCE_MIN = 40;
+
+/** Maximum confidence for calibrated range (avoids overconfidence) */
+const QUALITY_CALIBRATED_CONFIDENCE_MAX = 80;
+
+/**
+ * Revision Thresholds
+ *
+ * These control confidence adjustments during the deliberation revision phase.
+ */
+
+/** Confidence reduction when ALL peers disagree (percentage points) */
+const REVISION_FULL_DISAGREEMENT_PENALTY = 20;
+
+/** Confidence reduction when MAJORITY disagree (percentage points) */
+const REVISION_MAJORITY_DISAGREEMENT_PENALTY = 10;
+
+/** Confidence boost when ALL peers agree (percentage points) */
+const REVISION_FULL_AGREEMENT_BONUS = 10;
+
+/** Minimum confidence to maintain active trade after deliberation (below = convert to hold) */
+const REVISION_MIN_CONFIDENCE_FOR_ACTIVE_TRADE = 40;
+
+/** Position size reduction factor when disagreements dominate (30% reduction) */
+const REVISION_POSITION_REDUCTION_DISAGREEMENT = 0.7;
+
+/** Position size reduction factor when partials dominate (15% reduction) */
+const REVISION_POSITION_REDUCTION_PARTIAL = 0.85;
+
+/**
+ * Critique Agreement Classification
+ *
+ * These thresholds determine when confidence differences in same-action
+ * agreements are considered significant.
+ */
+
+/** Confidence difference > 20% between agreeing agents = "confidence differs" note in feedback */
+const CRITIQUE_SIGNIFICANT_CONFIDENCE_DIFF = 20;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -249,13 +349,13 @@ function assessRisk(decision: TradingDecision): string {
 
   const riskFactors: string[] = [];
 
-  if (decision.confidence < 40) {
+  if (decision.confidence < RISK_LOW_CONFIDENCE_THRESHOLD) {
     riskFactors.push("low confidence suggests uncertainty");
   }
-  if (decision.confidence > 85) {
+  if (decision.confidence > RISK_HIGH_CONFIDENCE_THRESHOLD) {
     riskFactors.push("high confidence may indicate overconfidence bias");
   }
-  if (decision.action === "buy" && decision.quantity > 500) {
+  if (decision.action === "buy" && decision.quantity > RISK_LARGE_POSITION_THRESHOLD) {
     riskFactors.push("large position size increases concentration risk");
   }
   if (decision.action === "sell") {
@@ -307,7 +407,7 @@ function generateSingleCritique(
   ) {
     agreement = "agree";
     const confDiff = Math.abs(criticDecision.confidence - targetDecision.confidence);
-    feedback = confDiff > 20
+    feedback = confDiff > CRITIQUE_SIGNIFICANT_CONFIDENCE_DIFF
       ? `Agree on ${targetDecision.action} ${targetDecision.symbol}, but confidence differs by ${confDiff}%`
       : `Strong agreement on ${targetDecision.action} ${targetDecision.symbol}`;
   }
@@ -400,7 +500,7 @@ function applyRevisions(
 
     // Rule 1: If ALL other agents disagree, reduce confidence by 20%
     if (disagreements.length === targetedCritiques.length && targetedCritiques.length > 0) {
-      const newConfidence = Math.max(0, revisedDecision.confidence - 20);
+      const newConfidence = Math.max(0, revisedDecision.confidence - REVISION_FULL_DISAGREEMENT_PENALTY);
       if (
         Math.abs(newConfidence - proposal.decision.confidence) >=
         currentConfig.revisionThreshold
@@ -418,7 +518,7 @@ function applyRevisions(
     }
     // Rule 2: If majority disagree, reduce confidence by 10%
     else if (disagreements.length > agreements.length && targetedCritiques.length > 0) {
-      const newConfidence = Math.max(0, revisedDecision.confidence - 10);
+      const newConfidence = Math.max(0, revisedDecision.confidence - REVISION_MAJORITY_DISAGREEMENT_PENALTY);
       if (
         Math.abs(newConfidence - proposal.decision.confidence) >=
         currentConfig.revisionThreshold
@@ -436,7 +536,7 @@ function applyRevisions(
     }
     // Rule 3: If ALL agree, boost confidence by 10%
     else if (agreements.length === targetedCritiques.length && targetedCritiques.length > 0) {
-      const newConfidence = Math.min(100, revisedDecision.confidence + 10);
+      const newConfidence = Math.min(100, revisedDecision.confidence + REVISION_FULL_AGREEMENT_BONUS);
       if (
         Math.abs(newConfidence - proposal.decision.confidence) >=
         currentConfig.revisionThreshold
@@ -457,9 +557,9 @@ function applyRevisions(
     if (
       revisedDecision.action !== "hold" &&
       disagreements.length > 0 &&
-      revisedDecision.confidence < 40
+      revisedDecision.confidence < REVISION_MIN_CONFIDENCE_FOR_ACTIVE_TRADE
     ) {
-      // Convert to hold if confidence drops below 40 after deliberation
+      // Convert to hold if confidence drops below threshold after deliberation
       revisedDecision = {
         ...revisedDecision,
         action: "hold",
@@ -479,7 +579,7 @@ function applyRevisions(
       revisedDecision.quantity > 0 &&
       partials.length + disagreements.length > agreements.length
     ) {
-      const reductionFactor = disagreements.length > 0 ? 0.7 : 0.85;
+      const reductionFactor = disagreements.length > 0 ? REVISION_POSITION_REDUCTION_DISAGREEMENT : REVISION_POSITION_REDUCTION_PARTIAL;
       const newQuantity =
         Math.floor(revisedDecision.quantity * reductionFactor * 100) / 100;
       if (newQuantity !== revisedDecision.quantity) {
@@ -594,40 +694,40 @@ function calculateQualityScore(
   revisions: RevisedDecision[],
   consensus: ConsensusResult,
 ): number {
-  let score = 50; // Base score
+  let score = QUALITY_SCORE_BASE;
 
   // Diverse proposals (different actions/symbols) = higher quality
   const uniqueActions = new Set(proposals.map((p) => p.decision.action));
   const uniqueSymbols = new Set(proposals.map((p) => p.decision.symbol));
-  score += uniqueActions.size * 5; // +5 per unique action type
-  score += Math.min(uniqueSymbols.size, 3) * 3; // +3 per unique symbol (max 3)
+  score += uniqueActions.size * QUALITY_SCORE_PER_UNIQUE_ACTION;
+  score += Math.min(uniqueSymbols.size, QUALITY_SCORE_MAX_UNIQUE_SYMBOLS) * QUALITY_SCORE_PER_UNIQUE_SYMBOL;
 
   // Substantive critiques = higher quality
   const substantiveCritiques = critiques.filter(
     (c) => c.suggestedAdjustment !== null,
   );
-  score += Math.min(substantiveCritiques.length, 6) * 3; // +3 per substantive critique
+  score += Math.min(substantiveCritiques.length, QUALITY_SCORE_MAX_SUBSTANTIVE_CRITIQUES) * QUALITY_SCORE_PER_SUBSTANTIVE_CRITIQUE;
 
   // Revisions indicate agents are responsive to feedback
   const revisionCount = revisions.filter((r) => r.didRevise).length;
-  score += revisionCount * 5;
+  score += revisionCount * QUALITY_SCORE_PER_REVISION;
 
-  // Strong consensus (agreement > 80%) = bonus
-  if (consensus.agreementScore >= 80) {
-    score += 10;
+  // Strong consensus (agreement >= threshold) = bonus
+  if (consensus.agreementScore >= QUALITY_STRONG_CONSENSUS_THRESHOLD) {
+    score += QUALITY_SCORE_STRONG_CONSENSUS_BONUS;
   }
 
   // Deadlock = penalty
   if (consensus.type === "deadlock") {
-    score -= 10;
+    score -= QUALITY_SCORE_DEADLOCK_PENALTY;
   }
 
-  // Average confidence in reasonable range (40-80) = bonus
+  // Average confidence in reasonable range = bonus
   const avgConfidence =
     revisions.reduce((sum, r) => sum + r.revisedDecision.confidence, 0) /
     revisions.length;
-  if (avgConfidence >= 40 && avgConfidence <= 80) {
-    score += 5;
+  if (avgConfidence >= QUALITY_CALIBRATED_CONFIDENCE_MIN && avgConfidence <= QUALITY_CALIBRATED_CONFIDENCE_MAX) {
+    score += QUALITY_SCORE_CALIBRATED_CONFIDENCE_BONUS;
   }
 
   return Math.max(0, Math.min(100, score));
