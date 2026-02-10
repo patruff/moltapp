@@ -252,10 +252,10 @@ async function callOpenAIForMeeting(
   userMessage: string,
   model: string,
   baseURL?: string,
+  apiKeyOverride?: string,
 ): Promise<string> {
-  const apiKey = baseURL
-    ? process.env.XAI_API_KEY
-    : process.env.OPENAI_API_KEY;
+  const apiKey = apiKeyOverride
+    ?? (baseURL ? process.env.XAI_API_KEY : process.env.OPENAI_API_KEY);
   if (!apiKey) return `[${model} unavailable — no API key]`;
 
   const client = new OpenAI({ apiKey, ...(baseURL ? { baseURL } : {}) });
@@ -288,6 +288,14 @@ async function callAgentForMeeting(
         userMessage,
         agentConfig.model,
         "https://api.x.ai/v1",
+      );
+    case "google":
+      return callOpenAIForMeeting(
+        systemPrompt,
+        userMessage,
+        agentConfig.model,
+        "https://generativelanguage.googleapis.com/v1beta/openai/",
+        process.env.GOOGLE_API_KEY,
       );
     default:
       return "[unknown provider]";

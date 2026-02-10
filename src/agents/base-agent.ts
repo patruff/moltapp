@@ -83,7 +83,7 @@ export interface AgentConfig {
   agentId: string;
   name: string;
   model: string;
-  provider: "anthropic" | "openai" | "xai";
+  provider: "anthropic" | "openai" | "xai" | "google";
   description: string;
   personality: string;
   riskTolerance: "conservative" | "moderate" | "aggressive";

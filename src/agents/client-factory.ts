@@ -74,3 +74,28 @@ export function createXAIClientGetter(): () => OpenAI {
     return client;
   };
 }
+
+/**
+ * Creates a lazy-initialized Google Gemini client getter function.
+ * Gemini uses the OpenAI SDK with Google's OpenAI-compatible endpoint.
+ * Returns a function that initializes the client on first call.
+ */
+export function createGeminiClientGetter(): () => OpenAI {
+  let client: OpenAI | null = null;
+
+  return () => {
+    if (!client) {
+      const apiKey = process.env.GOOGLE_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "GOOGLE_API_KEY environment variable is not set. Gemini agent cannot trade.",
+        );
+      }
+      client = new OpenAI({
+        apiKey,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      });
+    }
+    return client;
+  };
+}

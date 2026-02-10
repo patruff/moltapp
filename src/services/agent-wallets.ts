@@ -1,7 +1,7 @@
 /**
  * Agent Wallet Management
  *
- * Manages the 3 pre-configured agent wallets (Claude, GPT, Grok).
+ * Manages the pre-configured agent wallets (Claude, GPT, Grok, Gemini).
  * Each agent has a dedicated Solana wallet for trading xStocks.
  *
  * Features:
@@ -30,7 +30,7 @@ export interface AgentWalletConfig {
   /** Solana public key (base58) */
   publicKey: string;
   /** Provider for this agent's LLM */
-  provider: "anthropic" | "openai" | "xai";
+  provider: "anthropic" | "openai" | "xai" | "google";
 }
 
 export interface AgentWalletStatus {
@@ -101,6 +101,15 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
       process.env.GROK_WALLET_PUBLIC ||
       "11111111111111111111111111111111", // Placeholder
     provider: "xai",
+  },
+  {
+    agentId: "gemini-analyst",
+    agentName: "Gemini AnalystBot",
+    publicKey:
+      process.env.GEMINI_WALLET_PUBLIC ||
+      process.env.ONBOARD_WALLET_PUBLIC ||
+      "11111111111111111111111111111111", // Placeholder
+    provider: "google",
   },
 ];
 

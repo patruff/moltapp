@@ -152,7 +152,7 @@ function classifyAnalyticalMethod(reasoning: string): AnalyticalMethod {
   const quantitative = /\d+\.?\d*%/.test(reasoning) && /\$\d+/.test(reasoning);
   const narrative = /\bbelieve\b|\bfeel\b|\bsense\b|\bintuition\b|\bnarrative\b/i.test(reasoning);
 
-  const count = [fundamental, technical, quantitative, narrative].filter(Boolean).length;
+  const count = countByCondition([fundamental, technical, quantitative, narrative], Boolean);
 
   if (count >= 2) return "mixed";
   if (fundamental) return "fundamental";

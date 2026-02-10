@@ -268,7 +268,7 @@ function stddev(arr: number[]): number {
 }
 
 function boolRate(arr: boolean[]): number {
-  return arr.length > 0 ? arr.filter(Boolean).length / arr.length : 0.5;
+  return arr.length > 0 ? countByCondition(arr, Boolean) / arr.length : 0.5;
 }
 
 // ---------------------------------------------------------------------------

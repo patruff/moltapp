@@ -1,14 +1,14 @@
 /**
  * Trading Orchestrator
  *
- * Runs all 3 AI agents in parallel, collects their decisions, executes trades,
+ * Runs all AI agents in parallel, collects their decisions, executes trades,
  * and records everything to the database. This is the heart of MoltApp's
  * autonomous trading system.
  *
  * Architecture:
  * 1. Fetch current market data for all stocks
  * 2. Build portfolio context for each agent
- * 3. Run all 3 agents in parallel (Claude, GPT, Grok)
+ * 3. Run all agents in parallel (Claude, GPT, Grok, Gemini when configured)
  * 4. Execute trade decisions that pass validation
  * 5. Record decisions + execution results to DB
  */
@@ -21,6 +21,7 @@ import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { claudeTrader } from "./claude-trader.ts";
 import { gptTrader } from "./gpt-trader.ts";
 import { grokTrader } from "./grok-trader.ts";
+import { geminiTrader } from "./gemini-trader.ts";
 import { eq, desc, sql, type InferSelectModel } from "drizzle-orm";
 import type {
   BaseTradingAgent,
@@ -348,8 +349,13 @@ type AgentDecision = InferSelectModel<typeof agentDecisions>;
 // All registered agents
 // ---------------------------------------------------------------------------
 
-/** The 3 competing AI agents */
-const ALL_AGENTS: BaseTradingAgent[] = [claudeTrader, gptTrader, grokTrader];
+/** The competing AI agents (gated on API key availability) */
+const ALL_AGENTS: BaseTradingAgent[] = [
+  claudeTrader,
+  gptTrader,
+  grokTrader,
+  ...(process.env.GOOGLE_API_KEY ? [geminiTrader] : []),
+];
 
 /** Agent configs for API responses (without live client instances) */
 export function getAgentConfigs() {
