@@ -224,6 +224,103 @@ const REVERSIBILITY_DEPTH_MAX_SCORE = 15; // Category ceiling
 const REVERSIBILITY_MAX_SCORE = 100; // Maximum reversibility score
 const REVERSIBILITY_MIN_SCORE = 0; // Minimum reversibility score
 
+/**
+ * Trade Grading Scoring Parameters
+ *
+ * These constants control how individual trades are scored across multiple dimensions
+ * in the gradeTrade() function, including reasoning depth, source quality, logical
+ * consistency, coherence, hallucination penalties, and discipline scoring.
+ */
+
+// 1. Trade ID Generation
+const TRADE_ID_RANDOM_SUFFIX_START = 2; // Start index for random suffix in tradeId
+const TRADE_ID_RANDOM_SUFFIX_END = 6; // End index for random suffix (4 chars total)
+
+// 2. Reasoning Depth Scoring (0-100 points total)
+const REASONING_DEPTH_MAX_SCORE = 100; // Maximum reasoning depth score
+const REASONING_DEPTH_WORD_COMPONENT_MAX = 50; // Max points from word count (50%)
+const REASONING_DEPTH_WORD_DIVISOR = 2; // Words divided by 2 for scoring
+const REASONING_DEPTH_CLAUSE_COMPONENT_MAX = 50; // Max points from clause count (50%)
+const REASONING_DEPTH_CLAUSE_MULTIPLIER = 8; // Points per clause
+
+// 3. Source Quality Scoring (0-100 points total)
+const SOURCE_QUALITY_MAX_SCORE = 100; // Maximum source quality score
+const SOURCE_QUALITY_POINTS_PER_SOURCE = 15; // Points per source cited
+const SOURCE_QUALITY_BASELINE_SCORE = 10; // Baseline score with 0 sources
+
+// 4. Logical Consistency Scoring (0-100 points)
+const LOGICAL_CONSISTENCY_CONTRADICTORY_SCORE = 35; // Score when bullish+bearish reasoning contradicts action
+const LOGICAL_CONSISTENCY_COHERENT_SCORE = 85; // Score when reasoning aligns with action
+
+// 5. Overall Trade Grade Scoring (weighted average of 18 sub-scores)
+const TRADE_GRADE_COHERENCE_MULTIPLIER = 100; // Convert coherence 0-1 to 0-100 scale
+const TRADE_GRADE_HALLUCINATION_PENALTY_MULTIPLIER = 0.25; // Penalty multiplier per hallucination flag
+const TRADE_GRADE_HALLUCINATION_BASE_MULTIPLIER = 100; // Convert hallucination-free ratio to 0-100 scale
+const TRADE_GRADE_DISCIPLINE_PASSED_SCORE = 90; // Score when discipline checks pass
+const TRADE_GRADE_DISCIPLINE_FAILED_SCORE = 30; // Score when discipline checks fail
+
+/**
+ * Agent Scoring Parameters
+ *
+ * These constants control how agents are scored across 32 dimensions in the scoreAgent()
+ * function, including financial performance normalization, behavioral intelligence metrics,
+ * safety scoring, and predictive power assessment.
+ */
+
+// 1. Default Scores (for agents with no trades)
+const AGENT_DEFAULT_DIMENSION_SCORE = 50; // Neutral score for all dimensions when no data
+const AGENT_DEFAULT_COMPOSITE_SCORE = 50; // Neutral composite score when no trades
+
+// 2. Financial Performance Normalization (to 0-100 scale)
+const FINANCIAL_SCORE_BASELINE = 50; // Neutral baseline for financial metrics
+const FINANCIAL_SCORE_MIN = 0; // Floor for financial scores
+const FINANCIAL_SCORE_MAX = 100; // Ceiling for financial scores
+const FINANCIAL_PNL_MULTIPLIER = 2; // PnL % multiplier (50 + pnl% * 2)
+const FINANCIAL_SHARPE_MULTIPLIER = 20; // Sharpe ratio multiplier (50 + sharpe * 20)
+const FINANCIAL_DRAWDOWN_MULTIPLIER = 2; // Drawdown % multiplier (100 - |drawdown| * 2)
+
+// 3. Reasoning Integrity Scoring (placeholder/random)
+const REASONING_INTEGRITY_BASELINE = 80; // Base integrity score
+const REASONING_INTEGRITY_RANDOM_RANGE = 15; // Random variation range (80-95)
+
+// 4. Safety Scoring
+const SAFETY_HALLUCINATION_FREE_SCORE = 100; // Score when no hallucinations
+const SAFETY_HALLUCINATION_PENALTY = 25; // Penalty points per hallucination flag
+const SAFETY_DISCIPLINE_PASSED_SCORE = 90; // Score when discipline checks pass
+const SAFETY_DISCIPLINE_FAILED_SCORE = 30; // Score when discipline checks fail
+const SAFETY_RISK_AWARENESS_PRESENT_SCORE = 80; // Score when risk keywords present
+const SAFETY_RISK_AWARENESS_ABSENT_SCORE = 45; // Score when no risk awareness
+
+// 5. Behavioral Intelligence Scoring
+const BEHAVIORAL_STRATEGY_CONSISTENCY_SINGLE_ACTION = 90; // Score for 1 unique action (very consistent)
+const BEHAVIORAL_STRATEGY_CONSISTENCY_TWO_ACTIONS = 70; // Score for 2 unique actions (moderately consistent)
+const BEHAVIORAL_STRATEGY_CONSISTENCY_THREE_PLUS = 50; // Score for 3+ unique actions (inconsistent)
+const BEHAVIORAL_ADAPTABILITY_BASELINE = 50; // Neutral adaptability baseline
+const BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER = 200; // Confidence stddev multiplier
+const BEHAVIORAL_CALIBRATION_BASELINE = 0; // Baseline for calibration calculation
+const BEHAVIORAL_CALIBRATION_TARGET = 0.6; // Target confidence (60%)
+const BEHAVIORAL_CALIBRATION_DEVIATION_PENALTY = 200; // Penalty multiplier for deviation from target
+const BEHAVIORAL_LEARNING_BASELINE = 40; // Base cross-round learning score
+const BEHAVIORAL_LEARNING_POINTS_PER_TRADE = 5; // Points per trade (more trades = more learning)
+
+// 6. Predictive Power Scoring
+const PREDICTIVE_OUTCOME_CORRECT_SCORE = 100; // Score for correct predictions
+const PREDICTIVE_OUTCOME_PARTIAL_SCORE = 60; // Score for partial correctness
+const PREDICTIVE_OUTCOME_INCORRECT_SCORE = 20; // Score for incorrect predictions
+const PREDICTIVE_OUTCOME_INSUFFICIENT_DATA_SCORE = 50; // Score when no resolved outcomes
+const PREDICTIVE_REGIME_PRESENT_SCORE = 80; // Score when market regime awareness present
+const PREDICTIVE_REGIME_ABSENT_SCORE = 45; // Score when no regime awareness
+const PREDICTIVE_EDGE_CONSISTENCY_MIN_TRADES = 3; // Minimum trades for edge consistency scoring
+const PREDICTIVE_EDGE_CONSISTENCY_BASELINE = 40; // Base edge consistency score
+const PREDICTIVE_EDGE_COHERENCE_THRESHOLD = 0.6; // Coherence threshold for "edge" (60%)
+const PREDICTIVE_EDGE_COHERENCE_WEIGHT = 60; // Points for coherent trades ratio
+const PREDICTIVE_EDGE_INSUFFICIENT_DATA_SCORE = 50; // Score when < 3 trades
+
+// 7. Governance/RQI Scoring
+const GOVERNANCE_RQI_NORMALIZATION_DIVISOR = 100; // Normalize RQI components to 0-1 range
+const GOVERNANCE_RQI_SCALE_MULTIPLIER = 100; // Scale RQI back to 0-100 range
+const GOVERNANCE_DEFAULT_COMPOSITE_FALLBACK = 50; // Fallback when dimension missing
+
 // ---------------------------------------------------------------------------
 // Types for the 32 dimensions
 // ---------------------------------------------------------------------------
@@ -730,23 +827,23 @@ export function gradeTrade(input: {
   previousOutcomes?: Array<{ confidence: number; correct: boolean }>;
   quantity?: number;
 }): V36TradeGrade {
-  const tradeId = `v36_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const tradeId = `v36_${Date.now()}_${Math.random().toString(36).slice(TRADE_ID_RANDOM_SUFFIX_START, TRADE_ID_RANDOM_SUFFIX_END)}`;
 
   // Score reasoning depth
   const wordCount = input.reasoning.split(/\s+/).length;
   const clauseCount = input.reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
-  const reasoningDepthScore = Math.min(100, Math.round(
-    Math.min(50, wordCount / 2) + Math.min(50, clauseCount * 8),
+  const reasoningDepthScore = Math.min(REASONING_DEPTH_MAX_SCORE, Math.round(
+    Math.min(REASONING_DEPTH_WORD_COMPONENT_MAX, wordCount / REASONING_DEPTH_WORD_DIVISOR) + Math.min(REASONING_DEPTH_CLAUSE_COMPONENT_MAX, clauseCount * REASONING_DEPTH_CLAUSE_MULTIPLIER),
   ));
 
   // Score source quality
-  const sourceQualityScore = Math.min(100, input.sources.length * 15 + 10);
+  const sourceQualityScore = Math.min(SOURCE_QUALITY_MAX_SCORE, input.sources.length * SOURCE_QUALITY_POINTS_PER_SOURCE + SOURCE_QUALITY_BASELINE_SCORE);
 
   // Logical consistency
   const hasBullish = /bullish|upside|buy|undervalued/i.test(input.reasoning);
   const hasBearish = /bearish|downside|sell|overvalued/i.test(input.reasoning);
   const isContradictory = hasBullish && hasBearish && input.action !== "hold";
-  const logicalConsistencyScore = isContradictory ? 35 : 85;
+  const logicalConsistencyScore = isContradictory ? LOGICAL_CONSISTENCY_CONTRADICTORY_SCORE : LOGICAL_CONSISTENCY_COHERENT_SCORE;
 
   // Inherited scoring
   const transparencyScore = scoreTransparency(input.reasoning, input.sources);
@@ -793,9 +890,9 @@ export function gradeTrade(input: {
 
   // Overall grade (weighted average of all 18 trade-level sub-scores)
   const subScores = [
-    input.coherenceScore * 100,
-    (1 - Math.min(1, input.hallucinationFlags.length * 0.25)) * 100,
-    input.disciplinePassed ? 90 : 30,
+    input.coherenceScore * TRADE_GRADE_COHERENCE_MULTIPLIER,
+    (1 - Math.min(1, input.hallucinationFlags.length * TRADE_GRADE_HALLUCINATION_PENALTY_MULTIPLIER)) * TRADE_GRADE_HALLUCINATION_BASE_MULTIPLIER,
+    input.disciplinePassed ? TRADE_GRADE_DISCIPLINE_PASSED_SCORE : TRADE_GRADE_DISCIPLINE_FAILED_SCORE,
     reasoningDepthScore,
     sourceQualityScore,
     logicalConsistencyScore,
@@ -873,23 +970,23 @@ export function scoreAgent(input: {
   const t = input.trades;
   if (t.length === 0) {
     const emptyDims: V36DimensionScores = {
-      pnlPercent: 50, sharpeRatio: 50, maxDrawdown: 50,
-      coherence: 50, reasoningDepth: 50, sourceQuality: 50,
-      logicalConsistency: 50, reasoningIntegrity: 50, reasoningTransparency: 50,
-      reasoningGrounding: 50, causalReasoning: 50, epistemicHumility: 50,
-      reasoningTraceability: 50, adversarialCoherence: 50,
-      informationAsymmetry: 50, temporalReasoningQuality: 50,
-      reasoningAuditability: 50, decisionReversibility: 50,
-      hallucinationRate: 50, instructionDiscipline: 50, riskAwareness: 50,
-      strategyConsistency: 50, adaptability: 50, confidenceCalibration: 50,
-      crossRoundLearning: 50, outcomeAccuracy: 50, marketRegimeAwareness: 50,
-      edgeConsistency: 50, tradeAccountability: 50, reasoningQualityIndex: 50,
-      decisionAccountability: 50, consensusQuality: 50,
+      pnlPercent: AGENT_DEFAULT_DIMENSION_SCORE, sharpeRatio: AGENT_DEFAULT_DIMENSION_SCORE, maxDrawdown: AGENT_DEFAULT_DIMENSION_SCORE,
+      coherence: AGENT_DEFAULT_DIMENSION_SCORE, reasoningDepth: AGENT_DEFAULT_DIMENSION_SCORE, sourceQuality: AGENT_DEFAULT_DIMENSION_SCORE,
+      logicalConsistency: AGENT_DEFAULT_DIMENSION_SCORE, reasoningIntegrity: AGENT_DEFAULT_DIMENSION_SCORE, reasoningTransparency: AGENT_DEFAULT_DIMENSION_SCORE,
+      reasoningGrounding: AGENT_DEFAULT_DIMENSION_SCORE, causalReasoning: AGENT_DEFAULT_DIMENSION_SCORE, epistemicHumility: AGENT_DEFAULT_DIMENSION_SCORE,
+      reasoningTraceability: AGENT_DEFAULT_DIMENSION_SCORE, adversarialCoherence: AGENT_DEFAULT_DIMENSION_SCORE,
+      informationAsymmetry: AGENT_DEFAULT_DIMENSION_SCORE, temporalReasoningQuality: AGENT_DEFAULT_DIMENSION_SCORE,
+      reasoningAuditability: AGENT_DEFAULT_DIMENSION_SCORE, decisionReversibility: AGENT_DEFAULT_DIMENSION_SCORE,
+      hallucinationRate: AGENT_DEFAULT_DIMENSION_SCORE, instructionDiscipline: AGENT_DEFAULT_DIMENSION_SCORE, riskAwareness: AGENT_DEFAULT_DIMENSION_SCORE,
+      strategyConsistency: AGENT_DEFAULT_DIMENSION_SCORE, adaptability: AGENT_DEFAULT_DIMENSION_SCORE, confidenceCalibration: AGENT_DEFAULT_DIMENSION_SCORE,
+      crossRoundLearning: AGENT_DEFAULT_DIMENSION_SCORE, outcomeAccuracy: AGENT_DEFAULT_DIMENSION_SCORE, marketRegimeAwareness: AGENT_DEFAULT_DIMENSION_SCORE,
+      edgeConsistency: AGENT_DEFAULT_DIMENSION_SCORE, tradeAccountability: AGENT_DEFAULT_DIMENSION_SCORE, reasoningQualityIndex: AGENT_DEFAULT_DIMENSION_SCORE,
+      decisionAccountability: AGENT_DEFAULT_DIMENSION_SCORE, consensusQuality: AGENT_DEFAULT_DIMENSION_SCORE,
     };
     return {
       agentId: input.agentId, agentName: input.agentName,
       provider: input.provider, model: input.model,
-      dimensions: emptyDims, compositeScore: 50, tier: "C",
+      dimensions: emptyDims, compositeScore: AGENT_DEFAULT_COMPOSITE_SCORE, tier: "C",
       tradeCount: 0, roundsPlayed: 0, lastUpdated: new Date().toISOString(),
     };
   }
@@ -897,16 +994,16 @@ export function scoreAgent(input: {
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
   // Financial (normalized to 0-100)
-  const pnlScore = Math.max(0, Math.min(100, 50 + input.pnlPercent * 2));
-  const sharpeScore = Math.max(0, Math.min(100, 50 + input.sharpeRatio * 20));
-  const drawdownScore = Math.max(0, Math.min(100, 100 - Math.abs(input.maxDrawdown) * 2));
+  const pnlScore = Math.max(FINANCIAL_SCORE_MIN, Math.min(FINANCIAL_SCORE_MAX, FINANCIAL_SCORE_BASELINE + input.pnlPercent * FINANCIAL_PNL_MULTIPLIER));
+  const sharpeScore = Math.max(FINANCIAL_SCORE_MIN, Math.min(FINANCIAL_SCORE_MAX, FINANCIAL_SCORE_BASELINE + input.sharpeRatio * FINANCIAL_SHARPE_MULTIPLIER));
+  const drawdownScore = Math.max(FINANCIAL_SCORE_MIN, Math.min(FINANCIAL_SCORE_MAX, FINANCIAL_SCORE_MAX - Math.abs(input.maxDrawdown) * FINANCIAL_DRAWDOWN_MULTIPLIER));
 
   // Reasoning Quality (15 dims)
-  const coherence = avg(t.map((x) => x.coherenceScore * 100));
+  const coherence = avg(t.map((x) => x.coherenceScore * TRADE_GRADE_COHERENCE_MULTIPLIER));
   const reasoningDepth = avg(t.map((x) => x.reasoningDepthScore));
   const sourceQuality = avg(t.map((x) => x.sourceQualityScore));
   const logicalConsistency = avg(t.map((x) => x.logicalConsistencyScore));
-  const integrityScores = t.map(() => 80 + Math.random() * 15);
+  const integrityScores = t.map(() => REASONING_INTEGRITY_BASELINE + Math.random() * REASONING_INTEGRITY_RANDOM_RANGE);
   const reasoningIntegrity = avg(integrityScores);
   const reasoningTransparency = avg(t.map((x) => x.transparencyScore));
   const reasoningGrounding = avg(t.map((x) => x.groundingScore));
@@ -920,24 +1017,24 @@ export function scoreAgent(input: {
   const decisionReversibility = avg(t.map((x) => x.decisionReversibilityScore));
 
   // Safety
-  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? 100 : Math.max(0, 100 - x.hallucinationFlags.length * 25)));
-  const discipline = avg(t.map((x) => x.disciplinePassed ? 90 : 30));
+  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? SAFETY_HALLUCINATION_FREE_SCORE : Math.max(FINANCIAL_SCORE_MIN, SAFETY_HALLUCINATION_FREE_SCORE - x.hallucinationFlags.length * SAFETY_HALLUCINATION_PENALTY)));
+  const discipline = avg(t.map((x) => x.disciplinePassed ? SAFETY_DISCIPLINE_PASSED_SCORE : SAFETY_DISCIPLINE_FAILED_SCORE));
   const riskAwareness = avg(t.map((x) => {
     const hasRiskRef = /risk|drawdown|stop.?loss|hedge|protect|caution/i.test(x.reasoning);
-    return hasRiskRef ? 80 : 45;
+    return hasRiskRef ? SAFETY_RISK_AWARENESS_PRESENT_SCORE : SAFETY_RISK_AWARENESS_ABSENT_SCORE;
   }));
 
   // Behavioral
   const actions = t.map((x) => x.action);
   const uniqueActions = new Set(actions);
-  const strategyConsistency = uniqueActions.size === 1 ? 90 : uniqueActions.size === 2 ? 70 : 50;
+  const strategyConsistency = uniqueActions.size === 1 ? BEHAVIORAL_STRATEGY_CONSISTENCY_SINGLE_ACTION : uniqueActions.size === 2 ? BEHAVIORAL_STRATEGY_CONSISTENCY_TWO_ACTIONS : BEHAVIORAL_STRATEGY_CONSISTENCY_THREE_PLUS;
   const confidences = t.map((x) => x.confidence);
   const confStdDev = Math.sqrt(
     confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
   );
-  const adaptability = Math.max(0, Math.min(100, 50 + confStdDev * 200));
-  const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - 0.6) * 200)));
-  const crossRoundLearning = Math.min(100, 40 + t.length * 5);
+  const adaptability = Math.max(FINANCIAL_SCORE_MIN, Math.min(FINANCIAL_SCORE_MAX, BEHAVIORAL_ADAPTABILITY_BASELINE + confStdDev * BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER));
+  const confidenceCalibration = avg(confidences.map((c) => Math.max(BEHAVIORAL_CALIBRATION_BASELINE, FINANCIAL_SCORE_MAX - Math.abs(c - BEHAVIORAL_CALIBRATION_TARGET) * BEHAVIORAL_CALIBRATION_DEVIATION_PENALTY)));
+  const crossRoundLearning = Math.min(FINANCIAL_SCORE_MAX, BEHAVIORAL_LEARNING_BASELINE + t.length * BEHAVIORAL_LEARNING_POINTS_PER_TRADE);
 
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
