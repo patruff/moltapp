@@ -12,7 +12,7 @@
  * the agents' collective behavior to surface insights for the dashboard.
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { countByCondition, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -464,7 +464,7 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
   let driftScore = 0;
 
   // Check hold rate
-  const holdRate = recent.filter((d) => d.action === "hold").length / recent.length;
+  const holdRate = countByCondition(recent, (d) => d.action === "hold") / recent.length;
   const [minHold, maxHold] = profile.expectedHoldRate;
   if (holdRate < minHold) {
     driftScore += 0.3;
@@ -489,7 +489,7 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
   }
 
   // Check risk behavior: aggressive agents should trade more, conservative less
-  const tradeRate = recent.filter((d) => d.action !== "hold").length / recent.length;
+  const tradeRate = countByCondition(recent, (d) => d.action !== "hold") / recent.length;
   if (
     profile.expectedTradeFrequency === "high" &&
     tradeRate < 0.5
@@ -513,9 +513,9 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
     const last5 = recent.slice(-5);
     const prev = recent.slice(0, -5);
     const last5TradeRate =
-      last5.filter((d) => d.action !== "hold").length / last5.length;
+      countByCondition(last5, (d) => d.action !== "hold") / last5.length;
     const prevTradeRate =
-      prev.filter((d) => d.action !== "hold").length / prev.length;
+      countByCondition(prev, (d) => d.action !== "hold") / prev.length;
     if (Math.abs(last5TradeRate - prevTradeRate) > 0.4) {
       driftScore += 0.2;
       evidence.push(

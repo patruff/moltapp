@@ -88,53 +88,344 @@ const arbitrationCases: ArbitrationCase[] = [];
 const MAX_CASES = 2000;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * EVIDENCE SCORING WEIGHTS
+ *
+ * NLP pattern weights for detecting quantitative evidence in agent reasoning.
+ * Higher weights = stronger evidence signal.
+ */
+
+/** Dollar amounts ($100, $52.50) — strongest evidence of price-grounded analysis */
+const EVIDENCE_WEIGHT_DOLLAR_AMOUNTS = 0.15;
+
+/** Percentages (5%, -2.3%) — shows quantitative change awareness */
+const EVIDENCE_WEIGHT_PERCENTAGES = 0.12;
+
+/** Fundamental metrics (P/E, EPS, revenue, earnings) — financial statement grounding */
+const EVIDENCE_WEIGHT_FUNDAMENTAL_METRICS = 0.10;
+
+/** Technical indicators (RSI, MACD, SMA, EMA) — TA awareness */
+const EVIDENCE_WEIGHT_TECHNICAL_INDICATORS = 0.10;
+
+/** Volume data with numbers (volume 1.2M) — liquidity awareness */
+const EVIDENCE_WEIGHT_VOLUME_DATA = 0.08;
+
+/** Technical levels (support at, resistance at) — key price zones */
+const EVIDENCE_WEIGHT_TECHNICAL_LEVELS = 0.08;
+
+/** Market cap mentions — size/category awareness */
+const EVIDENCE_WEIGHT_MARKET_CAP = 0.06;
+
+/** Income metrics (yield, dividend) — value investor signals */
+const EVIDENCE_WEIGHT_INCOME_METRICS = 0.06;
+
+/** Date references (2024-01-15) — temporal anchoring */
+const EVIDENCE_WEIGHT_DATE_REFERENCES = 0.05;
+
+/** Temporal anchors (quarter, Q1, fiscal) — earnings cycle awareness */
+const EVIDENCE_WEIGHT_TEMPORAL_ANCHORS = 0.05;
+
+/**
+ * LOGICAL CONNECTOR WEIGHTS
+ *
+ * Weights for causal reasoning markers that indicate logical structure.
+ * Higher weights = stronger causal reasoning signal.
+ */
+
+/** "therefore" — strongest causal conclusion marker */
+const LOGIC_WEIGHT_THEREFORE = 0.12;
+
+/** "if...then" — conditional logic structure */
+const LOGIC_WEIGHT_IF_THEN = 0.12;
+
+/** "because" — causal explanation */
+const LOGIC_WEIGHT_BECAUSE = 0.10;
+
+/** "as a result" — consequence marker */
+const LOGIC_WEIGHT_AS_A_RESULT = 0.10;
+
+/** "on the other hand" — balanced consideration */
+const LOGIC_WEIGHT_ON_THE_OTHER_HAND = 0.10;
+
+/** "due to" — causal attribution */
+const LOGIC_WEIGHT_DUE_TO = 0.08;
+
+/** "given that" — premise marker */
+const LOGIC_WEIGHT_GIVEN_THAT = 0.08;
+
+/** "however" — counterargument consideration */
+const LOGIC_WEIGHT_HOWEVER = 0.08;
+
+/** "nevertheless" — acknowledging counterpoint */
+const LOGIC_WEIGHT_NEVERTHELESS = 0.08;
+
+/** "leading to" — causal chain */
+const LOGIC_WEIGHT_LEADING_TO = 0.07;
+
+/** "driven by" — causal driver identification */
+const LOGIC_WEIGHT_DRIVEN_BY = 0.07;
+
+/** "since" — temporal/causal reasoning */
+const LOGIC_WEIGHT_SINCE = 0.06;
+
+/**
+ * RISK AWARENESS WEIGHTS
+ *
+ * Weights for risk disclosure patterns. Higher weights = better risk management.
+ */
+
+/** "stop-loss" — explicit exit plan, highest risk awareness signal */
+const RISK_WEIGHT_STOP_LOSS = 0.15;
+
+/** "downside" — downside scenario consideration */
+const RISK_WEIGHT_DOWNSIDE = 0.12;
+
+/** "worst-case" — stress test thinking */
+const RISK_WEIGHT_WORST_CASE = 0.12;
+
+/** "max loss/drawdown" — quantified risk limits */
+const RISK_WEIGHT_MAX_LOSS = 0.12;
+
+/** "uncertain" — acknowledges unknowns */
+const RISK_WEIGHT_UNCERTAIN = 0.10;
+
+/** "hedge" — risk mitigation strategy */
+const RISK_WEIGHT_HEDGE = 0.10;
+
+/** "if...falls" — downside scenario planning */
+const RISK_WEIGHT_IF_FALLS = 0.10;
+
+/** "volatile" / "volatility" — volatility awareness */
+const RISK_WEIGHT_VOLATILE = 0.08;
+
+/** "risk" (generic) — general risk mention */
+const RISK_WEIGHT_RISK = 0.08;
+
+/** "cautious" — risk-aware tone */
+const RISK_WEIGHT_CAUTIOUS = 0.08;
+
+/** "exposure" — portfolio risk awareness */
+const RISK_WEIGHT_EXPOSURE = 0.08;
+
+/** "concentration" — concentration risk awareness */
+const RISK_WEIGHT_CONCENTRATION = 0.08;
+
+/**
+ * PATTERN SCORING PARAMETERS
+ *
+ * Controls how pattern matches contribute to dimension scores.
+ */
+
+/** Maximum pattern match count per pattern before saturation (diminishing returns) */
+const PATTERN_MATCH_SATURATION = 4;
+
+/** Maximum score cap for all pattern scoring (normalized 0-1 scale) */
+const PATTERN_SCORE_MAX = 1.0;
+
+/**
+ * ORIGINALITY CALCULATION WEIGHTS
+ *
+ * Controls how text uniqueness/overlap affects originality scoring.
+ */
+
+/** Base originality score (prevents zero scores) */
+const ORIGINALITY_BASE_SCORE = 0.4;
+
+/** Weight multiplier for unique word percentage (higher = reward uniqueness more) */
+const ORIGINALITY_UNIQUE_WORD_WEIGHT = 0.6;
+
+/** Penalty multiplier for text overlap (higher = penalize overlap more) */
+const ORIGINALITY_OVERLAP_PENALTY = 0.2;
+
+/** Minimum word length for originality analysis (filters stopwords) */
+const ORIGINALITY_MIN_WORD_LENGTH = 3;
+
+/**
+ * LOGICAL CONSISTENCY SCORING
+ *
+ * Weights for combining logic pattern detection with contradiction detection.
+ */
+
+/** Weight for logical connector patterns in consistency score */
+const CONSISTENCY_LOGIC_PATTERN_WEIGHT = 0.6;
+
+/** Weight for contradiction-free text in consistency score */
+const CONSISTENCY_NO_CONTRADICTION_WEIGHT = 0.4;
+
+/** Penalty per detected contradiction (applies multiple times if >1 found) */
+const CONTRADICTION_PENALTY_PER_COUNT = 0.2;
+
+/** Base consistency score (starts at 1.0, reduced by contradictions) */
+const CONSISTENCY_BASE_SCORE = 1.0;
+
+/**
+ * CALIBRATION ACCURACY PARAMETERS
+ *
+ * Controls confidence calibration scoring — penalizes overconfidence without evidence.
+ */
+
+/** Base calibration score (neutral starting point) */
+const CALIBRATION_BASE_SCORE = 0.5;
+
+/** Confidence threshold for overconfidence check (>85% without evidence = penalty) */
+const CALIBRATION_HIGH_CONFIDENCE_THRESHOLD = 0.85;
+
+/** Evidence threshold for overconfidence penalty (<30% evidence triggers penalty) */
+const CALIBRATION_LOW_EVIDENCE_THRESHOLD = 0.3;
+
+/** Penalty applied when high confidence (>85%) lacks evidence (<30%) */
+const CALIBRATION_OVERCONFIDENCE_PENALTY = 0.3;
+
+/** Minimum confidence for calibration bonus (50-80% range with strong evidence) */
+const CALIBRATION_BONUS_CONFIDENCE_MIN = 0.5;
+
+/** Maximum confidence for calibration bonus (50-80% range with strong evidence) */
+const CALIBRATION_BONUS_CONFIDENCE_MAX = 0.8;
+
+/** Evidence threshold for calibration bonus (>40% evidence triggers bonus) */
+const CALIBRATION_BONUS_EVIDENCE_THRESHOLD = 0.4;
+
+/** Bonus applied for well-calibrated confidence (50-80% with strong evidence) */
+const CALIBRATION_BONUS = 0.15;
+
+/** Evidence contribution weight to final calibration score */
+const CALIBRATION_EVIDENCE_WEIGHT = 0.2;
+
+/**
+ * COMPOSITE SCORE WEIGHTS
+ *
+ * Final arbitration score is weighted combination of 5 dimensions.
+ * Must sum to 1.0 for normalized scoring.
+ */
+
+/** Evidence weight — 25% of composite (quantitative data grounding) */
+const COMPOSITE_WEIGHT_EVIDENCE = 0.25;
+
+/** Logic weight — 25% of composite (reasoning structure quality) */
+const COMPOSITE_WEIGHT_LOGIC = 0.25;
+
+/** Calibration weight — 20% of composite (confidence accuracy) */
+const COMPOSITE_WEIGHT_CALIBRATION = 0.20;
+
+/** Risk disclosure weight — 15% of composite (downside consideration) */
+const COMPOSITE_WEIGHT_RISK = 0.15;
+
+/** Originality weight — 15% of composite (novel vs templated analysis) */
+const COMPOSITE_WEIGHT_ORIGINALITY = 0.15;
+
+/**
+ * ARBITRATION VERDICT THRESHOLDS
+ *
+ * Controls when arbitration declares winner vs tie.
+ */
+
+/** Tie threshold — composite score difference <3% = too close to call */
+const ARBITRATION_TIE_THRESHOLD = 0.03;
+
+/** Hold outcome threshold — |price change| <2% = hold was correct */
+const OUTCOME_HOLD_CORRECT_THRESHOLD = 0.02;
+
+/**
+ * TREND DETECTION PARAMETERS
+ *
+ * Controls how agent arbitration performance trends are classified.
+ */
+
+/** Recent cases window for trend calculation */
+const TREND_RECENT_WINDOW = 10;
+
+/** Older cases window for trend comparison */
+const TREND_OLDER_WINDOW_START = 10;
+const TREND_OLDER_WINDOW_END = 20;
+
+/** Minimum cases required in each window for reliable trend detection */
+const TREND_MIN_CASES_PER_WINDOW = 5;
+
+/** Improvement threshold — composite score increase >5% = improving trend */
+const TREND_IMPROVEMENT_THRESHOLD = 0.05;
+
+/** Decline threshold — composite score decrease >5% = declining trend */
+const TREND_DECLINE_THRESHOLD = -0.05;
+
+/**
+ * PILLAR SCORE WEIGHTS
+ *
+ * Arbitration pillar score combines 4 metrics with different weights.
+ * Used for leaderboard "Arbitration" pillar scoring.
+ */
+
+/** Win rate weight — 40% of pillar score (most important: did agent win debates?) */
+const PILLAR_WEIGHT_WIN_RATE = 0.40;
+
+/** Average composite weight — 30% of pillar score (reasoning quality) */
+const PILLAR_WEIGHT_AVG_COMPOSITE = 0.30;
+
+/** Outcome accuracy weight — 20% of pillar score (were decisions correct?) */
+const PILLAR_WEIGHT_OUTCOME_ACCURACY = 0.20;
+
+/** Trend weight — 10% of pillar score (is agent improving?) */
+const PILLAR_WEIGHT_TREND = 0.10;
+
+/** Trend score for "improving" trend classification */
+const PILLAR_TREND_SCORE_IMPROVING = 0.8;
+
+/** Trend score for "stable" trend classification */
+const PILLAR_TREND_SCORE_STABLE = 0.5;
+
+/** Trend score for "declining" trend classification */
+const PILLAR_TREND_SCORE_DECLINING = 0.2;
+
+// ---------------------------------------------------------------------------
 // NLP Analysis Helpers
 // ---------------------------------------------------------------------------
 
 /** Quantitative evidence markers */
 const EVIDENCE_PATTERNS: [RegExp, number][] = [
-  [/\$[\d,]+\.?\d*/g, 0.15],       // Dollar amounts
-  [/\d+\.?\d*%/g, 0.12],           // Percentages
-  [/P\/E|EPS|revenue|earnings/gi, 0.10], // Fundamental metrics
-  [/RSI|MACD|SMA|EMA|moving\s+average/gi, 0.10], // Technical indicators
-  [/volume\s+[\d,]+/gi, 0.08],     // Volume with numbers
-  [/market\s+cap/gi, 0.06],        // Market cap mention
-  [/\d{4}-\d{2}-\d{2}/g, 0.05],   // Date references
-  [/quarter|Q[1-4]|fiscal/gi, 0.05], // Temporal anchors
-  [/support\s+at|resistance\s+at/gi, 0.08], // Technical levels
-  [/yield|dividend/gi, 0.06],       // Income metrics
+  [/\$[\d,]+\.?\d*/g, EVIDENCE_WEIGHT_DOLLAR_AMOUNTS],
+  [/\d+\.?\d*%/g, EVIDENCE_WEIGHT_PERCENTAGES],
+  [/P\/E|EPS|revenue|earnings/gi, EVIDENCE_WEIGHT_FUNDAMENTAL_METRICS],
+  [/RSI|MACD|SMA|EMA|moving\s+average/gi, EVIDENCE_WEIGHT_TECHNICAL_INDICATORS],
+  [/volume\s+[\d,]+/gi, EVIDENCE_WEIGHT_VOLUME_DATA],
+  [/market\s+cap/gi, EVIDENCE_WEIGHT_MARKET_CAP],
+  [/\d{4}-\d{2}-\d{2}/g, EVIDENCE_WEIGHT_DATE_REFERENCES],
+  [/quarter|Q[1-4]|fiscal/gi, EVIDENCE_WEIGHT_TEMPORAL_ANCHORS],
+  [/support\s+at|resistance\s+at/gi, EVIDENCE_WEIGHT_TECHNICAL_LEVELS],
+  [/yield|dividend/gi, EVIDENCE_WEIGHT_INCOME_METRICS],
 ];
 
 /** Logical connector patterns */
 const LOGIC_PATTERNS: [RegExp, number][] = [
-  [/\bbecause\b/gi, 0.10],
-  [/\btherefore\b/gi, 0.12],
-  [/\bdue\s+to\b/gi, 0.08],
-  [/\bas\s+a\s+result\b/gi, 0.10],
-  [/\bgiven\s+that\b/gi, 0.08],
-  [/\bif\b.*\bthen\b/gi, 0.12],
-  [/\bsince\b/gi, 0.06],
-  [/\bhowever\b/gi, 0.08],
-  [/\bnevertheless\b/gi, 0.08],
-  [/\bon\s+the\s+other\s+hand\b/gi, 0.10],
-  [/\bleading\s+to\b/gi, 0.07],
-  [/\bdriven\s+by\b/gi, 0.07],
+  [/\bbecause\b/gi, LOGIC_WEIGHT_BECAUSE],
+  [/\btherefore\b/gi, LOGIC_WEIGHT_THEREFORE],
+  [/\bdue\s+to\b/gi, LOGIC_WEIGHT_DUE_TO],
+  [/\bas\s+a\s+result\b/gi, LOGIC_WEIGHT_AS_A_RESULT],
+  [/\bgiven\s+that\b/gi, LOGIC_WEIGHT_GIVEN_THAT],
+  [/\bif\b.*\bthen\b/gi, LOGIC_WEIGHT_IF_THEN],
+  [/\bsince\b/gi, LOGIC_WEIGHT_SINCE],
+  [/\bhowever\b/gi, LOGIC_WEIGHT_HOWEVER],
+  [/\bnevertheless\b/gi, LOGIC_WEIGHT_NEVERTHELESS],
+  [/\bon\s+the\s+other\s+hand\b/gi, LOGIC_WEIGHT_ON_THE_OTHER_HAND],
+  [/\bleading\s+to\b/gi, LOGIC_WEIGHT_LEADING_TO],
+  [/\bdriven\s+by\b/gi, LOGIC_WEIGHT_DRIVEN_BY],
 ];
 
 /** Risk awareness patterns */
 const RISK_PATTERNS: [RegExp, number][] = [
-  [/\brisk\b/gi, 0.08],
-  [/\bdownside\b/gi, 0.12],
-  [/\bstop[- ]?loss\b/gi, 0.15],
-  [/\bworst[- ]?case\b/gi, 0.12],
-  [/\bvolatil/gi, 0.08],
-  [/\buncertain/gi, 0.10],
-  [/\bcautious/gi, 0.08],
-  [/\bhedge\b/gi, 0.10],
-  [/\bexposure\b/gi, 0.08],
-  [/\bconcentrat/gi, 0.08],
-  [/\bif\s+.+\s+falls?\b/gi, 0.10],
-  [/\bmax\s+(?:loss|drawdown)\b/gi, 0.12],
+  [/\brisk\b/gi, RISK_WEIGHT_RISK],
+  [/\bdownside\b/gi, RISK_WEIGHT_DOWNSIDE],
+  [/\bstop[- ]?loss\b/gi, RISK_WEIGHT_STOP_LOSS],
+  [/\bworst[- ]?case\b/gi, RISK_WEIGHT_WORST_CASE],
+  [/\bvolatil/gi, RISK_WEIGHT_VOLATILE],
+  [/\buncertain/gi, RISK_WEIGHT_UNCERTAIN],
+  [/\bcautious/gi, RISK_WEIGHT_CAUTIOUS],
+  [/\bhedge\b/gi, RISK_WEIGHT_HEDGE],
+  [/\bexposure\b/gi, RISK_WEIGHT_EXPOSURE],
+  [/\bconcentrat/gi, RISK_WEIGHT_CONCENTRATION],
+  [/\bif\s+.+\s+falls?\b/gi, RISK_WEIGHT_IF_FALLS],
+  [/\bmax\s+(?:loss|drawdown)\b/gi, RISK_WEIGHT_MAX_LOSS],
 ];
 
 function scorePatterns(text: string, patterns: [RegExp, number][]): number {
@@ -142,15 +433,15 @@ function scorePatterns(text: string, patterns: [RegExp, number][]): number {
   for (const [pattern, weight] of patterns) {
     const matches = text.match(pattern);
     if (matches) {
-      score += weight * Math.min(matches.length, 4);
+      score += weight * Math.min(matches.length, PATTERN_MATCH_SATURATION);
     }
   }
-  return Math.min(1, score);
+  return Math.min(PATTERN_SCORE_MAX, score);
 }
 
 function computeOriginality(textA: string, textB: string): [number, number] {
-  const wordsA = new Set(textA.toLowerCase().split(/\s+/).filter(w => w.length > 3));
-  const wordsB = new Set(textB.toLowerCase().split(/\s+/).filter(w => w.length > 3));
+  const wordsA = new Set(textA.toLowerCase().split(/\s+/).filter(w => w.length > ORIGINALITY_MIN_WORD_LENGTH));
+  const wordsB = new Set(textB.toLowerCase().split(/\s+/).filter(w => w.length > ORIGINALITY_MIN_WORD_LENGTH));
 
   if (wordsA.size === 0 && wordsB.size === 0) return [0.5, 0.5];
 
@@ -168,8 +459,8 @@ function computeOriginality(textA: string, textB: string): [number, number] {
     : 0;
 
   return [
-    Math.min(1, 0.4 + uniqueA * 0.6 - overlap * 0.2),
-    Math.min(1, 0.4 + uniqueB * 0.6 - overlap * 0.2),
+    Math.min(PATTERN_SCORE_MAX, ORIGINALITY_BASE_SCORE + uniqueA * ORIGINALITY_UNIQUE_WORD_WEIGHT - overlap * ORIGINALITY_OVERLAP_PENALTY),
+    Math.min(PATTERN_SCORE_MAX, ORIGINALITY_BASE_SCORE + uniqueB * ORIGINALITY_UNIQUE_WORD_WEIGHT - overlap * ORIGINALITY_OVERLAP_PENALTY),
   ];
 }
 
@@ -183,7 +474,7 @@ function detectContradictions(text: string): number {
     // Only flag if not discussing support levels breaking down (which is valid)
   }
   if (/strong\s+buy/i.test(text) && /caution|cautious/i.test(text)) contradictions++;
-  return Math.max(0, 1 - contradictions * 0.2);
+  return Math.max(0, CONSISTENCY_BASE_SCORE - contradictions * CONTRADICTION_PENALTY_PER_COUNT);
 }
 
 // ---------------------------------------------------------------------------
@@ -198,24 +489,24 @@ function scoreAgent(
   const evidence = scorePatterns(reasoning, EVIDENCE_PATTERNS);
   const logic = scorePatterns(reasoning, LOGIC_PATTERNS);
   const consistency = detectContradictions(reasoning);
-  const logicalConsistency = (logic * 0.6 + consistency * 0.4);
+  const logicalConsistency = (logic * CONSISTENCY_LOGIC_PATTERN_WEIGHT + consistency * CONSISTENCY_NO_CONTRADICTION_WEIGHT);
   const riskDisclosure = scorePatterns(reasoning, RISK_PATTERNS);
 
   // Calibration: penalize extreme confidence without evidence
-  const calibrationPenalty = confidence > 0.85 && evidence < 0.3 ? 0.3 : 0;
-  const calibrationBonus = (confidence > 0.5 && confidence < 0.8 && evidence > 0.4) ? 0.15 : 0;
-  const calibrationAccuracy = Math.min(1, Math.max(0,
-    0.5 + calibrationBonus - calibrationPenalty + evidence * 0.2
+  const calibrationPenalty = confidence > CALIBRATION_HIGH_CONFIDENCE_THRESHOLD && evidence < CALIBRATION_LOW_EVIDENCE_THRESHOLD ? CALIBRATION_OVERCONFIDENCE_PENALTY : 0;
+  const calibrationBonus = (confidence > CALIBRATION_BONUS_CONFIDENCE_MIN && confidence < CALIBRATION_BONUS_CONFIDENCE_MAX && evidence > CALIBRATION_BONUS_EVIDENCE_THRESHOLD) ? CALIBRATION_BONUS : 0;
+  const calibrationAccuracy = Math.min(PATTERN_SCORE_MAX, Math.max(0,
+    CALIBRATION_BASE_SCORE + calibrationBonus - calibrationPenalty + evidence * CALIBRATION_EVIDENCE_WEIGHT
   ));
 
   const [originality] = computeOriginality(reasoning, opponentReasoning);
 
   const composite =
-    evidence * 0.25 +
-    logicalConsistency * 0.25 +
-    calibrationAccuracy * 0.20 +
-    riskDisclosure * 0.15 +
-    originality * 0.15;
+    evidence * COMPOSITE_WEIGHT_EVIDENCE +
+    logicalConsistency * COMPOSITE_WEIGHT_LOGIC +
+    calibrationAccuracy * COMPOSITE_WEIGHT_CALIBRATION +
+    riskDisclosure * COMPOSITE_WEIGHT_RISK +
+    originality * COMPOSITE_WEIGHT_ORIGINALITY;
 
   return {
     evidenceWeight: round2(evidence),
@@ -250,23 +541,23 @@ export function arbitrate(
   scoresA.originality = round2(origA);
   scoresB.originality = round2(origB);
   scoresA.composite = round2(
-    scoresA.evidenceWeight * 0.25 +
-    scoresA.logicalConsistency * 0.25 +
-    scoresA.calibrationAccuracy * 0.20 +
-    scoresA.riskDisclosure * 0.15 +
-    scoresA.originality * 0.15
+    scoresA.evidenceWeight * COMPOSITE_WEIGHT_EVIDENCE +
+    scoresA.logicalConsistency * COMPOSITE_WEIGHT_LOGIC +
+    scoresA.calibrationAccuracy * COMPOSITE_WEIGHT_CALIBRATION +
+    scoresA.riskDisclosure * COMPOSITE_WEIGHT_RISK +
+    scoresA.originality * COMPOSITE_WEIGHT_ORIGINALITY
   );
   scoresB.composite = round2(
-    scoresB.evidenceWeight * 0.25 +
-    scoresB.logicalConsistency * 0.25 +
-    scoresB.calibrationAccuracy * 0.20 +
-    scoresB.riskDisclosure * 0.15 +
-    scoresB.originality * 0.15
+    scoresB.evidenceWeight * COMPOSITE_WEIGHT_EVIDENCE +
+    scoresB.logicalConsistency * COMPOSITE_WEIGHT_LOGIC +
+    scoresB.calibrationAccuracy * COMPOSITE_WEIGHT_CALIBRATION +
+    scoresB.riskDisclosure * COMPOSITE_WEIGHT_RISK +
+    scoresB.originality * COMPOSITE_WEIGHT_ORIGINALITY
   );
 
   const diff = scoresA.composite - scoresB.composite;
   const margin = Math.abs(diff);
-  const winner = margin < 0.03 ? "tie" : (diff > 0 ? agentA : agentB);
+  const winner = margin < ARBITRATION_TIE_THRESHOLD ? "tie" : (diff > 0 ? agentA : agentB);
   const isDisagreement = actionA !== actionB;
 
   // Generate ruling
@@ -340,11 +631,11 @@ export function resolveArbitrationOutcome(
 
   const aCorrect = (arCase.actionA === "buy" && priceChange > 0) ||
                    (arCase.actionA === "sell" && priceChange < 0) ||
-                   (arCase.actionA === "hold" && Math.abs(priceChange) < 0.02);
+                   (arCase.actionA === "hold" && Math.abs(priceChange) < OUTCOME_HOLD_CORRECT_THRESHOLD);
 
   const bCorrect = (arCase.actionB === "buy" && priceChange > 0) ||
                    (arCase.actionB === "sell" && priceChange < 0) ||
-                   (arCase.actionB === "hold" && Math.abs(priceChange) < 0.02);
+                   (arCase.actionB === "hold" && Math.abs(priceChange) < OUTCOME_HOLD_CORRECT_THRESHOLD);
 
   if (aCorrect && !bCorrect) arCase.outcomeVerdict = "agentA_correct";
   else if (bCorrect && !aCorrect) arCase.outcomeVerdict = "agentB_correct";
@@ -412,10 +703,10 @@ export function getAgentArbitrationProfile(agentId: string): AgentArbitrationPro
   const weakness = sortedDims[sortedDims.length - 1]?.[0] ?? "none";
 
   // Trend detection: last 10 vs previous 10
-  const recentCases = cases.slice(0, 10);
-  const olderCases = cases.slice(10, 20);
+  const recentCases = cases.slice(0, TREND_RECENT_WINDOW);
+  const olderCases = cases.slice(TREND_OLDER_WINDOW_START, TREND_OLDER_WINDOW_END);
   let trend: "improving" | "stable" | "declining" = "stable";
-  if (recentCases.length >= 5 && olderCases.length >= 5) {
+  if (recentCases.length >= TREND_MIN_CASES_PER_WINDOW && olderCases.length >= TREND_MIN_CASES_PER_WINDOW) {
     const recentAvg = recentCases.reduce((s, c) => {
       const scores = c.agentA === agentId ? c.scoresA : c.scoresB;
       return s + scores.composite;
@@ -425,8 +716,8 @@ export function getAgentArbitrationProfile(agentId: string): AgentArbitrationPro
       return s + scores.composite;
     }, 0) / olderCases.length;
     const diff = recentAvg - olderAvg;
-    if (diff > 0.05) trend = "improving";
-    else if (diff < -0.05) trend = "declining";
+    if (diff > TREND_IMPROVEMENT_THRESHOLD) trend = "improving";
+    else if (diff < TREND_DECLINE_THRESHOLD) trend = "declining";
   }
 
   return {
@@ -469,14 +760,14 @@ export function getArbitrationPillarScore(agentId: string): number {
   if (profile.totalCases === 0) return 0.5;
 
   // Weighted: win rate 40%, composite 30%, outcome accuracy 20%, trend 10%
-  const trendScore = profile.recentTrend === "improving" ? 0.8
-    : profile.recentTrend === "stable" ? 0.5 : 0.2;
+  const trendScore = profile.recentTrend === "improving" ? PILLAR_TREND_SCORE_IMPROVING
+    : profile.recentTrend === "stable" ? PILLAR_TREND_SCORE_STABLE : PILLAR_TREND_SCORE_DECLINING;
 
   return round2(
-    profile.winRate * 0.40 +
-    profile.avgComposite * 0.30 +
-    profile.outcomeAccuracy * 0.20 +
-    trendScore * 0.10
+    profile.winRate * PILLAR_WEIGHT_WIN_RATE +
+    profile.avgComposite * PILLAR_WEIGHT_AVG_COMPOSITE +
+    profile.outcomeAccuracy * PILLAR_WEIGHT_OUTCOME_ACCURACY +
+    trendScore * PILLAR_WEIGHT_TREND
   );
 }
 
