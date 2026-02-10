@@ -16,6 +16,78 @@
 import { normalize, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolution limits for outcome updates.
+ * When resolving outcomes for recent trades, cap at this many entries to prevent
+ * over-attribution (one market move shouldn't retroactively mark 10 trades correct).
+ */
+const OUTCOME_RESOLUTION_LIMIT = 3;
+
+/**
+ * Mistake pattern detection thresholds.
+ * Controls when repeated errors classify as a "pattern" vs random noise.
+ */
+const MISTAKE_PATTERN_MIN_OCCURRENCES = 2; // Repeated losing trades (same symbol+action)
+const INCOHERENCE_PATTERN_MIN_OCCURRENCES = 3; // Low-coherence reasoning on same symbol
+
+/**
+ * Coherence quality thresholds.
+ * Defines what qualifies as "low coherence" for pattern detection.
+ */
+const COHERENCE_LOW_THRESHOLD = 0.4; // Below 40% = incoherent reasoning
+const COHERENCE_IMPROVEMENT_THRESHOLD = 0.03; // 3% improvement = building knowledge
+const COHERENCE_TREND_THRESHOLD = 0.05; // 5% change = improving/declining trend
+
+/**
+ * Confidence adjustment thresholds for lesson retention.
+ * Determines when confidence changes qualify as "learning from mistakes".
+ */
+const CONFIDENCE_ADJUSTMENT_THRESHOLD = 0.05; // 5-point confidence drop = agent adapted
+const CONFIDENCE_OVERCONFIDENT_THRESHOLD = 0.6; // >60% confidence before miss = overconfident
+
+/**
+ * Strategy evolution entropy thresholds.
+ * Shannon entropy changes that indicate strategic adaptation.
+ */
+const ENTROPY_CHANGE_MODERATE = 0.1; // +0.1 entropy = moderate strategy diversity increase
+const ENTROPY_CHANGE_STRONG = 0.3; // +0.3 entropy = strong strategy shift
+const COHERENCE_IMPROVEMENT_MODERATE = 0.05; // +5% coherence = moderate reasoning improvement
+const COHERENCE_IMPROVEMENT_STRONG = 0.1; // +10% coherence = strong reasoning improvement
+
+/**
+ * Minimum data requirements for analysis.
+ * Prevents spurious conclusions from insufficient data.
+ */
+const MIN_ENTRIES_FOR_EVOLUTION = 10; // Strategy evolution needs 10+ trades
+const MIN_TRADES_FOR_SYMBOL_KNOWLEDGE = 3; // Symbol knowledge tracking needs 3+ trades per symbol
+
+/**
+ * Learning curve window parameters.
+ * Rolling window size for tracking improvement over time.
+ */
+const LEARNING_CURVE_WINDOW_SIZE = 10; // 10-entry windows for coherence trend
+
+/**
+ * Mistake scoring normalization factor.
+ * Divisor for total repeats when calculating mistake score.
+ * Lower divisor = more lenient (more mistakes allowed before penalty).
+ */
+const MISTAKE_SCORING_DIVISOR = 0.3; // Normalize by 30% of total entries
+
+/**
+ * Dimension weights for composite memory score.
+ * These sum to 1.0 and determine relative importance of each dimension.
+ */
+const DIMENSION_WEIGHT_MISTAKE_REPETITION = 0.25; // 25% - Avoiding repeated mistakes
+const DIMENSION_WEIGHT_LESSON_RETENTION = 0.25; // 25% - Adapting after losses
+const DIMENSION_WEIGHT_STRATEGY_EVOLUTION = 0.20; // 20% - Evolving strategy over time
+const DIMENSION_WEIGHT_SYMBOL_KNOWLEDGE = 0.15; // 15% - Building stock-specific expertise
+const DIMENSION_WEIGHT_CONFIDENCE_RECALIBRATION = 0.15; // 15% - Adjusting confidence after errors
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -96,7 +168,7 @@ export function resolveOutcome(
     if (entries[i].symbol === symbol && entries[i].wasCorrect === null) {
       entries[i].wasCorrect = wasCorrect;
       resolved++;
-      if (resolved >= 3) break; // Resolve at most 3 recent unresolved
+      if (resolved >= OUTCOME_RESOLUTION_LIMIT) break; // Resolve at most recent unresolved
     }
   }
   return resolved;
@@ -127,7 +199,7 @@ function analyzeMistakeRepetition(entries: MemoryEntry[]): {
   }
 
   for (const [key, losses] of symbolActionMap) {
-    if (losses.length >= 2) {
+    if (losses.length >= MISTAKE_PATTERN_MIN_OCCURRENCES) {
       const [symbol, action] = key.split("_");
       patterns.push({
         type: "repeated_losing_trade",
@@ -143,19 +215,19 @@ function analyzeMistakeRepetition(entries: MemoryEntry[]): {
   // Check for low-coherence repetitions
   const lowCoherenceBySymbol = new Map<string, number>();
   for (const e of entries) {
-    if (e.coherenceScore < 0.4) {
+    if (e.coherenceScore < COHERENCE_LOW_THRESHOLD) {
       lowCoherenceBySymbol.set(e.symbol, (lowCoherenceBySymbol.get(e.symbol) ?? 0) + 1);
     }
   }
 
   for (const [symbol, count] of lowCoherenceBySymbol) {
-    if (count >= 3) {
+    if (count >= INCOHERENCE_PATTERN_MIN_OCCURRENCES) {
       patterns.push({
         type: "persistent_incoherence",
         symbol,
         occurrences: count,
-        firstSeen: entries.find((e) => e.symbol === symbol && e.coherenceScore < 0.4)?.timestamp ?? "",
-        lastSeen: [...entries].reverse().find((e: MemoryEntry) => e.symbol === symbol && e.coherenceScore < 0.4)?.timestamp ?? "",
+        firstSeen: entries.find((e) => e.symbol === symbol && e.coherenceScore < COHERENCE_LOW_THRESHOLD)?.timestamp ?? "",
+        lastSeen: [...entries].reverse().find((e: MemoryEntry) => e.symbol === symbol && e.coherenceScore < COHERENCE_LOW_THRESHOLD)?.timestamp ?? "",
         description: `Agent consistently produces low-coherence reasoning for ${symbol} (${count} times)`,
       });
     }
@@ -164,7 +236,7 @@ function analyzeMistakeRepetition(entries: MemoryEntry[]): {
   // Score: fewer repeats = better memory
   const totalRepeats = patterns.reduce((s, p) => s + p.occurrences, 0);
   const score = entries.length > 0
-    ? Math.max(0, 1 - totalRepeats / (entries.length * 0.3))
+    ? Math.max(0, 1 - totalRepeats / (entries.length * MISTAKE_SCORING_DIVISOR))
     : 0.5;
 
   return { score: round3(score), patterns };
@@ -199,7 +271,7 @@ function analyzeLessonRetention(entries: MemoryEntry[]): { score: number } {
         postLossTotal++;
         // Did agent adapt? Changed action, lowered confidence, or changed intent
         const actionChanged = curr.action !== prev.action;
-        const confidenceLowered = curr.confidence < prev.confidence - 0.05;
+        const confidenceLowered = curr.confidence < prev.confidence - CONFIDENCE_ADJUSTMENT_THRESHOLD;
         const intentChanged = curr.intent !== prev.intent;
 
         if (actionChanged || confidenceLowered || intentChanged) {
@@ -222,7 +294,7 @@ function analyzeLessonRetention(entries: MemoryEntry[]): { score: number } {
  * Measures intent diversity and shift patterns.
  */
 function analyzeStrategyEvolution(entries: MemoryEntry[]): { score: number } {
-  if (entries.length < 10) return { score: 0.5 };
+  if (entries.length < MIN_ENTRIES_FOR_EVOLUTION) return { score: 0.5 };
 
   const mid = Math.floor(entries.length / 2);
   const firstHalf = entries.slice(0, mid);

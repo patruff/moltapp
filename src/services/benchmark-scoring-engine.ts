@@ -163,6 +163,74 @@ const TREND_IMPROVING_THRESHOLD = 0.03;
  */
 const TREND_DEGRADING_THRESHOLD = -0.03;
 
+/**
+ * P&L Normalization Parameters
+ *
+ * Maps P&L percentages to normalized 0-1 scores for composite calculation.
+ * Formula: (pnl + LOWER) / (UPPER - LOWER)
+ *
+ * Current bounds: [-50%, +50%] → [0, 1]
+ * - -50% loss maps to score 0.0
+ * - 0% P&L maps to score 0.5
+ * - +50% gain maps to score 1.0
+ *
+ * TUNING: Adjust bounds to change score sensitivity:
+ * - Narrower range (e.g., [-30%, +30%]) → more sensitive to small P&L changes
+ * - Wider range (e.g., [-100%, +100%]) → less sensitive, rewards extreme performance
+ */
+const PNL_NORMALIZATION_LOWER_BOUND = -50;
+const PNL_NORMALIZATION_UPPER_BOUND = 50;
+
+/**
+ * Sharpe Ratio Normalization Parameters
+ *
+ * Maps Sharpe ratios to normalized 0-1 scores for composite calculation.
+ * Formula: (sharpe + LOWER) / (UPPER - LOWER)
+ *
+ * Current bounds: [-2, +3] → [0, 1]
+ * - Sharpe -2 (terrible risk-adjusted return) maps to score 0.0
+ * - Sharpe 0 (risk-free equivalent) maps to score 0.4
+ * - Sharpe +3 (exceptional risk-adjusted return) maps to score 1.0
+ *
+ * TUNING: Adjust bounds to change score sensitivity:
+ * - Range choice affects relative weight of risk-adjusted vs absolute returns
+ * - Current asymmetric range [-2, +3] reflects:
+ *   - Downside: Sharpe < -2 is catastrophic (overweight risk, massive drawdowns)
+ *   - Upside: Sharpe > 3 is rare in crypto (capping at 3 prevents outlier dominance)
+ */
+const SHARPE_NORMALIZATION_LOWER_BOUND = -2;
+const SHARPE_NORMALIZATION_UPPER_BOUND = 3;
+
+/**
+ * Statistical Significance Threshold
+ *
+ * Minimum trades required for benchmark score to be considered statistically meaningful.
+ * Scores below this threshold are flagged with statisticallySignificant: false.
+ *
+ * Current threshold: 10 trades
+ * - Provides basic confidence in averages (Sharpe, coherence, hallucination rate)
+ * - Prevents single lucky/unlucky trades from dominating score
+ *
+ * TUNING: Adjust based on desired confidence level:
+ * - Lower (5 trades) → faster score updates, but noisier rankings
+ * - Higher (20 trades) → more stable rankings, but slower to detect emerging patterns
+ */
+const STATISTICAL_SIGNIFICANCE_MIN_TRADES = 10;
+
+/**
+ * Percentile Calculation Minimum Agents
+ *
+ * Minimum number of agents required for meaningful percentile calculations.
+ * When fewer agents exist, percentile rankings may be misleading.
+ *
+ * Current threshold: 3 agents
+ * - Allows basic "top/middle/bottom" classification
+ * - Prevents division-by-zero in percentile formula
+ *
+ * TUNING: This is a safety threshold, rarely needs adjustment.
+ */
+const PERCENTILE_CALCULATION_MIN_AGENTS = 3;
+
 // ---------------------------------------------------------------------------
 // State: Score History for Trend Analysis
 // ---------------------------------------------------------------------------
@@ -214,7 +282,7 @@ export function computeBenchmarkScorecard(
       grade,
       rank: 0, // assigned below
       tradeCount: input.tradeCount,
-      statisticallySignificant: input.tradeCount >= 10,
+      statisticallySignificant: input.tradeCount >= STATISTICAL_SIGNIFICANCE_MIN_TRADES,
       trend,
       computedAt: new Date().toISOString(),
     };
@@ -376,14 +444,16 @@ function computeFactors(input: AgentFactorInputs): BenchmarkFactorScore[] {
 // Normalization Functions
 // ---------------------------------------------------------------------------
 
-/** Normalize P&L: -50% maps to 0, +50% maps to 1, linear in between */
+/** Normalize P&L using configured bounds */
 function normalizePnl(pnl: number): number {
-  return clamp((pnl + 50) / 100, 0, 1);
+  const range = PNL_NORMALIZATION_UPPER_BOUND - PNL_NORMALIZATION_LOWER_BOUND;
+  return clamp((pnl - PNL_NORMALIZATION_LOWER_BOUND) / range, 0, 1);
 }
 
-/** Normalize Sharpe: -2 maps to 0, +3 maps to 1 */
+/** Normalize Sharpe ratio using configured bounds */
 function normalizeSharpe(sharpe: number): number {
-  return clamp((sharpe + 2) / 5, 0, 1);
+  const range = SHARPE_NORMALIZATION_UPPER_BOUND - SHARPE_NORMALIZATION_LOWER_BOUND;
+  return clamp((sharpe - SHARPE_NORMALIZATION_LOWER_BOUND) / range, 0, 1);
 }
 
 function round(v: number): number {
@@ -431,7 +501,7 @@ function getLastComposite(agentId: string): number | null {
 function computeFactorCorrelations(
   agents: AgentBenchmarkScore[],
 ): FactorCorrelation[] {
-  if (agents.length < 3) return [];
+  if (agents.length < PERCENTILE_CALCULATION_MIN_AGENTS) return [];
 
   const factorNames = Object.keys(FACTOR_WEIGHTS);
   const correlations: FactorCorrelation[] = [];
