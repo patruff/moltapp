@@ -18,7 +18,7 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
-import { countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
+import { countByCondition, countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -376,8 +376,8 @@ function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
   const insights: ReportInsight[] = [];
   const total = entries.length;
   const avgCoherence = entries.reduce((s, e) => s + e.coherenceScore, 0) / total;
-  const halRate = entries.filter((e) => e.hallucinationCount > 0).length / total;
-  const discRate = entries.filter((e) => e.disciplinePass).length / total;
+  const halRate = countByCondition(entries, (e) => e.hallucinationCount > 0) / total;
+  const discRate = countByCondition(entries, (e) => e.disciplinePass) / total;
   const avgWords = entries.reduce((s, e) => s + e.wordCount, 0) / total;
 
   if (avgCoherence >= STRENGTH_COHERENCE_THRESHOLD) {
@@ -423,10 +423,10 @@ function identifyWeaknesses(entries: ReasoningEntry[]): ReportInsight[] {
   const insights: ReportInsight[] = [];
   const total = entries.length;
   const avgCoherence = entries.reduce((s, e) => s + e.coherenceScore, 0) / total;
-  const halRate = entries.filter((e) => e.hallucinationCount > 0).length / total;
-  const discRate = entries.filter((e) => e.disciplinePass).length / total;
+  const halRate = countByCondition(entries, (e) => e.hallucinationCount > 0) / total;
+  const discRate = countByCondition(entries, (e) => e.disciplinePass) / total;
   const avgWords = entries.reduce((s, e) => s + e.wordCount, 0) / total;
-  const holdRate = entries.filter((e) => e.action === "hold").length / total;
+  const holdRate = countByCondition(entries, (e) => e.action === "hold") / total;
 
   if (avgCoherence < WEAKNESS_COHERENCE_THRESHOLD) {
     insights.push({
@@ -560,8 +560,8 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
   const total = entries.length;
   const avgCoherence = entries.reduce((s, e) => s + e.coherenceScore, 0) / total;
   const avgWordCount = entries.reduce((s, e) => s + e.wordCount, 0) / total;
-  const halRate = entries.filter((e) => e.hallucinationCount > 0).length / total;
-  const discRate = entries.filter((e) => e.disciplinePass).length / total;
+  const halRate = countByCondition(entries, (e) => e.hallucinationCount > 0) / total;
+  const discRate = countByCondition(entries, (e) => e.disciplinePass) / total;
   const coherences = entries.map((e) => e.coherenceScore);
 
   // Quality trend: compare first half vs second half coherence
