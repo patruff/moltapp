@@ -356,18 +356,6 @@ interface AgentState {
 
 const agentStates = new Map<string, AgentState>();
 const snapshotHistory: LeaderboardSnapshot[] = [];
-const MAX_SNAPSHOTS = 500;
-const MAX_HISTORY_PER_METRIC = 500;
-
-// Glicko-2 constants
-const GLICKO_INITIAL_RATING = 1500;
-const GLICKO_INITIAL_DEVIATION = 350;
-const GLICKO_INITIAL_VOLATILITY = 0.06;
-const GLICKO_TAU = 0.5;
-
-// ELO constants
-const ELO_INITIAL = 1500;
-const ELO_K_FACTOR = 32;
 
 // ---------------------------------------------------------------------------
 // Agent Registration
