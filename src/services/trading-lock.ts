@@ -54,6 +54,18 @@ const DYNAMO_TABLE = process.env.AGENT_STATE_TABLE || "moltapp-agent-state";
 /** Lock partition key in DynamoDB */
 const LOCK_PK = "TRADING_LOCK";
 
+/**
+ * Random suffix generation parameters for lock IDs.
+ *
+ * Lock IDs follow the format: `lock_{timestamp}_{randomSuffix}`
+ * where randomSuffix is a 6-character alphanumeric string extracted
+ * from Math.random().toString(36).
+ *
+ * Example: "lock_1738540800000_a3f9z2"
+ */
+const LOCK_ID_RANDOM_START = 2; // Skip "0." prefix from Math.random()
+const LOCK_ID_RANDOM_LENGTH = 6; // 6-character alphanumeric suffix
+
 // ---------------------------------------------------------------------------
 // In-Memory Lock State
 // ---------------------------------------------------------------------------
@@ -66,7 +78,10 @@ let currentLock: {
 } | null = null;
 
 function generateLockId(): string {
-  return `lock_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const randomSuffix = Math.random()
+    .toString(36)
+    .slice(LOCK_ID_RANDOM_START, LOCK_ID_RANDOM_START + LOCK_ID_RANDOM_LENGTH);
+  return `lock_${Date.now()}_${randomSuffix}`;
 }
 
 function isLockExpired(): boolean {
