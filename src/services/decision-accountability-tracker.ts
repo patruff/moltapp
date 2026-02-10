@@ -239,6 +239,142 @@ const LEARNING_TREND_SCORE_STABLE = 0.5;
 const LEARNING_TREND_SCORE_DECLINING = 0.2;
 
 /**
+ * Price Target Validation Parameters
+ *
+ * Constants for extracting and validating price target claims from agent reasoning.
+ */
+
+/**
+ * Price target minimum value ($0)
+ *
+ * Lower bound for valid price targets. Targets ≤ this are rejected as invalid.
+ *
+ * Example: Target $0 or negative = invalid (rejected)
+ *
+ * Tuning impact: Not user-tunable (prevents obviously invalid targets)
+ */
+const PRICE_TARGET_MIN = 0;
+
+/**
+ * Price target maximum value ($100,000)
+ *
+ * Upper bound for valid price targets. Targets > this are rejected as unrealistic.
+ *
+ * Example: Target $150,000 = invalid (rejected as extraction error)
+ *
+ * Tuning impact: Lower to $50,000 if you want to reject extreme outliers
+ */
+const PRICE_TARGET_MAX = 100000;
+
+/**
+ * Price targets display limit (3)
+ *
+ * Maximum number of price target claims to extract from a single decision.
+ * Prevents spam from agents listing many targets.
+ *
+ * Example: Agent mentions 5 targets, only first 3 are registered
+ *
+ * Tuning impact: Raise to 5 if you want to track more targets per decision
+ */
+const PRICE_TARGETS_MAX_COUNT = 3;
+
+/**
+ * Time Horizon Pattern Recognition
+ *
+ * Constants defining hour durations for common time horizon phrases in agent reasoning.
+ */
+
+/**
+ * Intraday horizon hours (8)
+ *
+ * Duration for "next few hours", "intraday", "today" claims.
+ * Represents a single trading session.
+ *
+ * Example: "Expecting rally today" → 8-hour claim expiration
+ *
+ * Tuning impact: Raise to 12 for longer intraday window
+ */
+const HORIZON_HOURS_INTRADAY = 8;
+
+/**
+ * Overnight horizon hours (24)
+ *
+ * Duration for "overnight", "tomorrow", "24h" claims.
+ * Represents next trading day.
+ *
+ * Example: "Price will gap up tomorrow" → 24-hour claim
+ *
+ * Tuning impact: Not user-tunable (standard day definition)
+ */
+const HORIZON_HOURS_OVERNIGHT = 24;
+
+/**
+ * Short-term horizon hours (120 = 5 days)
+ *
+ * Duration for "this week", "next few days", "short-term" claims.
+ * Represents one trading week.
+ *
+ * Example: "Expecting breakout this week" → 5-day claim
+ *
+ * Tuning impact: Lower to 72 (3 days) for stricter short-term definition
+ */
+const HORIZON_HOURS_SHORT_TERM = 120;
+
+/**
+ * One-week horizon hours (168 = 7 days)
+ *
+ * Duration for "next week", "coming week" claims.
+ * Represents one calendar week.
+ *
+ * Example: "Next week should see upside" → 7-day claim
+ *
+ * Tuning impact: Not user-tunable (standard week definition)
+ */
+const HORIZON_HOURS_ONE_WEEK = 168;
+
+/**
+ * Medium-term horizon hours (720 = 30 days)
+ *
+ * Duration for "medium-term", "next month", "coming weeks" claims.
+ * Represents one month.
+ *
+ * Example: "Medium-term outlook positive" → 30-day claim
+ *
+ * Tuning impact: Raise to 1440 (60 days) for longer medium-term window
+ */
+const HORIZON_HOURS_MEDIUM_TERM = 720;
+
+/**
+ * Long-term horizon hours (2160 = 90 days)
+ *
+ * Duration for "long-term", "next quarter", "several months" claims.
+ * Represents one quarter.
+ *
+ * Example: "Long-term bullish thesis" → 90-day claim
+ *
+ * Tuning impact: Raise to 4320 (180 days) for 6-month long-term definition
+ */
+const HORIZON_HOURS_LONG_TERM = 2160;
+
+/**
+ * Claim Expiration Parameters
+ *
+ * Constants for determining when claims expire if not resolved earlier.
+ */
+
+/**
+ * Default claim expiration hours (48)
+ *
+ * Default time horizon when agent doesn't specify explicit timeframe.
+ * Represents 2 trading days.
+ *
+ * Example: Generic "bullish on TSLAx" → 48-hour default expiration
+ *
+ * Tuning impact: Lower to 24 for faster claim turnover; raise to 72 for more patience
+ */
+const CLAIM_DEFAULT_EXPIRATION_HOURS = 48;
+
+/**
  * Early Resolution Threshold
  *
  * Threshold for early directional claim resolution before expiration.
@@ -451,7 +587,7 @@ function extractPriceTargets(reasoning: string, _symbol: string): { text: string
     let match;
     while ((match = pattern.exec(reasoning)) !== null) {
       const price = parseFloat(match[1].replace(/,/g, ""));
-      if (price > 0 && price < 100000) {
+      if (price > PRICE_TARGET_MIN && price < PRICE_TARGET_MAX) {
         targets.push({
           text: `Price target: $${price.toFixed(2)}`,
           price,
@@ -460,7 +596,7 @@ function extractPriceTargets(reasoning: string, _symbol: string): { text: string
     }
   }
 
-  return targets.slice(0, 3);
+  return targets.slice(0, PRICE_TARGETS_MAX_COUNT);
 }
 
 function extractHorizon(reasoning: string): { text: string; hours: number } | null {

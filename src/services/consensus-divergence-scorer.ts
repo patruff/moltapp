@@ -104,6 +104,18 @@ export interface SymbolConsensusStats {
 const roundSnapshots: RoundConsensusSnapshot[] = [];
 const MAX_SNAPSHOTS = 500;
 
+/**
+ * Convergence trend detection threshold (10% agreement score change).
+ *
+ * Used in computeConvergenceTrend() to classify whether agents are:
+ * - Converging: Agreement score increased by >10% from first half to second half
+ * - Diverging: Agreement score decreased by >10% from first half to second half
+ * - Stable: Agreement score changed by ≤10%
+ *
+ * Example: If first half avg = 0.60, second half avg = 0.72 → change = +0.12 → "converging"
+ */
+const CONVERGENCE_THRESHOLD_DELTA = 0.1;
+
 // Track outcomes for consensus accuracy
 const consensusOutcomes: {
   roundId: string;
@@ -419,8 +431,8 @@ function computeConvergenceTrend(
   const avgFirst = firstHalf.reduce((s, r) => s + r.agreementScore, 0) / firstHalf.length;
   const avgSecond = secondHalf.reduce((s, r) => s + r.agreementScore, 0) / secondHalf.length;
 
-  if (avgSecond > avgFirst + 0.1) return "converging";
-  if (avgSecond < avgFirst - 0.1) return "diverging";
+  if (avgSecond > avgFirst + CONVERGENCE_THRESHOLD_DELTA) return "converging";
+  if (avgSecond < avgFirst - CONVERGENCE_THRESHOLD_DELTA) return "diverging";
   return "stable";
 }
 
