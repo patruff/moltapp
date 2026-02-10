@@ -661,29 +661,29 @@ function evaluateAgreement(
   const wordCount = countWords(reasoning);
 
   // Base agreement probability
-  let agreeProb = 0.5;
+  let agreeProb = AGREEMENT_BASE_PROBABILITY;
 
   // Better reasoning = higher agreement regardless of reviewer
-  if (wordCount > 40) agreeProb += 0.1;
-  if (hasEvidence) agreeProb += 0.1;
-  if (hasRiskAwareness) agreeProb += 0.05;
-  if (normalizedConf > 0.3 && normalizedConf < 0.85) agreeProb += 0.05; // moderate confidence
+  if (wordCount > AGREEMENT_WORD_COUNT_BONUS) agreeProb += AGREEMENT_BONUS_WORD_COUNT;
+  if (hasEvidence) agreeProb += AGREEMENT_BONUS_EVIDENCE;
+  if (hasRiskAwareness) agreeProb += AGREEMENT_BONUS_RISK_AWARENESS;
+  if (normalizedConf > CONFIDENCE_MODERATE_MIN && normalizedConf < CONFIDENCE_MODERATE_MAX) agreeProb += AGREEMENT_BONUS_MODERATE_CONFIDENCE; // moderate confidence
 
   // Reviewer-specific biases
   if (reviewerAgentId.includes("claude")) {
     // Claude values: evidence, risk awareness, conservative approach
-    if (hasRiskAwareness) agreeProb += 0.1;
-    if (action === "hold" && /\bcaution\b|\buncertain/i.test(reasoning)) agreeProb += 0.1;
-    if (action === "buy" && normalizedConf > 0.9 && !hasRiskAwareness) agreeProb -= 0.15;
+    if (hasRiskAwareness) agreeProb += AGREEMENT_CLAUDE_RISK_BONUS;
+    if (action === "hold" && /\bcaution\b|\buncertain/i.test(reasoning)) agreeProb += AGREEMENT_CLAUDE_HOLD_BONUS;
+    if (action === "buy" && normalizedConf > CONFIDENCE_VERY_HIGH_THRESHOLD && !hasRiskAwareness) agreeProb -= AGREEMENT_CLAUDE_OVERCONFIDENT_PENALTY;
   } else if (reviewerAgentId.includes("gpt")) {
     // GPT values: momentum signals, technical analysis, trend data
-    if (/\bmomentum\b|\btrend\b|\bbreakout\b|\btechnical\b/i.test(reasoning)) agreeProb += 0.1;
-    if (action === "hold" && wordCount < 30) agreeProb -= 0.1;
+    if (/\bmomentum\b|\btrend\b|\bbreakout\b|\btechnical\b/i.test(reasoning)) agreeProb += AGREEMENT_GPT_MOMENTUM_BONUS;
+    if (action === "hold" && wordCount < AGREEMENT_WORD_COUNT_PENALTY) agreeProb -= AGREEMENT_GPT_HOLD_PENALTY;
   } else if (reviewerAgentId.includes("grok")) {
     // Grok values: contrarian thinking, unconventional analysis
-    if (/\bcontrarian\b|\boverreaction\b|\bpanic\b|\boversold\b/i.test(reasoning)) agreeProb += 0.15;
+    if (/\bcontrarian\b|\boverreaction\b|\bpanic\b|\boversold\b/i.test(reasoning)) agreeProb += AGREEMENT_GROK_CONTRARIAN_BONUS;
     // Grok is generally more disagreeable
-    agreeProb -= 0.1;
+    agreeProb -= AGREEMENT_GROK_BASE_PENALTY;
   }
 
   // Deterministic based on reasoning hash (reproducible)

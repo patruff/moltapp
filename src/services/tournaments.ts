@@ -72,6 +72,41 @@ const MONTHLY_CHAMPIONSHIP_REPUTATION_REWARD = 500;
 /** Precision multiplier for accuracy rounding (10 = tenths place, e.g., 0.847 → 0.8) */
 const ACCURACY_ROUNDING_PRECISION = 10;
 
+// Tournament Points Scoring
+/** Points awarded for sprint tournament victory */
+const POINTS_SPRINT_WIN = 10;
+
+/** Points awarded for showdown tournament victory */
+const POINTS_SHOWDOWN_WIN = 50;
+
+/** Points awarded for championship tournament victory */
+const POINTS_CHAMPIONSHIP_WIN = 200;
+
+/** Bonus points awarded for 1st place finish in any tournament round */
+const POINTS_PLACEMENT_FIRST = 30;
+
+/** Bonus points awarded for 2nd place finish in any tournament round */
+const POINTS_PLACEMENT_SECOND = 15;
+
+/** Bonus points awarded for 3rd place finish in any tournament round */
+const POINTS_PLACEMENT_THIRD = 5;
+
+// Composite Score Calculation Weights
+/** Weight for accuracy in composite score (40% - primary performance indicator) */
+const COMPOSITE_WEIGHT_ACCURACY = 0.4;
+
+/** Weight for confidence in composite score (30% - calibration quality) */
+const COMPOSITE_WEIGHT_CONFIDENCE = 0.3;
+
+/** Weight for volume in composite score (20% - trading activity) */
+const COMPOSITE_WEIGHT_VOLUME = 0.2;
+
+/** Weight for action ratio in composite score (10% - buys+sells vs holds) */
+const COMPOSITE_WEIGHT_ACTION_RATIO = 0.1;
+
+/** Volume multiplier for composite score (10 decisions = 100 volume score) */
+const COMPOSITE_VOLUME_MULTIPLIER = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -608,11 +643,11 @@ export async function getSeasonStandings(): Promise<SeasonStandings> {
       (t) => t.winnerId === config.agentId,
     ).length;
 
-    // Calculate points: sprint win = 10, weekly win = 50, monthly win = 200
+    // Calculate points based on tournament format
     let totalPoints = 0;
     for (const t of tournaments) {
       if (t.winnerId === config.agentId) {
-        totalPoints += t.format === "sprint" ? 10 : t.format === "showdown" ? 50 : 200;
+        totalPoints += t.format === "sprint" ? POINTS_SPRINT_WIN : t.format === "showdown" ? POINTS_SHOWDOWN_WIN : POINTS_CHAMPIONSHIP_WIN;
       }
     }
 
@@ -624,9 +659,9 @@ export async function getSeasonStandings(): Promise<SeasonStandings> {
     ].filter((p) => p.agentId === config.agentId);
 
     for (const p of allParticipants) {
-      if (p.rank === 1) totalPoints += 30;
-      else if (p.rank === 2) totalPoints += 15;
-      else if (p.rank === 3) totalPoints += 5;
+      if (p.rank === 1) totalPoints += POINTS_PLACEMENT_FIRST;
+      else if (p.rank === 2) totalPoints += POINTS_PLACEMENT_SECOND;
+      else if (p.rank === 3) totalPoints += POINTS_PLACEMENT_THIRD;
     }
 
     const finishes = allParticipants.map((p) => p.rank);
@@ -764,8 +799,8 @@ function calculateParticipantStats(
 
   return {
     decisions: total,
-    accuracy: Math.round(accuracy * 10) / 10,
-    avgConfidence: Math.round(avgConfidence * 10) / 10,
+    accuracy: Math.round(accuracy * ACCURACY_ROUNDING_PRECISION) / ACCURACY_ROUNDING_PRECISION,
+    avgConfidence: Math.round(avgConfidence * ACCURACY_ROUNDING_PRECISION) / ACCURACY_ROUNDING_PRECISION,
     buys,
     sells,
     holds,
@@ -775,22 +810,22 @@ function calculateParticipantStats(
 }
 
 function calculateCompositeScore(stats: ParticipantStats): number {
-  // Composite: 40% accuracy + 30% confidence + 20% volume + 10% action ratio
+  // Composite score with configurable weights
   const accuracyScore = stats.accuracy;
   const confidenceScore = stats.avgConfidence;
-  const volumeScore = Math.min(100, stats.decisions * 10); // 10 decisions = max
+  const volumeScore = Math.min(100, stats.decisions * COMPOSITE_VOLUME_MULTIPLIER);
   const actionRatio =
     stats.decisions > 0
       ? ((stats.buys + stats.sells) / stats.decisions) * 100
       : 0;
 
   return Math.round(
-    (accuracyScore * 0.4 +
-      confidenceScore * 0.3 +
-      volumeScore * 0.2 +
-      actionRatio * 0.1) *
-      10,
-  ) / 10;
+    (accuracyScore * COMPOSITE_WEIGHT_ACCURACY +
+      confidenceScore * COMPOSITE_WEIGHT_CONFIDENCE +
+      volumeScore * COMPOSITE_WEIGHT_VOLUME +
+      actionRatio * COMPOSITE_WEIGHT_ACTION_RATIO) *
+      ACCURACY_ROUNDING_PRECISION,
+  ) / ACCURACY_ROUNDING_PRECISION;
 }
 
 function generateRoundRobinMatchups(
