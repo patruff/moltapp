@@ -321,6 +321,44 @@ const GOVERNANCE_RQI_NORMALIZATION_DIVISOR = 100; // Normalize RQI components to
 const GOVERNANCE_RQI_SCALE_MULTIPLIER = 100; // Scale RQI back to 0-100 range
 const GOVERNANCE_DEFAULT_COMPOSITE_FALLBACK = 50; // Fallback when dimension missing
 
+/**
+ * Tier Classification Thresholds
+ *
+ * These constants control how composite scores (0-100) are mapped to letter tiers
+ * (S, A, B, C, D) for agent leaderboard ranking. Adjusting these changes tier
+ * boundaries without affecting underlying scoring logic.
+ */
+const TIER_S_THRESHOLD = 85; // >= 85 composite score = S tier (elite)
+const TIER_A_THRESHOLD = 70; // >= 70 composite score = A tier (excellent)
+const TIER_B_THRESHOLD = 55; // >= 55 composite score = B tier (good)
+const TIER_C_THRESHOLD = 40; // >= 40 composite score = C tier (acceptable)
+// < 40 = D tier (needs improvement)
+
+/**
+ * Grade Classification Thresholds
+ *
+ * These constants control how individual trade scores (0-100) are mapped to letter grades
+ * (A+ through F) for trade quality assessment. Adjusting these changes grading
+ * strictness without affecting underlying scoring logic.
+ */
+const GRADE_A_PLUS_THRESHOLD = 95; // >= 95 score = A+ (exceptional)
+const GRADE_A_THRESHOLD = 85; // >= 85 score = A (excellent)
+const GRADE_B_PLUS_THRESHOLD = 75; // >= 75 score = B+ (very good)
+const GRADE_B_THRESHOLD = 65; // >= 65 score = B (good)
+const GRADE_C_PLUS_THRESHOLD = 55; // >= 55 score = C+ (above average)
+const GRADE_C_THRESHOLD = 45; // >= 45 score = C (average)
+const GRADE_D_THRESHOLD = 30; // >= 30 score = D (below average)
+// < 30 = F (failing)
+
+/**
+ * Query and Display Limits
+ *
+ * These constants control default limits for API query results to prevent
+ * overwhelming responses and ensure reasonable pagination.
+ */
+const QUERY_DEFAULT_TRADE_LIMIT = 50; // Default max trades returned by getTradeGrades/getTradeGradesByAgent
+const QUERY_DEFAULT_ROUND_SUMMARY_FALLBACK = 50; // Fallback value for round summary aggregations
+
 // ---------------------------------------------------------------------------
 // Types for the 32 dimensions
 // ---------------------------------------------------------------------------
@@ -488,21 +526,21 @@ const DIMENSION_WEIGHTS: Record<keyof V36DimensionScores, number> = {
 // ---------------------------------------------------------------------------
 
 function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
-  if (composite >= 85) return "S";
-  if (composite >= 70) return "A";
-  if (composite >= 55) return "B";
-  if (composite >= 40) return "C";
+  if (composite >= TIER_S_THRESHOLD) return "S";
+  if (composite >= TIER_A_THRESHOLD) return "A";
+  if (composite >= TIER_B_THRESHOLD) return "B";
+  if (composite >= TIER_C_THRESHOLD) return "C";
   return "D";
 }
 
 function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
-  if (score >= 95) return "A+";
-  if (score >= 85) return "A";
-  if (score >= 75) return "B+";
-  if (score >= 65) return "B";
-  if (score >= 55) return "C+";
-  if (score >= 45) return "C";
-  if (score >= 30) return "D";
+  if (score >= GRADE_A_PLUS_THRESHOLD) return "A+";
+  if (score >= GRADE_A_THRESHOLD) return "A";
+  if (score >= GRADE_B_PLUS_THRESHOLD) return "B+";
+  if (score >= GRADE_B_THRESHOLD) return "B";
+  if (score >= GRADE_C_PLUS_THRESHOLD) return "C+";
+  if (score >= GRADE_C_THRESHOLD) return "C";
+  if (score >= GRADE_D_THRESHOLD) return "D";
   return "F";
 }
 
