@@ -197,6 +197,62 @@ const RISK_FREE_RATE = 0.05;
 const TRADING_DAYS_PER_YEAR = 252;
 
 // ---------------------------------------------------------------------------
+// Probability Threshold Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Loss threshold multiplier for probabilityOfLosing10Pct calculation.
+ * Value of 0.90 means 90% of initial capital remaining = 10% loss.
+ *
+ * This threshold determines when a portfolio outcome is classified as
+ * "significant loss" in Monte Carlo simulation reports. Used to compute
+ * the probability that an agent's portfolio will decline by 10% or more.
+ *
+ * Example: $10,000 initial × 0.90 = $9,000 threshold
+ *          Final values < $9,000 count toward probabilityOfLosing10Pct
+ */
+const LOSS_THRESHOLD_MULTIPLIER = 0.90;
+
+/**
+ * Doubling threshold multiplier for probabilityOfDoubling calculation.
+ * Value of 2 means 2× initial capital = 100% gain.
+ *
+ * This threshold determines when a portfolio outcome is classified as
+ * "exceptional performance" in Monte Carlo simulation reports. Used to
+ * compute the probability that an agent doubles their initial capital.
+ *
+ * Example: $10,000 initial × 2 = $20,000 threshold
+ *          Final values >= $20,000 count toward probabilityOfDoubling
+ */
+const DOUBLING_THRESHOLD_MULTIPLIER = 2;
+
+// ---------------------------------------------------------------------------
+// Statistical Calculation Parameters
+// ---------------------------------------------------------------------------
+
+/**
+ * Sample size for mean Sharpe ratio calculation in comparative simulations.
+ * Value of 100 paths provides accurate Sharpe estimation while maintaining
+ * performance for comparative analysis across multiple agents.
+ *
+ * Reducing this value improves performance but reduces Sharpe accuracy.
+ * Increasing it above 100 provides diminishing returns (Sharpe converges
+ * quickly with just 100 samples from the return distribution).
+ */
+const SHARPE_SAMPLE_SIZE = 100;
+
+/**
+ * Minimum tail size for Conditional VaR (CVaR / Expected Shortfall) calculation.
+ * Value of 1 ensures CVaR always has at least one observation in the tail,
+ * even when the VaR index falls at the very first element of the sorted array.
+ *
+ * This prevents division-by-zero errors when computing the average loss
+ * in the tail distribution. For tiny simulation sets (e.g., numSimulations = 5),
+ * this ensures CVaR = VaR when there's only one tail observation.
+ */
+const CVAR_MIN_TAIL_SIZE = 1;
+
+// ---------------------------------------------------------------------------
 // Module-Level State
 // ---------------------------------------------------------------------------
 
@@ -457,12 +513,12 @@ function aggregateResults(
   const probabilityOfProfit = round2(
     finalValues.filter((v) => v > config.initialCapital).length / totalSims * 100,
   );
-  const lossThreshold = config.initialCapital * 0.90;
+  const lossThreshold = config.initialCapital * LOSS_THRESHOLD_MULTIPLIER;
   const probabilityOfLosing10Pct = round2(
     finalValues.filter((v) => v < lossThreshold).length / totalSims * 100,
   );
   const probabilityOfDoubling = round2(
-    finalValues.filter((v) => v >= config.initialCapital * 2).length / totalSims * 100,
+    finalValues.filter((v) => v >= config.initialCapital * DOUBLING_THRESHOLD_MULTIPLIER).length / totalSims * 100,
   );
 
   // Value at Risk and Conditional VaR
@@ -528,7 +584,7 @@ function computeVaRMetrics(
   const valueAtRisk = Math.max(0, initialCapital - varValue);
 
   // CVaR: average of all losses worse than VaR
-  const tailValues = sortedValues.slice(0, Math.max(1, varIndex));
+  const tailValues = sortedValues.slice(0, Math.max(CVAR_MIN_TAIL_SIZE, varIndex));
   const tailLosses = tailValues.map((v) => Math.max(0, initialCapital - v));
   const conditionalVaR = tailLosses.length > 0
     ? tailLosses.reduce((s, l) => s + l, 0) / tailLosses.length
@@ -705,11 +761,11 @@ export function runComparativeSimulation(
 
 /**
  * Compute the mean Sharpe ratio across a sample of simulation paths.
- * Uses a reduced sample size (100 paths) for performance.
+ * Uses a reduced sample size for performance (see SHARPE_SAMPLE_SIZE constant).
  */
 function computeMeanSharpe(trades: HistoricalTrade[], config: MonteCarloConfig): number {
   const returns = trades.map((t) => t.returnPct);
-  const sampleSize = Math.min(100, config.numSimulations);
+  const sampleSize = Math.min(SHARPE_SAMPLE_SIZE, config.numSimulations);
   let totalSharpe = 0;
 
   for (let i = 0; i < sampleSize; i++) {
