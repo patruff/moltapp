@@ -19,82 +19,159 @@
 import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
-// Integrity Detection Thresholds
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
 /**
- * Time window thresholds for flip-flop detection.
- * Flip-flopping is considered problematic when stance changes happen too quickly
+ * Flip-Flop Detection Thresholds
+ *
+ * Flip-flopping is problematic when stance changes happen too quickly
  * without sufficient new information or market changes.
  */
-const FLIPFLOP_MAX_HOURS = 24; // Only flag reversals within 24 hours
-const FLIPFLOP_HIGH_SEVERITY_HOURS = 2; // High severity if flip within 2 hours
+
+/** Maximum time window to flag flip-flop reversals (hours) */
+const FLIPFLOP_MAX_HOURS = 24;
+
+/** High severity threshold for very rapid flip-flops (hours) */
+const FLIPFLOP_HIGH_SEVERITY_HOURS = 2;
 
 /**
- * Similarity thresholds for copypasta detection.
- * Uses Jaccard similarity on word sets to detect duplicate reasoning.
+ * Copypasta Detection Thresholds
+ *
+ * Uses Jaccard similarity on word sets to detect duplicate reasoning
+ * across different trades (expected for same symbol, problematic otherwise).
  */
-const COPYPASTA_SIMILARITY_THRESHOLD = 0.80; // 80%+ similarity = copypasta
-const COPYPASTA_HIGH_SEVERITY_THRESHOLD = 0.95; // 95%+ similarity = high severity
-const COPYPASTA_MIN_WORD_LENGTH = 3; // Filter words shorter than 3 chars
-const COPYPASTA_RECENT_WINDOW = 20; // Compare last 20 trades for copypasta
+
+/** Jaccard similarity threshold for copypasta detection (80%+ = copypasta) */
+const COPYPASTA_SIMILARITY_THRESHOLD = 0.80;
+
+/** High severity threshold for nearly identical reasoning (95%+ similarity) */
+const COPYPASTA_HIGH_SEVERITY_THRESHOLD = 0.95;
+
+/** Minimum word length for copypasta analysis (filter short words) */
+const COPYPASTA_MIN_WORD_LENGTH = 3;
+
+/** Recent trade window for copypasta comparison */
+const COPYPASTA_RECENT_WINDOW = 20;
 
 /**
- * Confidence drift detection thresholds.
+ * Confidence Drift Detection Thresholds
+ *
  * Detects systematic over/under confidence by comparing confidence scores
- * to coherence scores across recent trades.
+ * to coherence scores across recent trades. Catches agents who are
+ * consistently overconfident (high conf, low coherence) or underconfident
+ * (low conf, high coherence).
  */
-const HIGH_CONFIDENCE_THRESHOLD = 0.7; // Confidence >70% considered "high"
-const LOW_COHERENCE_THRESHOLD = 0.4; // Coherence <40% considered "low"
-const LOW_CONFIDENCE_THRESHOLD = 0.3; // Confidence <30% considered "low"
-const HIGH_COHERENCE_THRESHOLD = 0.7; // Coherence >70% considered "high"
-const DRIFT_VIOLATION_MIN_COUNT = 3; // Min violations to flag drift issue
-const DRIFT_VIOLATION_HIGH_SEVERITY_COUNT = 5; // High severity threshold
-const CONFIDENCE_DRIFT_MIN_HISTORY = 10; // Need 10+ trades to detect drift
+
+/** High confidence threshold (confidence >70% considered "high") */
+const HIGH_CONFIDENCE_THRESHOLD = 0.7;
+
+/** Low coherence threshold (coherence <40% considered "low") */
+const LOW_COHERENCE_THRESHOLD = 0.4;
+
+/** Low confidence threshold (confidence <30% considered "low") */
+const LOW_CONFIDENCE_THRESHOLD = 0.3;
+
+/** High coherence threshold (coherence >70% considered "high") */
+const HIGH_COHERENCE_THRESHOLD = 0.7;
+
+/** Minimum violations to flag confidence drift issue */
+const DRIFT_VIOLATION_MIN_COUNT = 3;
+
+/** High severity threshold for drift violations */
+const DRIFT_VIOLATION_HIGH_SEVERITY_COUNT = 5;
+
+/** Minimum trade history required to detect confidence drift */
+const CONFIDENCE_DRIFT_MIN_HISTORY = 10;
 
 /**
- * Reasoning regression detection thresholds.
- * Compares first half vs second half of history to detect quality decline.
+ * Reasoning Regression Detection Thresholds
+ *
+ * Compares first half vs second half of trade history to detect
+ * quality decline over time (e.g., coherence dropping 15%+).
  */
-const REGRESSION_THRESHOLD = 0.15; // 15% coherence drop = regression
-const REGRESSION_HIGH_SEVERITY_THRESHOLD = 0.25; // 25% drop = high severity
-const REGRESSION_MIN_HISTORY = 10; // Need 10+ trades to detect regression
+
+/** Coherence drop threshold for regression detection (15% = regression) */
+const REGRESSION_THRESHOLD = 0.15;
+
+/** High severity threshold for severe regression (25%+ coherence drop) */
+const REGRESSION_HIGH_SEVERITY_THRESHOLD = 0.25;
+
+/** Minimum trade history required to detect regression */
+const REGRESSION_MIN_HISTORY = 10;
 
 /**
- * Quality trend detection thresholds.
- * Used in overall integrity report to determine if quality is improving/declining.
+ * Quality Trend Detection Thresholds
+ *
+ * Used in overall integrity report to classify quality trends
+ * as improving/stable/declining based on first vs second half coherence.
  */
-const QUALITY_TREND_THRESHOLD = 0.1; // 10% change = trend detected
+
+/** Coherence change threshold for trend detection (10% change = trend) */
+const QUALITY_TREND_THRESHOLD = 0.1;
 
 /**
- * Source fabrication detection.
- * Recent window size for checking source validity.
+ * Source Fabrication Detection Parameters
+ *
+ * Checks if agents claim sources that aren't in the valid source set
+ * (market_price_feed, news_feed, technical_indicators, etc.).
  */
-const SOURCE_FABRICATION_RECENT_WINDOW = 20; // Check last 20 trades
+
+/** Recent trade window for source fabrication checks */
+const SOURCE_FABRICATION_RECENT_WINDOW = 20;
 
 /**
- * Severity penalty weights for integrity score calculation.
+ * Severity Penalty Weights
+ *
  * Each violation deducts from 1.0 integrity score based on severity.
+ * Lower integrity score = more violations or higher severity violations.
  */
-const SEVERITY_WEIGHTS = {
-  low: 0.02,      // 2% deduction per low severity violation
-  medium: 0.05,   // 5% deduction per medium severity violation
-  high: 0.10,     // 10% deduction per high severity violation
-  critical: 0.20, // 20% deduction per critical violation
-};
+
+/** Penalty per low severity violation (2% deduction) */
+const SEVERITY_PENALTY_LOW = 0.02;
+
+/** Penalty per medium severity violation (5% deduction) */
+const SEVERITY_PENALTY_MEDIUM = 0.05;
+
+/** Penalty per high severity violation (10% deduction) */
+const SEVERITY_PENALTY_HIGH = 0.10;
+
+/** Penalty per critical severity violation (20% deduction) */
+const SEVERITY_PENALTY_CRITICAL = 0.20;
 
 /**
- * Confidence accuracy calculation.
- * Penalty multiplier for each confidence drift violation.
+ * Confidence Accuracy Calculation
+ *
+ * Confidence drift violations reduce confidence accuracy score.
  */
-const CONFIDENCE_DRIFT_PENALTY = 0.15; // 15% reduction per drift violation
+
+/** Penalty multiplier per confidence drift violation (15% reduction) */
+const CONFIDENCE_DRIFT_PENALTY = 0.15;
 
 /**
- * Cross-agent integrity thresholds.
- * Used for herding and collusion detection.
+ * Cross-Agent Integrity Thresholds
+ *
+ * Used for herding detection (all agents same action) and
+ * collusion detection (similar reasoning across agents).
  */
-const COLLUSION_SIMILARITY_THRESHOLD = 0.6; // Avg similarity >60% = suspected collusion
-const CROSS_AGENT_RECENT_WINDOW = 20; // Compare last 20 trades between agents
+
+/** Average similarity threshold for collusion suspicion (>60% = suspected) */
+const COLLUSION_SIMILARITY_THRESHOLD = 0.6;
+
+/** Recent trade window for cross-agent comparisons */
+const CROSS_AGENT_RECENT_WINDOW = 20;
+
+/**
+ * Data Retention Limits
+ *
+ * Memory management for integrity analysis storage.
+ */
+
+/** Maximum trade history per agent for integrity analysis */
+const MAX_HISTORY = 100;
+
+/** Maximum stored violations (circular buffer) */
+const MAX_VIOLATIONS = 500;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -167,7 +244,6 @@ export interface CrossAgentIntegrityReport {
 // Storage
 // ---------------------------------------------------------------------------
 
-const MAX_HISTORY = 100;
 const agentHistory = new Map<string, ReasoningRecord[]>();
 const violations: IntegrityViolation[] = [];
 
@@ -425,12 +501,16 @@ export function analyzeIntegrity(agentId: string): IntegrityReport {
     violations.push(v);
   }
   // Cap stored violations
-  while (violations.length > 500) violations.shift();
+  while (violations.length > MAX_VIOLATIONS) violations.shift();
 
   // Compute integrity score: start at 1.0, deduct per violation
   let deduction = 0;
   for (const v of allViolations) {
-    deduction += SEVERITY_WEIGHTS[v.severity] ?? SEVERITY_WEIGHTS.medium;
+    const severityWeight = v.severity === "low" ? SEVERITY_PENALTY_LOW
+      : v.severity === "medium" ? SEVERITY_PENALTY_MEDIUM
+      : v.severity === "high" ? SEVERITY_PENALTY_HIGH
+      : SEVERITY_PENALTY_CRITICAL;
+    deduction += severityWeight;
   }
   const integrityScore = Math.max(0, round3(1 - deduction));
 
@@ -591,7 +671,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
     ? Math.min(1, round3(diversitySum / diversityPairs))
     : 0.5;
 
-  // Collusion: suspected if avg similarity > 0.6
+  // Collusion: suspected if avg similarity > COLLUSION_SIMILARITY_THRESHOLD
   const allSims = Object.values(similarityScores).flatMap((inner) => Object.values(inner));
   const avgSimilarity = allSims.length > 0
     ? allSims.reduce((s, v) => s + v, 0) / allSims.length
@@ -602,7 +682,7 @@ export function analyzeCrossAgentIntegrity(): CrossAgentIntegrityReport {
     herding: { rate: herdingRate, incidents: herdingIncidents.slice(-10) },
     diversityScore,
     collusion: {
-      suspected: avgSimilarity > 0.6,
+      suspected: avgSimilarity > COLLUSION_SIMILARITY_THRESHOLD,
       similarityScores,
     },
     generatedAt: new Date().toISOString(),
