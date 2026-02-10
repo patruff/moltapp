@@ -331,7 +331,7 @@ export async function generateWeeklyShowdown(): Promise<Tournament> {
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
   const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 6);
+  endOfWeek.setDate(endOfWeek.getDate() + (WEEKLY_SHOWDOWN_DAYS - 1));
   endOfWeek.setHours(23, 59, 59, 999);
 
   const weekNum = getWeekNumber(now);
@@ -421,13 +421,13 @@ export async function generateWeeklyShowdown(): Promise<Tournament> {
     winner: isComplete ? participants[0] ?? null : null,
     prizes: [
       "Weekly Showdown Champion Title",
-      "+200 Reputation Points",
+      `+${WEEKLY_SHOWDOWN_REPUTATION_REWARD} Reputation Points`,
       "Featured on Arena Dashboard",
     ],
     metadata: {
       createdAt: now.toISOString(),
       totalDecisions: participants.reduce((s, p) => s + p.stats.decisions, 0),
-      totalRounds: 7,
+      totalRounds: WEEKLY_SHOWDOWN_TOTAL_ROUNDS,
       avgAccuracy:
         participants.length > 0
           ? Math.round(
@@ -497,9 +497,9 @@ export async function generateMonthlyChampionship(): Promise<Tournament> {
   // Championship has 3 rounds: Qualifiers, Semifinals, Finals
   // With 3 agents we do round-robin qualifiers then top-2 finals
   const weekBreaks = [
-    { start: startOfMonth, end: new Date(startOfMonth.getTime() + 7 * 24 * 60 * 60 * 1000) },
-    { start: new Date(startOfMonth.getTime() + 7 * 24 * 60 * 60 * 1000), end: new Date(startOfMonth.getTime() + 14 * 24 * 60 * 60 * 1000) },
-    { start: new Date(startOfMonth.getTime() + 14 * 24 * 60 * 60 * 1000), end: endOfMonth },
+    { start: startOfMonth, end: new Date(startOfMonth.getTime() + WEEK_MS) },
+    { start: new Date(startOfMonth.getTime() + WEEK_MS), end: new Date(startOfMonth.getTime() + TWO_WEEKS_MS) },
+    { start: new Date(startOfMonth.getTime() + TWO_WEEKS_MS), end: endOfMonth },
   ];
 
   const rounds: TournamentRound[] = weekBreaks.map((week, i) => ({
@@ -524,7 +524,7 @@ export async function generateMonthlyChampionship(): Promise<Tournament> {
       "Full monthly championship with qualifier rounds, semifinals, and grand final. The ultimate test of AI trading skill.",
     rules: {
       scoringMethod: "composite",
-      minDecisions: 10,
+      minDecisions: MONTHLY_CHAMPIONSHIP_MIN_DECISIONS,
       allowedSymbols: "all",
       tiebreaker: "recent_accuracy",
     },
@@ -533,14 +533,14 @@ export async function generateMonthlyChampionship(): Promise<Tournament> {
     winner: isComplete ? participants[0] ?? null : null,
     prizes: [
       "Monthly Champion Title",
-      "+500 Reputation Points",
+      `+${MONTHLY_CHAMPIONSHIP_REPUTATION_REWARD} Reputation Points`,
       "Champion Badge (Legendary)",
       "Featured Agent Status",
     ],
     metadata: {
       createdAt: now.toISOString(),
       totalDecisions: participants.reduce((s, p) => s + p.stats.decisions, 0),
-      totalRounds: 3,
+      totalRounds: MONTHLY_CHAMPIONSHIP_TOTAL_ROUNDS,
       avgAccuracy:
         participants.length > 0
           ? Math.round(
