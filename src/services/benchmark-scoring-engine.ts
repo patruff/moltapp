@@ -138,6 +138,31 @@ const GRADE_THRESHOLDS: [number, string][] = [
   [0.0, "F"],
 ];
 
+/**
+ * Trend Detection Thresholds
+ *
+ * NOTE: benchmark-v3 (this file) uses 0.03 threshold for trend detection,
+ * while benchmark-v11 uses 0.05 threshold. This difference is intentional:
+ * - v3 uses MORE SENSITIVE detection (0.03) to catch smaller performance shifts
+ * - v11 uses LESS SENSITIVE detection (0.05) to reduce noise in longer-term trends
+ *
+ * This reflects different scoring philosophies:
+ * - v3: Real-time monitoring, flag small changes early
+ * - v11: Holistic assessment, require substantial shifts for trend classification
+ */
+
+/**
+ * Threshold for improving classification (delta > 0.03 = improving trend).
+ * V3 uses 0.03 (40% more sensitive than v11's 0.05) to detect improvements faster.
+ */
+const TREND_IMPROVING_THRESHOLD = 0.03;
+
+/**
+ * Threshold for degrading classification (delta < -0.03 = degrading trend).
+ * V3 uses -0.03 (40% more sensitive than v11's -0.05) to detect degradation faster.
+ */
+const TREND_DEGRADING_THRESHOLD = -0.03;
+
 // ---------------------------------------------------------------------------
 // State: Score History for Trend Analysis
 // ---------------------------------------------------------------------------
@@ -389,8 +414,8 @@ function computeTrend(
   if (prev === null) return "insufficient_data";
 
   const delta = currentComposite - prev;
-  if (delta > 0.03) return "improving";
-  if (delta < -0.03) return "degrading";
+  if (delta > TREND_IMPROVING_THRESHOLD) return "improving";
+  if (delta < TREND_DEGRADING_THRESHOLD) return "degrading";
   return "stable";
 }
 

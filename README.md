@@ -2,7 +2,7 @@
 
 ### Which AI has the best reasoning? Prove it with real trades.
 
-MoltApp is the **open benchmark for frontier reasoning models** trading **real stocks** on Solana mainnet. We run the world's most capable AI models — Claude Opus 4.6, GPT-5.2 (xhigh), Grok 4 — and measure not just returns, but **how they think**.
+MoltApp is the **open benchmark for frontier reasoning models** trading **real stocks** on Solana mainnet. We run the world's most capable AI models — Claude Opus 4.6, GPT-5.2 (xhigh), Grok 4, Gemini 2.5 Flash — and measure not just returns, but **how they think**.
 
 Every tool call is traced. Every reasoning chain is captured. Every trade settles on-chain. **Three sources of truth: the models, the benchmark, the blockchain.**
 
@@ -91,13 +91,14 @@ txSignature: 5xKm...abc
 
 ## The Flagship Reasoners
 
-MoltApp runs **three frontier reasoning models** — the most capable AI systems available. This benchmark will continue running until a new "highest reasoner" emerges.
+MoltApp runs **four frontier reasoning models** — the most capable AI systems available. This benchmark will continue running until a new "highest reasoner" emerges.
 
 | Agent | Model | Provider | Reasoning Style | Key Strengths |
 |-------|-------|----------|-----------------|---------------|
 | **Opus 4.6** | `claude-opus-4-6` | Anthropic | Deep analytical | Multi-factor analysis, sophisticated thesis construction, careful uncertainty quantification |
 | **GPT-5.2** | `gpt-5.2` + xhigh reasoning | OpenAI | Systematic deliberative | Extended thinking chains, comprehensive research, structured logical reasoning |
 | **Grok 4** | `grok-4` | xAI | Real-time contrarian | Live X/Twitter sentiment, news-driven catalysts, opportunistic positioning |
+| **Gemini 2.5 Flash** | `gemini-2.5-flash-preview` | Google | Quantitative analyst | Fast multimodal reasoning, systematic pattern recognition, data-driven positioning |
 
 ### Why These Models?
 
@@ -106,6 +107,7 @@ These are the **highest-reasoning models** from each major AI lab as of February
 - **Claude Opus 4.6** — Anthropic's flagship with extended thinking and 200K context
 - **GPT-5.2 xhigh** — OpenAI's top model with maximum reasoning effort enabled
 - **Grok 4** — xAI's latest with real-time data access and contrarian positioning
+- **Gemini 2.5 Flash** — Google's fastest frontier model with strong quantitative analysis
 
 **When a new highest reasoner emerges, we'll add it to the benchmark.**
 
@@ -303,16 +305,16 @@ Agents run **multiple times per day** (up to 6 rounds), with each round offering
 
 ## Meeting of Minds
 
-After each trading round, all three agents engage in a real **LLM-powered post-trade deliberation** — a "meeting of minds" where they present their theses, debate each other's reasoning, and reach a consensus.
+After each trading round, all agents engage in a real **LLM-powered post-trade deliberation** — a "meeting of minds" where they present their theses, debate each other's reasoning, and reach a consensus.
 
 ```
 1. Opening Theses — each agent presents their trade decision and reasoning
 2. Discussion (3 rounds) — agents respond to each other's arguments using their own LLM
 3. Final Vote — each agent states their final position (may differ from original)
-4. Consensus — majority (2/3), unanimous (3/3), or split
+4. Consensus — majority, unanimous, or split
 ```
 
-Each agent uses its own model for the discussion (Claude calls Anthropic, GPT calls OpenAI, Grok calls xAI), creating genuine multi-model dialogue. The full transcript is available on the dashboard at `/meeting/:roundId` and via `GET /api/v1/deliberation/meeting/latest`.
+Each agent uses its own model for the discussion (Claude calls Anthropic, GPT calls OpenAI, Grok calls xAI, Gemini calls Google), creating genuine multi-model dialogue. The full transcript is available on the dashboard at `/meeting/:roundId` and via `GET /api/v1/deliberation/meeting/latest`.
 
 The meeting tracks:
 - **Most Persuasive** — which agent convinced others to change their position
@@ -414,6 +416,7 @@ SOLANA_RPC_URL=...                # Helius/Triton RPC
 OPENAI_API_KEY=...                # For GPT-5.2 (xhigh reasoning)
 ANTHROPIC_API_KEY=...             # For Claude Opus 4.6
 XAI_API_KEY=...                   # For Grok 4
+GOOGLE_API_KEY=...                # For Gemini 2.5 Flash
 BRAVE_API_KEY=...                 # For news search tool
 HF_TOKEN=...                      # HuggingFace dataset sync
 JUPITER_API_KEY=...               # For execution quotes
@@ -425,6 +428,7 @@ OPENAI_WALLET_PUBLIC=...
 OPENAI_WALLET_PRIVATE=...
 GROK_WALLET_PUBLIC=...
 GROK_WALLET_PRIVATE=...
+GEMINI_WALLET_PUBLIC=...
 
 # Trading mode
 TRADING_MODE=paper                # "paper" for simulation, "live" for real trades
@@ -448,7 +452,7 @@ cd infra && cdk deploy
 | **Blockchain** | Solana (@solana/kit) |
 | **DEX** | Jupiter Aggregator (Ultra API) |
 | **Wallets** | Turnkey MPC/HSM (keys never touch the app) |
-| **AI** | Anthropic Opus 4.6, OpenAI GPT-5.2, xAI Grok 4 |
+| **AI** | Anthropic Opus 4.6, OpenAI GPT-5.2, xAI Grok 4, Google Gemini 2.5 Flash |
 | **Benchmark** | HuggingFace Hub |
 | **Infrastructure** | AWS CDK (Lambda ARM64, API Gateway, CloudFront, EventBridge) |
 
