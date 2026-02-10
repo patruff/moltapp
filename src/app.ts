@@ -24,6 +24,7 @@ import { signalRoutes } from "./routes/signals.ts";
 import { reputationRoutes } from "./routes/reputation.ts";
 import { tournamentRoutes } from "./routes/tournaments.ts";
 import { paymentRoutes } from "./routes/payments.ts";
+import { adviceRoutes } from "./routes/advice.ts";
 import { backtestRoutes } from "./routes/backtesting.ts";
 import { marketRegimeRoutes } from "./routes/market-regime.ts";
 import { debateRoutes } from "./routes/debates.ts";
@@ -241,6 +242,9 @@ app.route("/api/v1/tournaments", tournamentRoutes);
 
 // Agent Payments & Tipping (public -- tip agents, earnings, leaderboard)
 app.route("/api/v1/payments", paymentRoutes);
+
+// Paid Financial Advice (public -- x402 micropayments for agent analysis)
+app.route("/api/v1/advice", adviceRoutes);
 
 // Strategy Backtesting (public -- simulate strategies against historical data)
 app.route("/api/v1/backtest", backtestRoutes);

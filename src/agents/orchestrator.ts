@@ -112,6 +112,7 @@ import { emitBenchmarkEvent } from "../routes/benchmark-stream.ts";
 import { runLendingPhase } from "../monad/lending-engine.ts";
 import { runMeetingOfMinds } from "../services/meeting-of-minds.ts";
 import { runPortfolioMusings, type MusingsResult } from "../services/portfolio-musings.ts";
+import { updateLatestRoundData } from "../services/paid-advice.ts";
 import {
   analyzeDeepCoherence,
   recordDeepAnalysis,
@@ -1627,6 +1628,20 @@ async function executeTradingRound(
         `[Orchestrator] Lending phase failed (non-critical): ${errorMessage(err)}`,
       );
     }
+  }
+
+  // Cache latest round data for paid advice service (x402)
+  try {
+    updateLatestRoundData({
+      roundId,
+      decisions: results,
+      meeting: meetingResult,
+      musings: musingsResult,
+      marketData,
+      timestamp: new Date(timestamp),
+    });
+  } catch (err) {
+    console.warn(`[Orchestrator] Paid advice cache update failed: ${errorMessage(err)}`);
   }
 
   // Track round duration for observability
