@@ -102,7 +102,87 @@ export interface SymbolConsensusStats {
 // ---------------------------------------------------------------------------
 
 const roundSnapshots: RoundConsensusSnapshot[] = [];
+
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * DATA RETENTION LIMITS
+ */
+
+/** Maximum consensus snapshots to retain in memory (prevents unbounded growth) */
 const MAX_SNAPSHOTS = 500;
+
+/**
+ * CONSENSUS CLASSIFICATION THRESHOLDS
+ *
+ * Control how rounds are classified based on agent agreement patterns.
+ */
+
+/**
+ * Minimum agent count for "majority" consensus classification.
+ *
+ * When action count > MAJORITY_MIN_AGENTS, classify as "majority".
+ * When action count = 1, classify as "split" (no clear majority).
+ *
+ * Example: 2 buys, 1 sell → buyCount (2) > MAJORITY_MIN_AGENTS (1) → "majority" buy
+ */
+const MAJORITY_MIN_AGENTS = 1;
+
+/**
+ * Lone contrarian detection threshold.
+ *
+ * When contrarians.length === LONE_CONTRARIAN_THRESHOLD, flag as lone contrarian.
+ * This identifies agents who are the only dissenter in a round.
+ *
+ * Example: 2 agents buy, 1 agent sells → 1 contrarian → lone contrarian
+ */
+const LONE_CONTRARIAN_THRESHOLD = 1;
+
+/**
+ * AGENT STANCE CLASSIFICATION THRESHOLDS
+ *
+ * Classify agents based on their agreement rate with consensus.
+ */
+
+/**
+ * Agreement rate threshold for "conformist" classification.
+ *
+ * Agents with agreementRate >= 0.8 (80%) are classified as "conformist".
+ * They rarely go against the majority.
+ */
+const STANCE_CONFORMIST_THRESHOLD = 0.8;
+
+/**
+ * Agreement rate threshold for "independent" classification.
+ *
+ * Agents with agreementRate >= 0.5 (50%) but < 0.8 are "independent".
+ * Agents with agreementRate < 0.5 are classified as "contrarian".
+ */
+const STANCE_INDEPENDENT_THRESHOLD = 0.5;
+
+/**
+ * DISPLAY AND QUERY LIMITS
+ */
+
+/** Maximum controversial rounds to display in profile (top N by lowest agreement score) */
+const CONTROVERSIAL_ROUNDS_DISPLAY_LIMIT = 5;
+
+/** Default limit for recent consensus query (getRecentConsensus) */
+const RECENT_CONSENSUS_DEFAULT_LIMIT = 20;
+
+/**
+ * TREND ANALYSIS PARAMETERS
+ */
+
+/**
+ * Minimum snapshots required for convergence trend detection.
+ *
+ * If snapshots.length < 10, return "stable" (insufficient data for trend analysis).
+ * Trend detection compares first half to second half agreement scores.
+ */
+const TREND_MIN_SNAPSHOTS = 10;
 
 /**
  * Convergence trend detection threshold (10% agreement score change).
@@ -115,6 +195,13 @@ const MAX_SNAPSHOTS = 500;
  * Example: If first half avg = 0.60, second half avg = 0.72 → change = +0.12 → "converging"
  */
 const CONVERGENCE_THRESHOLD_DELTA = 0.1;
+
+/**
+ * DEFAULT VALUES
+ */
+
+/** Default agreement rate when agent has no rounds (perfect agreement assumed) */
+const DEFAULT_AGREEMENT_RATE = 1;
 
 // Track outcomes for consensus accuracy
 const consensusOutcomes: {
@@ -166,12 +253,12 @@ export function recordRoundConsensus(
       consensusAction = "sell";
       majorityAgents = nonHold;
     } else if (buyCount > sellCount) {
-      consensusType = buyCount > 1 ? "majority" : "split";
+      consensusType = buyCount > MAJORITY_MIN_AGENTS ? "majority" : "split";
       consensusAction = "buy";
       majorityAgents = nonHold.filter((a) => a.action === "buy");
       contrarians = nonHold.filter((a) => a.action !== "buy").map((a) => a.agentId);
     } else if (sellCount > buyCount) {
-      consensusType = sellCount > 1 ? "majority" : "split";
+      consensusType = sellCount > MAJORITY_MIN_AGENTS ? "majority" : "split";
       consensusAction = "sell";
       majorityAgents = nonHold.filter((a) => a.action === "sell");
       contrarians = nonHold.filter((a) => a.action !== "sell").map((a) => a.agentId);
@@ -309,13 +396,13 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
         confWhenAgreeing.push(agentAction.confidence);
       } else {
         confWhenDisagreeing.push(agentAction.confidence);
-        if (round.contrarians.length === 1) {
+        if (round.contrarians.length === LONE_CONTRARIAN_THRESHOLD) {
           loneContrarianCount++;
         }
       }
     }
 
-    const agreementRate = agentRounds.length > 0 ? agreeCount / agentRounds.length : 1;
+    const agreementRate = agentRounds.length > 0 ? agreeCount / agentRounds.length : DEFAULT_AGREEMENT_RATE;
 
     byAgent[agentId] = {
       agentId,
@@ -328,7 +415,7 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
         ? round3(confWhenDisagreeing.reduce((s, v) => s + v, 0) / confWhenDisagreeing.length)
         : 0,
       contrarianWinRate: 0, // Needs P&L data
-      stance: agreementRate >= 0.8 ? "conformist" : agreementRate >= 0.5 ? "independent" : "contrarian",
+      stance: agreementRate >= STANCE_CONFORMIST_THRESHOLD ? "conformist" : agreementRate >= STANCE_INDEPENDENT_THRESHOLD ? "independent" : "contrarian",
     };
   }
 
@@ -389,7 +476,7 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
   // Most controversial rounds
   const mostControversialRounds = [...roundSnapshots]
     .sort((a, b) => a.agreementScore - b.agreementScore)
-    .slice(0, 5);
+    .slice(0, CONTROVERSIAL_ROUNDS_DISPLAY_LIMIT);
 
   // Convergence trend
   const convergenceTrend = computeConvergenceTrend(roundSnapshots);
@@ -411,7 +498,7 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
 /**
  * Get recent consensus snapshots.
  */
-export function getRecentConsensus(limit = 20): RoundConsensusSnapshot[] {
+export function getRecentConsensus(limit = RECENT_CONSENSUS_DEFAULT_LIMIT): RoundConsensusSnapshot[] {
   return roundSnapshots.slice(-limit).reverse();
 }
 
@@ -422,7 +509,7 @@ export function getRecentConsensus(limit = 20): RoundConsensusSnapshot[] {
 function computeConvergenceTrend(
   snapshots: RoundConsensusSnapshot[],
 ): "converging" | "diverging" | "stable" {
-  if (snapshots.length < 10) return "stable";
+  if (snapshots.length < TREND_MIN_SNAPSHOTS) return "stable";
 
   const halfPoint = Math.floor(snapshots.length / 2);
   const firstHalf = snapshots.slice(0, halfPoint);
