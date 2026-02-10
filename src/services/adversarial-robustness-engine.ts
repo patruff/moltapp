@@ -89,6 +89,21 @@ const NOISE_CONFIDENCE_SWING_MODERATE_PENALTY = 0.1;
 /** Penalty per framing bias indicator detected (-0.2 per indicator) */
 const FRAMING_BIAS_PENALTY_PER_INDICATOR = 0.2;
 
+/** Loss ratio threshold for loss framing detection (>75% loss refs with buy = bias) */
+const FRAMING_LOSS_RATIO_HIGH_THRESHOLD = 0.75;
+
+/** Loss ratio threshold for gain framing detection (<25% loss refs with sell = bias) */
+const FRAMING_LOSS_RATIO_LOW_THRESHOLD = 0.25;
+
+/** Minimum recency pattern count for bias detection (≥2 recency markers = bias) */
+const FRAMING_RECENCY_PATTERN_MIN_COUNT = 2;
+
+/** Confidence threshold for overconfidence detection (>85% with thin reasoning = bias) */
+const FRAMING_OVERCONFIDENCE_THRESHOLD = 0.85;
+
+/** Word count threshold for thin reasoning classification (<40 words = thin) */
+const FRAMING_THIN_REASONING_WORD_COUNT = 40;
+
 /**
  * Composite Aggregation Weights
  *
@@ -418,10 +433,10 @@ export function measureFramingConsistency(
   const totalRefs = lossReferences + gainReferences;
   if (totalRefs > 0) {
     const lossRatio = lossReferences / totalRefs;
-    if (lossRatio > 0.75 && action === "buy") {
+    if (lossRatio > FRAMING_LOSS_RATIO_HIGH_THRESHOLD && action === "buy") {
       indicators.push("loss_framing_with_buy_decision");
     }
-    if (lossRatio < 0.25 && action === "sell") {
+    if (lossRatio < FRAMING_LOSS_RATIO_LOW_THRESHOLD && action === "sell") {
       indicators.push("gain_framing_with_sell_decision");
     }
   }
@@ -433,13 +448,13 @@ export function measureFramingConsistency(
     /this\s+morning|this\s+afternoon/i,
   ];
   const recencyCount = recencyPatterns.filter((p) => p.test(reasoning)).length;
-  if (recencyCount >= 2) {
+  if (recencyCount >= FRAMING_RECENCY_PATTERN_MIN_COUNT) {
     indicators.push("heavy_recency_bias");
   }
 
   // Check for extreme confidence with simple reasoning
   const wordCount = countWords(reasoning);
-  if (confidence > 0.85 && wordCount < 40) {
+  if (confidence > FRAMING_OVERCONFIDENCE_THRESHOLD && wordCount < FRAMING_THIN_REASONING_WORD_COUNT) {
     indicators.push("overconfident_with_thin_reasoning");
   }
 
