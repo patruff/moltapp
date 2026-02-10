@@ -23,6 +23,100 @@
 import { countByCondition, countWords, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Evidence Type Classification Thresholds
+ *
+ * Thresholds for classifying reasoning evidence as quantitative, qualitative,
+ * mixed, or anecdotal based on pattern counts in the reasoning text.
+ */
+
+/**
+ * Minimum quantitative patterns for "quantitative" evidence classification.
+ * Evidence contains >= 3 numeric references (prices, percentages, decimals).
+ */
+const EVIDENCE_QUANTITATIVE_MIN_PATTERNS = 3;
+
+/**
+ * Maximum qualitative patterns allowed for "quantitative" classification.
+ * Quantitative evidence should have <= 1 subjective word (feel, seem, appear).
+ */
+const EVIDENCE_QUANTITATIVE_MAX_QUAL_PATTERNS = 1;
+
+/**
+ * Minimum qualitative patterns for "qualitative" evidence classification.
+ * Evidence contains >= 2 subjective assessment words.
+ */
+const EVIDENCE_QUALITATIVE_MIN_PATTERNS = 2;
+
+/**
+ * Sophistication Level Scoring Thresholds
+ *
+ * Word count and dimension thresholds for determining reasoning sophistication level (1-5).
+ * Higher sophistication indicates more comprehensive, multi-dimensional analysis.
+ */
+
+/**
+ * Word count threshold for sophistication level 2.
+ * Reasoning >= 100 words gets +1 sophistication point (beyond base level 1).
+ */
+const SOPHISTICATION_WORD_COUNT_LEVEL_2 = 100;
+
+/**
+ * Word count threshold for sophistication level 3.
+ * Reasoning >= 200 words gets +2 sophistication points (more comprehensive analysis).
+ */
+const SOPHISTICATION_WORD_COUNT_LEVEL_3 = 200;
+
+/**
+ * Dimension count threshold for multi-dimensional analysis bonus.
+ * Reasoning covering >= 4 dimensions (price, volume, trend, fundamentals, risk, sector, catalyst, portfolio)
+ * gets +1 sophistication point for breadth of analysis.
+ */
+const SOPHISTICATION_MIN_DIMENSIONS_LEVEL_1 = 4;
+
+/**
+ * Dimension count threshold for advanced multi-dimensional analysis bonus.
+ * Reasoning covering >= 6 dimensions gets +2 sophistication points (exceptional breadth).
+ */
+const SOPHISTICATION_MIN_DIMENSIONS_LEVEL_2 = 6;
+
+/**
+ * Minimum quantitative references for rigor bonus.
+ * Reasoning with >= 5 numeric references (prices, percentages) gets +1 sophistication point
+ * for quantitative rigor.
+ */
+const SOPHISTICATION_MIN_NUMBERS = 5;
+
+/**
+ * Maximum sophistication level (scale ceiling).
+ * All sophistication scores are capped at 5 (exceptional analysis).
+ */
+const MAX_SOPHISTICATION_LEVEL = 5;
+
+/**
+ * Minimum sophistication level (scale floor).
+ * All reasoning gets at least level 1 (basic analysis).
+ */
+const MIN_SOPHISTICATION_LEVEL = 1;
+
+/**
+ * Analytical Method Classification Thresholds
+ *
+ * Thresholds for determining if reasoning uses mixed analytical methods
+ * (combination of fundamental, technical, quantitative, narrative approaches).
+ */
+
+/**
+ * Minimum method count for "mixed" analytical method classification.
+ * Reasoning using >= 2 distinct analytical methods (e.g., fundamental + technical)
+ * is classified as "mixed" approach.
+ */
+const ANALYTICAL_METHOD_MIXED_MIN_COUNT = 2;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -154,7 +248,7 @@ function classifyAnalyticalMethod(reasoning: string): AnalyticalMethod {
 
   const count = countByCondition([fundamental, technical, quantitative, narrative], Boolean);
 
-  if (count >= 2) return "mixed";
+  if (count >= ANALYTICAL_METHOD_MIXED_MIN_COUNT) return "mixed";
   if (fundamental) return "fundamental";
   if (technical) return "technical";
   if (quantitative) return "quantitative";
@@ -203,9 +297,9 @@ function classifyEvidenceType(reasoning: string): EvidenceType {
   const quantPatterns = (reasoning.match(/\d+\.?\d*%|\$\d+\.?\d*|\d+\.\d{2,}/g) ?? []).length;
   const qualPatterns = (reasoning.match(/\bfeel\b|\bsense\b|\bappear\b|\bseem\b/gi) ?? []).length;
 
-  if (quantPatterns >= 3 && qualPatterns <= 1) return "quantitative";
+  if (quantPatterns >= EVIDENCE_QUANTITATIVE_MIN_PATTERNS && qualPatterns <= EVIDENCE_QUANTITATIVE_MAX_QUAL_PATTERNS) return "quantitative";
   if (quantPatterns >= 1 && qualPatterns >= 1) return "mixed";
-  if (qualPatterns >= 2 && quantPatterns === 0) return "qualitative";
+  if (qualPatterns >= EVIDENCE_QUALITATIVE_MIN_PATTERNS && quantPatterns === 0) return "qualitative";
   if (quantPatterns === 0 && qualPatterns === 0) return "anecdotal";
   return "mixed";
 }
@@ -266,11 +360,11 @@ function detectCognitivePatterns(reasoning: string): CognitivePattern[] {
 // ---------------------------------------------------------------------------
 
 function computeSophisticationLevel(reasoning: string, method: AnalyticalMethod, structure: ReasoningStructure): number {
-  let score = 1; // Base level
+  let score = MIN_SOPHISTICATION_LEVEL; // Base level
 
   const wordCount = countWords(reasoning);
-  if (wordCount >= 100) score++;
-  if (wordCount >= 200) score++;
+  if (wordCount >= SOPHISTICATION_WORD_COUNT_LEVEL_2) score++;
+  if (wordCount >= SOPHISTICATION_WORD_COUNT_LEVEL_3) score++;
 
   // Multi-dimensional analysis
   const dimensions = [
@@ -279,17 +373,17 @@ function computeSophisticationLevel(reasoning: string, method: AnalyticalMethod,
     /catalyst|event/i, /portfolio|allocation/i,
   ];
   const dimCount = dimensions.filter((d) => d.test(reasoning)).length;
-  if (dimCount >= 4) score++;
-  if (dimCount >= 6) score++;
+  if (dimCount >= SOPHISTICATION_MIN_DIMENSIONS_LEVEL_1) score++;
+  if (dimCount >= SOPHISTICATION_MIN_DIMENSIONS_LEVEL_2) score++;
 
   // Structured reasoning bonus
-  if (structure === "deductive" || method === "quantitative") score = Math.min(5, score + 1);
+  if (structure === "deductive" || method === "quantitative") score = Math.min(MAX_SOPHISTICATION_LEVEL, score + 1);
 
   // Quantitative rigor
   const numbers = (reasoning.match(/\d+\.?\d*%|\$\d+\.?\d*/g) ?? []).length;
-  if (numbers >= 5) score = Math.min(5, score + 1);
+  if (numbers >= SOPHISTICATION_MIN_NUMBERS) score = Math.min(MAX_SOPHISTICATION_LEVEL, score + 1);
 
-  return Math.min(5, Math.max(1, score));
+  return Math.min(MAX_SOPHISTICATION_LEVEL, Math.max(MIN_SOPHISTICATION_LEVEL, score));
 }
 
 // ---------------------------------------------------------------------------
