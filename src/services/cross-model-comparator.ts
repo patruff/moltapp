@@ -116,7 +116,7 @@ const roundComparisons: RoundComparisonResult[] = [];
 // Helpers
 // ---------------------------------------------------------------------------
 
-import { mean, stdDev } from "../lib/math-utils.ts";
+import { mean, stdDev, countByCondition } from "../lib/math-utils.ts";
 
 function tokenize(text: string): string[] {
   return text.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter(Boolean);
@@ -223,14 +223,14 @@ export function compareRoundReasoning(
   const biasIndicators: BiasIndicator[] = roundDecisions.map((d) => {
     const agentEntries = entriesByAgent.get(d.agentId) ?? [d];
     const total = agentEntries.length;
-    const buys = agentEntries.filter((e) => e.action === "buy").length;
-    const sells = agentEntries.filter((e) => e.action === "sell").length;
-    const holds = agentEntries.filter((e) => e.action === "hold").length;
+    const buys = countByCondition(agentEntries, (e) => e.action === "buy");
+    const sells = countByCondition(agentEntries, (e) => e.action === "sell");
+    const holds = countByCondition(agentEntries, (e) => e.action === "hold");
     const confs = agentEntries.map((e) => e.confidence);
     const avgConf = mean(confs);
     // Overconfidence: confidence > 0.8 while historically wrong is hard to
     // measure without outcomes, so we proxy as % of entries with conf > 0.8
-    const highConf = agentEntries.filter((e) => e.confidence > 0.8).length;
+    const highConf = countByCondition(agentEntries, (e) => e.confidence > 0.8);
     return {
       agentId: d.agentId,
       bullishRate: buys / total,
@@ -242,7 +242,7 @@ export function compareRoundReasoning(
   });
 
   // --- Herding score ---
-  const agreementPairs = similarities.filter((s) => s.actionAgreement).length;
+  const agreementPairs = countByCondition(similarities, (s) => s.actionAgreement);
   const herdingScore =
     similarities.length === 0 ? 0 : agreementPairs / similarities.length;
 
