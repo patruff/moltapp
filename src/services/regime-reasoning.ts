@@ -19,6 +19,107 @@
 import { normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Regime Detection Thresholds
+ *
+ * These constants control how market conditions are classified into regimes.
+ * Bull/bear classification based on average 24h change across all stocks.
+ * Volatility classification based on standard deviation and max change.
+ */
+
+/** Volatility standard deviation threshold (>2.5% = high volatility) */
+const REGIME_VOLATILITY_STDDEV_THRESHOLD = 2.5;
+
+/** Maximum daily change threshold (>5% = high volatility regardless of stddev) */
+const REGIME_VOLATILITY_MAX_CHANGE_THRESHOLD = 5;
+
+/** Bull regime threshold (avg change >0.5% = rising market) */
+const REGIME_BULL_THRESHOLD = 0.5;
+
+/** Bear regime threshold (avg change <-0.5% = falling market) */
+const REGIME_BEAR_THRESHOLD = -0.5;
+
+/** Sideways regime threshold (|avg change| ≤0.5% + low vol = range-bound) */
+const REGIME_SIDEWAYS_THRESHOLD = 0.5;
+
+/**
+ * Confidence Calibration Thresholds
+ *
+ * Used to measure if high-confidence trades actually perform better.
+ * Calibration score = correlation between confidence level and win rate.
+ */
+
+/** High confidence threshold (>60% = "high conviction" bucket) */
+const CONFIDENCE_HIGH_THRESHOLD = 0.6;
+
+/** Default calibration score when insufficient data (neutral 0.5) */
+const CONFIDENCE_CALIBRATION_BASELINE = 0.5;
+
+/**
+ * Composite Score Weights (Per-Regime Quality)
+ *
+ * Weighted combination of coherence, depth, hallucination-free, calibration.
+ * Total must sum to 1.0 for normalized scoring.
+ */
+
+/** Weight for coherence in per-regime composite score (30%) */
+const COMPOSITE_WEIGHT_COHERENCE = 0.3;
+
+/** Weight for reasoning depth in per-regime composite score (25%) */
+const COMPOSITE_WEIGHT_DEPTH = 0.25;
+
+/** Weight for hallucination-free rate in per-regime composite score (25%) */
+const COMPOSITE_WEIGHT_HALLUCINATION_FREE = 0.25;
+
+/** Weight for confidence calibration in per-regime composite score (20%) */
+const COMPOSITE_WEIGHT_CALIBRATION = 0.2;
+
+/**
+ * Best/Worst Regime Sorting Weights
+ *
+ * Used to rank regimes by quality when determining agent's best/worst conditions.
+ * Coherence weighted highest (40%) as primary quality indicator.
+ */
+
+/** Weight for coherence in best/worst regime sorting (40%) */
+const BEST_WORST_WEIGHT_COHERENCE = 0.4;
+
+/** Weight for depth in best/worst regime sorting (30%) */
+const BEST_WORST_WEIGHT_DEPTH = 0.3;
+
+/** Weight for hallucination-free rate in best/worst regime sorting (30%) */
+const BEST_WORST_WEIGHT_HALLUCINATION_FREE = 0.3;
+
+/**
+ * Data Requirements and Defaults
+ */
+
+/** Minimum trade entries required for reliable adaptation speed calculation */
+const MIN_ENTRIES_FOR_ADAPTATION = 4;
+
+/** Minimum entries required for reliable calibration measurement */
+const MIN_ENTRIES_FOR_CALIBRATION = 3;
+
+/** Default robustness score when insufficient data (neutral 0.5) */
+const ROBUSTNESS_DEFAULT = 0.5;
+
+/** Default adaptation speed when insufficient regime transitions observed (neutral 0.5) */
+const ADAPTATION_SPEED_DEFAULT = 0.5;
+
+/** Adaptation speed gap multiplier (gap * 2 to convert coherence delta to speed penalty) */
+const ADAPTATION_GAP_MULTIPLIER = 2;
+
+/**
+ * Display and Query Limits
+ */
+
+/** Maximum regime history snapshots returned in report (prevent overwhelming response) */
+const REGIME_HISTORY_DISPLAY_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -141,16 +242,16 @@ export function detectMarketRegime(
   const stocksDown = changes.filter((c) => c < 0).length;
 
   // Classify regime
-  const isVolatile = changeStdDev > 2.5 || maxChange > 5;
-  const isBull = avgChange > 0.5;
-  const isBear = avgChange < -0.5;
+  const isVolatile = changeStdDev > REGIME_VOLATILITY_STDDEV_THRESHOLD || maxChange > REGIME_VOLATILITY_MAX_CHANGE_THRESHOLD;
+  const isBull = avgChange > REGIME_BULL_THRESHOLD;
+  const isBear = avgChange < REGIME_BEAR_THRESHOLD;
 
   let regime: MarketRegime;
   if (isBull && isVolatile) regime = "bull_volatile";
   else if (isBull) regime = "bull_calm";
   else if (isBear && isVolatile) regime = "bear_volatile";
   else if (isBear) regime = "bear_calm";
-  else if (Math.abs(avgChange) <= 0.5 && !isVolatile) regime = "sideways";
+  else if (Math.abs(avgChange) <= REGIME_SIDEWAYS_THRESHOLD && !isVolatile) regime = "sideways";
   else regime = "uncertain";
 
   const snapshot: RegimeSnapshot = {
@@ -276,19 +377,19 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
 
     // Confidence calibration: correlation between confidence and correctness
     const withOutcomes = regimeEntries.filter((e) => e.wasCorrect !== null);
-    let confidenceCalibration = 0.5;
-    if (withOutcomes.length >= 3) {
-      const highConf = withOutcomes.filter((e) => e.confidence > 0.6);
-      const lowConf = withOutcomes.filter((e) => e.confidence <= 0.6);
+    let confidenceCalibration = CONFIDENCE_CALIBRATION_BASELINE;
+    if (withOutcomes.length >= MIN_ENTRIES_FOR_CALIBRATION) {
+      const highConf = withOutcomes.filter((e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD);
+      const lowConf = withOutcomes.filter((e) => e.confidence <= CONFIDENCE_HIGH_THRESHOLD);
       const highWinRate = highConf.length > 0
         ? highConf.filter((e) => e.wasCorrect).length / highConf.length
-        : 0.5;
+        : CONFIDENCE_CALIBRATION_BASELINE;
       const lowWinRate = lowConf.length > 0
         ? lowConf.filter((e) => e.wasCorrect).length / lowConf.length
-        : 0.5;
+        : CONFIDENCE_CALIBRATION_BASELINE;
       // Good calibration: high confidence -> higher win rate
       confidenceCalibration = Math.round(
-        normalize(0.5 + (highWinRate - lowWinRate)) * 100,
+        normalize(CONFIDENCE_CALIBRATION_BASELINE + (highWinRate - lowWinRate)) * 100,
       ) / 100;
     }
 
@@ -312,13 +413,13 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
 
     // Composite score for this regime
     const halFree = 1 - hallucinationRate;
-    const compositeScore = avgCoherence * 0.3 + avgDepth * 0.25 +
-      halFree * 0.25 + confidenceCalibration * 0.2;
+    const compositeScore = avgCoherence * COMPOSITE_WEIGHT_COHERENCE + avgDepth * COMPOSITE_WEIGHT_DEPTH +
+      halFree * COMPOSITE_WEIGHT_HALLUCINATION_FREE + confidenceCalibration * COMPOSITE_WEIGHT_CALIBRATION;
     regimeScores.push(compositeScore);
   }
 
   // Robustness: 1 - (stddev of regime scores / mean)
-  let robustnessScore = 0.5;
+  let robustnessScore = ROBUSTNESS_DEFAULT;
   if (regimeScores.length >= 2) {
     const mean = regimeScores.reduce((s, v) => s + v, 0) / regimeScores.length;
     const variance = regimeScores.reduce((s, v) => s + (v - mean) ** 2, 0) / regimeScores.length;
@@ -328,8 +429,8 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
 
   // Best and worst regime
   const sortedPerf = [...regimePerformance].sort((a, b) => {
-    const scoreA = a.avgCoherence * 0.4 + a.avgDepth * 0.3 + (1 - a.hallucinationRate) * 0.3;
-    const scoreB = b.avgCoherence * 0.4 + b.avgDepth * 0.3 + (1 - b.hallucinationRate) * 0.3;
+    const scoreA = a.avgCoherence * BEST_WORST_WEIGHT_COHERENCE + a.avgDepth * BEST_WORST_WEIGHT_DEPTH + (1 - a.hallucinationRate) * BEST_WORST_WEIGHT_HALLUCINATION_FREE;
+    const scoreB = b.avgCoherence * BEST_WORST_WEIGHT_COHERENCE + b.avgDepth * BEST_WORST_WEIGHT_DEPTH + (1 - b.hallucinationRate) * BEST_WORST_WEIGHT_HALLUCINATION_FREE;
     return scoreB - scoreA;
   });
 
@@ -357,7 +458,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
 }
 
 function computeAdaptationSpeed(entries: RegimeTradeEntry[]): number {
-  if (entries.length < 4) return 0.5;
+  if (entries.length < MIN_ENTRIES_FOR_ADAPTATION) return ADAPTATION_SPEED_DEFAULT;
 
   // Look at quality right after regime changes
   let transitionScores: number[] = [];
@@ -374,14 +475,14 @@ function computeAdaptationSpeed(entries: RegimeTradeEntry[]): number {
     }
   }
 
-  if (transitionScores.length === 0 || steadyScores.length === 0) return 0.5;
+  if (transitionScores.length === 0 || steadyScores.length === 0) return ADAPTATION_SPEED_DEFAULT;
 
   const transitionAvg = transitionScores.reduce((s, v) => s + v, 0) / transitionScores.length;
   const steadyAvg = steadyScores.reduce((s, v) => s + v, 0) / steadyScores.length;
 
   // If transition quality is close to steady quality, adaptation is fast
   const gap = Math.abs(steadyAvg - transitionAvg);
-  return Math.round(normalize(1 - gap * 2) * 100) / 100;
+  return Math.round(normalize(1 - gap * ADAPTATION_GAP_MULTIPLIER) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -441,7 +542,7 @@ export function generateRegimeReport(): RegimeReport {
 
   return {
     currentRegime,
-    regimeHistory: regimeHistory.slice(0, 50),
+    regimeHistory: regimeHistory.slice(0, REGIME_HISTORY_DISPLAY_LIMIT),
     agentProfiles,
     mostRobust,
     leastRobust,
