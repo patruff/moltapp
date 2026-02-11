@@ -277,7 +277,7 @@ function buildRoundAggregations(records: DatasetRecord[]): RoundAggregation[] {
       .sort(([, a], [, b]) => b - a)[0]?.[0] ?? "unknown";
 
     const symbols = [...new Set(roundRecords.filter((r) => r.action !== "hold").map((r) => r.symbol))];
-    const disciplinePasses = roundRecords.filter((r) => r.discipline_pass).length;
+    const disciplinePasses = countByCondition(roundRecords, (r) => r.discipline_pass);
 
     rounds.push({
       round_id: roundId,
@@ -448,9 +448,9 @@ export function buildTimeSeries(records: DatasetRecord[]): {
   for (const [key, groupRecords] of groups) {
     const [date, agentId] = key.split(":");
     const total = groupRecords.length;
-    const halCount = groupRecords.filter((r) => r.hallucination_count > 0).length;
-    const discCount = groupRecords.filter((r) => r.discipline_pass).length;
-    const buyCount = groupRecords.filter((r) => r.action === "buy").length;
+    const halCount = countByCondition(groupRecords, (r) => r.hallucination_count > 0);
+    const discCount = countByCondition(groupRecords, (r) => r.discipline_pass);
+    const buyCount = countByCondition(groupRecords, (r) => r.action === "buy");
 
     series.push({
       date,
