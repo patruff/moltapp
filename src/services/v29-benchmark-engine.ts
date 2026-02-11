@@ -77,6 +77,58 @@ const v29RoundData = new Map<string, V29BenchmarkScore[]>();
 const v29LeaderboardCache = new Map<string, V29BenchmarkScore>();
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Reasoning Depth Score Thresholds
+ *
+ * Based on count of causal connectors, logical steps, and conditional statements.
+ * Higher thresholds indicate more sophisticated multi-step reasoning.
+ */
+const DEPTH_THRESHOLD_EXCELLENT = 8;      // ≥8 indicators = 1.0 score (exceptional depth)
+const DEPTH_THRESHOLD_VERY_GOOD = 6;      // ≥6 indicators = 0.85 score (strong analysis)
+const DEPTH_THRESHOLD_GOOD = 4;           // ≥4 indicators = 0.7 score (solid reasoning)
+const DEPTH_THRESHOLD_MODERATE = 2;       // ≥2 indicators = 0.5 score (basic structure)
+const DEPTH_THRESHOLD_MINIMAL = 1;        // ≥1 indicator = 0.3 score (minimal effort)
+const DEPTH_SCORE_BASELINE = 0.1;         // <1 indicator = 0.1 score (no depth)
+
+/**
+ * Market Regime Awareness Score Thresholds
+ *
+ * Based on count of regime-related keywords (trending, volatile, bull/bear, etc.).
+ * Measures whether agent adapts reasoning to market context.
+ */
+const REGIME_THRESHOLD_EXCELLENT = 4;     // ≥4 regime keywords = 1.0 score (exceptional awareness)
+const REGIME_THRESHOLD_STRONG = 3;        // ≥3 regime keywords = 0.8 score (strong adaptation)
+const REGIME_THRESHOLD_MODERATE = 2;      // ≥2 regime keywords = 0.6 score (moderate context)
+const REGIME_THRESHOLD_MINIMAL = 1;       // ≥1 regime keyword = 0.35 score (basic mention)
+const REGIME_SCORE_BASELINE = 0.1;        // <1 keyword = 0.1 score (no regime awareness)
+
+/**
+ * Trade Grade Letter Score Thresholds
+ *
+ * Converts 0-100 composite score to A/B/C/D/F grade for single-trade quality.
+ */
+const GRADE_THRESHOLD_A = 80;             // ≥80 = "A" (excellent trade reasoning)
+const GRADE_THRESHOLD_B = 65;             // ≥65 = "B" (good trade reasoning)
+const GRADE_THRESHOLD_C = 50;             // ≥50 = "C" (acceptable trade reasoning)
+const GRADE_THRESHOLD_D = 35;             // ≥35 = "D" (poor trade reasoning)
+// <35 = "F" (failing trade reasoning)
+
+/**
+ * Composite Score Tier Thresholds
+ *
+ * Converts 0-100 weighted composite score to S/A/B/C/D tier for overall agent performance.
+ * Used for leaderboard classification and public agent rankings.
+ */
+const TIER_THRESHOLD_S = 85;              // ≥85 = "S" tier (exceptional performance)
+const TIER_THRESHOLD_A = 70;              // ≥70 = "A" tier (excellent performance)
+const TIER_THRESHOLD_B = 55;              // ≥55 = "B" tier (good performance)
+const TIER_THRESHOLD_C = 40;              // ≥40 = "C" tier (acceptable performance)
+// <40 = "D" tier (poor performance)
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -105,12 +157,12 @@ export function computeReasoningDepthScore(reasoning: string): number {
   const steps = countMatches(reasoning, /\b(?:first|second|third|finally|step\s+\d|1\)|2\)|3\))/gi);
   const conditionals = countMatches(reasoning, /if\s+.{3,}then|unless|provided\s+that|assuming/gi);
   const total = connectors + steps + conditionals;
-  if (total >= 8) return 1.0;
-  if (total >= 6) return 0.85;
-  if (total >= 4) return 0.7;
-  if (total >= 2) return 0.5;
-  if (total >= 1) return 0.3;
-  return 0.1;
+  if (total >= DEPTH_THRESHOLD_EXCELLENT) return 1.0;
+  if (total >= DEPTH_THRESHOLD_VERY_GOOD) return 0.85;
+  if (total >= DEPTH_THRESHOLD_GOOD) return 0.7;
+  if (total >= DEPTH_THRESHOLD_MODERATE) return 0.5;
+  if (total >= DEPTH_THRESHOLD_MINIMAL) return 0.3;
+  return DEPTH_SCORE_BASELINE;
 }
 
 /**
@@ -220,11 +272,11 @@ function computeMarketRegimeAwareness(reasoning: string): number {
     reasoning,
     /trending|range[\s-]?bound|volatile|calm\s+market|bull\s+market|bear\s+market|sideways|regime|macro\s+environment|risk[\s-]?on|risk[\s-]?off|high[\s-]?volatility|low[\s-]?volatility|market\s+condition|current\s+environment/gi,
   );
-  if (regimeKeywords >= 4) return 1.0;
-  if (regimeKeywords >= 3) return 0.8;
-  if (regimeKeywords >= 2) return 0.6;
-  if (regimeKeywords >= 1) return 0.35;
-  return 0.1;
+  if (regimeKeywords >= REGIME_THRESHOLD_EXCELLENT) return 1.0;
+  if (regimeKeywords >= REGIME_THRESHOLD_STRONG) return 0.8;
+  if (regimeKeywords >= REGIME_THRESHOLD_MODERATE) return 0.6;
+  if (regimeKeywords >= REGIME_THRESHOLD_MINIMAL) return 0.35;
+  return REGIME_SCORE_BASELINE;
 }
 
 /**
@@ -281,10 +333,10 @@ export function gradeTradeReasoning(
 
   const letterScore = Math.round(Math.max(0, Math.min(100, raw)));
   let overallGrade: "A" | "B" | "C" | "D" | "F";
-  if (letterScore >= 80) overallGrade = "A";
-  else if (letterScore >= 65) overallGrade = "B";
-  else if (letterScore >= 50) overallGrade = "C";
-  else if (letterScore >= 35) overallGrade = "D";
+  if (letterScore >= GRADE_THRESHOLD_A) overallGrade = "A";
+  else if (letterScore >= GRADE_THRESHOLD_B) overallGrade = "B";
+  else if (letterScore >= GRADE_THRESHOLD_C) overallGrade = "C";
+  else if (letterScore >= GRADE_THRESHOLD_D) overallGrade = "D";
   else overallGrade = "F";
 
   return {
@@ -324,10 +376,10 @@ const V29_WEIGHTS: Record<string, number> = {
 };
 
 function assignTier(score: number): "S" | "A" | "B" | "C" | "D" {
-  if (score >= 85) return "S";
-  if (score >= 70) return "A";
-  if (score >= 55) return "B";
-  if (score >= 40) return "C";
+  if (score >= TIER_THRESHOLD_S) return "S";
+  if (score >= TIER_THRESHOLD_A) return "A";
+  if (score >= TIER_THRESHOLD_B) return "B";
+  if (score >= TIER_THRESHOLD_C) return "C";
   return "D";
 }
 
