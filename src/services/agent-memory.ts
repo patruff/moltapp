@@ -23,7 +23,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -664,7 +664,7 @@ function updateStockProfile(
   const recentTrades = memory.tradeMemories
     .filter((t) => t.symbol === trade.symbol && t.pnl !== null)
     .slice(-5);
-  const recentWins = recentTrades.filter((t) => t.pnl! > 0).length;
+  const recentWins = countByCondition(recentTrades, (t) => t.pnl! > 0);
   const recentTotal = recentTrades.length;
 
   if (recentTotal >= SENTIMENT_MIN_TRADES) {
@@ -797,7 +797,7 @@ function detectStreakPattern(memory: AgentMemoryState): void {
           symbols: [symbol],
           occurrences: maxWinStreak,
           successRate:
-            (symbolTrades.filter((t) => t.pnl! > 0).length / symbolTrades.length) * 100,
+            (countByCondition(symbolTrades, (t) => t.pnl! > 0) / symbolTrades.length) * 100,
           avgReturn:
             symbolTrades.reduce((s, t) => s + (t.pnlPercent || 0), 0) /
             symbolTrades.length,
@@ -835,7 +835,7 @@ function detectTimingPattern(memory: AgentMemoryState): void {
   for (const cat of categories) {
     if (cat.trades.length < 3) continue;
     const winRate =
-      (cat.trades.filter((t) => t.pnl! > 0).length / cat.trades.length) * 100;
+      (countByCondition(cat.trades, (t) => t.pnl! > 0) / cat.trades.length) * 100;
     if (winRate > bestWinRate) {
       bestWinRate = winRate;
       bestCategory = cat;
@@ -957,9 +957,9 @@ function detectConfidencePattern(memory: AgentMemoryState): void {
   if (highConf.length < 5 || lowConf.length < 5) return;
 
   const highConfWinRate =
-    (highConf.filter((t) => t.pnl! > 0).length / highConf.length) * 100;
+    (countByCondition(highConf, (t) => t.pnl! > 0) / highConf.length) * 100;
   const lowConfWinRate =
-    (lowConf.filter((t) => t.pnl! > 0).length / lowConf.length) * 100;
+    (countByCondition(lowConf, (t) => t.pnl! > 0) / lowConf.length) * 100;
 
   const isCalibrated = Math.abs(highConfWinRate - lowConfWinRate) > 15;
 
@@ -999,7 +999,7 @@ function updateOverallStats(memory: AgentMemoryState): void {
   memory.totalTradesAnalyzed = closed.length;
 
   if (closed.length > 0) {
-    const wins = closed.filter((t) => t.pnl! > 0).length;
+    const wins = countByCondition(closed, (t) => t.pnl! > 0);
     memory.overallWinRate = (wins / closed.length) * 100;
   }
 }
@@ -1089,7 +1089,7 @@ export function recordPeerObservation(
 
   // Update agreement rate
   const allObs = [...peer.observations, observation.agreedOnAction ? "agree" : "disagree"];
-  const agreements = allObs.filter((o) => o === "agree").length;
+  const agreements = countByCondition(allObs, (o) => o === "agree");
   peer.agreementRate = (agreements / allObs.length) * 100;
 
   // Record the observation
