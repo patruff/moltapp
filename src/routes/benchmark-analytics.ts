@@ -21,7 +21,7 @@
  */
 
 import { Hono } from "hono";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 import {
   generateCalibrationReport,
   getAllCalibrationReports,
@@ -269,7 +269,7 @@ benchmarkAnalyticsRoutes.get("/health", (c) => {
     detail: `${calibration.totalSamples} calibration samples`,
   });
 
-  const passCount = checks.filter((ch) => ch.status === "pass").length;
+  const passCount = countByCondition(checks, (ch) => ch.status === "pass");
   const overallStatus = checks.every((ch) => ch.status === "pass") ? "healthy"
     : checks.some((ch) => ch.status === "fail") ? "degraded"
     : "warning";

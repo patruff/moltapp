@@ -16,7 +16,7 @@
  */
 
 import { Hono } from "hono";
-import { mean, round4, stdDev } from "../lib/math-utils.ts";
+import { countByCondition, mean, round4, stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
@@ -213,8 +213,8 @@ benchmarkResearchPortalRoutes.get("/compare", async (c) => {
       const agentRecords = bundle.records.filter((r) => r.agent_id === agentId);
       const cohValues = agentRecords.map((r) => r.coherence_score);
       const confValues = agentRecords.map((r) => r.confidence);
-      const halCount = agentRecords.filter((r) => r.hallucination_count > 0).length;
-      const discCount = agentRecords.filter((r) => r.discipline_pass).length;
+      const halCount = countByCondition(agentRecords, (r) => r.hallucination_count > 0);
+      const discCount = countByCondition(agentRecords, (r) => r.discipline_pass);
       const total = agentRecords.length;
 
       comparison[agentId] = {

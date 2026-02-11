@@ -25,6 +25,7 @@ import {
   generateSwarmPredictions,
   calculateAgreementMatrix,
 } from "../services/agent-intelligence.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 
@@ -55,7 +56,7 @@ intelligenceRoutes.get("/consensus", async (c) => {
     data: {
       signals: filtered,
       total: filtered.length,
-      strongConsensus: filtered.filter((s) => s.swarmScore > 60).length,
+      strongConsensus: countByCondition(filtered, (s) => s.swarmScore > 60),
       unanimousSignals: filtered.filter(
         (s) => s.agentsAgreeing === s.totalAgents,
       ).length,

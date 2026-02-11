@@ -6,6 +6,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import {
   getBenchmarkSummary,
   getAgentBenchmarkComparison,
@@ -114,7 +115,7 @@ benchmarkRoutes.get("/alpha", (c) => {
         ) / 100
       : 0;
 
-  const outperformers = alphaReport.filter((a) => a.outperforming).length;
+  const outperformers = countByCondition(alphaReport, (a) => a.outperforming);
 
   return c.json({
     ok: true,

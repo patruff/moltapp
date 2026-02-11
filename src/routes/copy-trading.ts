@@ -24,7 +24,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gt } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp, round2 } from "../lib/math-utils.ts";
+import { clamp, countByCondition, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Type Aliases
@@ -573,7 +573,7 @@ copyTradingRoutes.post("/sync/:followerId", async (c) => {
       agentId: follow.targetAgentId,
       agentName,
       newDecisions: newDecisions.length,
-      tradesCopied: newDecisions.filter((d: AgentDecision) => d.action !== "hold").length,
+      tradesCopied: countByCondition(newDecisions, (d: AgentDecision) => d.action !== "hold"),
     });
   }
 
@@ -675,7 +675,7 @@ copyTradingRoutes.get("/agents/:agentId/followers", async (c) => {
       })),
       aggregateStats: {
         totalFollowers: followers.length,
-        activeFollowers: followers.filter((f: typeof followers[0]) => f.isActive === "true").length,
+        activeFollowers: countByCondition(followers, (f: typeof followers[0]) => f.isActive === "true"),
         totalCopiedCapital: followers.reduce((s: number, f: typeof followers[0]) => s + parseFloat(f.initialCapital), 0),
         avgFollowerPnl: followers.length > 0
           ? round2(

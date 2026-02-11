@@ -15,6 +15,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import {
   getCachedRounds,
@@ -172,7 +173,7 @@ roundHistory.get("/timeline", (c) => {
     tradingMode: round.tradingMode,
     consensus: round.consensus,
     agentCount: round.results.length,
-    tradedCount: round.results.filter((r) => r.action !== "hold" && r.executed).length,
+    tradedCount: countByCondition(round.results, (r) => r.action !== "hold" && r.executed),
     errorCount: round.errors.length,
     topAction: getTopAction(round),
     summary: round.summary,
@@ -270,7 +271,7 @@ function formatRoundSummary(round: PersistedRound) {
     consensus: round.consensus,
     summary: round.summary,
     agentCount: round.results.length,
-    executed: round.results.filter((r) => r.executed).length,
+    executed: countByCondition(round.results, (r) => r.executed),
     errors: round.errors.length,
     lockSkipped: round.lockSkipped,
   };

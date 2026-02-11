@@ -24,6 +24,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import { apiError } from "../lib/errors.ts";
 
 export const mobileMarketplaceRoutes = new Hono();
@@ -1551,7 +1552,7 @@ mobileMarketplaceRoutes.get("/notifications", (c) => {
   return c.json({
     success: true,
     data: items,
-    unreadCount: items.filter((n) => !n.read).length,
+    unreadCount: countByCondition(items, (n) => !n.read),
   });
 });
 

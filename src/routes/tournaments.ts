@@ -21,6 +21,7 @@ import {
   generateMonthlyChampionship,
   getSeasonStandings,
 } from "../services/tournaments.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 
 export const tournamentRoutes = new Hono();
@@ -291,8 +292,8 @@ tournamentRoutes.get("/:agentId/record", async (c) => {
       tournamentPerformances,
       summary: {
         totalTournaments: 3,
-        wins: tournamentPerformances.filter((t) => t.isWinner).length,
-        topThree: tournamentPerformances.filter((t) => t.rank <= 3).length,
+        wins: countByCondition(tournamentPerformances, (t) => t.isWinner),
+        topThree: countByCondition(tournamentPerformances, (t) => t.rank <= 3),
         avgRank:
           tournamentPerformances.length > 0
             ? Math.round(

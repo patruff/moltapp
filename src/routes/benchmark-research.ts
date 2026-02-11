@@ -26,6 +26,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import {
   compareAgents,
   compareAllAgents,
@@ -251,7 +252,7 @@ benchmarkResearchRoutes.get("/compare", (c) => {
     comparisons: allComparisons,
     summary: {
       totalComparisons: allComparisons.length,
-      significantDifferences: allComparisons.filter((c) => c.verdict.winner !== null).length,
+      significantDifferences: countByCondition(allComparisons, (c) => c.verdict.winner !== null),
     },
   });
 });

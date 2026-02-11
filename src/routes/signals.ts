@@ -21,6 +21,7 @@ import {
   getStockIndicators,
   getAgentConsensusData,
 } from "../services/signals.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 import { errorMessage } from "../lib/errors.ts";
 
@@ -251,7 +252,7 @@ signalRoutes.get("/alerts", async (c) => {
     return c.json({
       alerts,
       count: alerts.length,
-      criticalCount: alerts.filter((s) => s.strength >= 90).length,
+      criticalCount: countByCondition(alerts, (s) => s.strength >= 90),
       description:
         "High-priority market alerts — signals with strength >= 70/100.",
     });

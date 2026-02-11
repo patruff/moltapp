@@ -20,7 +20,7 @@ import {
   runV24Analysis,
   computeV24CompositeScore,
 } from "../services/reasoning-depth-quality-engine.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV24Routes = new Hono();
 
@@ -92,7 +92,7 @@ benchmarkV24Routes.get("/", async (c) => {
       const hallucinationCount = trades.filter(
         (t: typeof trades[number]) => t.hallucinationFlags && (t.hallucinationFlags as string[]).length > 0,
       ).length;
-      const disciplinePass = trades.filter((t: typeof trades[number]) => t.disciplinePass === "pass").length;
+      const disciplinePass = countByCondition(trades, (t: typeof trades[number]) => t.disciplinePass === "pass");
 
       // v24 depth + source analysis
       const depthScores: number[] = [];

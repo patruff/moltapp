@@ -7,6 +7,7 @@
 
 import { Hono } from "hono";
 import { html } from "hono/html";
+import { countByCondition } from "../lib/math-utils.ts";
 import {
   listOpenJobs,
   getAllJobs,
@@ -576,7 +577,7 @@ financePageRoutes.get("/", async (c) => {
     <!-- Active Analysts -->
     <div class="section-header">
       Active Analysts
-      <span class="badge">${analysts.filter((a) => a.isActive).length}</span>
+      <span class="badge">${countByCondition(analysts, (a) => a.isActive)}</span>
     </div>
     ${analysts.length === 0
       ? html`<div class="empty-state">No analysts registered yet. Register via POST /api/v1/finance/register-analyst</div>`

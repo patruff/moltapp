@@ -19,7 +19,7 @@ import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { apiError, handleError } from "../lib/errors.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 export const reasoningDuelRoutes = new Hono();
 
@@ -156,8 +156,8 @@ reasoningDuelRoutes.get("/", async (c) => {
       ok: true,
       duels: duels.slice(0, limit),
       total: duels.length,
-      disagreements: duels.filter((d) => !d.agreed).length,
-      agreements: duels.filter((d) => d.agreed).length,
+      disagreements: countByCondition(duels, (d) => !d.agreed),
+      agreements: countByCondition(duels, (d) => d.agreed),
     });
   } catch {
     // Fall back to cache

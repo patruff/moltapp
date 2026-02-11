@@ -23,6 +23,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import {
   getAgentRiskDashboard,
   getPlatformRiskSummary,
@@ -340,8 +341,8 @@ riskRoutes.get("/:agentId/stops", async (c) => {
     data: {
       agentId,
       rules,
-      activeCount: rules.filter((r) => r.status === "active").length,
-      triggeredCount: rules.filter((r) => r.status === "triggered").length,
+      activeCount: countByCondition(rules, (r) => r.status === "active"),
+      triggeredCount: countByCondition(rules, (r) => r.status === "triggered"),
     },
   });
 });

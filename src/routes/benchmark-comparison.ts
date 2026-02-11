@@ -17,7 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { clamp, mean, round2, round3 } from "../lib/math-utils.ts";
+import { clamp, countByCondition, mean, round2, round3 } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
@@ -511,7 +511,7 @@ benchmarkComparisonRoutes.get("/statistical-tests", (c) => {
     ok: true,
     significanceLevel: 0.05,
     totalPairs: tests.length,
-    significantPairs: tests.filter((t) => t.isSignificant).length,
+    significantPairs: countByCondition(tests, (t) => t.isSignificant),
     tests,
   });
 });

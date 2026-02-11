@@ -19,6 +19,7 @@ import {
   getReputationLeaderboard,
 } from "../services/reputation.ts";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 export const reputationRoutes = new Hono();
@@ -255,8 +256,8 @@ reputationRoutes.get("/compare/:agent1/:agent2", async (c) => {
       { name: "Badges Earned", a1: rep1.badges.length, a2: rep2.badges.length, winner: rep1.badges.length > rep2.badges.length ? rep1.agentName : rep2.agentName },
     ];
 
-    const a1Wins = categories.filter((cat) => cat.winner === rep1.agentName).length;
-    const a2Wins = categories.filter((cat) => cat.winner === rep2.agentName).length;
+    const a1Wins = countByCondition(categories, (cat) => cat.winner === rep1.agentName);
+    const a2Wins = countByCondition(categories, (cat) => cat.winner === rep2.agentName);
     const overallWinner = a1Wins > a2Wins ? rep1.agentName : a2Wins > a1Wins ? rep2.agentName : "Tied";
 
     return c.json({

@@ -29,7 +29,7 @@ import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
-import { clamp, round2, round3 } from "../lib/math-utils.ts";
+import { clamp, countByCondition, round2, round3 } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import type {
   MarketData,
@@ -351,8 +351,8 @@ app.post("/trigger", async (c) => {
     const nonHold = results.filter((r) => r.decision.action !== "hold");
     let consensus = "no_trades";
     if (nonHold.length > 0) {
-      const buys = nonHold.filter((r) => r.decision.action === "buy").length;
-      const sells = nonHold.filter((r) => r.decision.action === "sell").length;
+      const buys = countByCondition(nonHold, (r) => r.decision.action === "buy");
+      const sells = countByCondition(nonHold, (r) => r.decision.action === "sell");
       if (buys === nonHold.length || sells === nonHold.length) consensus = "unanimous";
       else if (buys > sells && buys > 1) consensus = "majority_buy";
       else if (sells > buys && sells > 1) consensus = "majority_sell";

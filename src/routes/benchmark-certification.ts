@@ -16,7 +16,7 @@
  */
 
 import { Hono } from "hono";
-import { round3 } from "../lib/math-utils.ts";
+import { countByCondition, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
@@ -289,7 +289,7 @@ benchmarkCertificationRoutes.get("/leaderboard-certified", async (c) => {
   return c.json({
     ok: true,
     leaderboard,
-    certifiedCount: leaderboard.filter((a) => a.certified).length,
+    certifiedCount: countByCondition(leaderboard, (a) => a.certified),
     totalAgents: leaderboard.length,
   });
 });
