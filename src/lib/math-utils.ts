@@ -315,18 +315,20 @@ export function countWords(text: string): number {
  * Splits on periods, exclamation marks, and question marks followed by whitespace or end of string.
  *
  * @param text - Text string to split into sentences
+ * @param minLength - Optional minimum sentence length in characters (default: 0, filters sentences shorter than this)
  * @returns Array of sentences
  *
  * @example
  * splitSentences("Hello. How are you?") // returns ["Hello", "How are you"]
  * splitSentences("One! Two? Three.") // returns ["One", "Two", "Three"]
  * splitSentences("No punctuation") // returns ["No punctuation"]
+ * splitSentences("Hi. A. Test.", 3) // returns ["Test"] (filters "Hi" and "A")
  */
-export function splitSentences(text: string): string[] {
+export function splitSentences(text: string, minLength: number = 0): string[] {
   return text
     .split(/[.!?]+\s+|[.!?]+$/)
     .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .filter(s => s.length >= minLength);
 }
 
 /**
