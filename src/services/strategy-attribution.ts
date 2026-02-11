@@ -14,7 +14,7 @@
  */
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
-import { getTopKey, round2, averageByKey } from "../lib/math-utils.ts";
+import { getTopKey, round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -156,7 +156,7 @@ export function generateAttributionReport(): StrategyAttributionReport {
 
   // 4. Stats
   const overallWinRate = withOutcomes.length > 0
-    ? withOutcomes.filter((t) => t.outcome === "profit").length / withOutcomes.length
+    ? countByCondition(withOutcomes, (t) => t.outcome === "profit") / withOutcomes.length
     : 0;
   const overallAvgPnl = withOutcomes.length > 0
     ? withOutcomes.reduce((s, t) => s + (t.pnlPercent ?? 0), 0) / withOutcomes.length
@@ -190,7 +190,7 @@ function computeIntentRankings(
     const intentTrades = allTrades.filter((t) => t.intent === intent);
     const intentWithOutcomes = withOutcomes.filter((t) => t.intent === intent);
 
-    const wins = intentWithOutcomes.filter((t) => t.outcome === "profit").length;
+    const wins = countByCondition(intentWithOutcomes, (t) => t.outcome === "profit");
     const winRate = intentWithOutcomes.length > 0 ? wins / intentWithOutcomes.length : 0;
 
     const avgPnl = intentWithOutcomes.length > 0
@@ -264,7 +264,7 @@ function computeAgentIntentMatrix(
       const avgPnl = outcomes.length > 0
         ? outcomes.reduce((s, t) => s + (t.pnlPercent ?? 0), 0) / outcomes.length
         : 0;
-      const wins = outcomes.filter((t) => t.outcome === "profit").length;
+      const wins = countByCondition(outcomes, (t) => t.outcome === "profit");
       const winRate = outcomes.length > 0 ? wins / outcomes.length : 0;
 
       if (outcomes.length >= 2 && avgPnl > bestPnl) {
@@ -371,7 +371,7 @@ export function getAgentIntentProfile(agentId: string): AgentIntentMatrix | null
     const avgPnl = outcomes.length > 0
       ? outcomes.reduce((s, t) => s + (t.pnlPercent ?? 0), 0) / outcomes.length
       : 0;
-    const wins = outcomes.filter((t) => t.outcome === "profit").length;
+    const wins = countByCondition(outcomes, (t) => t.outcome === "profit");
     const winRate = outcomes.length > 0 ? wins / outcomes.length : 0;
 
     if (outcomes.length >= 2 && avgPnl > bestPnl) {
