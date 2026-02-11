@@ -382,10 +382,10 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
       const highConf = withOutcomes.filter((e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD);
       const lowConf = withOutcomes.filter((e) => e.confidence <= CONFIDENCE_HIGH_THRESHOLD);
       const highWinRate = highConf.length > 0
-        ? countByCondition(highConf, (e) => e.wasCorrect) / highConf.length
+        ? countByCondition(highConf, (e) => e.wasCorrect === true) / highConf.length
         : CONFIDENCE_CALIBRATION_BASELINE;
       const lowWinRate = lowConf.length > 0
-        ? countByCondition(lowConf, (e) => e.wasCorrect) / lowConf.length
+        ? countByCondition(lowConf, (e) => e.wasCorrect === true) / lowConf.length
         : CONFIDENCE_CALIBRATION_BASELINE;
       // Good calibration: high confidence -> higher win rate
       confidenceCalibration = Math.round(

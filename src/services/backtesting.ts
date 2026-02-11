@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, calculateAverage, averageByKey, MS_PER_DAY } from "../lib/math-utils.ts";
+import { round2, round4, calculateAverage, averageByKey, countByCondition, MS_PER_DAY } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -788,9 +788,9 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   }
 
   // --- Action distribution ---
-  const buys = decisions.filter((d: typeof decisions[0]) => d.action === "buy").length;
-  const sells = decisions.filter((d: typeof decisions[0]) => d.action === "sell").length;
-  const holds = decisions.filter((d: typeof decisions[0]) => d.action === "hold").length;
+  const buys = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "buy");
+  const sells = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "sell");
+  const holds = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "hold");
 
   // --- Trading frequency ---
   const oldest = decisions[decisions.length - 1].createdAt;
@@ -808,9 +808,9 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
           : "very-low";
 
   // --- Conviction profile ---
-  const highConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_HIGH_THRESHOLD).length;
-  const mediumConviction = decisions.filter((d: typeof decisions[0]) => d.confidence >= CONVICTION_MEDIUM_FLOOR && d.confidence < CONVICTION_HIGH_THRESHOLD).length;
-  const lowConviction = decisions.filter((d: typeof decisions[0]) => d.confidence < CONVICTION_MEDIUM_FLOOR).length;
+  const highConviction = countByCondition(decisions, (d: typeof decisions[0]) => d.confidence >= CONVICTION_HIGH_THRESHOLD);
+  const mediumConviction = countByCondition(decisions, (d: typeof decisions[0]) => d.confidence >= CONVICTION_MEDIUM_FLOOR && d.confidence < CONVICTION_HIGH_THRESHOLD);
+  const lowConviction = countByCondition(decisions, (d: typeof decisions[0]) => d.confidence < CONVICTION_MEDIUM_FLOOR);
   const avgConfidence = averageByKey(decisions, 'confidence');
 
   // --- Sector preferences ---
@@ -849,13 +849,13 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   // --- Style scores (0-100) ---
 
   // Contrarian score: high confidence sells + low confidence buys = more contrarian
-  const highConfSells = decisions.filter((d: typeof decisions[0]) => d.action === "sell" && d.confidence >= STYLE_CONTRARIAN_SELL_THRESHOLD).length;
-  const lowConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence < STYLE_CONTRARIAN_BUY_THRESHOLD).length;
+  const highConfSells = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "sell" && d.confidence >= STYLE_CONTRARIAN_SELL_THRESHOLD);
+  const lowConfBuys = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "buy" && d.confidence < STYLE_CONTRARIAN_BUY_THRESHOLD);
   const contrarianSignals = highConfSells + lowConfBuys;
   const contrarianScore = Math.min(100, Math.round((contrarianSignals / Math.max(1, actionDecisions.length)) * 200));
 
   // Momentum score: high conviction buys dominating = momentum chasing
-  const highConfBuys = decisions.filter((d: typeof decisions[0]) => d.action === "buy" && d.confidence >= STYLE_MOMENTUM_BUY_THRESHOLD).length;
+  const highConfBuys = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "buy" && d.confidence >= STYLE_MOMENTUM_BUY_THRESHOLD);
   const momentumScore = Math.min(100, Math.round((highConfBuys / Math.max(1, actionDecisions.length)) * 150));
 
   // Value score: holds + lower frequency + diversification
