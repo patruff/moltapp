@@ -253,9 +253,9 @@ benchmarkV16ApiRoutes.get("/compare", (c) => {
       compositeMargin: Math.abs(scoreA.composite - scoreB.composite),
       pillarComparison,
       metacognition: metaComparison,
-      pillarsWonByA: pillarComparison.filter((p) => p.winner === agentA).length,
-      pillarsWonByB: pillarComparison.filter((p) => p.winner === agentB).length,
-      ties: pillarComparison.filter((p) => p.winner === "tie").length,
+      pillarsWonByA: countByCondition(pillarComparison, (p) => p.winner === agentA),
+      pillarsWonByB: countByCondition(pillarComparison, (p) => p.winner === agentB),
+      ties: countByCondition(pillarComparison, (p) => p.winner === "tie"),
     },
   });
 });

@@ -22,7 +22,7 @@
  */
 
 import { Hono } from "hono";
-import { round3 } from "../lib/math-utils.ts";
+import { round3, countByCondition } from "../lib/math-utils.ts";
 import {
   getAgentRobustnessProfile,
   getAllRobustnessProfiles,
@@ -270,10 +270,10 @@ benchmarkV18ApiRoutes.get("/regression/alerts", (c) => {
     alerts,
     count: alerts.length,
     bySeverity: {
-      critical: alerts.filter((a) => a.severity === "critical").length,
-      high: alerts.filter((a) => a.severity === "high").length,
-      medium: alerts.filter((a) => a.severity === "medium").length,
-      low: alerts.filter((a) => a.severity === "low").length,
+      critical: countByCondition(alerts, (a) => a.severity === "critical"),
+      high: countByCondition(alerts, (a) => a.severity === "high"),
+      medium: countByCondition(alerts, (a) => a.severity === "medium"),
+      low: countByCondition(alerts, (a) => a.severity === "low"),
     },
   });
 });
