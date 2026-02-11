@@ -798,9 +798,9 @@ export function getAgentGovernanceProfile(agentId: string) {
   const allVotes = proposals.flatMap((p) => p.votes);
   const agentVotes = allVotes.filter((v) => v.agentId === agentId);
 
-  const forVotes = agentVotes.filter((v) => v.option === "for").length;
-  const againstVotes = agentVotes.filter((v) => v.option === "against").length;
-  const abstainVotes = agentVotes.filter((v) => v.option === "abstain").length;
+  const forVotes = countByCondition(agentVotes, (v) => v.option === "for");
+  const againstVotes = countByCondition(agentVotes, (v) => v.option === "against");
+  const abstainVotes = countByCondition(agentVotes, (v) => v.option === "abstain");
 
   // Voting alignment: how often does this agent vote with the majority?
   let alignedVotes = 0;
@@ -827,7 +827,7 @@ export function getAgentGovernanceProfile(agentId: string) {
     agentId,
     agentName: config.name,
     proposalsCreated: proposed.length,
-    proposalsPassed: proposed.filter((p) => p.status === "passed").length,
+    proposalsPassed: countByCondition(proposed, (p) => p.status === "passed"),
     totalVotes: agentVotes.length,
     voteBreakdown: {
       for: forVotes,
