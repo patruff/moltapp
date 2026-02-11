@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -638,9 +638,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
     const winRate = buysSells.length > 0 ? (highConfidence.length / buysSells.length) * 100 : 0;
 
     // Avg confidence
-    const avgConf = agentDecisionsList.length > 0
-      ? agentDecisionsList.reduce((sum: number, d: typeof agentDecisionsList[0]) => sum + d.confidence, 0) / agentDecisionsList.length
-      : 0;
+    const avgConf = averageByKey(agentDecisionsList, 'confidence');
 
     const lastDecision = agentDecisionsList[0];
 
@@ -733,8 +731,8 @@ function computePerformance(
   const worst = sorted[sorted.length - 1] ?? null;
 
   // Profit factor (ratio of winning confidence to losing confidence)
-  const totalWinConfidence = highConfidence.reduce((sum, d) => sum + d.confidence, 0);
-  const totalLossConfidence = losses.reduce((sum, d) => sum + d.confidence, 0);
+  const totalWinConfidence = sumByKey(highConfidence, 'confidence');
+  const totalLossConfidence = sumByKey(losses, 'confidence');
   const profitFactor = totalLossConfidence > 0 ? totalWinConfidence / totalLossConfidence : totalWinConfidence > 0 ? Infinity : 0;
 
   return {
@@ -810,9 +808,7 @@ function computeRiskMetrics(
 
   // Position metrics
   const quantities = actionDecisions.map((d) => parseFloat(d.quantity) || 0);
-  const avgPositionSize = quantities.length > 0
-    ? quantities.reduce((s, q) => s + q, 0) / quantities.length
-    : 0;
+  const avgPositionSize = calculateAverage(quantities);
 
   // Max position concentration
   const symbolCounts: Record<string, number> = {};
@@ -1010,12 +1006,8 @@ function computeStreaks(
     longestWinStreak: winStreaks.length > 0 ? Math.max(...winStreaks.map((s) => s.length)) : 0,
     longestLossStreak: lossStreaks.length > 0 ? Math.max(...lossStreaks.map((s) => s.length)) : 0,
     longestHoldStreak: holdStreaks.length > 0 ? Math.max(...holdStreaks.map((s) => s.length)) : 0,
-    avgWinStreakLength: winStreaks.length > 0
-      ? Math.round((winStreaks.reduce((s, st) => s + st.length, 0) / winStreaks.length) * 10) / 10
-      : 0,
-    avgLossStreakLength: lossStreaks.length > 0
-      ? Math.round((lossStreaks.reduce((s, st) => s + st.length, 0) / lossStreaks.length) * 10) / 10
-      : 0,
+    avgWinStreakLength: Math.round(averageByKey(winStreaks, 'length') * 10) / 10,
+    avgLossStreakLength: Math.round(averageByKey(lossStreaks, 'length') * 10) / 10,
   };
 }
 
@@ -1035,9 +1027,7 @@ function computeSentimentProfile(
     bullishPct > SENTIMENT_BULLISH_THRESHOLD ? "bullish" : bearishPct > SENTIMENT_BULLISH_THRESHOLD ? "bearish" : "neutral";
 
   // Sentiment consistency: how clustered are confidence values
-  const avgConf = actionDecisions.length > 0
-    ? actionDecisions.reduce((s, d) => s + d.confidence, 0) / actionDecisions.length
-    : 50;
+  const avgConf = actionDecisions.length > 0 ? averageByKey(actionDecisions, 'confidence') : 50;
   const confVariance = actionDecisions.length > 1
     ? actionDecisions.reduce((s, d) => s + (d.confidence - avgConf) ** 2, 0) / actionDecisions.length
     : 0;
