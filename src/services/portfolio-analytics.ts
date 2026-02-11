@@ -794,12 +794,12 @@ export async function calculateRollingPerformance(
       pnl: realizedPnl,
       pnlPercent:
         INITIAL_CAPITAL > 0
-          ? (realizedPnl / INITIAL_CAPITAL) * 100
+          ? (realizedPnl / INITIAL_CAPITAL) * PERCENT_MULTIPLIER
           : 0,
       trades: records.length,
       winRate:
         tradeOutcomes.length > 0
-          ? (winCount / tradeOutcomes.length) * 100
+          ? (winCount / tradeOutcomes.length) * PERCENT_MULTIPLIER
           : 0,
       sharpeRatio: calculateSharpeRatio(dailyReturns),
     });
@@ -941,7 +941,7 @@ export async function generateEquityCurve(
       const pos = posMap.get(trade.stockSymbol);
       if (pos) {
         pos.qty -= qty;
-        if (pos.qty <= 0.000001) {
+        if (pos.qty <= MIN_TRADEABLE_QUANTITY) {
           posMap.delete(trade.stockSymbol);
         }
       }
