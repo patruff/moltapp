@@ -15,7 +15,7 @@
  * This is the data science backbone of MoltApp's benchmark.
  */
 
-import { mean, round4 } from "../lib/math-utils.ts";
+import { countByCondition, mean, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -257,9 +257,9 @@ function buildRoundAggregations(records: DatasetRecord[]): RoundAggregation[] {
 
   const rounds: RoundAggregation[] = [];
   for (const [roundId, roundRecords] of byRound) {
-    const buyCount = roundRecords.filter((r) => r.action === "buy").length;
-    const sellCount = roundRecords.filter((r) => r.action === "sell").length;
-    const holdCount = roundRecords.filter((r) => r.action === "hold").length;
+    const buyCount = countByCondition(roundRecords, (r) => r.action === "buy");
+    const sellCount = countByCondition(roundRecords, (r) => r.action === "sell");
+    const holdCount = countByCondition(roundRecords, (r) => r.action === "hold");
 
     let consensus: RoundAggregation["consensus"];
     const nonHold = buyCount + sellCount;
