@@ -442,7 +442,7 @@ function computeStockPreferences(
     symbolMap.set(d.symbol, existing);
   }
 
-  const nonHoldCount = decisions.filter((d) => d.action !== "hold").length;
+  const nonHoldCount = countByCondition(decisions, (d) => d.action !== "hold");
 
   const preferences: StockPreference[] = [];
   for (const [symbol, data] of symbolMap) {
@@ -484,11 +484,11 @@ function computeConfidenceProfile(
 
   // Distribution buckets
   const distribution = {
-    veryLow: confidences.filter((c) => c <= CONFIDENCE_BUCKET_VERY_LOW_MAX).length,
-    low: confidences.filter((c) => c > CONFIDENCE_BUCKET_VERY_LOW_MAX && c <= CONFIDENCE_BUCKET_LOW_MAX).length,
-    moderate: confidences.filter((c) => c > CONFIDENCE_BUCKET_LOW_MAX && c <= CONFIDENCE_BUCKET_MODERATE_MAX).length,
-    high: confidences.filter((c) => c > CONFIDENCE_BUCKET_MODERATE_MAX && c <= CONFIDENCE_BUCKET_HIGH_MAX).length,
-    veryHigh: confidences.filter((c) => c > CONFIDENCE_BUCKET_HIGH_MAX).length,
+    veryLow: countByCondition(confidences, (c) => c <= CONFIDENCE_BUCKET_VERY_LOW_MAX),
+    low: countByCondition(confidences, (c) => c > CONFIDENCE_BUCKET_VERY_LOW_MAX && c <= CONFIDENCE_BUCKET_LOW_MAX),
+    moderate: countByCondition(confidences, (c) => c > CONFIDENCE_BUCKET_LOW_MAX && c <= CONFIDENCE_BUCKET_MODERATE_MAX),
+    high: countByCondition(confidences, (c) => c > CONFIDENCE_BUCKET_MODERATE_MAX && c <= CONFIDENCE_BUCKET_HIGH_MAX),
+    veryHigh: countByCondition(confidences, (c) => c > CONFIDENCE_BUCKET_HIGH_MAX),
   };
 
   return {
@@ -511,7 +511,7 @@ function computeRiskAppetite(
   const maxPositionSize = amounts.length > 0 ? Math.max(...amounts) : 0;
 
   // Trade frequency: non-hold decisions / total decisions
-  const nonHolds = decisions.filter((d) => d.action !== "hold").length;
+  const nonHolds = countByCondition(decisions, (d) => d.action !== "hold");
   const tradeFrequency =
     decisions.length > 0 ? round2(nonHolds / decisions.length) : 0;
 
@@ -559,7 +559,7 @@ function computeSentimentBias(
       flips++;
     }
   }
-  const nonZeroCount = sentiments.filter((s) => s !== 0).length;
+  const nonZeroCount = countByCondition(sentiments, (s) => s !== 0);
   const biasVolatility =
     nonZeroCount > 1
       ? round2(flips / (nonZeroCount - 1))

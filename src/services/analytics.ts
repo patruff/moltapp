@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -885,9 +885,9 @@ function computeTradingPatterns(
     avgDecisionsPerDay > TRADE_FREQUENCY_HIGH_THRESHOLD ? "high" : avgDecisionsPerDay > TRADE_FREQUENCY_MEDIUM_THRESHOLD ? "medium" : "low";
 
   // Confidence distribution
-  const low = decisions.filter((d) => d.confidence < CONFIDENCE_LOW_THRESHOLD).length;
-  const medium = decisions.filter((d) => d.confidence >= CONFIDENCE_LOW_THRESHOLD && d.confidence < CONFIDENCE_HIGH_THRESHOLD).length;
-  const high = decisions.filter((d) => d.confidence >= CONFIDENCE_HIGH_THRESHOLD).length;
+  const low = countByCondition(decisions, (d) => d.confidence < CONFIDENCE_LOW_THRESHOLD);
+  const medium = countByCondition(decisions, (d) => d.confidence >= CONFIDENCE_LOW_THRESHOLD && d.confidence < CONFIDENCE_HIGH_THRESHOLD);
+  const high = countByCondition(decisions, (d) => d.confidence >= CONFIDENCE_HIGH_THRESHOLD);
 
   // Symbol diversity (unique symbols / total decisions)
   const uniqueSymbols = new Set(actionDecisions.map((d) => d.symbol));
@@ -1024,8 +1024,8 @@ function computeSentimentProfile(
   marketData: MarketData[],
 ): SentimentProfile {
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
-  const buyCount = decisions.filter((d) => d.action === "buy").length;
-  const sellCount = decisions.filter((d) => d.action === "sell").length;
+  const buyCount = countByCondition(decisions, (d) => d.action === "buy");
+  const sellCount = countByCondition(decisions, (d) => d.action === "sell");
   const total = actionDecisions.length || 1;
 
   const bullishPct = (buyCount / total) * 100;
@@ -1371,8 +1371,8 @@ function generateRecommendation(
     { name: "Sharpe ratio", winner: stats1.sharpeRatio > stats2.sharpeRatio ? 1 : 2, diff: Math.abs(stats1.sharpeRatio - stats2.sharpeRatio) },
   ];
 
-  const agent1Wins = metrics.filter((m) => m.winner === 1).length;
-  const agent2Wins = metrics.filter((m) => m.winner === 2).length;
+  const agent1Wins = countByCondition(metrics, (m) => m.winner === 1);
+  const agent2Wins = countByCondition(metrics, (m) => m.winner === 2);
 
   if (agent1Wins > agent2Wins) {
     return `${stats1.agentName} leads in ${agent1Wins}/3 key metrics. Its ${stats1.riskTolerance} strategy and ${stats1.provider} backend give it an edge in the current market conditions.`;
