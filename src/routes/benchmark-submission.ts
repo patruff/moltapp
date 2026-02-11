@@ -41,7 +41,7 @@ import {
   extractSourcesFromReasoning,
 } from "../schemas/trade-reasoning.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import {
@@ -442,7 +442,7 @@ benchmarkSubmissionRoutes.get("/apply/status/:agentId", (c) => {
     ? Math.floor((Date.now() - new Date(firstSubmission).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
 
-  const onChainSubmissions = subs.filter((s) => s.walletAddress && s.txSignature).length;
+  const onChainSubmissions = countByCondition(subs, (s) => !!(s.walletAddress && s.txSignature));
 
   const progress = {
     totalSubmissions,
@@ -511,7 +511,7 @@ benchmarkSubmissionRoutes.get("/apply/agents", (c) => {
     ok: true,
     agents,
     totalAgents: agents.length,
-    qualifiedAgents: agents.filter((a) => a.status === "qualified").length,
+    qualifiedAgents: countByCondition(agents, (a) => a.status === "qualified"),
     message: "Open-box benchmark: all agent prompts, models, and tools are public.",
   });
 });
@@ -752,7 +752,7 @@ benchmarkSubmissionRoutes.get("/leaderboard", (c) => {
     const avgComposite = subs.reduce((s, sub) => s + sub.scores.composite, 0) / subs.length;
     const avgCoherence = subs.reduce((s, sub) => s + sub.scores.coherence, 0) / subs.length;
     const avgDeepCoherence = subs.reduce((s, sub) => s + sub.scores.deepCoherence, 0) / subs.length;
-    const hallucinatedCount = subs.filter((sub) => sub.scores.hallucinationFlags.length > 0).length;
+    const hallucinatedCount = countByCondition(subs, (sub) => sub.scores.hallucinationFlags.length > 0);
 
     // Find best-performing symbol
     const symbolScores = new Map<string, number[]>();
