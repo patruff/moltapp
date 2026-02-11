@@ -23,6 +23,7 @@ import {
   getDimensionCount,
   getBenchmarkVersion,
 } from "../services/v33-benchmark-engine.ts";
+import { colorizeScore } from "../lib/math-utils.ts";
 
 export const benchmarkV33Routes = new Hono();
 
@@ -36,6 +37,8 @@ function esc(s: string): string {
 
 const TIER_CLR: Record<string, string> = { S: "#ffd700", A: "#00ff88", B: "#00aaff", C: "#888", D: "#ff4444" };
 const GRADE_CLR: Record<string, string> = { "A+": "#ffd700", A: "#00ff88", "B+": "#66cc88", B: "#00aaff", "C+": "#5599dd", C: "#888", D: "#ff4444", F: "#cc0000" };
+
+function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
 
 interface DimDef { key: string; label: string; cat: string; isNew?: boolean }
 
@@ -73,8 +76,6 @@ const CAT_CLR: Record<string, string> = {
   Behavioral: "#22d3ee", Predictive: "#34d399", Governance: "#fbbf24",
 };
 const CATS = ["Financial", "Reasoning Quality", "Safety", "Behavioral", "Predictive", "Governance"];
-
-function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
 
 // ---------------------------------------------------------------------------
 // GET / — Dashboard
