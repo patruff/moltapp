@@ -18,7 +18,7 @@
  */
 
 import { Hono } from "hono";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 import {
   getAgentScores,
   getAgentScore,
@@ -223,10 +223,10 @@ benchmarkV33ApiRoutes.get("/justification/:agentId", (c) => {
   const avg = depthScores.reduce((a, b) => a + b, 0) / depthScores.length;
 
   const distribution = {
-    excellent: depthScores.filter((s) => s >= 80).length,
-    good: depthScores.filter((s) => s >= 60 && s < 80).length,
-    moderate: depthScores.filter((s) => s >= 40 && s < 60).length,
-    weak: depthScores.filter((s) => s < 40).length,
+    excellent: countByCondition(depthScores, (s) => s >= 80),
+    good: countByCondition(depthScores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(depthScores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(depthScores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.causalReasoningScore - a.causalReasoningScore);
@@ -260,9 +260,9 @@ benchmarkV33ApiRoutes.get("/predictions", (c) => {
 
   const precisionScores = tradesWithPredictions.map((t) => t.epistemicHumilityScore);
   const precisionDistribution = {
-    highPrecision: precisionScores.filter((s) => s >= 70).length,
-    mediumPrecision: precisionScores.filter((s) => s >= 40 && s < 70).length,
-    lowPrecision: precisionScores.filter((s) => s < 40).length,
+    highPrecision: countByCondition(precisionScores, (s) => s >= 70),
+    mediumPrecision: countByCondition(precisionScores, (s) => s >= 40 && s < 70),
+    lowPrecision: countByCondition(precisionScores, (s) => s < 40),
   };
 
   const resolved = tradesWithPredictions.filter((t) => t.outcomeResolved !== "pending");
@@ -340,8 +340,8 @@ benchmarkV33ApiRoutes.get("/grounding/:agentId", (c) => {
     groundingAnalysis: {
       avgGroundingScore: round2(avg),
       tradesAnalyzed: trades.length,
-      highlyGrounded: trades.filter((t) => t.groundingScore >= 70).length,
-      poorlyGrounded: trades.filter((t) => t.groundingScore < 40).length,
+      highlyGrounded: countByCondition(trades, (t) => t.groundingScore >= 70),
+      poorlyGrounded: countByCondition(trades, (t) => t.groundingScore < 40),
       recentTrades: trades.slice(0, 10).map((t) => ({
         tradeId: t.tradeId,
         symbol: t.symbol,

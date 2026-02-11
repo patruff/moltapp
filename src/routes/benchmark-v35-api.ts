@@ -33,7 +33,7 @@ import {
   getBenchmarkVersion,
   type V35TradeGrade,
 } from "../services/v35-benchmark-engine.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 export const benchmarkV35ApiRoutes = new Hono();
 
@@ -235,10 +235,10 @@ benchmarkV35ApiRoutes.get("/info-asymmetry/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    highEdge: scores.filter((s) => s >= 75).length,
-    moderateEdge: scores.filter((s) => s >= 50 && s < 75).length,
-    lowEdge: scores.filter((s) => s >= 25 && s < 50).length,
-    noEdge: scores.filter((s) => s < 25).length,
+    highEdge: countByCondition(scores, (s) => s >= 75),
+    moderateEdge: countByCondition(scores, (s) => s >= 50 && s < 75),
+    lowEdge: countByCondition(scores, (s) => s >= 25 && s < 50),
+    noEdge: countByCondition(scores, (s) => s < 25),
   };
 
   const sorted = [...trades].sort((a, b) => b.informationAsymmetryScore - a.informationAsymmetryScore);
@@ -305,10 +305,10 @@ benchmarkV35ApiRoutes.get("/temporal/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    excellent: scores.filter((s) => s >= 80).length,
-    good: scores.filter((s) => s >= 60 && s < 80).length,
-    moderate: scores.filter((s) => s >= 40 && s < 60).length,
-    weak: scores.filter((s) => s < 40).length,
+    excellent: countByCondition(scores, (s) => s >= 80),
+    good: countByCondition(scores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.temporalReasoningScore - a.temporalReasoningScore);
@@ -374,10 +374,10 @@ benchmarkV35ApiRoutes.get("/traceability/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    excellent: scores.filter((s) => s >= 80).length,
-    good: scores.filter((s) => s >= 60 && s < 80).length,
-    moderate: scores.filter((s) => s >= 40 && s < 60).length,
-    weak: scores.filter((s) => s < 40).length,
+    excellent: countByCondition(scores, (s) => s >= 80),
+    good: countByCondition(scores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.reasoningTraceabilityScore - a.reasoningTraceabilityScore);
@@ -442,9 +442,9 @@ benchmarkV35ApiRoutes.get("/adversarial/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    resilient: scores.filter((s) => s >= 70).length,
-    moderate: scores.filter((s) => s >= 40 && s < 70).length,
-    fragile: scores.filter((s) => s < 40).length,
+    resilient: countByCondition(scores, (s) => s >= 70),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 70),
+    fragile: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.adversarialCoherenceScore - a.adversarialCoherenceScore);

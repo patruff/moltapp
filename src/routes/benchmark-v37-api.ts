@@ -35,7 +35,7 @@ import {
   computeOptimalWeights,
   type V37TradeGrade,
 } from "../services/v37-benchmark-engine.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV37ApiRoutes = new Hono();
 
@@ -231,10 +231,10 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    excellent: scores.filter((s) => s >= 80).length,
-    good: scores.filter((s) => s >= 60 && s < 80).length,
-    moderate: scores.filter((s) => s >= 40 && s < 60).length,
-    weak: scores.filter((s) => s < 40).length,
+    excellent: countByCondition(scores, (s) => s >= 80),
+    good: countByCondition(scores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.reasoningComposabilityScore - a.reasoningComposabilityScore);
@@ -300,9 +300,9 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    calibrated: scores.filter((s) => s >= 70).length,
-    moderate: scores.filter((s) => s >= 40 && s < 70).length,
-    miscalibrated: scores.filter((s) => s < 40).length,
+    calibrated: countByCondition(scores, (s) => s >= 70),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 70),
+    miscalibrated: countByCondition(scores, (s) => s < 40),
   };
 
   // Find trades without foresight planning
@@ -377,10 +377,10 @@ benchmarkV37ApiRoutes.get("/auditability/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    excellent: scores.filter((s) => s >= 80).length,
-    good: scores.filter((s) => s >= 60 && s < 80).length,
-    moderate: scores.filter((s) => s >= 40 && s < 60).length,
-    weak: scores.filter((s) => s < 40).length,
+    excellent: countByCondition(scores, (s) => s >= 80),
+    good: countByCondition(scores, (s) => s >= 60 && s < 80),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 60),
+    weak: countByCondition(scores, (s) => s < 40),
   };
 
   const sorted = [...trades].sort((a, b) => b.reasoningAuditabilityScore - a.reasoningAuditabilityScore);
@@ -446,9 +446,9 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const distribution = {
-    calibrated: scores.filter((s) => s >= 70).length,
-    moderate: scores.filter((s) => s >= 40 && s < 70).length,
-    miscalibrated: scores.filter((s) => s < 40).length,
+    calibrated: countByCondition(scores, (s) => s >= 70),
+    moderate: countByCondition(scores, (s) => s >= 40 && s < 70),
+    miscalibrated: countByCondition(scores, (s) => s < 40),
   };
 
   // Find trades without exit plans
