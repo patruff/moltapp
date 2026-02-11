@@ -12,7 +12,7 @@
  */
 
 import { Hono } from "hono";
-import { averageByKey, mean, round2 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, mean, round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq } from "drizzle-orm";
@@ -224,9 +224,9 @@ benchmarkV25ApiRoutes.get("/leaderboard", async (c) => {
       const entries: Array<V25CompositeScore & { agentId: string; rank: number; tradeCount: number }> = [];
       for (const [agentId, trades] of agentMap.entries()) {
         const avgCoh = trades.reduce((sum: number, t: JustificationRow) => sum + (t.coherenceScore ?? 0), 0) / trades.length;
-        const hallucCount = trades.filter((t: JustificationRow) => t.hallucinationFlags && (t.hallucinationFlags as string[]).length > 0).length;
+        const hallucCount = countByCondition(trades, (t: JustificationRow) => !!(t.hallucinationFlags && (t.hallucinationFlags as string[]).length > 0));
         const hallucFree = 1 - hallucCount / trades.length;
-        const discPass = trades.filter((t: JustificationRow) => t.disciplinePass !== "fail").length / trades.length;
+        const discPass = countByCondition(trades, (t: JustificationRow) => t.disciplinePass !== "fail") / trades.length;
 
         let totalDepth = 0, totalSrc = 0, totalPred = 0;
         for (const t of trades.slice(0, 50)) {
@@ -283,13 +283,13 @@ benchmarkV25ApiRoutes.get("/predictions", (c) => {
     summary: {
       totalPredictions: filtered.length,
       directionalBreakdown: {
-        up: filtered.filter((p) => p.predictedDirection === "up").length,
-        down: filtered.filter((p) => p.predictedDirection === "down").length,
-        flat: filtered.filter((p) => p.predictedDirection === "flat").length,
-        unspecified: filtered.filter((p) => p.predictedDirection === "unspecified").length,
+        up: countByCondition(filtered, (p) => p.predictedDirection === "up"),
+        down: countByCondition(filtered, (p) => p.predictedDirection === "down"),
+        flat: countByCondition(filtered, (p) => p.predictedDirection === "flat"),
+        unspecified: countByCondition(filtered, (p) => p.predictedDirection === "unspecified"),
       },
-      withTimeframe: filtered.filter((p) => p.timeframeSpecified !== null).length,
-      withMagnitude: filtered.filter((p) => p.predictedMagnitude !== null).length,
+      withTimeframe: countByCondition(filtered, (p) => p.timeframeSpecified !== null),
+      withMagnitude: countByCondition(filtered, (p) => p.predictedMagnitude !== null),
     },
   });
 });

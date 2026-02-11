@@ -30,7 +30,7 @@ import {
 } from "../services/outcome-resolution-engine.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV23ApiRoutes = new Hono();
 
@@ -89,7 +89,7 @@ benchmarkV23ApiRoutes.get("/leaderboard", async (c) => {
     }
 
     const leaderboard = Array.from(agentMap.entries()).map(([agentId, results]) => {
-      const wins = results.filter((r) => r.directionCorrect).length;
+      const wins = countByCondition(results, (r) => r.directionCorrect);
       const accuracy = results.length > 0 ? wins / results.length : 0;
       const avgPnl = results.length > 0
         ? results.reduce((s, r) => s + (r.pnlPercent ?? 0), 0) / results.length
@@ -418,12 +418,12 @@ benchmarkV23ApiRoutes.post("/resolve", async (c) => {
     horizon,
     supportedHorizons: VALID_HORIZON_LABELS,
     summary: {
-      profits: results.filter((r) => r.outcome === "profit").length,
-      losses: results.filter((r) => r.outcome === "loss").length,
-      breakeven: results.filter((r) => r.outcome === "breakeven").length,
+      profits: countByCondition(results, (r) => r.outcome === "profit"),
+      losses: countByCondition(results, (r) => r.outcome === "loss"),
+      breakeven: countByCondition(results, (r) => r.outcome === "breakeven"),
       directionAccuracy: results.length > 0
         ? Math.round(
-            (results.filter((r) => r.directionCorrect).length / results.length) * 100,
+            (countByCondition(results, (r) => r.directionCorrect) / results.length) * 100,
           ) / 100
         : 0,
     },
@@ -439,8 +439,8 @@ benchmarkV23ApiRoutes.get("/health", (c) => {
   const state = getEngineState();
   const recent = getRecentResolutions(100);
 
-  const profits = recent.filter((r) => r.outcome === "profit").length;
-  const dirCorrect = recent.filter((r) => r.directionCorrect).length;
+  const profits = countByCondition(recent, (r) => r.outcome === "profit");
+  const dirCorrect = countByCondition(recent, (r) => r.directionCorrect);
 
   return c.json({
     ok: true,

@@ -22,6 +22,7 @@
  */
 
 import { Hono } from "hono";
+import { countByCondition } from "../lib/math-utils.ts";
 import {
   getV31Leaderboard,
   getV31TradeGrades,
@@ -232,11 +233,11 @@ benchmarkV31ApiRoutes.get("/export/summary", (c) => {
       totalGradedTrades: grades.length,
       gradeDistribution,
       tierDistribution: {
-        S: leaderboard.filter((a) => a.tier === "S").length,
-        A: leaderboard.filter((a) => a.tier === "A").length,
-        B: leaderboard.filter((a) => a.tier === "B").length,
-        C: leaderboard.filter((a) => a.tier === "C").length,
-        D: leaderboard.filter((a) => a.tier === "D").length,
+        S: countByCondition(leaderboard, (a) => a.tier === "S"),
+        A: countByCondition(leaderboard, (a) => a.tier === "A"),
+        B: countByCondition(leaderboard, (a) => a.tier === "B"),
+        C: countByCondition(leaderboard, (a) => a.tier === "C"),
+        D: countByCondition(leaderboard, (a) => a.tier === "D"),
       },
       avgComposite: leaderboard.length > 0
         ? Math.round(leaderboard.reduce((s, a) => s + a.compositeScore, 0) / leaderboard.length * 100) / 100
@@ -313,8 +314,8 @@ benchmarkV31ApiRoutes.get("/agent/:agentId", (c) => {
       avgScore: agentGrades.length > 0
         ? Math.round(agentGrades.reduce((s, g) => s + g.accountabilityScore, 0) / agentGrades.length)
         : 0,
-      predictionsTracked: agentGrades.filter((g) => g.predictedOutcome !== null).length,
-      outcomesResolved: agentGrades.filter((g) => g.outcomeResolved !== "pending").length,
+      predictionsTracked: countByCondition(agentGrades, (g) => g.predictedOutcome !== null),
+      outcomesResolved: countByCondition(agentGrades, (g) => g.outcomeResolved !== "pending"),
     },
   });
 });
