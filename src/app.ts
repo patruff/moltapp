@@ -95,6 +95,7 @@ import { correlationMonitorRoutes } from "./routes/correlation-monitor.ts";
 import { competitionReplayRoutes } from "./routes/competition-replay.ts";
 import { tokenFlowRoutes } from "./routes/token-flows.ts";
 import { brainFeedRoutes } from "./routes/brain-feed.ts";
+import { mobileMarketplaceRoutes } from "./routes/mobile-marketplace.ts";
 import { benchmarkDashboardRoutes } from "./routes/benchmark-dashboard.ts";
 import { outcomeTrackingRoutes } from "./routes/outcome-tracking.ts";
 import { benchmarkApiRoutes } from "./routes/benchmark-api.ts";
@@ -729,6 +730,9 @@ app.route("/api/v1/trades", tradeRoutes);
 
 // Leaderboard API routes (protected)
 app.route("/api/v1/leaderboard", leaderboardApiRoutes);
+
+// Mobile Agent Marketplace API (Solana Mobile dApp backend)
+app.route("/api/v1/mobile", mobileMarketplaceRoutes);
 
 // Placeholder: GET /api/v1/me (protected, for testing auth middleware)
 app.get("/api/v1/me", (c) => {
