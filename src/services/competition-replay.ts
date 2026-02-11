@@ -16,7 +16,7 @@
  * - Chronological timeline replay with optional time-range filtering
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -365,9 +365,9 @@ function buildChapters(allEvents: CompetitionEvent[]): NarrativeChapter[] {
       : 0;
 
     // Significance: weighted by lead changes, circuit breakers, and event density
-    const chapterLeadChanges = chapterEvents.filter((e) => e.type === "lead_change").length;
-    const circuitBreakers = chapterEvents.filter((e) => e.type === "circuit_breaker").length;
-    const milestones = chapterEvents.filter((e) => e.type === "milestone").length;
+    const chapterLeadChanges = countByCondition(chapterEvents, (e) => e.type === "lead_change");
+    const circuitBreakers = countByCondition(chapterEvents, (e) => e.type === "circuit_breaker");
+    const milestones = countByCondition(chapterEvents, (e) => e.type === "milestone");
     const significance = Math.min(100,
       20 + chapterLeadChanges * 25 + circuitBreakers * 15 + milestones * 10 +
       Math.min(20, chapterEvents.length * 2),
@@ -396,7 +396,7 @@ function generateChapterTitle(
   leadChangeCount: number,
 ): string {
   const hasCircuitBreaker = events.some((e) => e.type === "circuit_breaker");
-  const failedTrades = events.filter((e) => e.type === "trade_failed").length;
+  const failedTrades = countByCondition(events, (e) => e.type === "trade_failed");
 
   if (chapterNumber === 1) {
     return "Opening Salvos — The Agents Enter the Arena";
@@ -663,7 +663,7 @@ export function getCompetitionSummary(): CompetitionSummary {
   // Count events per agent
   const eventsPerAgent: Record<string, number> = {};
   for (const agentId of AGENT_IDS) {
-    eventsPerAgent[agentId] = allEvents.filter((e) => e.agentId === agentId).length;
+    eventsPerAgent[agentId] = countByCondition(allEvents, (e) => e.agentId === agentId);
   }
 
   // Determine time boundaries
@@ -735,8 +735,8 @@ function buildAgentArc(agentId: string, allEvents: CompetitionEvent[]): AgentArc
   const trades = agentEvents.filter(
     (e) => e.type === "trade_executed" || e.type === "trade_failed",
   );
-  const successfulTrades = trades.filter((e) => e.type === "trade_executed").length;
-  const failedTrades = trades.filter((e) => e.type === "trade_failed").length;
+  const successfulTrades = countByCondition(trades, (e) => e.type === "trade_executed");
+  const failedTrades = countByCondition(trades, (e) => e.type === "trade_failed");
   const totalTrades = trades.length;
 
   // Determine rounds this agent participated in
