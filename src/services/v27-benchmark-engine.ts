@@ -116,6 +116,105 @@ const SCORE_FROM_THREE_INDICATORS = 0.8;
 /** Score when 4+ indicators detected (excellent presence) */
 const SCORE_FROM_FOUR_PLUS_INDICATORS = 1.0;
 
+/**
+ * Execution Quality Scoring Constants
+ *
+ * These constants control how trade execution quality is measured across
+ * 5 dimensions: slippage awareness, price realism, timing rationale,
+ * execution plan quality, and market impact awareness.
+ */
+
+/** Hold action default price realism score (neutral when no price comparison needed) */
+const PRICE_REALISM_HOLD_DEFAULT = 0.8;
+/** Score when no price mentioned or no market data available */
+const PRICE_REALISM_NO_DATA = 0.5;
+/** Price deviation threshold for perfect score (within 5% = realistic) */
+const PRICE_DEVIATION_PERFECT_THRESHOLD = 0.05;
+/** Perfect score when price within tolerance */
+const PRICE_REALISM_PERFECT_SCORE = 1.0;
+/** Price deviation threshold for acceptable score (within 20%) */
+const PRICE_DEVIATION_ACCEPTABLE_THRESHOLD = 0.20;
+/** Deviation range for linear interpolation (20% - 5% = 15%) */
+const PRICE_DEVIATION_RANGE = 0.15;
+/** Penalty multiplier for deviation interpolation (1.0 - 0.2 = 0.8 range) */
+const PRICE_REALISM_PENALTY_MULTIPLIER = 0.8;
+/** Score when price off by more than 20% (unrealistic) */
+const PRICE_REALISM_POOR_SCORE = 0.2;
+
+/**
+ * Execution Quality Component Weights
+ * Total = 1.0 (100%). These weights determine relative importance of each
+ * execution quality dimension in the composite score.
+ */
+const EXEC_QUALITY_WEIGHT_SLIPPAGE = 0.20; // 20% - awareness of trading costs
+const EXEC_QUALITY_WEIGHT_PRICE_REALISM = 0.25; // 25% - HIGHEST, accurate market prices
+const EXEC_QUALITY_WEIGHT_TIMING = 0.25; // 25% - HIGHEST, rationale for timing
+const EXEC_QUALITY_WEIGHT_EXECUTION_PLAN = 0.15; // 15% - plan quality
+const EXEC_QUALITY_WEIGHT_MARKET_IMPACT = 0.15; // 15% - position size awareness
+
+/**
+ * Cross-Round Learning Scoring Constants
+ *
+ * These constants control how agent learning is measured across 5 dimensions:
+ * lesson application, mistake repetition avoidance, strategy adaptation,
+ * outcome integration, and reasoning evolution.
+ */
+
+/** Baseline score when no past failures exist (no lessons to apply) */
+const LESSON_APPLICATION_NO_FAILURES_BASELINE = 0.6;
+/** Score when 3+ lesson keywords mentioned (excellent learning) */
+const LESSON_APPLICATION_EXCELLENT = 1.0;
+/** Score when 2 lesson keywords mentioned (good learning) */
+const LESSON_APPLICATION_GOOD = 0.8;
+/** Score when 1 lesson keyword mentioned (moderate learning) */
+const LESSON_APPLICATION_MODERATE = 0.6;
+/** Score when past failures exist but no lessons mentioned (poor learning) */
+const LESSON_APPLICATION_POOR = 0.2;
+
+/** Baseline score when no past failures to repeat (neutral) */
+const MISTAKE_REPETITION_NO_FAILURES_BASELINE = 0.8;
+/** Jaccard distance threshold for similar reasoning (< 0.3 = very similar) */
+const SIMILAR_REASONING_THRESHOLD = 0.3;
+/** Score when repeating failed pattern (same symbol + action + reasoning) */
+const MISTAKE_REPETITION_REPEATING = 0.0;
+/** Score when NOT repeating failed patterns (avoiding mistakes) */
+const MISTAKE_REPETITION_AVOIDING = 1.0;
+
+/** Coherence threshold for poor past trade (< 0.4 = bad outcome) */
+const POOR_TRADE_COHERENCE_THRESHOLD = 0.4;
+
+/** Baseline reasoning evolution score when no past trades (neutral) */
+const REASONING_EVOLUTION_NO_PAST_BASELINE = 0.5;
+/** Reasoning evolution score when current trade has reasoning (baseline) */
+const REASONING_EVOLUTION_HAS_REASONING = 1.0;
+/** Length ratio threshold for significantly more detailed (>1.5× = significant growth) */
+const REASONING_LENGTH_SIGNIFICANT_GROWTH = 1.5;
+/** Score when reasoning significantly more detailed */
+const REASONING_EVOLUTION_SIGNIFICANT_GROWTH_SCORE = 1.0;
+/** Length ratio threshold for moderately more detailed (1.2-1.5× = moderate growth) */
+const REASONING_LENGTH_MODERATE_GROWTH = 1.2;
+/** Score when reasoning moderately more detailed */
+const REASONING_EVOLUTION_MODERATE_GROWTH_SCORE = 0.8;
+/** Score when reasoning roughly same depth (0.8-1.2× = stable) */
+const REASONING_EVOLUTION_STABLE_SCORE = 0.6;
+/** Length ratio threshold for concerning decline (>= 0.6 but < 0.8 = declining) */
+const REASONING_LENGTH_DECLINE_THRESHOLD = 0.6;
+/** Score when reasoning declining in detail */
+const REASONING_EVOLUTION_DECLINING_SCORE = 0.4;
+/** Score when reasoning significantly shorter (< 0.6× = major decline) */
+const REASONING_EVOLUTION_MAJOR_DECLINE_SCORE = 0.2;
+
+/**
+ * Cross-Round Learning Component Weights
+ * Total = 1.0 (100%). These weights determine relative importance of each
+ * learning dimension in the composite score.
+ */
+const LEARNING_WEIGHT_LESSON_APPLICATION = 0.25; // 25% - HIGHEST, applying past lessons
+const LEARNING_WEIGHT_MISTAKE_REPETITION = 0.20; // 20% - avoiding failed patterns
+const LEARNING_WEIGHT_STRATEGY_ADAPTATION = 0.20; // 20% - adapting strategy to outcomes
+const LEARNING_WEIGHT_OUTCOME_INTEGRATION = 0.20; // 20% - integrating P&L results
+const LEARNING_WEIGHT_REASONING_EVOLUTION = 0.15; // 15% - reasoning depth growth
+
 // ---------------------------------------------------------------------------
 // In-memory stores (for quick reads)
 // ---------------------------------------------------------------------------
@@ -196,7 +295,7 @@ export function analyzeExecutionQuality(
   // -----------------------------------------------------------------------
   let priceRealism: number;
   if (action === "hold") {
-    priceRealism = 0.8; // Neutral default for holds
+    priceRealism = PRICE_REALISM_HOLD_DEFAULT; // Neutral default for holds
   } else {
     const mentionedPrices = extractPricesFromReasoning(reasoning);
     const targetMarket = marketData.find(
@@ -205,7 +304,7 @@ export function analyzeExecutionQuality(
 
     if (mentionedPrices.length === 0 || !targetMarket) {
       // No price mentioned or no market data: neutral score
-      priceRealism = 0.5;
+      priceRealism = PRICE_REALISM_NO_DATA;
     } else {
       const marketPrice = targetMarket.price;
       // Check if any mentioned price is within tolerance of market price
@@ -217,14 +316,14 @@ export function analyzeExecutionQuality(
         }
       }
 
-      if (bestMatch <= 0.05) {
-        priceRealism = 1.0; // Within 5% tolerance
-      } else if (bestMatch <= 0.20) {
+      if (bestMatch <= PRICE_DEVIATION_PERFECT_THRESHOLD) {
+        priceRealism = PRICE_REALISM_PERFECT_SCORE; // Within 5% tolerance
+      } else if (bestMatch <= PRICE_DEVIATION_ACCEPTABLE_THRESHOLD) {
         // Linear interpolation between 5% and 20% deviation
-        priceRealism = 1.0 - ((bestMatch - 0.05) / 0.15) * 0.8;
+        priceRealism = PRICE_REALISM_PERFECT_SCORE - ((bestMatch - PRICE_DEVIATION_PERFECT_THRESHOLD) / PRICE_DEVIATION_RANGE) * PRICE_REALISM_PENALTY_MULTIPLIER;
         priceRealism = Math.round(priceRealism * 100) / 100;
       } else {
-        priceRealism = 0.2; // Off by more than 20%
+        priceRealism = PRICE_REALISM_POOR_SCORE; // Off by more than 20%
       }
     }
   }
@@ -254,11 +353,11 @@ export function analyzeExecutionQuality(
   // Composite
   // -----------------------------------------------------------------------
   const executionQualityScore = Math.round(
-    (slippageAwareness * 0.20 +
-      priceRealism * 0.25 +
-      timingRationale * 0.25 +
-      executionPlanQuality * 0.15 +
-      marketImpactAwareness * 0.15) *
+    (slippageAwareness * EXEC_QUALITY_WEIGHT_SLIPPAGE +
+      priceRealism * EXEC_QUALITY_WEIGHT_PRICE_REALISM +
+      timingRationale * EXEC_QUALITY_WEIGHT_TIMING +
+      executionPlanQuality * EXEC_QUALITY_WEIGHT_EXECUTION_PLAN +
+      marketImpactAwareness * EXEC_QUALITY_WEIGHT_MARKET_IMPACT) *
       100,
   ) / 100;
 
@@ -378,26 +477,26 @@ export function analyzeCrossRoundLearning(
         d.outcome === "loss" ||
         d.outcome === "failure" ||
         d.outcome === "negative" ||
-        d.coherenceScore < 0.4,
+        d.coherenceScore < POOR_TRADE_COHERENCE_THRESHOLD,
     );
 
     if (badOutcomes.length === 0) {
       // No past failures to learn from -- moderate baseline
-      lessonApplication = 0.6;
+      lessonApplication = LESSON_APPLICATION_NO_FAILURES_BASELINE;
     } else {
       // Check if reasoning mentions adjustment, lesson, or mistake
       const lessonPattern = /adjust|lesson|mistake|corrected|improved|changed\s+approach|learned\s+from|won't\s+repeat|avoid\s+this\s+time|different\s+strategy|refined/gi;
       const lessonMentions = countMatches(reasoning, lessonPattern);
 
       if (lessonMentions >= 3) {
-        lessonApplication = 1.0;
+        lessonApplication = LESSON_APPLICATION_EXCELLENT;
       } else if (lessonMentions === 2) {
-        lessonApplication = 0.8;
+        lessonApplication = LESSON_APPLICATION_GOOD;
       } else if (lessonMentions === 1) {
-        lessonApplication = 0.6;
+        lessonApplication = LESSON_APPLICATION_MODERATE;
       } else {
         // Bad outcomes exist but no lessons mentioned
-        lessonApplication = 0.2;
+        lessonApplication = LESSON_APPLICATION_POOR;
       }
     }
   }
@@ -414,7 +513,7 @@ export function analyzeCrossRoundLearning(
   );
 
   if (failedPastTrades.length === 0) {
-    mistakeRepetition = 0.8; // Neutral when no past failures
+    mistakeRepetition = MISTAKE_REPETITION_NO_FAILURES_BASELINE; // Neutral when no past failures
   } else {
     // Check if current trade repeats a failed pattern:
     // Same symbol + same action direction + similar reasoning
@@ -427,7 +526,7 @@ export function analyzeCrossRoundLearning(
       const currentGrams = extractThreeGrams(reasoning);
       const pastGrams = extractThreeGrams(failed.reasoning);
       const distance = jaccardDistance(currentGrams, pastGrams);
-      const similarReasoning = distance < 0.3; // Very similar reasoning
+      const similarReasoning = distance < SIMILAR_REASONING_THRESHOLD; // Very similar reasoning
 
       if (sameSymbol && sameAction && similarReasoning) {
         repeatsFound = true;
@@ -435,7 +534,7 @@ export function analyzeCrossRoundLearning(
       }
     }
 
-    mistakeRepetition = repeatsFound ? 0.0 : 1.0;
+    mistakeRepetition = repeatsFound ? MISTAKE_REPETITION_REPEATING : MISTAKE_REPETITION_AVOIDING;
   }
 
   // -----------------------------------------------------------------------
@@ -472,7 +571,7 @@ export function analyzeCrossRoundLearning(
   // -----------------------------------------------------------------------
   let reasoningEvolution: number;
   if (pastDecisions.length === 0) {
-    reasoningEvolution = 0.5; // Neutral
+    reasoningEvolution = REASONING_EVOLUTION_NO_PAST_BASELINE; // Neutral
   } else {
     const pastLengths = pastDecisions.map((d) => d.reasoning.length);
     const avgPastLength =
@@ -482,20 +581,20 @@ export function analyzeCrossRoundLearning(
 
     // Longer, more detailed reasoning = evolution
     if (avgPastLength === 0) {
-      reasoningEvolution = currentLength > 0 ? 1.0 : 0.5;
+      reasoningEvolution = currentLength > 0 ? REASONING_EVOLUTION_HAS_REASONING : REASONING_EVOLUTION_NO_PAST_BASELINE;
     } else {
       const lengthRatio = currentLength / avgPastLength;
 
-      if (lengthRatio >= 1.5) {
-        reasoningEvolution = 1.0; // Significantly more detailed
-      } else if (lengthRatio >= 1.2) {
-        reasoningEvolution = 0.8;
+      if (lengthRatio >= REASONING_LENGTH_SIGNIFICANT_GROWTH) {
+        reasoningEvolution = REASONING_EVOLUTION_SIGNIFICANT_GROWTH_SCORE; // Significantly more detailed
+      } else if (lengthRatio >= REASONING_LENGTH_MODERATE_GROWTH) {
+        reasoningEvolution = REASONING_EVOLUTION_MODERATE_GROWTH_SCORE;
       } else if (lengthRatio >= 0.9) {
-        reasoningEvolution = 0.6; // Roughly the same depth
-      } else if (lengthRatio >= 0.6) {
-        reasoningEvolution = 0.4; // Regression
+        reasoningEvolution = REASONING_EVOLUTION_STABLE_SCORE; // Roughly the same depth
+      } else if (lengthRatio >= REASONING_LENGTH_DECLINE_THRESHOLD) {
+        reasoningEvolution = REASONING_EVOLUTION_DECLINING_SCORE; // Regression
       } else {
-        reasoningEvolution = 0.2; // Major regression in depth
+        reasoningEvolution = REASONING_EVOLUTION_MAJOR_DECLINE_SCORE; // Major regression in depth
       }
     }
 
