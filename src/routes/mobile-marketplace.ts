@@ -837,17 +837,43 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
   }
 
   let buyerType = "human";
+  let buyerWallet: string | undefined;
+  let referrerAgentId: string | undefined;
   try {
     const body = await c.req.json();
     buyerType = body.buyerType ?? "human";
+    buyerWallet = body.buyerWallet;
+    referrerAgentId = body.referrerAgentId;
   } catch {}
+
+  // ── Dynamic Pricing (bonding curve) ──
+  // Price increases by 2% for every 10 purchases (prevents scraping)
+  const demandMultiplier = 1 + Math.floor(shared.purchaseCount / 10) * 0.02;
+  const basePrice = buyerType === "agent" && shared.agentPriceUsdc != null
+    ? shared.agentPriceUsdc
+    : shared.priceUsdc;
+  const dynamicPrice = Math.round(basePrice * demandMultiplier * 100) / 100;
 
   shared.purchaseCount += 1;
 
-  // Determine price based on buyer type
-  const price = buyerType === "agent" && shared.agentPriceUsdc != null
-    ? shared.agentPriceUsdc
-    : shared.priceUsdc;
+  // ── Agent-to-Agent Referral Kickback ──
+  let referralKickback: { referrerAgentId: string; kickbackUsdc: number } | undefined;
+  if (referrerAgentId && buyerType === "agent") {
+    const referrerAgent = agents.get(referrerAgentId);
+    if (referrerAgent) {
+      const kickbackUsdc = Math.round(dynamicPrice * 0.05 * 100) / 100; // 5% kickback
+      referralKickback = { referrerAgentId, kickbackUsdc };
+      // Track the agent referral
+      agentReferrals.push({
+        id: generateId("aref"),
+        referrerAgentId,
+        buyerAgentId: buyerWallet ?? "unknown",
+        sharedAnalysisId: shared.id,
+        kickbackUsdc,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
 
   // Return different package formats based on buyer type
   if (buyerType === "agent") {
@@ -858,9 +884,10 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
         title: shared.title,
         capability: shared.capability,
         tickers: shared.tickers,
-        priceUsdc: price,
+        priceUsdc: dynamicPrice,
         package: shared.agentPackage ?? shared.content,
         packageType: "agent",
+        referralKickback,
       },
     });
   }
@@ -870,7 +897,7 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
     success: true,
     data: {
       ...shared,
-      priceUsdc: price,
+      priceUsdc: dynamicPrice,
       package: shared.humanPackage,
       packageType: "human",
     },
@@ -952,6 +979,61 @@ interface ReferralRecord {
 const quests = new Map<string, QuestRecord>();
 const pointsLedger = new Map<string, PointsRecord>();
 const referrals: ReferralRecord[] = [];
+
+// Agent-to-agent referral tracking
+interface AgentReferralRecord {
+  id: string;
+  referrerAgentId: string;
+  buyerAgentId: string;
+  sharedAnalysisId: string;
+  kickbackUsdc: number;
+  createdAt: string;
+}
+const agentReferrals: AgentReferralRecord[] = [];
+
+// ─── Rate Limiter (anti-sybil) ────────────────────────
+// Tracks actions per wallet/IP to prevent gaming
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number;
+}
+
+const rateLimits = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_WINDOW_MS = 3600_000; // 1 hour
+const RATE_LIMITS: Record<string, number> = {
+  referral_apply: 5,      // max 5 referral claims per hour
+  quest_claim: 20,        // max 20 quest claims per hour
+  purchase: 50,           // max 50 purchases per hour
+  analysis_run: 30,       // max 30 analysis runs per hour
+};
+
+function checkRateLimit(key: string, action: string): boolean {
+  const limitKey = `${action}:${key}`;
+  const maxCount = RATE_LIMITS[action] ?? 100;
+  const now = Date.now();
+
+  const entry = rateLimits.get(limitKey);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimits.set(limitKey, { count: 1, windowStart: now });
+    return true;
+  }
+
+  if (entry.count >= maxCount) return false;
+  entry.count += 1;
+  return true;
+}
+
+// ─── Streak Shields ──────────────────────────────────
+
+interface StreakShieldRecord {
+  userId: string;
+  shieldsOwned: number;
+  activeUntil?: string; // ISO date when current shield expires
+}
+
+const streakShields = new Map<string, StreakShieldRecord>();
+const STREAK_SHIELD_COST_POINTS = 200;
 
 // Seed default quests
 const SEED_QUESTS: QuestRecord[] = [
@@ -1114,21 +1196,38 @@ mobileMarketplaceRoutes.get("/referrals", (c) => {
   return c.json({ success: true, data: referrals });
 });
 
-// POST /referrals/apply — Apply a referral code
+// POST /referrals/apply — Apply a referral code (rate-limited)
 mobileMarketplaceRoutes.post("/referrals/apply", async (c) => {
   try {
     const body = await c.req.json();
-    const { code } = body;
+    const { code, walletAddress } = body;
     if (!code) return c.json({ success: false, error: "code required" }, 400);
 
-    // Find user with this referral code
+    // Anti-sybil: rate limit
+    const clientKey = walletAddress ?? c.req.header("x-forwarded-for") ?? "anonymous";
+    if (!checkRateLimit(clientKey, "referral_apply")) {
+      return c.json({ success: false, error: "Rate limit exceeded. Try again later." }, 429);
+    }
+
+    // Anti-sybil: cannot refer yourself
     const referrer = Array.from(users.values()).find((u) => u.walletAddress === code || u.id === code);
     if (!referrer) return c.json({ success: false, error: "Invalid referral code" }, 404);
+    if (referrer.walletAddress === walletAddress) {
+      return c.json({ success: false, error: "Cannot refer yourself" }, 400);
+    }
+
+    // Anti-sybil: check for duplicate referral from same wallet
+    const existingRef = referrals.find(
+      (r) => r.referralCode === code && r.referredUserId === (walletAddress ?? "demo-user")
+    );
+    if (existingRef) {
+      return c.json({ success: false, error: "Referral already applied" }, 400);
+    }
 
     const referral: ReferralRecord = {
       id: generateId("ref"),
       referrerUserId: referrer.id,
-      referredUserId: "demo-user",
+      referredUserId: walletAddress ?? "demo-user",
       referralCode: code,
       pointsAwarded: 500,
       createdAt: new Date().toISOString(),
@@ -1253,4 +1352,398 @@ mobileMarketplaceRoutes.get("/blinks/marketplace", (c) => {
       })),
     },
   });
+});
+
+// GET /blinks/teaser/:id — Social proof Blink for sharing on X
+// "Agent X just bought this analysis. 142 people have it. Get yours for $5 USDC."
+mobileMarketplaceRoutes.get("/blinks/teaser/:id", (c) => {
+  const shared = sharedAnalyses.get(c.req.param("id"));
+  if (!shared) {
+    return c.json({
+      icon: "https://www.patgpt.us/favicon.ico",
+      label: "MoltApp Analysis",
+      description: "AI-generated financial analysis on Solana",
+      links: { actions: [] },
+    });
+  }
+
+  const agent = agents.get(shared.agentId);
+  const agentName = agent?.name ?? "an AI agent";
+
+  // Social proof: how many bought
+  const socialProof = shared.purchaseCount > 0
+    ? `${shared.purchaseCount} ${shared.purchaseCount === 1 ? "buyer" : "buyers"} already`
+    : "Be the first to buy";
+
+  // Dynamic price
+  const demandMultiplier = 1 + Math.floor(shared.purchaseCount / 10) * 0.02;
+  const currentPrice = Math.round(shared.priceUsdc * demandMultiplier * 100) / 100;
+
+  return c.json({
+    icon: "https://www.patgpt.us/favicon.ico",
+    title: `${agentName} just published: "${shared.title}"`,
+    label: `$${currentPrice} USDC | ${socialProof}`,
+    description: shared.previewSummary || shared.description || `${shared.capability} analysis of ${shared.tickers.join(", ")}`,
+    links: {
+      actions: [
+        {
+          label: `Buy for $${currentPrice} USDC`,
+          href: `/api/v1/mobile/shared/${shared.id}/purchase`,
+        },
+      ],
+    },
+    // Extra metadata for rich unfurling on X / Dialect
+    metadata: {
+      purchaseCount: shared.purchaseCount,
+      agentName,
+      agentRating: agent?.rating,
+      tickers: shared.tickers,
+      capability: shared.capability,
+      currentPrice,
+      basePrice: shared.priceUsdc,
+    },
+  });
+});
+
+// ─── Agent-to-Agent Referrals ──────────────────────────
+
+// GET /agent-referrals — List agent referral earnings
+mobileMarketplaceRoutes.get("/agent-referrals", (c) => {
+  const agentId = c.req.query("agentId");
+  let items = agentReferrals;
+  if (agentId) items = items.filter((r) => r.referrerAgentId === agentId);
+
+  const totalKickback = items.reduce((sum, r) => sum + r.kickbackUsdc, 0);
+  return c.json({
+    success: true,
+    data: {
+      referrals: items,
+      totalKickbackUsdc: Math.round(totalKickback * 100) / 100,
+      referralCount: items.length,
+    },
+  });
+});
+
+// ─── Streak Shields ───────────────────────────────────
+
+// POST /streak-shield/buy — Buy a streak shield with points
+mobileMarketplaceRoutes.post("/streak-shield/buy", async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = body.userId ?? "demo-user";
+
+    const ledger = pointsLedger.get(userId);
+    if (!ledger || ledger.totalPoints < STREAK_SHIELD_COST_POINTS) {
+      return c.json({
+        success: false,
+        error: `Need ${STREAK_SHIELD_COST_POINTS} points. You have ${ledger?.totalPoints ?? 0}.`,
+      }, 400);
+    }
+
+    // Deduct points
+    ledger.totalPoints -= STREAK_SHIELD_COST_POINTS;
+    ledger.entries.push({
+      id: generateId("pts"),
+      amount: -STREAK_SHIELD_COST_POINTS,
+      reason: "Purchased streak shield",
+      createdAt: new Date().toISOString(),
+    });
+
+    // Add shield
+    let shield = streakShields.get(userId);
+    if (!shield) {
+      shield = { userId, shieldsOwned: 0 };
+      streakShields.set(userId, shield);
+    }
+    shield.shieldsOwned += 1;
+
+    return c.json({
+      success: true,
+      data: { shieldsOwned: shield.shieldsOwned, pointsRemaining: ledger.totalPoints },
+    });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// POST /streak-shield/activate — Use a shield to protect streak
+mobileMarketplaceRoutes.post("/streak-shield/activate", async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = body.userId ?? "demo-user";
+
+    const shield = streakShields.get(userId);
+    if (!shield || shield.shieldsOwned <= 0) {
+      return c.json({ success: false, error: "No streak shields available" }, 400);
+    }
+
+    shield.shieldsOwned -= 1;
+    // Shield protects for 24 hours
+    shield.activeUntil = new Date(Date.now() + 86400_000).toISOString();
+
+    return c.json({
+      success: true,
+      data: {
+        shieldsOwned: shield.shieldsOwned,
+        activeUntil: shield.activeUntil,
+      },
+    });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// GET /streak-shield — Check shield status
+mobileMarketplaceRoutes.get("/streak-shield", (c) => {
+  const userId = c.req.query("userId") ?? "demo-user";
+  const shield = streakShields.get(userId);
+
+  return c.json({
+    success: true,
+    data: {
+      shieldsOwned: shield?.shieldsOwned ?? 0,
+      activeUntil: shield?.activeUntil ?? null,
+      isProtected: shield?.activeUntil ? new Date(shield.activeUntil) > new Date() : false,
+      costPoints: STREAK_SHIELD_COST_POINTS,
+    },
+  });
+});
+
+// ─── Notifications ────────────────────────────────────
+
+interface NotificationRecord {
+  id: string;
+  userId: string;
+  type: "analysis_published" | "outranked" | "sale" | "quest_available" | "referral_joined" | "price_change";
+  title: string;
+  body: string;
+  data?: Record<string, string>;
+  read: boolean;
+  createdAt: string;
+}
+
+const notifications = new Map<string, NotificationRecord[]>();
+
+// Helper to push a notification
+function pushNotification(userId: string, notif: Omit<NotificationRecord, "id" | "userId" | "read" | "createdAt">) {
+  const userNotifs = notifications.get(userId) ?? [];
+  userNotifs.push({
+    ...notif,
+    id: generateId("notif"),
+    userId,
+    read: false,
+    createdAt: new Date().toISOString(),
+  });
+  notifications.set(userId, userNotifs);
+}
+
+// GET /notifications — Get user's notifications
+mobileMarketplaceRoutes.get("/notifications", (c) => {
+  const userId = c.req.query("userId") ?? "demo-user";
+  const unreadOnly = c.req.query("unreadOnly") === "true";
+
+  let items = notifications.get(userId) ?? [];
+  if (unreadOnly) items = items.filter((n) => !n.read);
+
+  // Sort newest first
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return c.json({
+    success: true,
+    data: items,
+    unreadCount: items.filter((n) => !n.read).length,
+  });
+});
+
+// POST /notifications/:id/read — Mark notification as read
+mobileMarketplaceRoutes.post("/notifications/:id/read", (c) => {
+  const notifId = c.req.param("id");
+  for (const [, userNotifs] of notifications) {
+    const notif = userNotifs.find((n) => n.id === notifId);
+    if (notif) {
+      notif.read = true;
+      return c.json({ success: true });
+    }
+  }
+  return c.json({ success: false, error: "Notification not found" }, 404);
+});
+
+// POST /notifications/test — Send a test notification (for dev/demo)
+mobileMarketplaceRoutes.post("/notifications/test", async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = body.userId ?? "demo-user";
+
+    pushNotification(userId, {
+      type: body.type ?? "analysis_published",
+      title: body.title ?? "New Analysis Available",
+      body: body.body ?? "A top-rated agent just published a new financial analysis. Check it out!",
+      data: body.data,
+    });
+
+    return c.json({ success: true });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// ─── Seeker Deep Links & dApp Manifest ────────────────
+
+// GET /manifest.json — Solana dApp Store manifest
+mobileMarketplaceRoutes.get("/manifest.json", (c) => {
+  return c.json({
+    schema_version: "v0.1",
+    name: "MoltApp",
+    short_name: "MoltApp",
+    description: "AI-to-AI financial intelligence marketplace on Solana. Buy and sell AI-generated financial analysis packages with USDC.",
+    long_description: "MoltApp is the first AI-to-AI financial marketplace on Solana Mobile. Create AI agents that generate financial analysis, share and sell analysis packages on the marketplace, and let agents autonomously trade insights. Supports both human and AI agent buyers with dual-format packages. Features quest board, leaderboard, referral system, and Solana Blinks for social media discovery.",
+    website: "https://www.patgpt.us",
+    app: {
+      android_package: "us.patgpt.moltapp",
+      ios_bundle: "us.patgpt.moltapp",
+    },
+    release: {
+      address: "https://www.patgpt.us/releases/moltapp-latest.apk",
+      version: "1.0.0",
+    },
+    media: [
+      {
+        mime: "image/png",
+        purpose: "icon",
+        url: "https://www.patgpt.us/icon-512.png",
+        width: 512,
+        height: 512,
+      },
+      {
+        mime: "image/png",
+        purpose: "screenshot",
+        url: "https://www.patgpt.us/screenshots/marketplace.png",
+        width: 1080,
+        height: 2340,
+      },
+    ],
+    solana_mobile_dapp_publisher_portal: {
+      google_store_package: "us.patgpt.moltapp",
+      testing_instructions: "Connect any Solana wallet (Phantom, Solflare) via Mobile Wallet Adapter. Create an agent, run an analysis, share it on the marketplace. Complete quests to earn points.",
+    },
+    platforms: ["android"],
+    category: "defi",
+    locales: ["en"],
+  });
+});
+
+// GET /deeplink — Generate Seeker-compatible deep links
+mobileMarketplaceRoutes.get("/deeplink", (c) => {
+  const action = c.req.query("action") ?? "home";
+  const id = c.req.query("id");
+  const ref = c.req.query("ref");
+
+  const baseDeepLink = "moltapp://";
+  let path = "";
+  const queryParams = new URLSearchParams();
+
+  switch (action) {
+    case "buy":
+      path = `analysis/${id}`;
+      break;
+    case "agent":
+      path = `agent/${id}`;
+      break;
+    case "quest":
+      path = "quests";
+      break;
+    case "referral":
+      path = "welcome";
+      if (ref) queryParams.set("ref", ref);
+      break;
+    default:
+      path = "";
+  }
+
+  const qs = queryParams.toString();
+  const deepLink = `${baseDeepLink}${path}${qs ? `?${qs}` : ""}`;
+
+  // Also generate a universal link for web fallback
+  const universalLink = `https://www.patgpt.us/app/${path}${qs ? `?${qs}` : ""}`;
+
+  // SMS intent for Seeker wallet
+  const smsIntent = `solana-mobile://dapp?url=${encodeURIComponent(universalLink)}`;
+
+  return c.json({
+    success: true,
+    data: {
+      deepLink,
+      universalLink,
+      smsIntent,
+      isSeekerOptimized: true,
+    },
+  });
+});
+
+// ─── Dynamic Quests ───────────────────────────────────
+
+// POST /quests/generate — Generate time-limited dynamic quests
+mobileMarketplaceRoutes.post("/quests/generate", async (c) => {
+  try {
+    const body = await c.req.json();
+    const questType = body.type ?? "daily";
+
+    const dynamicQuests: QuestRecord[] = [];
+
+    if (questType === "daily") {
+      dynamicQuests.push({
+        id: generateId("quest"),
+        title: "Daily Login",
+        description: "Open MoltApp today to maintain your streak",
+        category: "streak",
+        pointsReward: 50,
+        requirement: { type: "daily_login", count: 1 },
+        progress: 0,
+        status: "available",
+        sortOrder: 100,
+        expiresAt: new Date(Date.now() + 86400_000).toISOString(),
+      });
+    }
+
+    if (questType === "weekly_competition") {
+      // "Agent vs Human" competition quest
+      dynamicQuests.push({
+        id: generateId("quest"),
+        title: "Human vs. AI Challenge",
+        description: "Create a portfolio pick and see if it outperforms the AI agents this week",
+        category: "trading",
+        pointsReward: 2000,
+        usdcReward: 1.0,
+        requirement: { type: "run_analysis", count: 3 },
+        progress: 0,
+        status: "available",
+        sortOrder: 101,
+        expiresAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
+      });
+    }
+
+    if (questType === "flash") {
+      // Flash sale quest — buy in the next hour for bonus points
+      dynamicQuests.push({
+        id: generateId("quest"),
+        title: "Flash Quest: Quick Buy",
+        description: "Purchase any analysis in the next hour for bonus points",
+        category: "marketplace",
+        pointsReward: 500,
+        requirement: { type: "buy_shared", count: 1 },
+        progress: 0,
+        status: "available",
+        sortOrder: 102,
+        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      });
+    }
+
+    for (const q of dynamicQuests) {
+      quests.set(q.id, q);
+    }
+
+    return c.json({ success: true, data: dynamicQuests });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
 });

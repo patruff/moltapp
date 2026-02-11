@@ -1048,3 +1048,342 @@ describe("Mobile Marketplace API — Blinks", () => {
     expect(body.links.actions.length).toBeGreaterThan(0);
   });
 });
+
+// ─── Social Proof Blink Teasers ───────────────────────
+
+describe("Mobile Marketplace API — Blink Teasers", () => {
+  let teaserSharedId: string;
+
+  it("creates a shared analysis for teaser testing", async () => {
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-claude",
+      tickers: ["SOL", "USDC"],
+      capability: "financial_analysis",
+    });
+    const { body } = await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "SOL/USDC Alpha",
+      previewSummary: "Strong buy signal for SOL",
+      priceUsdc: 5.0,
+      visibility: "public",
+    });
+    teaserSharedId = body.data.id;
+    expect(teaserSharedId).toBeDefined();
+  });
+
+  it("GET /blinks/teaser/:id returns social proof data", async () => {
+    const { body } = await get(`/blinks/teaser/${teaserSharedId}`);
+    expect(body.title).toContain("Claude");
+    expect(body.label).toContain("$5");
+    expect(body.description).toBeTruthy();
+    expect(body.metadata).toBeDefined();
+    expect(body.metadata.purchaseCount).toBe(0);
+    expect(body.metadata.agentName).toBe("Claude Analyst");
+    expect(body.metadata.tickers).toContain("SOL");
+    expect(body.links.actions.length).toBeGreaterThan(0);
+  });
+
+  it("teaser updates after purchases", async () => {
+    await post(`/shared/${teaserSharedId}/purchase`, { buyerWallet: "T1" });
+    await post(`/shared/${teaserSharedId}/purchase`, { buyerWallet: "T2" });
+
+    const { body } = await get(`/blinks/teaser/${teaserSharedId}`);
+    expect(body.metadata.purchaseCount).toBe(2);
+    expect(body.label).toContain("2 buyers");
+  });
+
+  it("teaser handles unknown analysis gracefully", async () => {
+    const { body } = await get("/blinks/teaser/nonexistent");
+    expect(body.label).toBe("MoltApp Analysis");
+  });
+});
+
+// ─── Dynamic Pricing ──────────────────────────────────
+
+describe("Mobile Marketplace API — Dynamic Pricing", () => {
+  it("price increases with demand (bonding curve)", async () => {
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-gpt",
+      tickers: ["AAPL"],
+    });
+    const { body: shareRes } = await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "Demand test",
+      priceUsdc: 10.0,
+      visibility: "public",
+      maxPurchases: 0,
+    });
+    const sharedId = shareRes.data.id;
+
+    // First purchase — base price
+    const { body: p1 } = await post(`/shared/${sharedId}/purchase`, { buyerWallet: "D1" });
+    const price1 = p1.data.priceUsdc;
+    expect(price1).toBe(10.0); // 0 previous, multiplier 1.0
+
+    // Buy 9 more to get to 10 purchases
+    for (let i = 2; i <= 10; i++) {
+      await post(`/shared/${sharedId}/purchase`, { buyerWallet: `D${i}` });
+    }
+
+    // 11th purchase — should be 2% more
+    const { body: p11 } = await post(`/shared/${sharedId}/purchase`, { buyerWallet: "D11" });
+    expect(p11.data.priceUsdc).toBe(10.2); // 10 * 1.02
+  });
+});
+
+// ─── Agent-to-Agent Referrals ─────────────────────────
+
+describe("Mobile Marketplace API — Agent Referrals", () => {
+  it("agent purchase with referrer earns kickback", async () => {
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-grok",
+      tickers: ["BTC"],
+    });
+    const { body: shareRes } = await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "Kickback test",
+      priceUsdc: 10.0,
+      agentPriceUsdc: 5.0,
+      visibility: "public",
+    });
+
+    const { body } = await post(`/shared/${shareRes.data.id}/purchase`, {
+      buyerWallet: "BuyerAgent",
+      buyerType: "agent",
+      referrerAgentId: "agent-claude",
+    });
+
+    expect(body.success).toBe(true);
+    expect(body.data.referralKickback).toBeDefined();
+    expect(body.data.referralKickback.referrerAgentId).toBe("agent-claude");
+    expect(body.data.referralKickback.kickbackUsdc).toBeGreaterThan(0);
+  });
+
+  it("GET /agent-referrals lists referral earnings", async () => {
+    const { body } = await get("/agent-referrals?agentId=agent-claude");
+    expect(body.success).toBe(true);
+    expect(body.data.referralCount).toBeGreaterThan(0);
+    expect(body.data.totalKickbackUsdc).toBeGreaterThan(0);
+    expect(body.data.referrals.length).toBeGreaterThan(0);
+  });
+
+  it("no kickback for invalid referrer agent", async () => {
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-gpt",
+      tickers: ["ETH"],
+    });
+    const { body: shareRes } = await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "No kickback test",
+      priceUsdc: 5.0,
+      visibility: "public",
+    });
+
+    const { body } = await post(`/shared/${shareRes.data.id}/purchase`, {
+      buyerWallet: "BuyerAgent2",
+      buyerType: "agent",
+      referrerAgentId: "nonexistent-agent",
+    });
+
+    expect(body.success).toBe(true);
+    expect(body.data.referralKickback).toBeUndefined();
+  });
+});
+
+// ─── Anti-Sybil & Rate Limiting ───────────────────────
+
+describe("Mobile Marketplace API — Anti-Sybil", () => {
+  it("rejects self-referral", async () => {
+    // Create a user first
+    await post("/auth/wallet", { walletAddress: "SybilWallet123" });
+
+    const { status, body } = await post("/referrals/apply", {
+      code: "SybilWallet123",
+      walletAddress: "SybilWallet123",
+    });
+    expect(status).toBe(400);
+    expect(body.error).toContain("Cannot refer yourself");
+  });
+
+  it("rejects duplicate referral from same wallet", async () => {
+    await post("/auth/wallet", { walletAddress: "ReferrerWallet999" });
+
+    // First apply works
+    const { body: first } = await post("/referrals/apply", {
+      code: "ReferrerWallet999",
+      walletAddress: "NewUser999",
+    });
+    expect(first.success).toBe(true);
+
+    // Second apply fails
+    const { status, body: second } = await post("/referrals/apply", {
+      code: "ReferrerWallet999",
+      walletAddress: "NewUser999",
+    });
+    expect(status).toBe(400);
+    expect(second.error).toContain("already applied");
+  });
+});
+
+// ─── Streak Shields ───────────────────────────────────
+
+describe("Mobile Marketplace API — Streak Shields", () => {
+  it("GET /streak-shield returns shield status", async () => {
+    const { body } = await get("/streak-shield?userId=demo-user");
+    expect(body.success).toBe(true);
+    expect(typeof body.data.shieldsOwned).toBe("number");
+    expect(typeof body.data.isProtected).toBe("boolean");
+    expect(body.data.costPoints).toBeGreaterThan(0);
+  });
+
+  it("POST /streak-shield/buy rejects when not enough points", async () => {
+    const { status, body } = await post("/streak-shield/buy", {
+      userId: "broke-user",
+    });
+    expect(status).toBe(400);
+    expect(body.error).toContain("points");
+  });
+
+  it("POST /streak-shield/activate rejects when no shields", async () => {
+    const { status, body } = await post("/streak-shield/activate", {
+      userId: "no-shield-user",
+    });
+    expect(status).toBe(400);
+    expect(body.error).toContain("No streak shields");
+  });
+});
+
+// ─── Notifications ────────────────────────────────────
+
+describe("Mobile Marketplace API — Notifications", () => {
+  it("GET /notifications returns empty list initially", async () => {
+    const { body } = await get("/notifications?userId=fresh-user");
+    expect(body.success).toBe(true);
+    expect(body.data).toEqual([]);
+    expect(body.unreadCount).toBe(0);
+  });
+
+  it("POST /notifications/test creates a notification", async () => {
+    const { body: createRes } = await post("/notifications/test", {
+      userId: "notif-user",
+      type: "analysis_published",
+      title: "New Analysis",
+      body: "Claude Analyst published a new SOL analysis",
+    });
+    expect(createRes.success).toBe(true);
+
+    const { body } = await get("/notifications?userId=notif-user");
+    expect(body.data.length).toBe(1);
+    expect(body.data[0].title).toBe("New Analysis");
+    expect(body.data[0].read).toBe(false);
+    expect(body.unreadCount).toBe(1);
+  });
+
+  it("POST /notifications/:id/read marks as read", async () => {
+    const { body: listRes } = await get("/notifications?userId=notif-user");
+    const notifId = listRes.data[0].id;
+
+    await post(`/notifications/${notifId}/read`, {});
+
+    const { body } = await get("/notifications?userId=notif-user");
+    expect(body.data[0].read).toBe(true);
+    expect(body.unreadCount).toBe(0);
+  });
+
+  it("unreadOnly filter works", async () => {
+    await post("/notifications/test", {
+      userId: "filter-user",
+      title: "Read me",
+    });
+    await post("/notifications/test", {
+      userId: "filter-user",
+      title: "Unread me",
+    });
+
+    // Mark first as read
+    const { body: all } = await get("/notifications?userId=filter-user");
+    await post(`/notifications/${all.data[0].id}/read`, {});
+
+    const { body } = await get("/notifications?userId=filter-user&unreadOnly=true");
+    expect(body.data.length).toBe(1);
+  });
+});
+
+// ─── Seeker Deep Links & Manifest ─────────────────────
+
+describe("Mobile Marketplace API — Seeker & Deep Links", () => {
+  it("GET /manifest.json returns valid dApp manifest", async () => {
+    const { body } = await get("/manifest.json");
+    expect(body.name).toBe("MoltApp");
+    expect(body.schema_version).toBe("v0.1");
+    expect(body.website).toContain("patgpt.us");
+    expect(body.app.android_package).toBe("us.patgpt.moltapp");
+    expect(body.platforms).toContain("android");
+    expect(body.category).toBe("defi");
+    expect(body.media.length).toBeGreaterThan(0);
+    expect(body.solana_mobile_dapp_publisher_portal).toBeDefined();
+  });
+
+  it("GET /deeplink generates deep link for home", async () => {
+    const { body } = await get("/deeplink?action=home");
+    expect(body.success).toBe(true);
+    expect(body.data.deepLink).toBe("moltapp://");
+    expect(body.data.universalLink).toContain("patgpt.us");
+    expect(body.data.smsIntent).toContain("solana-mobile://");
+    expect(body.data.isSeekerOptimized).toBe(true);
+  });
+
+  it("GET /deeplink generates deep link for referral", async () => {
+    const { body } = await get("/deeplink?action=referral&ref=ABC123");
+    expect(body.data.deepLink).toBe("moltapp://welcome?ref=ABC123");
+    expect(body.data.universalLink).toContain("ref=ABC123");
+    expect(body.data.smsIntent).toContain("solana-mobile://");
+  });
+
+  it("GET /deeplink generates deep link for analysis", async () => {
+    const { body } = await get("/deeplink?action=buy&id=shared_123");
+    expect(body.data.deepLink).toBe("moltapp://analysis/shared_123");
+  });
+
+  it("GET /deeplink generates deep link for agent", async () => {
+    const { body } = await get("/deeplink?action=agent&id=agent-claude");
+    expect(body.data.deepLink).toBe("moltapp://agent/agent-claude");
+  });
+});
+
+// ─── Dynamic Quests ───────────────────────────────────
+
+describe("Mobile Marketplace API — Dynamic Quests", () => {
+  it("POST /quests/generate creates daily quest", async () => {
+    const { body } = await post("/quests/generate", { type: "daily" });
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBe(1);
+    expect(body.data[0].title).toBe("Daily Login");
+    expect(body.data[0].expiresAt).toBeDefined();
+    expect(body.data[0].category).toBe("streak");
+  });
+
+  it("POST /quests/generate creates weekly competition quest", async () => {
+    const { body } = await post("/quests/generate", { type: "weekly_competition" });
+    expect(body.success).toBe(true);
+    expect(body.data[0].title).toContain("Human vs. AI");
+    expect(body.data[0].pointsReward).toBe(2000);
+    expect(body.data[0].usdcReward).toBe(1.0);
+  });
+
+  it("POST /quests/generate creates flash quest", async () => {
+    const { body } = await post("/quests/generate", { type: "flash" });
+    expect(body.success).toBe(true);
+    expect(body.data[0].title).toContain("Flash");
+    const expiresAt = new Date(body.data[0].expiresAt).getTime();
+    const now = Date.now();
+    // Should expire within ~1 hour
+    expect(expiresAt - now).toBeLessThan(3700_000);
+  });
+
+  it("dynamic quests appear in quest list", async () => {
+    const { body } = await get("/quests");
+    const dynamicQuests = body.data.filter((q: any) => q.sortOrder >= 100);
+    expect(dynamicQuests.length).toBeGreaterThan(0);
+  });
+});
