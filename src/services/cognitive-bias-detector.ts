@@ -33,7 +33,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, getTopKey, round3 } from "../lib/math-utils.ts";
+import { countByCondition, countWords, getTopKey, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -401,15 +401,15 @@ function detectConfirmation(
 
   // For buy actions: check if agent ignores negative signals
   if (action === "buy") {
-    const positiveSignals = [
+    const positiveSignals = countByCondition([
       /bullish/i, /upside/i, /growth/i, /opportunity/i, /strong/i,
       /recovery/i, /undervalued/i, /momentum/i, /breakout/i,
-    ].filter((p) => p.test(lower)).length;
+    ], (p) => p.test(lower));
 
-    const negativeSignals = [
+    const negativeSignals = countByCondition([
       /bearish/i, /downside/i, /risk/i, /weakness/i, /overvalued/i,
       /decline/i, /loss/i, /concern/i, /resistance/i,
-    ].filter((p) => p.test(lower)).length;
+    ], (p) => p.test(lower));
 
     // Check if negative data exists but is ignored
     const negativeStocks = marketData.filter(
