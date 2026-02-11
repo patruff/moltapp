@@ -477,7 +477,7 @@ export function computeCalibration(
     : 0;
 
   const overallEce = buckets.length > 0
-    ? weightedSum(buckets, 'ece', 'tradeCount') / resolutions.length
+    ? weightedSumByKey(buckets, 'ece', 'tradeCount') / resolutions.length
     : 0;
 
   return {

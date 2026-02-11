@@ -15,7 +15,7 @@
  *  7. Uniqueness: Is the reasoning original or templated?
  */
 
-import { round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
+import { round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -421,8 +421,8 @@ export function compareReasoning(
   }));
 
   // Composite scores
-  const agentAScore = weightedSum(mappedDimensions, "agentAScore", "weight");
-  const agentBScore = weightedSum(mappedDimensions, "agentBScore", "weight");
+  const agentAScore = weightedSumByKey(mappedDimensions, "agentAScore", "weight");
+  const agentBScore = weightedSumByKey(mappedDimensions, "agentBScore", "weight");
   const diff = agentAScore - agentBScore;
   const winner = Math.abs(diff) < OVERALL_TIE_THRESHOLD ? null : diff > 0 ? agentAId : agentBId;
 

@@ -22,7 +22,7 @@ claude -p "You are the MoltApp code improvement agent. Your job is to make the c
 ## What MoltApp Is
 MoltApp is an open benchmark for AI stock trading on Solana. Three AI agents (Claude ValueBot, GPT MomentumBot, Grok ContrarianBot) trade real tokenized equities (xStocks) via Jupiter DEX. Each agent uses a shared skill.md prompt template with customizable strategy fields, and calls 7 tools autonomously in a multi-turn loop to research and decide trades.
 
-## Current TypeScript Errors: 15
+## Current TypeScript Errors: 2
 
 ## What To Work On (PICK ONE per session — depth over breadth)
 1. **Fix TypeScript errors** — Run \`npx tsc --noEmit\` and fix errors in files we own (src/agents/, src/services/, src/routes/). These are pre-existing errors, not new ones. Focus on the EASIEST ones first.

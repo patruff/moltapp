@@ -484,7 +484,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
 
   return {
     name: "logical_soundness",
-    score: normalize(round2(score)),
+    score: clamp(round2(score), 0, 1),
     indicators,
     grade: getGrade(score),
   };
@@ -527,7 +527,7 @@ function scoreEpistemicHonesty(reasoning: string, confidence: number): Certifica
 
   return {
     name: "epistemic_honesty",
-    score: normalize(round2(score)),
+    score: clamp(round2(score), 0, 1),
     indicators,
     grade: getGrade(score),
   };

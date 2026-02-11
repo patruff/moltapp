@@ -553,8 +553,8 @@ export function calculateAverage(values: number[]): number {
  * weightedSum([10, 20, 30], [0.5, 0.3, 0.2]) // returns 10*0.5 + 20*0.3 + 30*0.2 = 17
  */
 export function weightedSum(
-  values: Record<string, number> | number[],
-  weights: Record<string, number> | number[],
+  values: Record<string, number> | readonly number[],
+  weights: Record<string, number> | readonly number[],
 ): number {
   if (Array.isArray(values) && Array.isArray(weights)) {
     return values.reduce((sum, val, idx) => sum + val * (weights[idx] ?? 0), 0);

@@ -18,7 +18,7 @@
  * 5. LEARNING VELOCITY — is prediction accuracy improving over time?
  */
 
-import { countByCondition, normalize, round2, round3 } from "../lib/math-utils.ts";
+import { clamp, countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -413,7 +413,7 @@ function computeLearningVelocity(agentForecasts: TradeImpactForecast[]): number 
 
   const improvement = secondAccuracy - firstAccuracy;
   // Normalize to 0-1: -0.3 = 0, 0 = 0.5, +0.3 = 1
-  return round2(normalize(LEARNING_DEFAULT_SCORE + improvement * LEARNING_NORMALIZATION_MULTIPLIER));
+  return round2(clamp(LEARNING_DEFAULT_SCORE + improvement * LEARNING_NORMALIZATION_MULTIPLIER, 0, 1));
 }
 
 function computeConvictionCorrelation(agentForecasts: TradeImpactForecast[]): number {
@@ -434,7 +434,7 @@ function computeConvictionCorrelation(agentForecasts: TradeImpactForecast[]): nu
   // Positive correlation: high confidence → better accuracy
   const correlation = highAccuracy - lowAccuracy;
   // Normalize to 0-1: -0.5 = 0, 0 = 0.5, +0.5 = 1
-  return round2(normalize(DEFAULT_CONVICTION_CORRELATION + correlation));
+  return round2(clamp(DEFAULT_CONVICTION_CORRELATION + correlation, 0, 1));
 }
 
 export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
