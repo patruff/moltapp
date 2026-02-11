@@ -21,6 +21,170 @@ import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
 import { round2, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Technical Indicator Period Parameters
+ *
+ * These define the lookback windows for all moving averages and momentum indicators.
+ * Standard values follow industry conventions (20-day SMA, 12/26 EMA for MACD, 14-period RSI).
+ */
+
+/** Simple Moving Average period (20 days = ~1 trading month) */
+const TECHNICAL_INDICATOR_SMA_PERIOD = 20;
+
+/** Fast Exponential Moving Average period for MACD calculation */
+const TECHNICAL_INDICATOR_EMA_FAST_PERIOD = 12;
+
+/** Slow Exponential Moving Average period for MACD calculation */
+const TECHNICAL_INDICATOR_EMA_SLOW_PERIOD = 26;
+
+/** RSI calculation period (14 days = standard Wilder RSI) */
+const TECHNICAL_INDICATOR_RSI_PERIOD = 14;
+
+/** RSI lookback window (need 15 data points to calculate 14-period RSI) */
+const TECHNICAL_INDICATOR_RSI_LOOKBACK = 15;
+
+/** Momentum lookback period (10 data points for % change calculation) */
+const TECHNICAL_INDICATOR_MOMENTUM_PERIOD = 10;
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Price deviation from SMA that triggers trend classification.
+ * ±1% is common threshold for filtering noise while catching meaningful moves.
+ */
+
+/** Price above SMA by this % = uptrend (1% deviation threshold) */
+const TECHNICAL_INDICATOR_TREND_THRESHOLD_PCT = 1.0;
+
+/**
+ * Signal Strength Calculation Parameters
+ *
+ * Signal strength is scored 0-100 based on trend deviation and RSI extremes.
+ * Baseline 50 = neutral, higher deviation/RSI extremes increase strength.
+ */
+
+/** Baseline signal strength when trend neutral (50 = mid-scale) */
+const TECHNICAL_INDICATOR_SIGNAL_STRENGTH_BASELINE = 50;
+
+/** Multiplier for price deviation % to calculate signal strength boost */
+const TECHNICAL_INDICATOR_SIGNAL_STRENGTH_MULTIPLIER = 10;
+
+/**
+ * RSI Thresholds
+ *
+ * Standard overbought/oversold levels per Wilder's RSI definition.
+ * 70/30 are textbook thresholds, 80 triggers high-strength signals.
+ */
+
+/** RSI above 70 = overbought territory (standard threshold) */
+const TECHNICAL_INDICATOR_RSI_OVERBOUGHT = 70;
+
+/** RSI below 30 = oversold territory (standard threshold) */
+const TECHNICAL_INDICATOR_RSI_OVERSOLD = 30;
+
+/** RSI extreme level (80) triggers maximum signal strength alert */
+const TECHNICAL_INDICATOR_RSI_SIGNAL_STRENGTH_HIGH = 80;
+
+/**
+ * Market Breadth Classification Parameters
+ *
+ * Thresholds for advance/decline analysis and regime detection.
+ */
+
+/** Price change < 0.1% classified as "unchanged" (filters out noise) */
+const MARKET_BREADTH_UNCHANGED_THRESHOLD = 0.1;
+
+/** Average absolute change > 3% = volatile market regime */
+const MARKET_BREADTH_VOLATILE_THRESHOLD = 3.0;
+
+/** Baseline regime confidence when criteria barely met (50 = mid-scale) */
+const MARKET_BREADTH_REGIME_CONFIDENCE_BASELINE = 50;
+
+/** Bull regime: confidence boost per % of average positive change */
+const MARKET_BREADTH_BULL_CONFIDENCE_MULTIPLIER = 15;
+
+/** Bear regime: confidence boost per % of average negative change */
+const MARKET_BREADTH_BEAR_CONFIDENCE_MULTIPLIER = 15;
+
+/** Volatile regime: confidence boost per % of average absolute change */
+const MARKET_BREADTH_VOLATILE_MULTIPLIER = 10;
+
+/** Average change > 1% with AD ratio > 2 = bull regime threshold */
+const MARKET_BREADTH_BULL_CHANGE_THRESHOLD = 1;
+
+/** Advance/Decline ratio > 2.0 = strong bull breadth */
+const MARKET_BREADTH_BULL_AD_RATIO_THRESHOLD = 2;
+
+/** Average change < -1% with AD ratio < 0.5 = bear regime threshold */
+const MARKET_BREADTH_BEAR_CHANGE_THRESHOLD = -1;
+
+/** Advance/Decline ratio < 0.5 = strong bear breadth */
+const MARKET_BREADTH_BEAR_AD_RATIO_THRESHOLD = 0.5;
+
+/**
+ * Market Snapshot Display Parameters
+ */
+
+/** Number of top gainers/losers to display in market snapshot */
+const MARKET_SNAPSHOT_TOP_MOVERS_LIMIT = 5;
+
+/**
+ * Liquidity Tier Classification Thresholds
+ *
+ * Liquidity determines execution quality and slippage risk.
+ * Based on Jupiter DEX typical pool depths.
+ */
+
+/** Liquidity >= $300K = "good" tier (tight spreads, minimal slippage) */
+const LIQUIDITY_TIER_GOOD_THRESHOLD = 300_000;
+
+/** Liquidity >= $50K = "moderate" tier (acceptable for smaller trades) */
+const LIQUIDITY_TIER_MODERATE_THRESHOLD = 50_000;
+
+/** Minimum tradeable liquidity (USD) — below this, execution quality poor */
+const MIN_TRADEABLE_LIQUIDITY_USD = 50_000;
+
+/**
+ * Spread Estimation Parameters
+ *
+ * Bid/ask spread estimation based on volume (higher volume = tighter spread).
+ * Formula: max(5 bps, 100 / log2(volume))
+ */
+
+/** Minimum spread in basis points (5 bps = 0.05% for high-liquidity stocks) */
+const SPREAD_ESTIMATION_MIN_BPS = 5;
+
+/** Spread calculation: 100 / log2(volume) with 1M baseline */
+const SPREAD_ESTIMATION_VOLUME_BASELINE = 1_000_000;
+
+/**
+ * Price Data Caching and Fallback Parameters
+ */
+
+/** Cache duration for price data before considering stale (2 minutes) */
+const PRICE_CACHE_DURATION_MS = 120_000;
+
+/** Mock price variation range (±1% random walk from last known price) */
+const MOCK_PRICE_VARIATION_PCT = 0.01;
+
+/** Mock volume baseline + random component (10M-500M range) */
+const MOCK_VOLUME_BASE = 10_000_000;
+const MOCK_VOLUME_RANDOM_MAX = 490_000_000;
+
+/** Mock 24h change range when no history (±2.5% random) */
+const MOCK_CHANGE_24H_MAX = 5;
+
+/**
+ * Correlation Analysis Parameters
+ */
+
+/** Minimum overlapping data points required for correlation calculation */
+const CORRELATION_MIN_DATA_POINTS = 10;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -449,36 +613,36 @@ export function computeIndicators(symbol: string): TechnicalIndicators {
   const history = priceHistory.get(symbol) ?? [];
   const prices = history.map((h) => h.price);
 
-  const sma20 = prices.length >= 20 ? computeSMA(prices, 20) : null;
-  const ema12 = prices.length >= 12 ? computeEMA(prices, 12) : null;
-  const ema26 = prices.length >= 26 ? computeEMA(prices, 26) : null;
-  const rsi14 = prices.length >= 15 ? computeRSI(prices, 14) : null;
+  const sma20 = prices.length >= TECHNICAL_INDICATOR_SMA_PERIOD ? computeSMA(prices, TECHNICAL_INDICATOR_SMA_PERIOD) : null;
+  const ema12 = prices.length >= TECHNICAL_INDICATOR_EMA_FAST_PERIOD ? computeEMA(prices, TECHNICAL_INDICATOR_EMA_FAST_PERIOD) : null;
+  const ema26 = prices.length >= TECHNICAL_INDICATOR_EMA_SLOW_PERIOD ? computeEMA(prices, TECHNICAL_INDICATOR_EMA_SLOW_PERIOD) : null;
+  const rsi14 = prices.length >= TECHNICAL_INDICATOR_RSI_LOOKBACK ? computeRSI(prices, TECHNICAL_INDICATOR_RSI_PERIOD) : null;
 
-  // Momentum: % change over last 10 data points
-  const momentum = prices.length >= 10
-    ? ((prices[prices.length - 1] - prices[prices.length - 10]) / prices[prices.length - 10]) * 100
+  // Momentum: % change over lookback period
+  const momentum = prices.length >= TECHNICAL_INDICATOR_MOMENTUM_PERIOD
+    ? ((prices[prices.length - 1] - prices[prices.length - TECHNICAL_INDICATOR_MOMENTUM_PERIOD]) / prices[prices.length - TECHNICAL_INDICATOR_MOMENTUM_PERIOD]) * 100
     : null;
 
   // Trend determination
   let trend: "up" | "down" | "sideways" = "sideways";
-  let signalStrength = 50;
+  let signalStrength = TECHNICAL_INDICATOR_SIGNAL_STRENGTH_BASELINE;
 
   if (sma20 !== null && prices.length > 0) {
     const currentPrice = prices[prices.length - 1];
     const priceDiffPct = ((currentPrice - sma20) / sma20) * 100;
 
-    if (priceDiffPct > 1) {
+    if (priceDiffPct > TECHNICAL_INDICATOR_TREND_THRESHOLD_PCT) {
       trend = "up";
-      signalStrength = Math.min(100, 50 + priceDiffPct * 10);
-    } else if (priceDiffPct < -1) {
+      signalStrength = Math.min(100, TECHNICAL_INDICATOR_SIGNAL_STRENGTH_BASELINE + priceDiffPct * TECHNICAL_INDICATOR_SIGNAL_STRENGTH_MULTIPLIER);
+    } else if (priceDiffPct < -TECHNICAL_INDICATOR_TREND_THRESHOLD_PCT) {
       trend = "down";
-      signalStrength = Math.min(100, 50 + Math.abs(priceDiffPct) * 10);
+      signalStrength = Math.min(100, TECHNICAL_INDICATOR_SIGNAL_STRENGTH_BASELINE + Math.abs(priceDiffPct) * TECHNICAL_INDICATOR_SIGNAL_STRENGTH_MULTIPLIER);
     }
   }
 
   if (rsi14 !== null) {
-    if (rsi14 > 70) { trend = "up"; signalStrength = Math.max(signalStrength, 80); }
-    else if (rsi14 < 30) { trend = "down"; signalStrength = Math.max(signalStrength, 80); }
+    if (rsi14 > TECHNICAL_INDICATOR_RSI_OVERBOUGHT) { trend = "up"; signalStrength = Math.max(signalStrength, TECHNICAL_INDICATOR_RSI_SIGNAL_STRENGTH_HIGH); }
+    else if (rsi14 < TECHNICAL_INDICATOR_RSI_OVERSOLD) { trend = "down"; signalStrength = Math.max(signalStrength, TECHNICAL_INDICATOR_RSI_SIGNAL_STRENGTH_HIGH); }
   }
 
   return {
@@ -521,8 +685,8 @@ export function computeMarketBreadth(): MarketBreadth {
   }
 
   const changes = prices.map((p) => p.change24h);
-  const advancing = changes.filter((c) => c > 0.1).length;
-  const declining = changes.filter((c) => c < -0.1).length;
+  const advancing = changes.filter((c) => c > MARKET_BREADTH_UNCHANGED_THRESHOLD).length;
+  const declining = changes.filter((c) => c < -MARKET_BREADTH_UNCHANGED_THRESHOLD).length;
   const unchanged = prices.length - advancing - declining;
 
   const averageChange = changes.reduce((a, b) => a + b, 0) / changes.length;
@@ -533,20 +697,20 @@ export function computeMarketBreadth(): MarketBreadth {
 
   // Regime classification
   let regime: MarketBreadth["regime"] = "sideways";
-  let regimeConfidence = 50;
+  let regimeConfidence = MARKET_BREADTH_REGIME_CONFIDENCE_BASELINE;
 
   const absChanges = changes.map(Math.abs);
   const avgAbsChange = absChanges.reduce((a, b) => a + b, 0) / absChanges.length;
 
-  if (avgAbsChange > 3) {
+  if (avgAbsChange > MARKET_BREADTH_VOLATILE_THRESHOLD) {
     regime = "volatile";
-    regimeConfidence = Math.min(100, 50 + avgAbsChange * 10);
-  } else if (averageChange > 1 && adRatio > 2) {
+    regimeConfidence = Math.min(100, MARKET_BREADTH_REGIME_CONFIDENCE_BASELINE + avgAbsChange * MARKET_BREADTH_VOLATILE_MULTIPLIER);
+  } else if (averageChange > MARKET_BREADTH_BULL_CHANGE_THRESHOLD && adRatio > MARKET_BREADTH_BULL_AD_RATIO_THRESHOLD) {
     regime = "bull";
-    regimeConfidence = Math.min(100, 50 + averageChange * 15);
-  } else if (averageChange < -1 && adRatio < 0.5) {
+    regimeConfidence = Math.min(100, MARKET_BREADTH_REGIME_CONFIDENCE_BASELINE + averageChange * MARKET_BREADTH_BULL_CONFIDENCE_MULTIPLIER);
+  } else if (averageChange < MARKET_BREADTH_BEAR_CHANGE_THRESHOLD && adRatio < MARKET_BREADTH_BEAR_AD_RATIO_THRESHOLD) {
     regime = "bear";
-    regimeConfidence = Math.min(100, 50 + Math.abs(averageChange) * 15);
+    regimeConfidence = Math.min(100, MARKET_BREADTH_REGIME_CONFIDENCE_BASELINE + Math.abs(averageChange) * MARKET_BREADTH_BEAR_CONFIDENCE_MULTIPLIER);
   }
 
   return {
@@ -669,8 +833,8 @@ export async function getMarketSnapshot(): Promise<MarketSnapshot> {
 
   // Top movers
   const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
-  const gainers = sorted.slice(0, 5).map((p) => ({ symbol: p.symbol, change: p.change24h }));
-  const losers = sorted.slice(-5).reverse().map((p) => ({ symbol: p.symbol, change: p.change24h }));
+  const gainers = sorted.slice(0, MARKET_SNAPSHOT_TOP_MOVERS_LIMIT).map((p) => ({ symbol: p.symbol, change: p.change24h }));
+  const losers = sorted.slice(-MARKET_SNAPSHOT_TOP_MOVERS_LIMIT).reverse().map((p) => ({ symbol: p.symbol, change: p.change24h }));
 
   lastSnapshot = {
     prices,
