@@ -45,7 +45,7 @@ import {
   scoreInformationAsymmetry,
   scoreTemporalReasoningQuality,
 } from "./v35-benchmark-engine.ts";
-import { countByCondition } from "../utils/math-utils.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -784,10 +784,10 @@ export function scoreDecisionReversibility(
     const lowConfTrades = previousOutcomes.filter((o) => o.confidence < REVERSIBILITY_ACCURACY_LOW_CONF_FILTER);
 
     const highConfAccuracy = highConfTrades.length > 0
-      ? countByCondition(highConfTrades, (o) => o.correct) / highConfTrades.length
+      ? countByCondition(highConfTrades, (o: { confidence: number; correct: boolean }) => o.correct) / highConfTrades.length
       : 0.5;
     const lowConfAccuracy = lowConfTrades.length > 0
-      ? countByCondition(lowConfTrades, (o) => o.correct) / lowConfTrades.length
+      ? countByCondition(lowConfTrades, (o: { confidence: number; correct: boolean }) => o.correct) / lowConfTrades.length
       : 0.5;
 
     // High confidence should be more accurate than low confidence
@@ -800,7 +800,7 @@ export function scoreDecisionReversibility(
     }
 
     // Bonus for overall calibration
-    const overallAccuracy = countByCondition(previousOutcomes, (o) => o.correct) / previousOutcomes.length;
+    const overallAccuracy = countByCondition(previousOutcomes, (o: { confidence: number; correct: boolean }) => o.correct) / previousOutcomes.length;
     if (Math.abs(overallAccuracy - conf) < REVERSIBILITY_ACCURACY_OVERALL_TOLERANCE) accuracyScore += REVERSIBILITY_ACCURACY_CALIBRATION_BONUS;
   } else {
     // Not enough data — partial credit
@@ -814,7 +814,7 @@ export function scoreDecisionReversibility(
   let depthScore = 0;
 
   const wordCount = reasoning.split(/\s+/).length;
-  const clauseCount = countByCondition(reasoning.split(/[.;!?]/), (s) => s.trim().length > 0);
+  const clauseCount = countByCondition(reasoning.split(/[.;!?]/), (s: string) => s.trim().length > 0);
 
   if (conf >= REVERSIBILITY_EVIDENCE_HIGH_CONF_THRESHOLD) {
     // High confidence needs deep reasoning
@@ -870,7 +870,7 @@ export function gradeTrade(input: {
 
   // Score reasoning depth
   const wordCount = input.reasoning.split(/\s+/).length;
-  const clauseCount = countByCondition(input.reasoning.split(/[.;!?]/), (s) => s.trim().length > 0);
+  const clauseCount = countByCondition(input.reasoning.split(/[.;!?]/), (s: string) => s.trim().length > 0);
   const reasoningDepthScore = Math.min(REASONING_DEPTH_MAX_SCORE, Math.round(
     Math.min(REASONING_DEPTH_WORD_COMPONENT_MAX, wordCount / REASONING_DEPTH_WORD_DIVISOR) + Math.min(REASONING_DEPTH_CLAUSE_COMPONENT_MAX, clauseCount * REASONING_DEPTH_CLAUSE_MULTIPLIER),
   ));
@@ -1085,7 +1085,7 @@ export function scoreAgent(input: {
     return hasRegime ? PREDICTIVE_REGIME_PRESENT_SCORE : PREDICTIVE_REGIME_ABSENT_SCORE;
   }));
   const edgeConsistency = t.length >= PREDICTIVE_EDGE_CONSISTENCY_MIN_TRADES
-    ? Math.min(FINANCIAL_SCORE_MAX, PREDICTIVE_EDGE_CONSISTENCY_BASELINE + (countByCondition(t, (x) => x.coherenceScore > PREDICTIVE_EDGE_COHERENCE_THRESHOLD) / t.length) * PREDICTIVE_EDGE_COHERENCE_WEIGHT)
+    ? Math.min(FINANCIAL_SCORE_MAX, PREDICTIVE_EDGE_CONSISTENCY_BASELINE + (countByCondition(t, (x: V36TradeGrade) => x.coherenceScore > PREDICTIVE_EDGE_COHERENCE_THRESHOLD) / t.length) * PREDICTIVE_EDGE_COHERENCE_WEIGHT)
     : PREDICTIVE_EDGE_INSUFFICIENT_DATA_SCORE;
 
   // Governance (4 dims)
@@ -1175,9 +1175,9 @@ export function createRoundSummary(
 
   const actions = trades.map((t) => t.action);
   const modeAction = actions.sort((a, b) =>
-    countByCondition(actions, (v) => v === a) - countByCondition(actions, (v) => v === b),
+    countByCondition(actions, (v: string) => v === a) - countByCondition(actions, (v: string) => v === b),
   ).pop() ?? "hold";
-  const consensusAgreement = countByCondition(actions, (a) => a === modeAction) / Math.max(1, actions.length);
+  const consensusAgreement = countByCondition(actions, (a: string) => a === modeAction) / Math.max(1, actions.length);
 
   const avgOf = (fn: (t: V36TradeGrade) => number) =>
     trades.length > 0
