@@ -990,12 +990,14 @@ export function cosineSimilarity(a: number[], b: number[]): number {
  * Used for text analysis and keyword extraction.
  *
  * @param text - Text string to filter
+ * @param minLength - Optional minimum word length (default 0, no filtering)
  * @returns Array of filtered words (stop words removed)
  *
  * @example
  * getFilteredWords("The quick brown fox jumps") // returns ["quick", "brown", "fox", "jumps"]
+ * getFilteredWords("The quick brown fox jumps", 5) // returns ["quick", "brown", "jumps"]
  */
-export function getFilteredWords(text: string): string[] {
+export function getFilteredWords(text: string, minLength: number = 0): string[] {
   const stopWords = new Set([
     'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
     'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
@@ -1005,5 +1007,5 @@ export function getFilteredWords(text: string): string[] {
   return text
     .toLowerCase()
     .split(/\s+/)
-    .filter(word => word.length > 0 && !stopWords.has(word));
+    .filter(word => word.length >= minLength && !stopWords.has(word));
 }
