@@ -18,7 +18,7 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, isNull, and, lte, sql, desc } from "drizzle-orm";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -315,9 +315,9 @@ export async function trackOutcomes(
 
     console.log(
       `[OutcomeTracker] Processed ${results.length} outcomes. ` +
-        `Profit: ${results.filter((r) => r.outcome === "profit").length}, ` +
-        `Loss: ${results.filter((r) => r.outcome === "loss").length}, ` +
-        `Breakeven: ${results.filter((r) => r.outcome === "breakeven").length}`,
+        `Profit: ${countByCondition(results, (r) => r.outcome === "profit")}, ` +
+        `Loss: ${countByCondition(results, (r) => r.outcome === "loss")}, ` +
+        `Breakeven: ${countByCondition(results, (r) => r.outcome === "breakeven")}`,
     );
   } catch (err) {
     console.error(
@@ -438,10 +438,10 @@ export function getOutcomeTrackerStats(agentId?: string): OutcomeTrackerStats {
     outcomes = outcomes.filter((o) => o.agentId === agentId);
   }
 
-  const profitCount = outcomes.filter((o) => o.outcome === "profit").length;
-  const lossCount = outcomes.filter((o) => o.outcome === "loss").length;
-  const breakevenCount = outcomes.filter((o) => o.outcome === "breakeven").length;
-  const pendingCount = outcomes.filter((o) => o.outcome === "pending").length;
+  const profitCount = countByCondition(outcomes, (o) => o.outcome === "profit");
+  const lossCount = countByCondition(outcomes, (o) => o.outcome === "loss");
+  const breakevenCount = countByCondition(outcomes, (o) => o.outcome === "breakeven");
+  const pendingCount = countByCondition(outcomes, (o) => o.outcome === "pending");
 
   const withPnl = outcomes.filter((o) => o.pnlPercent !== null);
   const avgPnlPercent =
@@ -449,7 +449,7 @@ export function getOutcomeTrackerStats(agentId?: string): OutcomeTrackerStats {
       ? withPnl.reduce((s, o) => s + (o.pnlPercent ?? 0), 0) / withPnl.length
       : 0;
 
-  const calibrated = outcomes.filter((o) => o.wasCalibrated).length;
+  const calibrated = countByCondition(outcomes, (o) => o.wasCalibrated);
   const calibrationScore =
     outcomes.length > 0 ? calibrated / outcomes.length : 0;
 
