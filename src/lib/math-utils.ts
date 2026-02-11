@@ -8,6 +8,12 @@
 // ============================================================================
 
 /**
+ * Milliseconds per day constant (24 * 60 * 60 * 1000)
+ * Used for date calculations and time-based analytics.
+ */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
  * Top N items to display (used for "top 5" lists, best trades, strongest dimensions, etc.)
  * Common use cases:
  * - Top 5 trades by P&L
@@ -103,6 +109,21 @@ export function stddev(values: number[]): number {
   const squareDiffs = values.map((v) => Math.pow(v - avg, 2));
   const variance = mean(squareDiffs);
   return Math.sqrt(variance);
+}
+
+/**
+ * Alias for stddev() - calculates the standard deviation of an array of numbers.
+ * Returns 0 for arrays with < 2 elements.
+ *
+ * @param values - Array of numbers
+ * @returns The standard deviation, or 0 if insufficient data
+ *
+ * @example
+ * stdDev([1, 2, 3, 4, 5]) // returns ~1.414
+ * stdDev([5]) // returns 0
+ */
+export function stdDev(values: number[]): number {
+  return stddev(values);
 }
 
 /**
@@ -214,6 +235,66 @@ export function round(value: number, decimals: number): number {
 }
 
 /**
+ * Rounds a number to 1 decimal place.
+ * Convenience wrapper around round(value, 1).
+ *
+ * @param value - Number to round
+ * @returns Number rounded to 1 decimal place
+ *
+ * @example
+ * round1(3.14159) // returns 3.1
+ * round1(2.56) // returns 2.6
+ */
+export function round1(value: number): number {
+  return round(value, 1);
+}
+
+/**
+ * Rounds a number to 2 decimal places.
+ * Convenience wrapper around round(value, 2).
+ *
+ * @param value - Number to round
+ * @returns Number rounded to 2 decimal places
+ *
+ * @example
+ * round2(3.14159) // returns 3.14
+ * round2(2.567) // returns 2.57
+ */
+export function round2(value: number): number {
+  return round(value, 2);
+}
+
+/**
+ * Rounds a number to 3 decimal places.
+ * Convenience wrapper around round(value, 3).
+ *
+ * @param value - Number to round
+ * @returns Number rounded to 3 decimal places
+ *
+ * @example
+ * round3(3.14159) // returns 3.142
+ * round3(2.5678) // returns 2.568
+ */
+export function round3(value: number): number {
+  return round(value, 3);
+}
+
+/**
+ * Rounds a number to 4 decimal places.
+ * Convenience wrapper around round(value, 4).
+ *
+ * @param value - Number to round
+ * @returns Number rounded to 4 decimal places
+ *
+ * @example
+ * round4(3.14159265) // returns 3.1416
+ * round4(2.56789) // returns 2.5679
+ */
+export function round4(value: number): number {
+  return round(value, 4);
+}
+
+/**
  * Counts the number of words in a text string.
  * Words are defined as sequences of non-whitespace characters separated by whitespace.
  *
@@ -227,6 +308,25 @@ export function round(value: number, decimals: number): number {
  */
 export function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+}
+
+/**
+ * Splits text into sentences based on common sentence-ending punctuation.
+ * Splits on periods, exclamation marks, and question marks followed by whitespace or end of string.
+ *
+ * @param text - Text string to split into sentences
+ * @returns Array of sentences
+ *
+ * @example
+ * splitSentences("Hello. How are you?") // returns ["Hello", "How are you"]
+ * splitSentences("One! Two? Three.") // returns ["One", "Two", "Three"]
+ * splitSentences("No punctuation") // returns ["No punctuation"]
+ */
+export function splitSentences(text: string): string[] {
+  return text
+    .split(/[.!?]+\s+|[.!?]+$/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
 }
 
 /**
@@ -391,6 +491,20 @@ export function sumByKey<T>(items: readonly T[], key: keyof T): number {
 export function averageByKey<T>(items: readonly T[], key: keyof T): number {
   if (items.length === 0) return 0;
   return sumByKey(items, key) / items.length;
+}
+
+/**
+ * Alias for mean() - calculates the average of an array of numbers.
+ * Returns 0 for empty arrays.
+ *
+ * @param values - Array of numbers to average
+ * @returns The average value, or 0 if empty
+ *
+ * @example
+ * calculateAverage([1, 2, 3, 4, 5]) // returns 3
+ */
+export function calculateAverage(values: number[]): number {
+  return mean(values);
 }
 
 /**
@@ -746,4 +860,148 @@ export function sortByAscending<T>(items: readonly T[], prop: keyof T): T[] {
     }
     return 0;
   });
+}
+
+/**
+ * Sorts the entries of a Record by their numeric values in descending order.
+ * Returns an array of [key, value] tuples sorted by value (highest first).
+ *
+ * @param record - Record mapping string keys to numeric values
+ * @returns Array of [key, value] tuples sorted by value descending
+ *
+ * @example
+ * sortEntriesDescending({a: 10, b: 30, c: 20}) // returns [['b', 30], ['c', 20], ['a', 10]]
+ * sortEntriesDescending({coherence: 0.9, depth: 0.7}) // returns [['coherence', 0.9], ['depth', 0.7]]
+ */
+export function sortEntriesDescending(record: Record<string, number>): Array<[string, number]> {
+  return Object.entries(record).sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Gets the key with the highest numeric value from a Record.
+ * Returns undefined if the record is empty.
+ *
+ * @param record - Record mapping string keys to numeric values
+ * @returns Key with highest value, or undefined if empty
+ *
+ * @example
+ * getTopKey({a: 10, b: 30, c: 20}) // returns 'b'
+ * getTopKey({buy: 5, sell: 3, hold: 8}) // returns 'hold'
+ * getTopKey({}) // returns undefined
+ */
+export function getTopKey(record: Record<string, number>): string | undefined {
+  const entries = Object.entries(record);
+  if (entries.length === 0) return undefined;
+
+  let maxKey = entries[0][0];
+  let maxValue = entries[0][1];
+
+  for (const [key, value] of entries) {
+    if (value > maxValue) {
+      maxKey = key;
+      maxValue = value;
+    }
+  }
+
+  return maxKey;
+}
+
+// ============================================================================
+// ALIASES FOR BACKWARD COMPATIBILITY
+// ============================================================================
+
+/**
+ * Alias for findMax() - finds the item with the maximum value for a given property.
+ */
+export const findMaxBy = findMax;
+
+/**
+ * Alias for findMin() - finds the item with the minimum value for a given property.
+ */
+export const findMinBy = findMin;
+
+/**
+ * Alias for sortByDescending() - sorts array by property in descending order.
+ */
+export function sortDescending<T>(items: readonly T[], prop: keyof T): T[] {
+  return sortByDescending(items, prop);
+}
+
+/**
+ * Alias for countByCondition() - counts items matching a condition.
+ */
+export function countWhere<T>(items: readonly T[], condition: (item: T) => boolean): number {
+  return countByCondition(items, condition);
+}
+
+/**
+ * Calculates average of items matching a condition.
+ *
+ * @param items - Array of objects
+ * @param key - Property name to average
+ * @param condition - Predicate function to filter items
+ * @returns Average value of matching items, or 0 if none match
+ *
+ * @example
+ * averageByCondition([{val: 1, type: 'A'}, {val: 2, type: 'B'}, {val: 3, type: 'A'}], 'val', (item) => item.type === 'A') // returns 2
+ */
+export function averageByCondition<T>(
+  items: readonly T[],
+  key: keyof T,
+  condition: (item: T) => boolean,
+): number {
+  const filtered = items.filter(condition);
+  return averageByKey(filtered, key);
+}
+
+/**
+ * Calculates cosine similarity between two numeric arrays.
+ * Returns a value between -1 (opposite) and 1 (identical).
+ *
+ * @param a - First array of numbers
+ * @param b - Second array of numbers
+ * @returns Cosine similarity (-1 to 1)
+ *
+ * @example
+ * cosineSimilarity([1, 2, 3], [1, 2, 3]) // returns 1.0 (identical)
+ * cosineSimilarity([1, 0, 0], [0, 1, 0]) // returns 0.0 (orthogonal)
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+
+  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
+  return magnitude === 0 ? 0 : dotProduct / magnitude;
+}
+
+/**
+ * Filters common stop words from text and returns filtered words.
+ * Used for text analysis and keyword extraction.
+ *
+ * @param text - Text string to filter
+ * @returns Array of filtered words (stop words removed)
+ *
+ * @example
+ * getFilteredWords("The quick brown fox jumps") // returns ["quick", "brown", "fox", "jumps"]
+ */
+export function getFilteredWords(text: string): string[] {
+  const stopWords = new Set([
+    'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+    'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+    'to', 'was', 'will', 'with'
+  ]);
+
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(word => word.length > 0 && !stopWords.has(word));
 }
