@@ -373,13 +373,13 @@ export function computeModelFingerprint(agentId: string): ModelFingerprint | nul
 
   // --- Sentiment tendency ---
   const total = entries.length;
-  const buys = entries.filter((e) => e.action === "buy").length;
-  const sells = entries.filter((e) => e.action === "sell").length;
-  const holds = entries.filter((e) => e.action === "hold").length;
+  const buys = countByCondition(entries, (e) => e.action === "buy");
+  const sells = countByCondition(entries, (e) => e.action === "sell");
+  const holds = countByCondition(entries, (e) => e.action === "hold");
 
   // --- Confidence pattern ---
   const confs = entries.map((e) => e.confidence);
-  const highConf = entries.filter((e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD).length;
+  const highConf = countByCondition(entries, (e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD);
 
   // --- Reasoning style ---
   const lengths = entries.map((e) => tokenize(e.reasoning).length);
@@ -471,8 +471,8 @@ export function getModelDivergenceReport(): ModelDivergenceReport {
   for (const id of agentIds) {
     const entries = entriesByAgent.get(id) ?? [];
     const total = entries.length || 1;
-    const b = entries.filter((e) => e.action === "buy").length / total;
-    const s = entries.filter((e) => e.action === "sell").length / total;
+    const b = countByCondition(entries, (e) => e.action === "buy") / total;
+    const s = countByCondition(entries, (e) => e.action === "sell") / total;
     bullishRates.push(b);
     bearishRates.push(s);
     agentBias.push({ agentId: id, bullish: b, bearish: s });
@@ -522,7 +522,7 @@ export function getCrossModelStats(): {
   const allSimilarities = roundComparisons.flatMap((c) => c.similarities);
   const jaccards = allSimilarities.map((s) => s.jaccardBigram);
   const confDeltas = allSimilarities.map((s) => s.confidenceDelta);
-  const agreements = allSimilarities.filter((s) => s.actionAgreement).length;
+  const agreements = countByCondition(allSimilarities, (s) => s.actionAgreement);
 
   return {
     totalEntriesRecorded: totalEntries,
