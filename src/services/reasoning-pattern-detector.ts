@@ -13,7 +13,7 @@
  * This feeds into the benchmark's qualitative scoring pillar.
  */
 
-import { normalize, round2, round3 } from "../lib/math-utils.ts";
+import { normalize, round2, round3, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -480,12 +480,14 @@ export function analyzeReasoningPatterns(
   const hedgePenalty = Math.min(QUALITY_HEDGE_PENALTY_MAX, hedgeRatio * QUALITY_HEDGE_PENALTY_MULTIPLIER);
 
   const qualityScore = Math.round(
-    normalize(
+    clamp(
       depthScore * QUALITY_WEIGHT_DEPTH +
       sophisticationScore * QUALITY_WEIGHT_SOPHISTICATION +
       Math.min(1, quantitativeRatio) * QUALITY_WEIGHT_QUANTITATIVE +
       (1 - fallacyPenalty) * QUALITY_WEIGHT_HALLUCINATION_FREE +
-      (1 - templatePenalty - hedgePenalty) * QUALITY_WEIGHT_TEMPLATE_HEDGE
+      (1 - templatePenalty - hedgePenalty) * QUALITY_WEIGHT_TEMPLATE_HEDGE,
+      0,
+      1
     ) * 100,
   ) / 100;
 

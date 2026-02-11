@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize, countWords, round2, weightedSum } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords, round2, weightedSum, clamp } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------

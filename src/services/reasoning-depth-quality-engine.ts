@@ -19,7 +19,7 @@
  *   - Integration: Are source data points used in the logical argument?
  */
 
-import { splitSentences, normalize, round2 } from "../lib/math-utils.ts";
+import { splitSentences, normalize, round2, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -593,7 +593,7 @@ export function computeV24CompositeScore(input: V24CompositeInput): {
   breakdown: Record<string, { score: number; weight: number; weighted: number }>;
 } {
   // Normalize P&L to 0-1 range (cap at ±50%)
-  const pnlNormalized = normalize((input.pnlPercent + 50) / 100);
+  const pnlNormalized = clamp((input.pnlPercent + 50) / 100, 0, 1);
 
   // Invert calibration (lower ECE = better)
   const calibrationNormalized = Math.max(0, 1 - input.calibrationScore);
