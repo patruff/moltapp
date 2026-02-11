@@ -1077,15 +1077,15 @@ export function scoreAgent(input: {
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
   const outcomeAccuracy = resolved.length > 0
-    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? 100 : x.outcomeResolved === "partial" ? 60 : 20))
-    : 50;
+    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? PREDICTIVE_OUTCOME_CORRECT_SCORE : x.outcomeResolved === "partial" ? PREDICTIVE_OUTCOME_PARTIAL_SCORE : PREDICTIVE_OUTCOME_INCORRECT_SCORE))
+    : PREDICTIVE_OUTCOME_INSUFFICIENT_DATA_SCORE;
   const marketRegimeAwareness = avg(t.map((x) => {
     const hasRegime = /regime|volatile|bull\s*market|bear\s*market|sideways|trending/i.test(x.reasoning);
-    return hasRegime ? 80 : 45;
+    return hasRegime ? PREDICTIVE_REGIME_PRESENT_SCORE : PREDICTIVE_REGIME_ABSENT_SCORE;
   }));
-  const edgeConsistency = t.length >= 3
-    ? Math.min(100, 40 + (t.filter((x) => x.coherenceScore > 0.6).length / t.length) * 60)
-    : 50;
+  const edgeConsistency = t.length >= PREDICTIVE_EDGE_CONSISTENCY_MIN_TRADES
+    ? Math.min(FINANCIAL_SCORE_MAX, PREDICTIVE_EDGE_CONSISTENCY_BASELINE + (t.filter((x) => x.coherenceScore > PREDICTIVE_EDGE_COHERENCE_THRESHOLD).length / t.length) * PREDICTIVE_EDGE_COHERENCE_WEIGHT)
+    : PREDICTIVE_EDGE_INSUFFICIENT_DATA_SCORE;
 
   // Governance (4 dims)
   const tradeAccountability = avg(t.map((x) => x.accountabilityScore));
