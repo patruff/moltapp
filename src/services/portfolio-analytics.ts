@@ -141,6 +141,78 @@ const INITIAL_CAPITAL = 10_000;
 const RISK_FREE_RATE = 0.05; // 5% annual (T-bills)
 const TRADING_DAYS_PER_YEAR = 252;
 
+/**
+ * Minimum Tradeable Quantity Threshold
+ *
+ * Quantities below this threshold are considered negligible and treated as zero.
+ * Used in FIFO matching to clean up rounding errors and prevent dust positions.
+ *
+ * Value: 0.000001 (1 millionth of a token)
+ * Rationale: Prevents accumulation of rounding errors in position tracking while
+ * allowing precise quantity matching for typical trade sizes (0.01-1000 tokens).
+ */
+const MIN_TRADEABLE_QUANTITY = 0.000001;
+
+/**
+ * Time Conversion Constants
+ *
+ * Milliseconds per day: Used for time window calculations (rolling performance, annualized returns)
+ * Milliseconds per hour: Used for holding period conversions (trade duration analysis)
+ *
+ * Values:
+ * - MS_PER_DAY = 86,400,000 ms (1000 * 60 * 60 * 24)
+ * - MS_PER_HOUR = 3,600,000 ms (1000 * 60 * 60)
+ */
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const MS_PER_HOUR = 1000 * 60 * 60;
+
+/**
+ * Rolling Performance Window Sizes (in days)
+ *
+ * Standard time windows for rolling performance analysis. These periods enable
+ * comparison of short-term momentum (7d), medium-term trends (30d), and
+ * long-term performance (90d).
+ *
+ * Values:
+ * - ROLLING_WINDOW_7D = 7 days (1 week — captures recent momentum)
+ * - ROLLING_WINDOW_30D = 30 days (1 month — medium-term trend)
+ * - ROLLING_WINDOW_90D = 90 days (1 quarter — long-term performance)
+ *
+ * These windows match industry standards and enable consistent performance
+ * comparison across agents and benchmark versions.
+ */
+const ROLLING_WINDOW_7D = 7;
+const ROLLING_WINDOW_30D = 30;
+const ROLLING_WINDOW_90D = 90;
+
+/**
+ * Percentage Conversion Multiplier
+ *
+ * Converts decimal ratios (0.15) to percentage values (15%).
+ * Used consistently for:
+ * - P&L percentages (totalPnlPercent)
+ * - Win rates (winRate)
+ * - Drawdown percentages (maxDrawdownPercent)
+ * - Return percentages (totalReturn)
+ *
+ * Value: 100
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Annualization Parameters
+ *
+ * Used to convert historical returns (over N days) to annualized returns.
+ * Formula: annualizedReturn = (1 + totalReturn)^(DAYS_PER_YEAR / actualDays) - 1
+ *
+ * Value: DAYS_PER_YEAR = 365 (calendar days for compounding calculation)
+ *
+ * Note: Different from TRADING_DAYS_PER_YEAR (252), which is used for volatility
+ * annualization where only market-open days matter. Compounding returns over
+ * calendar time uses 365 days.
+ */
+const DAYS_PER_YEAR = 365;
+
 // ---------------------------------------------------------------------------
 // Core Analytics
 // ---------------------------------------------------------------------------
@@ -193,7 +265,7 @@ export async function calculatePortfolioMetrics(
 
   const totalPnl = realizedPnl + unrealizedPnl;
   const totalPnlPercent =
-    INITIAL_CAPITAL > 0 ? (totalPnl / INITIAL_CAPITAL) * 100 : 0;
+    INITIAL_CAPITAL > 0 ? (totalPnl / INITIAL_CAPITAL) * PERCENT_MULTIPLIER : 0;
 
   // Calculate return series for risk metrics
   const dailyReturns = calculateDailyReturns(tradeRecords, INITIAL_CAPITAL);
@@ -223,7 +295,7 @@ export async function calculatePortfolioMetrics(
   const losingTrades = tradeOutcomes.filter((t) => t.pnl < 0);
   const winRate =
     tradeOutcomes.length > 0
-      ? (winningTrades.length / tradeOutcomes.length) * 100
+      ? (winningTrades.length / tradeOutcomes.length) * PERCENT_MULTIPLIER
       : 0;
 
   const grossProfit = sumByKey(winningTrades, 'pnl');
@@ -248,7 +320,7 @@ export async function calculatePortfolioMetrics(
     ? losingTrades.length / tradeOutcomes.length
     : 0;
   const expectancy =
-    (winRate / 100) * averageWin - lossRate * averageLoss;
+    (winRate / PERCENT_MULTIPLIER) * averageWin - lossRate * averageLoss;
 
   // Streaks
   const { currentStreak, currentStreakType, longestWin, longestLoss } =
@@ -279,8 +351,7 @@ export async function calculatePortfolioMetrics(
 
   const daysSinceFirst =
     firstTradeAt
-      ? (now.getTime() - new Date(firstTradeAt).getTime()) /
-        (1000 * 60 * 60 * 24)
+      ? (now.getTime() - new Date(firstTradeAt).getTime()) / MS_PER_DAY
       : 1;
   const tradesPerDay =
     daysSinceFirst > 0 ? tradeRecords.length / daysSinceFirst : 0;
@@ -288,7 +359,7 @@ export async function calculatePortfolioMetrics(
   // Annualized return
   const annualizedReturn =
     daysSinceFirst > 0
-      ? Math.pow(1 + totalReturn, 365 / Math.max(1, daysSinceFirst)) - 1
+      ? Math.pow(1 + totalReturn, DAYS_PER_YEAR / Math.max(1, daysSinceFirst)) - 1
       : 0;
 
   return {
@@ -395,7 +466,7 @@ function calculateRealizedPnl(tradeRecords: TradeRecord[]): {
         oldestBuy.quantity -= matchedQty;
         remainingToSell -= matchedQty;
 
-        if (oldestBuy.quantity <= 0.000001) {
+        if (oldestBuy.quantity <= MIN_TRADEABLE_QUANTITY) {
           queue.shift();
         }
       }
@@ -572,7 +643,7 @@ function calculateMaxDrawdown(equityCurve: number[]): {
       peak = value;
     }
     const dd = peak - value;
-    const ddPercent = peak > 0 ? (dd / peak) * 100 : 0;
+    const ddPercent = peak > 0 ? (dd / peak) * PERCENT_MULTIPLIER : 0;
 
     if (dd > maxDd) {
       maxDd = dd;
@@ -657,7 +728,7 @@ function calculateHoldingPeriods(tradeRecords: TradeRecord[]): {
       if (times.length > 0) {
         const buyTime = times.shift()!;
         const holdMs = trade.createdAt.getTime() - buyTime.getTime();
-        holdingPeriods.push(holdMs / (1000 * 60 * 60)); // Convert to hours
+        holdingPeriods.push(holdMs / MS_PER_HOUR); // Convert to hours
       }
     }
   }
@@ -686,9 +757,9 @@ export async function calculateRollingPerformance(
 ): Promise<RollingPerformance[]> {
   const periods: Array<{ label: RollingPerformance["period"]; days: number }> =
     [
-      { label: "7d", days: 7 },
-      { label: "30d", days: 30 },
-      { label: "90d", days: 90 },
+      { label: "7d", days: ROLLING_WINDOW_7D },
+      { label: "30d", days: ROLLING_WINDOW_30D },
+      { label: "90d", days: ROLLING_WINDOW_90D },
     ];
 
   const results: RollingPerformance[] = [];
