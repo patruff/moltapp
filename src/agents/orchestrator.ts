@@ -46,7 +46,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { averageByKey, countByCondition, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, round } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices, getTradeableSymbols } from "../services/market-aggregator.ts";
 

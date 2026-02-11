@@ -214,6 +214,22 @@ export function round(value: number, decimals: number): number {
 }
 
 /**
+ * Counts the number of words in a text string.
+ * Words are defined as sequences of non-whitespace characters separated by whitespace.
+ *
+ * @param text - Text string to count words in
+ * @returns Number of words
+ *
+ * @example
+ * countWords("Hello world") // returns 2
+ * countWords("  one  two  three  ") // returns 3
+ * countWords("") // returns 0
+ */
+export function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+}
+
+/**
  * Generates a random integer between min (inclusive) and max (inclusive).
  *
  * @param min - Minimum value (inclusive)
@@ -378,35 +394,20 @@ export function averageByKey<T>(items: readonly T[], key: keyof T): number {
 }
 
 /**
- * Calculates a weighted sum using an object of values and their corresponding weights.
+ * Calculates a weighted sum of values using their corresponding weights.
+ * Supports both object-based (Record<string, number>) and array-based (number[]) inputs.
  *
- * @param values - Object mapping keys to numeric values
- * @param weights - Object mapping same keys to numeric weights
+ * @param values - Object mapping keys to numeric values OR array of numeric values
+ * @param weights - Object mapping keys to weights OR array of numeric weights (must match values length)
  * @returns Weighted sum
  *
  * @example
+ * // Object-based usage
  * weightedSum({a: 10, b: 20}, {a: 0.3, b: 0.7}) // returns 10*0.3 + 20*0.7 = 17
- */
-export function weightedSum(
-  values: Record<string, number>,
-  weights: Record<string, number>,
-): number {
-  return Object.keys(values).reduce((sum, key) => {
-    return sum + (values[key] ?? 0) * (weights[key] ?? 0);
-  }, 0);
-}
-
-/**
- * Calculates a weighted sum using parallel arrays of values and weights.
  *
- * @param values - Array of numeric values
- * @param weights - Array of numeric weights (must match values length)
- * @returns Weighted sum
- *
- * @example
+ * // Array-based usage
  * weightedSum([10, 20, 30], [0.5, 0.3, 0.2]) // returns 10*0.5 + 20*0.3 + 30*0.2 = 17
  */
-export function weightedSum(values: number[], weights: number[]): number;
 export function weightedSum(
   values: Record<string, number> | number[],
   weights: Record<string, number> | number[],
