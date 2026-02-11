@@ -19,6 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1057,7 +1058,7 @@ function calculateCalibration(
   // Overall calibration score
   const totalCalibrationError =
     bins.filter((b) => b.count > 0).reduce((s, b) => s + b.calibrationError, 0);
-  const activeBins = bins.filter((b) => b.count > 0).length;
+  const activeBins = countByCondition(bins, (b) => b.count > 0);
   const avgCalibrationError =
     activeBins > 0 ? totalCalibrationError / activeBins : 50;
   const overallCalibration = Math.max(0, 100 - avgCalibrationError);
@@ -1066,15 +1067,16 @@ function calculateCalibration(
   const brierScore = brierCount > 0 ? totalBrierScore / brierCount : 0.5;
 
   // Over/under confidence
+  const activeBinsForAvg = countByCondition(bins, (b) => b.count > 0);
   const avgPredicted =
-    bins.filter((b) => b.count > 0).length > 0
+    activeBinsForAvg > 0
       ? bins.filter((b) => b.count > 0).reduce((s, b) => s + b.predictedProbability, 0) /
-        bins.filter((b) => b.count > 0).length
+        activeBinsForAvg
       : 50;
   const avgActual =
-    bins.filter((b) => b.count > 0).length > 0
+    activeBinsForAvg > 0
       ? bins.filter((b) => b.count > 0).reduce((s, b) => s + b.actualAccuracy, 0) /
-        bins.filter((b) => b.count > 0).length
+        activeBinsForAvg
       : 50;
 
   return {
