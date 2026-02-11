@@ -145,6 +145,16 @@ const WEAKNESSES_DISPLAY_LIMIT = 4; // Max weaknesses shown per review
 const SENTENCE_COUNT_TIER1 = 3; // Multi-sentence analysis threshold
 const SENTENCE_COUNT_TIER2 = 5; // Deep multi-sentence analysis threshold
 
+/**
+ * Critique Generation Thresholds
+ * Classification thresholds for critique tone and dimensional feedback.
+ */
+const CRITIQUE_AVG_SCORE_STRONG_THRESHOLD = 0.7; // ≥70% avg = "well-reasoned" positive assessment
+const CRITIQUE_AVG_SCORE_ADEQUATE_THRESHOLD = 0.4; // ≥40% avg = "has merit" neutral assessment (< 40% = "lacks justification")
+const CRITIQUE_EVIDENCE_WEAK_THRESHOLD = 0.4; // Evidence score < 40% triggers "need more data" feedback
+const CRITIQUE_RISK_WEAK_THRESHOLD = 0.3; // Risk awareness < 30% triggers "address risks" feedback
+const CRITIQUE_ORIGINALITY_WEAK_THRESHOLD = 0.3; // Originality < 30% triggers "lacks insight" feedback
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -719,9 +729,9 @@ function generateCritique(
   const avgScore = (scores.logicQuality + scores.evidenceUsage + scores.riskAwareness +
     scores.originality + scores.conclusionValidity) / 5;
 
-  if (avgScore >= 0.7) {
+  if (avgScore >= CRITIQUE_AVG_SCORE_STRONG_THRESHOLD) {
     parts.push(`The ${action} decision on ${symbol} is well-reasoned.`);
-  } else if (avgScore >= 0.4) {
+  } else if (avgScore >= CRITIQUE_AVG_SCORE_ADEQUATE_THRESHOLD) {
     parts.push(`The ${action} decision on ${symbol} has some merit but could be stronger.`);
   } else {
     parts.push(`The ${action} decision on ${symbol} lacks sufficient justification.`);
@@ -738,13 +748,13 @@ function generateCritique(
   }
 
   // Specific dimensional feedback
-  if (scores.evidenceUsage < 0.4) {
+  if (scores.evidenceUsage < CRITIQUE_EVIDENCE_WEAK_THRESHOLD) {
     parts.push("More specific data citations would strengthen this analysis.");
   }
-  if (scores.riskAwareness < 0.3) {
+  if (scores.riskAwareness < CRITIQUE_RISK_WEAK_THRESHOLD) {
     parts.push("Risk factors should be explicitly addressed.");
   }
-  if (scores.originality < 0.3) {
+  if (scores.originality < CRITIQUE_ORIGINALITY_WEAK_THRESHOLD) {
     parts.push("The analysis restates observable facts without deeper insight.");
   }
 
