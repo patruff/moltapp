@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { mean, round2, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
+import { mean, round2, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -495,7 +495,7 @@ export function analyzeDeepCoherence(
     counterfactualThinking,
     quantitativeRigor,
   ];
-  const overallScore = round2(weightedSum(dimensions, "score", "weight"));
+  const overallScore = round2(weightedSumByKey(dimensions, "score", "weight"));
 
   // Text quality bonus/penalty
   let adjustedScore = overallScore;

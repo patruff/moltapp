@@ -580,7 +580,7 @@ function scoreConclusionValidity(
   if (action === "buy" && bearishWeight > bullishWeight + SENTIMENT_PATTERN_WEIGHT_UNIT) score -= CONCLUSION_PENALTY_ACTION_MISMATCH;
   if (action === "sell" && bullishWeight > bearishWeight + SENTIMENT_PATTERN_WEIGHT_UNIT) score -= CONCLUSION_PENALTY_ACTION_MISMATCH;
 
-  return normalize(score);
+  return Math.min(1, score);
 }
 
 function countPatternWeight(text: string, patterns: RegExp[]): number {

@@ -29,7 +29,7 @@ import {
   computeGrade,
   normalizeMetric,
 } from "../schemas/benchmark-v23.ts";
-import { weightedSum } from "../lib/math-utils.ts";
+import { weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
 import { round2 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
