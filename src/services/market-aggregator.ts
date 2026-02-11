@@ -870,9 +870,6 @@ export interface AggregatorStats {
 // Liquidity Analysis
 // ---------------------------------------------------------------------------
 
-/** Minimum liquidity (USD) for a token to be considered tradeable */
-const MIN_TRADEABLE_LIQUIDITY_USD = 50_000;
-
 export type LiquidityTier = "good" | "moderate" | "thin" | "dead";
 
 export interface TokenLiquidity {
