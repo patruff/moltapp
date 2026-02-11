@@ -28,6 +28,185 @@
 import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum forensic entries retained in memory.
+ * Prevents unbounded growth — 5,000 entries = ~5,000 rounds of trading history.
+ */
+const MAX_FORENSIC_ENTRIES = 5000;
+
+/**
+ * Size of the "recent" window for drift detection.
+ * We compare the last RECENT_WINDOW entries against the full history
+ * to detect strategy shifts. 50 trades = ~2-3 days of trading at 3 rounds/hour.
+ */
+const RECENT_WINDOW = 50;
+
+/**
+ * Drift magnitude above this threshold is considered significant.
+ * 0.20 = 20% shift in strategy distribution (e.g., value→momentum transition).
+ */
+const DRIFT_SIGNIFICANCE_THRESHOLD = 0.20;
+
+/**
+ * Coherence score below this marks a trade as a "failure".
+ * 0.45 = reasoning contradicts action or lacks logical structure.
+ */
+const FAILURE_COHERENCE_THRESHOLD = 0.45;
+
+/**
+ * Template detection threshold: if >60% of entries share the same
+ * opening phrase structure, flag as template reasoning (boilerplate).
+ */
+const TEMPLATE_DETECTION_THRESHOLD = 0.60;
+
+/**
+ * Minimum entry count required to reliably detect template patterns.
+ * 5 trades minimum to avoid false positives on small samples.
+ */
+const TEMPLATE_MIN_ENTRIES = 5;
+
+/**
+ * Opening phrase normalization: use first N words to detect structural similarity.
+ * 5 words captures sentence structure without being overly specific.
+ */
+const TEMPLATE_OPENING_WORDS = 5;
+
+/**
+ * Minimum phrase count to include in top recurring phrases analysis.
+ * 3 occurrences = phrase appears in 3+ separate trade decisions.
+ */
+const PHRASE_MIN_COUNT = 3;
+
+/**
+ * Maximum number of top recurring phrases to include in pattern report.
+ * 10 phrases = sufficient to identify common reasoning patterns.
+ */
+const PHRASE_DISPLAY_LIMIT = 10;
+
+/**
+ * Reasoning length trend threshold: >15% change classifies as increasing/decreasing.
+ * <15% = stable trend (normal variation).
+ */
+const LENGTH_TREND_THRESHOLD = 0.15;
+
+/**
+ * Reasoning length threshold for "reasoning gap" failure classification.
+ * <100 chars + low coherence = agent didn't explain itself.
+ */
+const REASONING_GAP_LENGTH_THRESHOLD = 100;
+
+/**
+ * Maximum examples to collect per failure mode category.
+ * 3 examples = enough to demonstrate pattern without overwhelming report.
+ */
+const FAILURE_MODE_EXAMPLES_LIMIT = 3;
+
+/**
+ * Overconfidence detection: confidence above this with low coherence = overconfident.
+ * 0.75 = 75% confidence threshold for overconfidence flagging.
+ */
+const OVERCONFIDENCE_THRESHOLD = 0.75;
+
+/**
+ * Maximum hallucination types to include in failure report.
+ * 5 types = sufficient to identify dominant hallucination patterns.
+ */
+const HALLUCINATION_TYPES_LIMIT = 5;
+
+/**
+ * Intelligence score component weight: vocabulary richness and reasoning variety.
+ * 25% of total score — rewards rich, varied vocabulary.
+ */
+const INTELLIGENCE_WEIGHT_PATTERN = 25;
+
+/**
+ * Vocabulary score scaling multiplier.
+ * vocabularyRichness * 50 maps 0.5 richness → 25 points (max).
+ */
+const VOCAB_SCORE_MULTIPLIER = 50;
+
+/**
+ * Template penalty deducted from pattern score.
+ * 10 points penalty for detected template reasoning.
+ */
+const TEMPLATE_PENALTY = 10;
+
+/**
+ * Intelligence score component weight: strategy stability.
+ * 25% of total score — penalizes significant drift.
+ */
+const INTELLIGENCE_WEIGHT_STABILITY = 25;
+
+/**
+ * Drift penalty multiplier: significant drift reduces stability score.
+ * driftMagnitude * 40 maps 0.5 drift → 20 point penalty.
+ */
+const DRIFT_PENALTY_MULTIPLIER = 40;
+
+/**
+ * Intelligence score component weight: failure rate.
+ * 30% of total score — highest weight, failures are critical.
+ */
+const INTELLIGENCE_WEIGHT_FAILURE = 30;
+
+/**
+ * Failure score calculation multiplier.
+ * 50% failure rate → 0 points (failureRate * 2 in formula).
+ */
+const FAILURE_RATE_MULTIPLIER = 2;
+
+/**
+ * Intelligence score component weight: confidence calibration.
+ * 20% of total score — rewards well-calibrated agents.
+ */
+const INTELLIGENCE_WEIGHT_CALIBRATION = 20;
+
+/**
+ * Calibration error penalty multiplier.
+ * calibrationError * 2 maps 0.5 error → 0 calibration points.
+ */
+const CALIBRATION_ERROR_MULTIPLIER = 2;
+
+/**
+ * Vocabulary richness threshold for "rich vocabulary" strength.
+ * >0.4 = 40% unique words across all reasoning = rich vocabulary.
+ */
+const VOCAB_RICHNESS_STRENGTH_THRESHOLD = 0.4;
+
+/**
+ * Failure rate threshold for "very low failure rate" strength.
+ * <0.10 = <10% failure rate = exceptional quality.
+ */
+const FAILURE_RATE_STRENGTH_THRESHOLD = 0.10;
+
+/**
+ * Calibration error threshold for "well-calibrated" strength.
+ * <0.15 = coherence and confidence within 15% = well-calibrated.
+ */
+const CALIBRATION_STRENGTH_THRESHOLD = 0.15;
+
+/**
+ * Vocabulary richness threshold for "low vocabulary" weakness.
+ * <0.2 = <20% unique words = shallow reasoning vocabulary.
+ */
+const VOCAB_RICHNESS_WEAKNESS_THRESHOLD = 0.2;
+
+/**
+ * Failure rate threshold for "high failure rate" weakness.
+ * >0.30 = >30% failure rate = significant quality issues.
+ */
+const FAILURE_RATE_WEAKNESS_THRESHOLD = 0.30;
+
+/**
+ * Calibration error threshold for "poor calibration" weakness.
+ * >0.25 = coherence and confidence diverge >25% = poor calibration.
+ */
+const CALIBRATION_WEAKNESS_THRESHOLD = 0.25;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -114,20 +293,6 @@ export interface FullForensicReport {
 // ---------------------------------------------------------------------------
 
 const forensicEntries: ForensicEntry[] = [];
-const MAX_FORENSIC_ENTRIES = 5000;
-
-/**
- * Size of the "recent" window for drift detection.
- * We compare the last RECENT_WINDOW entries against
- * the full history to detect strategy shifts.
- */
-const RECENT_WINDOW = 50;
-
-/** Drift magnitude above this threshold is considered significant */
-const DRIFT_SIGNIFICANCE_THRESHOLD = 0.20;
-
-/** Coherence score below this marks a trade as a "failure" */
-const FAILURE_COHERENCE_THRESHOLD = 0.45;
 
 // ---------------------------------------------------------------------------
 // Record
@@ -198,9 +363,9 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
   }
 
   const topPhrases = [...phraseCounts.entries()]
-    .filter(([, count]) => count >= 3)
+    .filter(([, count]) => count >= PHRASE_MIN_COUNT)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, PHRASE_DISPLAY_LIMIT)
     .map(([phrase, count]) => ({ phrase, count }));
 
   // --- Template detection ---
@@ -208,8 +373,8 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
   // count AND similar opening phrase), flag as template reasoning.
   const openings = entries.map((e) => {
     const firstSentence = e.reasoning.split(/[.!?]/)[0]?.trim().toLowerCase() ?? "";
-    // Normalize to first 5 words to detect structural similarity
-    return firstSentence.split(/\s+/).slice(0, 5).join(" ");
+    // Normalize to first N words to detect structural similarity
+    return firstSentence.split(/\s+/).slice(0, TEMPLATE_OPENING_WORDS).join(" ");
   });
   const openingCounts = new Map<string, number>();
   for (const o of openings) {
@@ -218,7 +383,7 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
     }
   }
   const maxOpeningCount = Math.max(...openingCounts.values(), 0);
-  const templateDetected = entries.length >= 5 && maxOpeningCount / entries.length > 0.60;
+  const templateDetected = entries.length >= TEMPLATE_MIN_ENTRIES && maxOpeningCount / entries.length > TEMPLATE_DETECTION_THRESHOLD;
 
   // --- Reasoning length stats ---
   const lengths = entries.map((e) => e.reasoning.length);
@@ -236,8 +401,8 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
     : avgReasoningLength;
   const lengthDelta = recentAvg - olderAvg;
   const reasoningLengthTrend: "increasing" | "stable" | "decreasing" =
-    lengthDelta > avgReasoningLength * 0.15 ? "increasing" :
-    lengthDelta < -avgReasoningLength * 0.15 ? "decreasing" :
+    lengthDelta > avgReasoningLength * LENGTH_TREND_THRESHOLD ? "increasing" :
+    lengthDelta < -avgReasoningLength * LENGTH_TREND_THRESHOLD ? "decreasing" :
     "stable";
 
   return {

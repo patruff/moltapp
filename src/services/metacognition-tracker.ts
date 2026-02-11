@@ -18,7 +18,7 @@
  */
 
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -489,8 +489,8 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
 
   // 1. EPISTEMIC HUMILITY
   const avgHedge = events.reduce((s, e) => s + e.hedgeCount, 0) / tradeCount;
-  const uncertaintyRate = events.filter((e) => e.uncertaintyExpressions.length > 0).length / tradeCount;
-  const conditionalRate = events.filter((e) => e.conditionalsCount > 0).length / tradeCount;
+  const uncertaintyRate = countByCondition(events, (e) => e.uncertaintyExpressions.length > 0) / tradeCount;
+  const conditionalRate = countByCondition(events, (e) => e.conditionalsCount > 0) / tradeCount;
 
   // Good humility: hedge more when confidence is lower
   let humilityScore = 0;
@@ -517,13 +517,13 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   if (withOutcomes.length >= CALIBRATION_MIN_TRADES) {
     const highConf = withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD);
     const lowConf = withOutcomes.filter((e) => e.confidence < CONFIDENCE_LOW_THRESHOLD);
-    highConfAcc = highConf.length > 0 ? highConf.filter((e) => e.wasCorrect).length / highConf.length : 0.5;
-    lowConfAcc = lowConf.length > 0 ? lowConf.filter((e) => e.wasCorrect).length / lowConf.length : 0.5;
+    highConfAcc = highConf.length > 0 ? countByCondition(highConf, (e) => e.wasCorrect === true) / highConf.length : 0.5;
+    lowConfAcc = lowConf.length > 0 ? countByCondition(lowConf, (e) => e.wasCorrect === true) / lowConf.length : 0.5;
   }
 
   const calibrationGap = Math.abs(highConfAcc - lowConfAcc);
   const overconfidenceRate = withOutcomes.length > 0
-    ? withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD && !e.wasCorrect).length / Math.max(1, withOutcomes.filter((e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD).length)
+    ? countByCondition(withOutcomes, (e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD && !e.wasCorrect) / Math.max(1, countByCondition(withOutcomes, (e) => e.confidence >= CONFIDENCE_HIGH_THRESHOLD))
     : OVERCONFIDENCE_DEFAULT_RATE;
 
   // Good calibration: high confidence trades are more accurate than low confidence
@@ -571,7 +571,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   };
 
   // 4. SCOPE LIMITATION
-  const limitMentionRate = events.filter((e) => e.limitationAcknowledgements.length > 0).length / tradeCount;
+  const limitMentionRate = countByCondition(events, (e) => e.limitationAcknowledgements.length > 0) / tradeCount;
   const symbolFreq = new Map<string, number>();
   for (const e of events) {
     symbolFreq.set(e.symbol, (symbolFreq.get(e.symbol) ?? 0) + 1);
