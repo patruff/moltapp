@@ -15,6 +15,103 @@
 import { countByCondition, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Herding Detection Severity Thresholds
+ *
+ * Controls when herding alerts are classified as high/medium/low severity.
+ */
+
+/** Minimum average confidence for HIGH severity herding alert (3 agents unanimous) */
+const HERDING_HIGH_CONFIDENCE_THRESHOLD = 70;
+
+/** Minimum average confidence for MEDIUM severity herding alert (2+ agents) */
+const HERDING_MEDIUM_CONFIDENCE_THRESHOLD = 60;
+
+/**
+ * Data Retention Limits
+ *
+ * Controls memory buffer sizes for cross-agent analysis history.
+ */
+
+/** Maximum decision records retained in memory (oldest discarded when exceeded) */
+const MAX_DECISIONS = 5000;
+
+/** Maximum herding/contrarian/drift alerts retained in circular buffers */
+const MAX_ALERTS = 200;
+
+/**
+ * Correlation Analysis Parameters
+ *
+ * Controls minimum data requirements for correlation calculations.
+ */
+
+/** Minimum common rounds required for pairwise agent correlation calculation */
+const CORRELATION_MIN_ROUNDS = 3;
+
+/**
+ * Style Drift Detection Parameters
+ *
+ * Controls when agents are flagged for deviating from their expected trading personality.
+ */
+
+/** Check style drift every N decisions (modulo check on decisionLog.length) */
+const STYLE_DRIFT_CHECK_INTERVAL = 30;
+
+/** Minimum decisions required per agent for style drift analysis */
+const STYLE_DRIFT_MIN_DECISIONS = 10;
+
+/** Number of recent decisions to analyze for style drift (sliding window) */
+const STYLE_DRIFT_WINDOW_SIZE = 20;
+
+/** Minimum drift score to trigger alert (0-1 scale, higher = more drift) */
+const STYLE_DRIFT_ALERT_THRESHOLD = 0.3;
+
+/** Confidence deviation tolerance (+/- points) before flagging drift */
+const STYLE_DRIFT_CONFIDENCE_TOLERANCE = 10;
+
+/** Trade rate threshold for high-frequency agents (below triggers drift alert) */
+const STYLE_DRIFT_HIGH_FREQ_MIN_RATE = 0.5;
+
+/** Trade rate threshold for low-frequency agents (above triggers drift alert) */
+const STYLE_DRIFT_LOW_FREQ_MAX_RATE = 0.7;
+
+/** Minimum recent decisions for sudden behavior change detection */
+const STYLE_DRIFT_BEHAVIOR_CHANGE_MIN = 15;
+
+/** Trade rate change threshold for sudden behavior shift alert */
+const STYLE_DRIFT_BEHAVIOR_CHANGE_THRESHOLD = 0.4;
+
+/**
+ * Consensus Reporting Parameters
+ *
+ * Controls output limits for consensus history in generated reports.
+ */
+
+/** Maximum consensus history records returned in report */
+const CONSENSUS_HISTORY_DISPLAY_LIMIT = 50;
+
+/**
+ * Insight Generation Thresholds
+ *
+ * Controls when specific insights are included in cross-agent reports.
+ */
+
+/** Herding frequency threshold (%) for insight generation */
+const INSIGHT_HERDING_FREQUENCY_THRESHOLD = 50;
+
+/** Unanimous accuracy threshold (%) with minimum sample size for insight */
+const INSIGHT_UNANIMOUS_ACCURACY_THRESHOLD = 70;
+
+/** Minimum unanimous rounds required for accuracy insight */
+const INSIGHT_UNANIMOUS_MIN_ROUNDS = 5;
+
+/** Correlation threshold for "highly correlated" insight */
+const INSIGHT_HIGH_CORRELATION_THRESHOLD = 0.7;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -214,8 +311,8 @@ export function recordRoundDecisions(
     if (contrarianSignals.length > MAX_ALERTS) contrarianSignals.shift();
   }
 
-  // Check for style drift (every 10 rounds)
-  if (decisionLog.length % 30 === 0) {
+  // Check for style drift (every N rounds)
+  if (decisionLog.length % STYLE_DRIFT_CHECK_INTERVAL === 0) {
     for (const agentId of Object.keys(AGENT_STYLE_PROFILES)) {
       const drift = detectStyleDrift(agentId);
       if (drift) {
@@ -370,8 +467,8 @@ function detectHerding(
   const avgConfidence =
     nonHold.reduce((s, d) => s + d.confidence, 0) / nonHold.length;
   let severity: HerdingAlert["severity"] = "low";
-  if (nonHold.length === 3 && avgConfidence > 70) severity = "high";
-  else if (nonHold.length >= 2 && avgConfidence > 60) severity = "medium";
+  if (nonHold.length === 3 && avgConfidence > HERDING_HIGH_CONFIDENCE_THRESHOLD) severity = "high";
+  else if (nonHold.length >= 2 && avgConfidence > HERDING_MEDIUM_CONFIDENCE_THRESHOLD) severity = "medium";
 
   return {
     type: "herding",
@@ -456,10 +553,10 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
   if (!profile) return null;
 
   const agentDecisions = decisionLog.filter((d) => d.agentId === agentId);
-  if (agentDecisions.length < 10) return null;
+  if (agentDecisions.length < STYLE_DRIFT_MIN_DECISIONS) return null;
 
-  // Take last 20 decisions
-  const recent = agentDecisions.slice(-20);
+  // Take last N decisions
+  const recent = agentDecisions.slice(-STYLE_DRIFT_WINDOW_SIZE);
   const evidence: string[] = [];
   let driftScore = 0;
 
@@ -481,7 +578,7 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
   // Check average confidence
   const avgConf = recent.reduce((s, d) => s + d.confidence, 0) / recent.length;
   const [minConf, maxConf] = profile.expectedAvgConfidence;
-  if (avgConf < minConf - 10 || avgConf > maxConf + 10) {
+  if (avgConf < minConf - STYLE_DRIFT_CONFIDENCE_TOLERANCE || avgConf > maxConf + STYLE_DRIFT_CONFIDENCE_TOLERANCE) {
     driftScore += 0.2;
     evidence.push(
       `Avg confidence ${avgConf.toFixed(0)}% outside expected ${minConf}-${maxConf}%`,
@@ -492,7 +589,7 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
   const tradeRate = countByCondition(recent, (d) => d.action !== "hold") / recent.length;
   if (
     profile.expectedTradeFrequency === "high" &&
-    tradeRate < 0.5
+    tradeRate < STYLE_DRIFT_HIGH_FREQ_MIN_RATE
   ) {
     driftScore += 0.3;
     evidence.push(
@@ -500,7 +597,7 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
     );
   } else if (
     profile.expectedTradeFrequency === "low" &&
-    tradeRate > 0.7
+    tradeRate > STYLE_DRIFT_LOW_FREQ_MAX_RATE
   ) {
     driftScore += 0.3;
     evidence.push(
@@ -508,15 +605,15 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
     );
   }
 
-  // Check for sudden behavior changes (last 5 vs previous 15)
-  if (recent.length >= 15) {
+  // Check for sudden behavior changes (last 5 vs previous)
+  if (recent.length >= STYLE_DRIFT_BEHAVIOR_CHANGE_MIN) {
     const last5 = recent.slice(-5);
     const prev = recent.slice(0, -5);
     const last5TradeRate =
       countByCondition(last5, (d) => d.action !== "hold") / last5.length;
     const prevTradeRate =
       countByCondition(prev, (d) => d.action !== "hold") / prev.length;
-    if (Math.abs(last5TradeRate - prevTradeRate) > 0.4) {
+    if (Math.abs(last5TradeRate - prevTradeRate) > STYLE_DRIFT_BEHAVIOR_CHANGE_THRESHOLD) {
       driftScore += 0.2;
       evidence.push(
         `Sudden trade rate shift: ${(prevTradeRate * 100).toFixed(0)}% → ${(last5TradeRate * 100).toFixed(0)}%`,
