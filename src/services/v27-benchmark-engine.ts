@@ -93,6 +93,30 @@ export interface V27CompositeScore {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Count-to-Score Mapping Configuration
+ *
+ * These constants control how discrete indicator counts (e.g., number of
+ * slippage awareness keywords, past trade references, execution plan details)
+ * are mapped to continuous quality scores (0-1 scale).
+ *
+ * Used by countToScore() function throughout execution quality and
+ * cross-round learning analysis.
+ */
+
+/** Score when 1 indicator detected (minimal presence) */
+const SCORE_FROM_ONE_INDICATOR = 0.3;
+/** Score when 2 indicators detected (moderate presence) */
+const SCORE_FROM_TWO_INDICATORS = 0.6;
+/** Score when 3 indicators detected (strong presence) */
+const SCORE_FROM_THREE_INDICATORS = 0.8;
+/** Score when 4+ indicators detected (excellent presence) */
+const SCORE_FROM_FOUR_PLUS_INDICATORS = 1.0;
+
+// ---------------------------------------------------------------------------
 // In-memory stores (for quick reads)
 // ---------------------------------------------------------------------------
 
@@ -110,10 +134,10 @@ const v27LeaderboardCache = new Map<string, V27CompositeScore>();
  */
 function countToScore(count: number): number {
   if (count <= 0) return 0.0;
-  if (count === 1) return 0.3;
-  if (count === 2) return 0.6;
-  if (count === 3) return 0.8;
-  return 1.0;
+  if (count === 1) return SCORE_FROM_ONE_INDICATOR;
+  if (count === 2) return SCORE_FROM_TWO_INDICATORS;
+  if (count === 3) return SCORE_FROM_THREE_INDICATORS;
+  return SCORE_FROM_FOUR_PLUS_INDICATORS;
 }
 
 /**
