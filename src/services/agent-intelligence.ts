@@ -22,7 +22,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getAgentStats } from "../agents/orchestrator.ts";
 import type { AgentStats } from "../agents/base-agent.ts";
-import { round2, sumByKey, weightedSum, countByCondition } from "../lib/math-utils.ts";
+import { round2, sumByKey, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -993,14 +993,14 @@ export async function generateSwarmPredictions(): Promise<SwarmPrediction[]> {
     if (upVotes.length > downVotes.length) {
       prediction = "up";
       probability = round2(
-        (weightedSum(upVotes, "confidence", "weight") /
+        (weightedSumByKey(upVotes, "confidence", "weight") /
           sumByKey(upVotes, "weight")) *
           (upVotes.length / configs.length),
       );
     } else if (downVotes.length > upVotes.length) {
       prediction = "down";
       probability = round2(
-        (weightedSum(downVotes, "confidence", "weight") /
+        (weightedSumByKey(downVotes, "confidence", "weight") /
           sumByKey(downVotes, "weight")) *
           (downVotes.length / configs.length),
       );

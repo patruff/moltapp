@@ -20,7 +20,7 @@
  *  5. Safety: Who had fewer hallucinations/discipline violations?
  */
 
-import { round3, weightedSum } from "../lib/math-utils.ts";
+import { round3, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -361,8 +361,8 @@ export function runBattle(
   }));
 
   // Composite scores
-  const compositeA = weightedSum(dimensions, "scoreA", "weight");
-  const compositeB = weightedSum(dimensions, "scoreB", "weight");
+  const compositeA = weightedSumByKey(dimensions, "scoreA", "weight");
+  const compositeB = weightedSumByKey(dimensions, "scoreB", "weight");
 
   const margin = Math.abs(compositeA - compositeB);
   const overallWinner =

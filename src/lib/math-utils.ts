@@ -373,66 +373,94 @@ export function hashSeed(str: string): number {
 
 /**
  * Finds the item with the maximum value for a given property.
- * Accepts custom comparator function for complex comparisons.
+ * Supports both simple property comparison and custom comparator for complex comparisons.
  *
  * @param items - Array of objects to search
  * @param keyOrComparator - Property name (string/number) OR custom comparator function
+ * @param customComparator - Optional comparator function for custom comparison logic (used with property key)
  * @returns Item with maximum value, or undefined if array is empty
  *
  * @example
  * // Simple property comparison
  * findMax([{score: 5}, {score: 10}, {score: 3}], 'score') // returns {score: 10}
  *
- * // Custom comparator
+ * // Custom comparator function (2 args)
  * findMax(trades, (t) => Math.abs(t.pnl)) // finds trade with largest absolute P&L
+ *
+ * // Property with custom comparator (3 args)
+ * findMax(factors, "loading", (a, b) => Math.abs(a) - Math.abs(b)) // max by absolute loading
  */
 export function findMax<T>(
   items: readonly T[],
   keyOrComparator: keyof T | ((item: T) => number),
+  customComparator?: (a: any, b: any) => number,
 ): T | undefined {
   if (items.length === 0) return undefined;
 
+  // 3-arg pattern: property key + custom comparator
+  if (typeof keyOrComparator !== 'function' && customComparator) {
+    return items.reduce((max, item) => {
+      const maxVal = max[keyOrComparator] as any;
+      const itemVal = item[keyOrComparator] as any;
+      return customComparator(itemVal, maxVal) > 0 ? item : max;
+    });
+  }
+
+  // 2-arg pattern: custom comparator function
   if (typeof keyOrComparator === 'function') {
-    // Custom comparator
     return items.reduce((max, item) =>
       keyOrComparator(item) > keyOrComparator(max) ? item : max,
     );
-  } else {
-    // Simple property comparison
-    return items.reduce((max, item) => (item[keyOrComparator] > max[keyOrComparator] ? item : max));
   }
+
+  // 2-arg pattern: simple property comparison
+  return items.reduce((max, item) => (item[keyOrComparator] > max[keyOrComparator] ? item : max));
 }
 
 /**
  * Finds the item with the minimum value for a given property.
- * Accepts custom comparator function for complex comparisons.
+ * Supports both simple property comparison and custom comparator for complex comparisons.
  *
  * @param items - Array of objects to search
  * @param keyOrComparator - Property name (string/number) OR custom comparator function
+ * @param customComparator - Optional comparator function for custom comparison logic (used with property key)
  * @returns Item with minimum value, or undefined if array is empty
  *
  * @example
  * // Simple property comparison
  * findMin([{score: 5}, {score: 10}, {score: 3}], 'score') // returns {score: 3}
  *
- * // Custom comparator
+ * // Custom comparator function (2 args)
  * findMin(trades, (t) => Math.abs(t.pnl)) // finds trade with smallest absolute P&L
+ *
+ * // Property with custom comparator (3 args)
+ * findMin(factors, "loading", (a, b) => Math.abs(a) - Math.abs(b)) // min by absolute loading
  */
 export function findMin<T>(
   items: readonly T[],
   keyOrComparator: keyof T | ((item: T) => number),
+  customComparator?: (a: any, b: any) => number,
 ): T | undefined {
   if (items.length === 0) return undefined;
 
+  // 3-arg pattern: property key + custom comparator
+  if (typeof keyOrComparator !== 'function' && customComparator) {
+    return items.reduce((min, item) => {
+      const minVal = min[keyOrComparator] as any;
+      const itemVal = item[keyOrComparator] as any;
+      return customComparator(itemVal, minVal) < 0 ? item : min;
+    });
+  }
+
+  // 2-arg pattern: custom comparator function
   if (typeof keyOrComparator === 'function') {
-    // Custom comparator
     return items.reduce((min, item) =>
       keyOrComparator(item) < keyOrComparator(min) ? item : min,
     );
-  } else {
-    // Simple property comparison
-    return items.reduce((min, item) => (item[keyOrComparator] < min[keyOrComparator] ? item : min));
   }
+
+  // 2-arg pattern: simple property comparison
+  return items.reduce((min, item) => (item[keyOrComparator] < min[keyOrComparator] ? item : min));
 }
 
 /**
@@ -534,6 +562,36 @@ export function weightedSum(
   // Object-based calculation
   return Object.keys(values as Record<string, number>).reduce((sum, key) => {
     return sum + ((values as Record<string, number>)[key] ?? 0) * ((weights as Record<string, number>)[key] ?? 0);
+  }, 0);
+}
+
+/**
+ * Calculates a weighted sum from an array of objects by extracting value and weight properties.
+ * Returns 0 for empty arrays.
+ *
+ * @param items - Array of objects containing value and weight properties
+ * @param valueKey - Property name to extract values from
+ * @param weightKey - Property name to extract weights from
+ * @returns Weighted sum
+ *
+ * @example
+ * const items = [{score: 10, weight: 0.3}, {score: 20, weight: 0.7}];
+ * weightedSumByKey(items, 'score', 'weight') // returns 10*0.3 + 20*0.7 = 17
+ *
+ * @example
+ * const votes = [{confidence: 75, weight: 1.2}, {confidence: 60, weight: 0.8}];
+ * weightedSumByKey(votes, 'confidence', 'weight') // returns 75*1.2 + 60*0.8 = 138
+ */
+export function weightedSumByKey<T>(
+  items: readonly T[],
+  valueKey: keyof T,
+  weightKey: keyof T,
+): number {
+  if (items.length === 0) return 0;
+  return items.reduce((sum, item) => {
+    const value = Number(item[valueKey]) || 0;
+    const weight = Number(item[weightKey]) || 0;
+    return sum + value * weight;
   }, 0);
 }
 
