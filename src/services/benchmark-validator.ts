@@ -16,7 +16,7 @@
  * 8. OUTLIER DETECTION: Are there statistical outliers in metrics?
  */
 
-import { round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -616,16 +616,16 @@ function buildResult(
   records: BenchmarkRecord[],
   issues: ValidationIssue[],
 ): ValidationResult {
-  const errorCount = issues.filter((i) => i.severity === "error").length;
-  const warningCount = issues.filter((i) => i.severity === "warning").length;
-  const infoCount = issues.filter((i) => i.severity === "info").length;
+  const errorCount = countByCondition(issues, (i) => i.severity === "error");
+  const warningCount = countByCondition(issues, (i) => i.severity === "warning");
+  const infoCount = countByCondition(issues, (i) => i.severity === "info");
 
   // Quality dimensions (0-1)
   const completenessIssues = issues.filter((i) => i.category === "completeness");
-  const completeness = Math.max(0, 1 - completenessIssues.filter((i) => i.severity === "error").length * COMPLETENESS_ERROR_PENALTY - completenessIssues.filter((i) => i.severity === "warning").length * COMPLETENESS_WARNING_PENALTY);
+  const completeness = Math.max(0, 1 - countByCondition(completenessIssues, (i) => i.severity === "error") * COMPLETENESS_ERROR_PENALTY - countByCondition(completenessIssues, (i) => i.severity === "warning") * COMPLETENESS_WARNING_PENALTY);
 
   const consistencyIssues = issues.filter((i) => i.category === "consistency");
-  const consistency = Math.max(0, 1 - consistencyIssues.filter((i) => i.severity === "error").length * CONSISTENCY_ERROR_PENALTY - consistencyIssues.filter((i) => i.severity === "warning").length * CONSISTENCY_WARNING_PENALTY);
+  const consistency = Math.max(0, 1 - countByCondition(consistencyIssues, (i) => i.severity === "error") * CONSISTENCY_ERROR_PENALTY - countByCondition(consistencyIssues, (i) => i.severity === "warning") * CONSISTENCY_WARNING_PENALTY);
 
   const balanceIssues = issues.filter((i) => i.category === "balance" || i.category === "coverage");
   const balance = Math.max(0, 1 - balanceIssues.length * BALANCE_ISSUE_PENALTY);
@@ -634,7 +634,7 @@ function buildResult(
   const reasoningQuality = Math.max(0, 1 - rqIssues.length * REASONING_QUALITY_PENALTY);
 
   const temporalIssues = issues.filter((i) => i.category === "temporal");
-  const temporalIntegrity = Math.max(0, 1 - temporalIssues.filter((i) => i.severity === "error").length * TEMPORAL_ERROR_PENALTY);
+  const temporalIntegrity = Math.max(0, 1 - countByCondition(temporalIssues, (i) => i.severity === "error") * TEMPORAL_ERROR_PENALTY);
 
   const qualityScore = round2(
     completeness * QUALITY_WEIGHT_COMPLETENESS + consistency * QUALITY_WEIGHT_CONSISTENCY + balance * QUALITY_WEIGHT_BALANCE + reasoningQuality * QUALITY_WEIGHT_REASONING + temporalIntegrity * QUALITY_WEIGHT_TEMPORAL,

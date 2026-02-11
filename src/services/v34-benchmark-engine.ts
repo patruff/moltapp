@@ -23,6 +23,7 @@
  */
 
 import { createHash } from "crypto";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types for the 28 dimensions
@@ -637,7 +638,7 @@ export function scoreConsensusQuality(
   let score = CONSENSUS_BASE_SCORE;
   if (peerActions.length === 0) return CONSENSUS_BASE_SCORE;
 
-  const sameAction = peerActions.filter((p) => p.action === action).length;
+  const sameAction = countByCondition(peerActions, (p) => p.action === action);
   const totalPeers = peerActions.length;
   const agreementRate = sameAction / totalPeers;
 
@@ -773,7 +774,7 @@ export function scoreCausalReasoning(reasoning: string, sources: string[]): numb
     /\bMACD\b/i, /\bsupply\b/i, /\bdemand\b/i,
     /\bcorrelation\b/i, /\brotation\b/i, /\bon-?chain\b/i,
   ];
-  const factorsFound = factorKeywords.filter((p) => p.test(reasoning)).length;
+  const factorsFound = countByCondition(factorKeywords, (p) => p.test(reasoning));
   if (factorsFound >= 3) {
     multiFactorScore += Math.min(5, (factorsFound - 2) * 2);
   }
