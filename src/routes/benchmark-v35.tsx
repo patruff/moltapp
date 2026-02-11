@@ -37,6 +37,8 @@ function esc(s: string): string {
 const TIER_CLR: Record<string, string> = { S: "#ffd700", A: "#00ff88", B: "#00aaff", C: "#888", D: "#ff4444" };
 const GRADE_CLR: Record<string, string> = { "A+": "#ffd700", A: "#00ff88", "B+": "#66cc88", B: "#00aaff", "C+": "#5599dd", C: "#888", D: "#ff4444", F: "#cc0000" };
 
+function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
+
 interface DimDef { key: string; label: string; cat: string; isNew?: boolean }
 
 const DIMS: DimDef[] = [
