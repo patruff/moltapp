@@ -16,7 +16,7 @@
  */
 
 import { Hono } from "hono";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import {
   trackOutcomes,
@@ -47,10 +47,10 @@ outcomeTrackingRoutes.post("/track", async (c) => {
       ok: true,
       tracked: results.length,
       summary: {
-        profit: results.filter((r) => r.outcome === "profit").length,
-        loss: results.filter((r) => r.outcome === "loss").length,
-        breakeven: results.filter((r) => r.outcome === "breakeven").length,
-        pending: results.filter((r) => r.outcome === "pending").length,
+        profit: countByCondition(results, (r) => r.outcome === "profit"),
+        loss: countByCondition(results, (r) => r.outcome === "loss"),
+        breakeven: countByCondition(results, (r) => r.outcome === "breakeven"),
+        pending: countByCondition(results, (r) => r.outcome === "pending"),
       },
       results: results.slice(0, 20),
     });

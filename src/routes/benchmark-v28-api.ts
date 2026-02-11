@@ -25,7 +25,7 @@ import {
   type V28CompositeScore,
 } from "../services/v28-benchmark-engine.ts";
 import { V28_DIMENSIONS } from "../schemas/benchmark-v28.ts";
-import { groupByKey, sumByKey } from "../lib/math-utils.ts";
+import { groupByKey, sumByKey, countByCondition } from "../lib/math-utils.ts";
 import { AGENT_LABELS } from "../config/agent-labels.ts";
 
 export const benchmarkV28ApiRoutes = new Hono();
@@ -327,8 +327,8 @@ benchmarkV28ApiRoutes.get("/compare/:agentA/:agentB", (c) => {
     };
   });
 
-  const aWins = comparison.filter((c) => c.advantage === agentA).length;
-  const bWins = comparison.filter((c) => c.advantage === agentB).length;
+  const aWins = countByCondition(comparison, (c) => c.advantage === agentA);
+  const bWins = countByCondition(comparison, (c) => c.advantage === agentB);
 
   return c.json({
     ok: true,
