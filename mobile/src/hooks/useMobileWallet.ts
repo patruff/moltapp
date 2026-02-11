@@ -9,7 +9,11 @@ import {
   Connection,
   clusterApiUrl,
 } from "@solana/web3.js";
-import { APP_IDENTITY, SOLANA_CLUSTER } from "../utils/constants";
+import {
+  getAssociatedTokenAddress,
+  getAccount,
+} from "@solana/spl-token";
+import { APP_IDENTITY, SOLANA_CLUSTER, USDC_MINT, USDC_DECIMALS } from "../utils/constants";
 import type { WalletAccount, WalletState } from "../types";
 
 const connection = new Connection(
@@ -17,6 +21,19 @@ const connection = new Connection(
   "confirmed"
 );
 
+/**
+ * Mobile Wallet Adapter hook.
+ *
+ * Works with any MWA-compliant wallet installed on the device:
+ * - Phantom
+ * - Solflare
+ * - Backpack
+ * - Ultimate Wallet
+ * - Any other MWA wallet
+ *
+ * The MWA protocol discovers whichever wallet(s) the user has installed
+ * and lets them choose which to authorize with.
+ */
 export function useMobileWallet() {
   const [walletState, setWalletState] = useState<WalletState>({
     connected: false,
@@ -26,24 +43,40 @@ export function useMobileWallet() {
   });
   const [authorizing, setAuthorizing] = useState(false);
 
+  /** Fetch USDC balance for an address */
+  const fetchUsdcBalance = useCallback(async (pubkey: PublicKey): Promise<number> => {
+    try {
+      const ata = await getAssociatedTokenAddress(USDC_MINT, pubkey);
+      const account = await getAccount(connection, ata);
+      return Number(account.amount) / 10 ** USDC_DECIMALS;
+    } catch {
+      return 0;
+    }
+  }, []);
+
   const connect = useCallback(async () => {
     setAuthorizing(true);
     try {
       const result = await transact(async (wallet: Web3MobileWallet) => {
+        // MWA will open the user's installed wallet app (Phantom, Solflare, etc.)
         const authResult = await wallet.authorize({
           cluster: SOLANA_CLUSTER,
           identity: APP_IDENTITY,
         });
 
         const pubkey = new PublicKey(authResult.accounts[0].address);
-        const balance = await connection.getBalance(pubkey);
+        const [solBalance, usdcBalance] = await Promise.all([
+          connection.getBalance(pubkey),
+          fetchUsdcBalance(pubkey),
+        ]);
 
         return {
           address: authResult.accounts[0].address,
           publicKey: pubkey,
-          label: authResult.accounts[0].label,
+          label: authResult.accounts[0].label ?? authResult.wallet_uri_base,
           authToken: authResult.auth_token,
-          balanceLamports: balance,
+          balanceLamports: solBalance,
+          usdcBalance,
         };
       });
 
@@ -57,7 +90,7 @@ export function useMobileWallet() {
         connected: true,
         account,
         balanceSol: result.balanceLamports / 1e9,
-        balanceUsdc: 0, // Fetched separately via token account
+        balanceUsdc: result.usdcBalance,
       });
 
       return account;
@@ -67,7 +100,7 @@ export function useMobileWallet() {
     } finally {
       setAuthorizing(false);
     }
-  }, []);
+  }, [fetchUsdcBalance]);
 
   const disconnect = useCallback(() => {
     setWalletState({
@@ -157,17 +190,19 @@ export function useMobileWallet() {
     if (!walletState.account) return;
 
     try {
-      const balance = await connection.getBalance(
-        walletState.account.publicKey
-      );
+      const [solBalance, usdcBalance] = await Promise.all([
+        connection.getBalance(walletState.account.publicKey),
+        fetchUsdcBalance(walletState.account.publicKey),
+      ]);
       setWalletState((prev) => ({
         ...prev,
-        balanceSol: balance / 1e9,
+        balanceSol: solBalance / 1e9,
+        balanceUsdc: usdcBalance,
       }));
     } catch (error) {
       console.error("Failed to refresh balance:", error);
     }
-  }, [walletState.account]);
+  }, [walletState.account, fetchUsdcBalance]);
 
   return {
     ...walletState,

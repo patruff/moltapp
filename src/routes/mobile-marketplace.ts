@@ -466,15 +466,316 @@ mobileMarketplaceRoutes.get("/wallet/:address", (c) => {
     .filter((j) => j.status === "completed")
     .reduce((sum, j) => sum + j.budgetUsdc, 0);
 
-  // TODO: compute totalEarned from seller side
+  // Compute totalEarned from seller side
+  const sellerJobs = allJobs.filter(
+    (j) => j.sellerAgentId &&
+      agents.get(j.sellerAgentId)?.ownerWallet === address &&
+      j.status === "completed"
+  );
+  const totalEarned = sellerJobs.reduce((sum, j) => sum + j.budgetUsdc, 0);
+
   return c.json({
     success: true,
     data: {
       balanceSol: 0, // Fetched client-side via RPC
       balanceUsdc: 0, // Fetched client-side via token account
-      totalEarned: 0,
+      totalEarned,
       totalSpent,
       activeJobs,
     },
   });
+});
+
+// ─── Auth Routes ───────────────────────────────────────
+
+interface UserProfile {
+  id: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+  authProvider: "wallet" | "google" | "github";
+  walletAddress?: string;
+  agentIds: string[];
+  createdAt: string;
+}
+
+const users = new Map<string, UserProfile>();
+const sessions = new Map<string, string>(); // token -> userId
+
+// POST /auth/wallet — Auth via wallet address
+mobileMarketplaceRoutes.post("/auth/wallet", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { walletAddress } = body;
+    if (!walletAddress) {
+      return c.json({ success: false, error: "walletAddress required" }, 400);
+    }
+
+    // Find or create user
+    let user = Array.from(users.values()).find(
+      (u) => u.walletAddress === walletAddress
+    );
+    if (!user) {
+      user = {
+        id: generateId("user"),
+        displayName: `${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`,
+        authProvider: "wallet",
+        walletAddress,
+        agentIds: [],
+        createdAt: new Date().toISOString(),
+      };
+      users.set(user.id, user);
+    }
+
+    const token = generateId("tok");
+    sessions.set(token, user.id);
+
+    return c.json({ success: true, user, token });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// POST /auth/login — Auth via Google/GitHub token exchange
+mobileMarketplaceRoutes.post("/auth/login", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { provider, providerToken } = body;
+
+    // In production: verify the token with Google/GitHub APIs
+    // For now, create/find user based on provider token hash
+    const pseudoEmail = `${provider}_${providerToken.slice(0, 8)}@moltapp.ai`;
+
+    let user = Array.from(users.values()).find((u) => u.email === pseudoEmail);
+    if (!user) {
+      user = {
+        id: generateId("user"),
+        displayName: provider === "google" ? "Google User" : "GitHub User",
+        email: pseudoEmail,
+        authProvider: provider,
+        agentIds: [],
+        createdAt: new Date().toISOString(),
+      };
+      users.set(user.id, user);
+    }
+
+    const token = generateId("tok");
+    sessions.set(token, user.id);
+
+    return c.json({ success: true, user, token });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// ─── Agent CRUD ────────────────────────────────────────
+
+// PATCH /agents/:id — Update agent
+mobileMarketplaceRoutes.patch("/agents/:id", async (c) => {
+  const agent = agents.get(c.req.param("id"));
+  if (!agent) return c.json({ success: false, error: "Agent not found" }, 404);
+
+  try {
+    const updates = await c.req.json();
+    if (updates.name) agent.name = updates.name;
+    if (updates.description) agent.description = updates.description;
+    if (updates.capabilities) agent.capabilities = updates.capabilities;
+    if (updates.pricing) agent.pricing = updates.pricing;
+    if (updates.model) agent.model = updates.model;
+    if (updates.provider) agent.provider = updates.provider;
+    return c.json({ success: true, data: agent });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// DELETE /agents/:id — Delete agent
+mobileMarketplaceRoutes.delete("/agents/:id", (c) => {
+  const id = c.req.param("id");
+  if (!agents.has(id)) return c.json({ success: false, error: "Agent not found" }, 404);
+  agents.delete(id);
+  return c.json({ success: true });
+});
+
+// ─── Analysis Runs ─────────────────────────────────────
+
+interface AnalysisRunRecord {
+  id: string;
+  agentId: string;
+  status: "queued" | "running" | "completed" | "failed";
+  config: { tickers: string[]; capability: string; maxTokens: number };
+  result?: any;
+  tokensUsed: number;
+  durationMs: number;
+  costUsdc: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+const analysisRuns = new Map<string, AnalysisRunRecord>();
+
+// POST /analysis/run — Run analysis with an agent
+mobileMarketplaceRoutes.post("/analysis/run", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { agentId, tickers, capability, maxTokens } = body;
+
+    const agent = agents.get(agentId);
+    if (!agent) return c.json({ success: false, error: "Agent not found" }, 404);
+
+    const run: AnalysisRunRecord = {
+      id: generateId("run"),
+      agentId,
+      status: "completed", // Simulated instant completion for demo
+      config: { tickers, capability: capability ?? "financial_analysis", maxTokens: maxTokens ?? 8000 },
+      result: {
+        summary: `Analysis of ${tickers.join(", ")} using ${agent.name}. Market conditions suggest mixed signals across the selected equities. Key findings focus on ${capability ?? "financial analysis"} dimensions with ${tickers.length} tickers evaluated.`,
+        reasoning: tickers.map((ticker: string, i: number) => ({
+          step: i + 1,
+          thought: `Evaluating ${ticker} fundamentals and recent price action`,
+          evidence: `${ticker} shows ${i % 2 === 0 ? "positive momentum" : "consolidation pattern"} with volume ${i % 2 === 0 ? "above" : "near"} average`,
+          conclusion: `${ticker} merits ${i % 2 === 0 ? "further investigation for entry" : "watchlist status pending catalyst"}`,
+        })),
+        recommendations: tickers.map((ticker: string, i: number) => ({
+          ticker,
+          action: i % 3 === 0 ? "buy" : i % 3 === 1 ? "hold" : "sell",
+          reasoning: `Based on ${capability ?? "financial"} analysis of current market conditions`,
+          confidenceScore: 0.6 + Math.random() * 0.3,
+          timeHorizon: i % 2 === 0 ? "1-2 weeks" : "1 month",
+        })),
+        confidence: 0.72 + Math.random() * 0.2,
+        dataSourcesUsed: ["Jupiter Price API", "xStocks on-chain data", "Market regime classifier"],
+        generatedAt: new Date().toISOString(),
+      },
+      tokensUsed: Math.floor(2000 + Math.random() * 6000),
+      durationMs: Math.floor(1000 + Math.random() * 5000),
+      costUsdc: agent.pricing.amount * (agent.pricing.model === "per_package" ? 1 : 0.01),
+      createdAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+    };
+
+    analysisRuns.set(run.id, run);
+    return c.json({ success: true, data: run }, 201);
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// GET /analysis/:id — Get analysis run
+mobileMarketplaceRoutes.get("/analysis/:id", (c) => {
+  const run = analysisRuns.get(c.req.param("id"));
+  if (!run) return c.json({ success: false, error: "Analysis not found" }, 404);
+  return c.json({ success: true, data: run });
+});
+
+// GET /analysis?agentId=... — List analysis runs
+mobileMarketplaceRoutes.get("/analysis", (c) => {
+  const agentId = c.req.query("agentId");
+  let items = Array.from(analysisRuns.values());
+  if (agentId) items = items.filter((r) => r.agentId === agentId);
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return c.json(paginate(items, 1, 50));
+});
+
+// ─── Shared Analyses ───────────────────────────────────
+
+interface SharedAnalysisRecord {
+  id: string;
+  analysisRunId: string;
+  agentId: string;
+  ownerUserId: string;
+  title: string;
+  description: string;
+  previewSummary: string;
+  capability: string;
+  tickers: string[];
+  visibility: "public" | "unlisted" | "private";
+  priceUsdc: number;
+  maxPurchases: number;
+  purchaseCount: number;
+  content?: any;
+  rating: number;
+  ratingCount: number;
+  createdAt: string;
+  expiresAt?: string;
+}
+
+const sharedAnalyses = new Map<string, SharedAnalysisRecord>();
+
+// POST /shared — Share an analysis
+mobileMarketplaceRoutes.post("/shared", async (c) => {
+  try {
+    const body = await c.req.json();
+    const run = analysisRuns.get(body.analysisRunId);
+
+    const shared: SharedAnalysisRecord = {
+      id: generateId("shared"),
+      analysisRunId: body.analysisRunId,
+      agentId: run?.agentId ?? "",
+      ownerUserId: "",
+      title: body.title,
+      description: body.description ?? "",
+      previewSummary: body.previewSummary ?? "",
+      capability: run?.config.capability ?? "financial_analysis",
+      tickers: run?.config.tickers ?? [],
+      visibility: body.visibility ?? "public",
+      priceUsdc: parseFloat(body.priceUsdc) || 0,
+      maxPurchases: parseInt(body.maxPurchases) || 0,
+      purchaseCount: 0,
+      content: run?.result,
+      rating: 0,
+      ratingCount: 0,
+      createdAt: new Date().toISOString(),
+      expiresAt: body.expiresInDays
+        ? new Date(Date.now() + body.expiresInDays * 86400000).toISOString()
+        : undefined,
+    };
+
+    sharedAnalyses.set(shared.id, shared);
+    return c.json({ success: true, data: shared }, 201);
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// GET /shared — Browse shared analyses
+mobileMarketplaceRoutes.get("/shared", (c) => {
+  const capability = c.req.query("capability");
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
+
+  let items = Array.from(sharedAnalyses.values()).filter(
+    (s) => s.visibility === "public"
+  );
+  if (capability) items = items.filter((s) => s.capability === capability);
+
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return c.json(paginate(items, page, 20));
+});
+
+// GET /shared/:id — Get shared analysis detail
+mobileMarketplaceRoutes.get("/shared/:id", (c) => {
+  const shared = sharedAnalyses.get(c.req.param("id"));
+  if (!shared) return c.json({ success: false, error: "Not found" }, 404);
+
+  // Return without full content if paid and not purchased
+  if (shared.priceUsdc > 0) {
+    const { content, ...preview } = shared;
+    return c.json({ success: true, data: preview });
+  }
+  return c.json({ success: true, data: shared });
+});
+
+// POST /shared/:id/purchase — Purchase a shared analysis
+mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
+  const shared = sharedAnalyses.get(c.req.param("id"));
+  if (!shared) return c.json({ success: false, error: "Not found" }, 404);
+
+  if (shared.maxPurchases > 0 && shared.purchaseCount >= shared.maxPurchases) {
+    return c.json({ success: false, error: "Sold out" }, 400);
+  }
+
+  shared.purchaseCount += 1;
+
+  // Return full content after purchase
+  return c.json({ success: true, data: shared });
 });

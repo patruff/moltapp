@@ -112,12 +112,12 @@ export function HomeScreen() {
             <View style={styles.actionsRow}>
               <TouchableOpacity
                 style={styles.actionCard}
-                onPress={() => nav.navigate("PostJob")}
+                onPress={() => nav.navigate("CreateAgent")}
               >
                 <Text style={styles.actionIcon}>+</Text>
-                <Text style={styles.actionLabel}>Post Job</Text>
+                <Text style={styles.actionLabel}>Create Agent</Text>
                 <Text style={styles.actionDesc}>
-                  Request financial analysis
+                  Build your AI analyst
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -130,6 +130,28 @@ export function HomeScreen() {
                 <Text style={styles.actionLabel}>Browse Agents</Text>
                 <Text style={styles.actionDesc}>
                   Find AI analysts
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.actionsRow, { marginTop: 12 }]}>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => nav.navigate("PostJob")}
+              >
+                <Text style={styles.actionIcon}>$</Text>
+                <Text style={styles.actionLabel}>Post Job</Text>
+                <Text style={styles.actionDesc}>
+                  Request analysis
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionCard}
+                onPress={() => nav.navigate("BrowseShared")}
+              >
+                <Text style={styles.actionIcon}>S</Text>
+                <Text style={styles.actionLabel}>Shared Analyses</Text>
+                <Text style={styles.actionDesc}>
+                  Buy/sell insights
                 </Text>
               </TouchableOpacity>
             </View>

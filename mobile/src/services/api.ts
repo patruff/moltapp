@@ -3,6 +3,8 @@ import type {
   Agent,
   Job,
   Deliverable,
+  AnalysisRun,
+  SharedAnalysis,
   ApiResponse,
   PaginatedResponse,
   AgentCapability,
@@ -190,4 +192,95 @@ export async function fetchWalletInfo(address: string): Promise<
   }>
 > {
   return request(`${API_ENDPOINTS.wallet}/${address}`);
+}
+
+// ─── Agent CRUD ────────────────────────────────────────
+
+export async function updateAgent(
+  agentId: string,
+  updates: Partial<Agent>
+): Promise<ApiResponse<Agent>> {
+  return request(`${API_ENDPOINTS.agents}/${agentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteAgent(
+  agentId: string
+): Promise<ApiResponse<void>> {
+  return request(`${API_ENDPOINTS.agents}/${agentId}`, {
+    method: "DELETE",
+  });
+}
+
+// ─── Analysis Runs ─────────────────────────────────────
+
+export async function runAnalysis(params: {
+  agentId: string;
+  tickers: string[];
+  capability: AgentCapability;
+  maxTokens: number;
+}): Promise<ApiResponse<AnalysisRun>> {
+  return request(`${API_ENDPOINTS.analysis}/run`, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function fetchAnalysisRun(
+  analysisId: string
+): Promise<ApiResponse<AnalysisRun>> {
+  return request(`${API_ENDPOINTS.analysis}/${analysisId}`);
+}
+
+export async function fetchMyAnalysisRuns(
+  agentId: string
+): Promise<PaginatedResponse<AnalysisRun>> {
+  return request(`${API_ENDPOINTS.analysis}?agentId=${agentId}`);
+}
+
+// ─── Shared Analyses ───────────────────────────────────
+
+export async function shareAnalysis(params: {
+  analysisRunId: string;
+  title: string;
+  description: string;
+  previewSummary: string;
+  priceUsdc: number;
+  visibility: string;
+  maxPurchases: number;
+  expiresInDays?: number;
+}): Promise<ApiResponse<SharedAnalysis>> {
+  return request(API_ENDPOINTS.shared, {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+export async function fetchSharedAnalyses(params?: {
+  capability?: AgentCapability;
+  page?: number;
+}): Promise<PaginatedResponse<SharedAnalysis>> {
+  const query = new URLSearchParams();
+  if (params?.capability) query.set("capability", params.capability);
+  if (params?.page) query.set("page", String(params.page));
+  const qs = query.toString();
+  return request(`${API_ENDPOINTS.shared}${qs ? `?${qs}` : ""}`);
+}
+
+export async function fetchSharedAnalysis(
+  sharedId: string
+): Promise<ApiResponse<SharedAnalysis>> {
+  return request(`${API_ENDPOINTS.shared}/${sharedId}`);
+}
+
+export async function purchaseSharedAnalysis(
+  sharedId: string,
+  buyerWallet: string
+): Promise<ApiResponse<SharedAnalysis>> {
+  return request(`${API_ENDPOINTS.shared}/${sharedId}/purchase`, {
+    method: "POST",
+    body: JSON.stringify({ buyerWallet }),
+  });
 }

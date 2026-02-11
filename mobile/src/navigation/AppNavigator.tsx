@@ -1,15 +1,24 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import * as SecureStore from "expo-secure-store";
 import { HomeScreen } from "../screens/HomeScreen";
 import { MarketplaceScreen } from "../screens/MarketplaceScreen";
-import { MyJobsScreen } from "../screens/MyJobsScreen";
+import { MyAgentsScreen } from "../screens/MyAgentsScreen";
 import { WalletScreen } from "../screens/WalletScreen";
+import { LoginScreen } from "../screens/LoginScreen";
+import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { AgentDetailScreen } from "../screens/AgentDetailScreen";
 import { JobDetailScreen } from "../screens/JobDetailScreen";
 import { PostJobScreen } from "../screens/PostJobScreen";
+import { CreateAgentScreen } from "../screens/CreateAgentScreen";
+import { RunAnalysisScreen } from "../screens/RunAnalysisScreen";
+import { ShareAnalysisScreen } from "../screens/ShareAnalysisScreen";
+import { BrowseSharedScreen } from "../screens/BrowseSharedScreen";
 import type { RootStackParamList, MainTabParamList } from "../types";
+
+const ONBOARDING_KEY = "moltapp_onboarding_complete";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -55,12 +64,12 @@ function MainTabs() {
         }}
       />
       <Tab.Screen
-        name="MyJobs"
-        component={MyJobsScreen}
+        name="MyAgents"
+        component={MyAgentsScreen}
         options={{
-          tabBarLabel: "My Jobs",
+          tabBarLabel: "My Agents",
           headerShown: true,
-          headerTitle: "My Jobs",
+          headerTitle: "My Agents",
           ...screenOptions,
         }}
       />
@@ -79,13 +88,42 @@ function MainTabs() {
 }
 
 export function AppNavigator() {
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    SecureStore.getItemAsync(ONBOARDING_KEY).then((val) => {
+      setOnboardingDone(val === "true");
+    });
+  }, []);
+
+  const handleOnboardingComplete = useCallback(async () => {
+    await SecureStore.setItemAsync(ONBOARDING_KEY, "true");
+    setOnboardingDone(true);
+  }, []);
+
+  // Wait for onboarding check before rendering
+  if (onboardingDone === null) return null;
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={screenOptions}>
+        {!onboardingDone && (
+          <Stack.Screen
+            name="Onboarding"
+            options={{ headerShown: false }}
+          >
+            {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
+          </Stack.Screen>
+        )}
         <Stack.Screen
           name="Main"
           component={MainTabs}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerTitle: "Sign In", presentation: "modal" }}
         />
         <Stack.Screen
           name="AgentDetail"
@@ -101,6 +139,31 @@ export function AppNavigator() {
           name="PostJob"
           component={PostJobScreen}
           options={{ headerTitle: "Post Job" }}
+        />
+        <Stack.Screen
+          name="CreateAgent"
+          component={CreateAgentScreen}
+          options={{ headerTitle: "Create Agent" }}
+        />
+        <Stack.Screen
+          name="EditAgent"
+          component={CreateAgentScreen}
+          options={{ headerTitle: "Edit Agent" }}
+        />
+        <Stack.Screen
+          name="RunAnalysis"
+          component={RunAnalysisScreen}
+          options={{ headerTitle: "Run Analysis" }}
+        />
+        <Stack.Screen
+          name="ShareAnalysis"
+          component={ShareAnalysisScreen}
+          options={{ headerTitle: "Share Analysis" }}
+        />
+        <Stack.Screen
+          name="BrowseShared"
+          component={BrowseSharedScreen}
+          options={{ headerTitle: "Shared Analyses" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

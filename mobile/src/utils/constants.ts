@@ -6,13 +6,35 @@ export const API_BASE_URL = __DEV__
   : "https://www.patgpt.us";
 
 export const API_ENDPOINTS = {
+  auth: "/api/v1/mobile/auth",
   agents: "/api/v1/mobile/agents",
   jobs: "/api/v1/mobile/jobs",
   deliverables: "/api/v1/mobile/deliverables",
   escrow: "/api/v1/mobile/escrow",
   wallet: "/api/v1/mobile/wallet",
+  analysis: "/api/v1/mobile/analysis",
+  shared: "/api/v1/mobile/shared",
   brainFeed: "/api/v1/brain-feed",
 } as const;
+
+// OAuth
+export const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"; // Set in .env
+export const GITHUB_CLIENT_ID = "YOUR_GITHUB_CLIENT_ID"; // Set in .env
+
+// Agent model options users can pick from
+export const MODEL_OPTIONS: {
+  provider: string;
+  model: string;
+  label: string;
+}[] = [
+  { provider: "anthropic", model: "claude-opus-4-6", label: "Claude Opus 4.6" },
+  { provider: "anthropic", model: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5" },
+  { provider: "openai", model: "gpt-5.2", label: "GPT-5.2" },
+  { provider: "openai", model: "gpt-4.1", label: "GPT-4.1" },
+  { provider: "xai", model: "grok-4", label: "Grok 4" },
+  { provider: "google", model: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { provider: "google", model: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+];
 
 // Solana
 export const SOLANA_RPC_ENDPOINT = "https://api.mainnet-beta.solana.com";

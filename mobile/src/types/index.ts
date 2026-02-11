@@ -119,6 +119,107 @@ export interface Recommendation {
   timeHorizon: string;
 }
 
+// ─── User Auth ─────────────────────────────────────────
+
+export type AuthProvider = "wallet" | "google" | "github";
+
+export interface UserProfile {
+  id: string;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+  authProvider: AuthProvider;
+  walletAddress?: string;
+  /** IDs of agents this user owns */
+  agentIds: string[];
+  createdAt: string;
+}
+
+export interface AuthState {
+  authenticated: boolean;
+  user: UserProfile | null;
+  token: string | null;
+  loading: boolean;
+}
+
+// ─── Agent Config (user-customizable) ──────────────────
+
+export type AgentModelProvider = "anthropic" | "openai" | "xai" | "google";
+
+export interface AgentConfig {
+  /** Display name shown in marketplace */
+  name: string;
+  /** Which LLM to use */
+  modelProvider: AgentModelProvider;
+  model: string;
+  /** What this agent can do */
+  capabilities: AgentCapability[];
+  /** System prompt / instructions for the agent */
+  systemPrompt: string;
+  /** Temperature for the model (0-1) */
+  temperature: number;
+  /** Max tokens per analysis run */
+  maxTokens: number;
+  /** Tickers the agent focuses on (empty = all) */
+  focusTickers: string[];
+  /** Risk tolerance: conservative, moderate, aggressive */
+  riskTolerance: "conservative" | "moderate" | "aggressive";
+  /** Auto-accept jobs matching criteria */
+  autoAccept: boolean;
+  autoAcceptMinBudget?: number;
+  autoAcceptCapabilities?: AgentCapability[];
+}
+
+// ─── Analysis ──────────────────────────────────────────
+
+export type AnalysisStatus = "queued" | "running" | "completed" | "failed";
+
+export interface AnalysisRun {
+  id: string;
+  agentId: string;
+  status: AnalysisStatus;
+  config: {
+    tickers: string[];
+    capability: AgentCapability;
+    maxTokens: number;
+  };
+  result?: AnalysisPackage;
+  tokensUsed: number;
+  durationMs: number;
+  costUsdc: number;
+  createdAt: string;
+  completedAt?: string;
+}
+
+// ─── Shared Analysis (marketplace listing) ─────────────
+
+export type ShareVisibility = "public" | "unlisted" | "private";
+
+export interface SharedAnalysis {
+  id: string;
+  analysisRunId: string;
+  agentId: string;
+  ownerUserId: string;
+  title: string;
+  description: string;
+  /** Preview text shown before purchase */
+  previewSummary: string;
+  capability: AgentCapability;
+  tickers: string[];
+  visibility: ShareVisibility;
+  /** Pricing */
+  priceUsdc: number;
+  /** 0 = unlimited */
+  maxPurchases: number;
+  purchaseCount: number;
+  /** Full analysis only visible after purchase */
+  content?: AnalysisPackage;
+  rating: number;
+  ratingCount: number;
+  createdAt: string;
+  expiresAt?: string;
+}
+
 // ─── Escrow ────────────────────────────────────────────
 
 export interface EscrowState {
@@ -148,16 +249,25 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 // ─── Navigation ────────────────────────────────────────
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Main: undefined;
+  Login: undefined;
   AgentDetail: { agentId: string };
   JobDetail: { jobId: string };
   PostJob: undefined;
   DeliverableView: { deliverableId: string; jobId: string };
+  CreateAgent: undefined;
+  EditAgent: { agentId: string };
+  RunAnalysis: { agentId: string };
+  AnalysisResult: { analysisId: string };
+  ShareAnalysis: { analysisId: string };
+  SharedAnalysisDetail: { sharedId: string };
+  BrowseShared: undefined;
 };
 
 export type MainTabParamList = {
   Home: undefined;
   Marketplace: undefined;
-  MyJobs: undefined;
+  MyAgents: undefined;
   Wallet: undefined;
 };
