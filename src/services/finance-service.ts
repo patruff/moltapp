@@ -68,6 +68,9 @@ const MAX_JOBS = 500;
 /** Job expiration time in ms (24 hours) */
 const JOB_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
+/** Minimum Solana wallet address length for validation (standard base58 length) */
+const WALLET_ADDRESS_MIN_LENGTH = 32;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -238,7 +241,7 @@ export function registerAnalyst(config: {
     throw new Error(`Maximum analyst capacity reached (${MAX_ANALYSTS})`);
   }
 
-  if (!config.walletAddress || config.walletAddress.length < 32) {
+  if (!config.walletAddress || config.walletAddress.length < WALLET_ADDRESS_MIN_LENGTH) {
     throw new Error("Valid Solana wallet address required");
   }
 
@@ -275,7 +278,7 @@ export function registerClient(walletAddress: string): ClientProfile {
     throw new Error(`Maximum client capacity reached (${MAX_CLIENTS})`);
   }
 
-  if (!walletAddress || walletAddress.length < 32) {
+  if (!walletAddress || walletAddress.length < WALLET_ADDRESS_MIN_LENGTH) {
     throw new Error("Valid Solana wallet address required");
   }
 
