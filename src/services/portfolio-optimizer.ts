@@ -20,7 +20,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, sumByKey } from "../lib/math-utils.ts";
+import { round2, round4, sumByKey, filterByMapKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -455,9 +455,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   }
 
   // Get available symbols
-  const symbols = XSTOCKS_CATALOG.map((s) => s.symbol).filter(
-    (s) => BASE_RETURNS[s] !== undefined,
-  );
+  const symbols = filterByMapKey(XSTOCKS_CATALOG, BASE_RETURNS, 'symbol');
 
   const riskFreeRate = RISK_FREE_RATE;
 

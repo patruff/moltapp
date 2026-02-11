@@ -670,6 +670,35 @@ export function jaccardDistance(a: string, b: string): number {
 }
 
 /**
+ * Filters an array of objects by checking if a lookup map contains their key property.
+ * Useful for filtering catalogs/arrays where availability is defined by a separate map.
+ *
+ * Common use cases:
+ * - Filter stocks where pricing data exists: filterByMapKey(XSTOCKS_CATALOG, BASE_RETURNS, 'symbol')
+ * - Filter agents where performance data exists
+ * - Filter symbols with available volatility estimates
+ *
+ * @param items - Array of objects to filter
+ * @param lookupMap - Map/Record to check for key existence
+ * @param keyProp - Property name to extract from items for lookup
+ * @returns Array of key values that exist in the lookupMap
+ *
+ * @example
+ * const stocks = [{symbol: 'AAPL'}, {symbol: 'TSLA'}, {symbol: 'GME'}];
+ * const prices = {AAPL: 150, TSLA: 200};
+ * filterByMapKey(stocks, prices, 'symbol') // returns ['AAPL', 'TSLA']
+ */
+export function filterByMapKey<T, K extends keyof T>(
+  items: readonly T[],
+  lookupMap: Record<string, unknown>,
+  keyProp: K,
+): Array<T[K]> {
+  return items
+    .map((item) => item[keyProp])
+    .filter((key) => lookupMap[String(key)] !== undefined);
+}
+
+/**
  * Computes the dot product of two numeric vectors.
  * Returns sum of element-wise products: dot(a, b) = a[0]*b[0] + a[1]*b[1] + ...
  *
