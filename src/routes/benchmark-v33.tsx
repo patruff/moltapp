@@ -38,8 +38,6 @@ function esc(s: string): string {
 const TIER_CLR: Record<string, string> = { S: "#ffd700", A: "#00ff88", B: "#00aaff", C: "#888", D: "#ff4444" };
 const GRADE_CLR: Record<string, string> = { "A+": "#ffd700", A: "#00ff88", "B+": "#66cc88", B: "#00aaff", "C+": "#5599dd", C: "#888", D: "#ff4444", F: "#cc0000" };
 
-function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
-
 interface DimDef { key: string; label: string; cat: string; isNew?: boolean }
 
 const DIMS: DimDef[] = [
@@ -136,10 +134,10 @@ benchmarkV33Routes.get("/", (c) => {
       <div class="mono" style="font-size:0.82em;margin-bottom:4px"><strong>${t.action.toUpperCase()}</strong> ${esc(t.symbol)} @ ${(t.confidence * 100).toFixed(0)}% conf</div>
       <div style="color:#777;font-size:0.78em;margin-bottom:6px">${esc(snip)}</div>
       <div style="display:flex;gap:12px;font-size:0.72em;color:#666;flex-wrap:wrap">
-        <span><span class="dot" style="background:${dotClr(cohPct)}"></span>Coh ${cohPct.toFixed(0)}</span>
-        <span><span class="dot" style="background:${dotClr(t.causalReasoningScore)}"></span>Causal ${t.causalReasoningScore.toFixed(0)}</span>
-        <span><span class="dot" style="background:${dotClr(t.epistemicHumilityScore)}"></span>Epist ${t.epistemicHumilityScore.toFixed(0)}</span>
-        <span><span class="dot" style="background:${dotClr(t.groundingScore)}"></span>Gnd ${t.groundingScore.toFixed(0)}</span>
+        <span><span class="dot" style="background:${colorizeScore(cohPct)}"></span>Coh ${cohPct.toFixed(0)}</span>
+        <span><span class="dot" style="background:${colorizeScore(t.causalReasoningScore)}"></span>Causal ${t.causalReasoningScore.toFixed(0)}</span>
+        <span><span class="dot" style="background:${colorizeScore(t.epistemicHumilityScore)}"></span>Epist ${t.epistemicHumilityScore.toFixed(0)}</span>
+        <span><span class="dot" style="background:${colorizeScore(t.groundingScore)}"></span>Gnd ${t.groundingScore.toFixed(0)}</span>
       </div>
     </div>`;
   }).join("");

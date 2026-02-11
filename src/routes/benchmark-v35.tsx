@@ -78,8 +78,6 @@ const CAT_CLR: Record<string, string> = {
 };
 const CATS = ["Financial", "Reasoning Quality", "Safety", "Behavioral", "Predictive", "Governance"];
 
-function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
-
 // ---------------------------------------------------------------------------
 // GET / — Dashboard
 // ---------------------------------------------------------------------------
