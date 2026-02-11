@@ -24,6 +24,141 @@ import { createHash } from "node:crypto";
 import { round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Composite Score Calculation Weights
+ *
+ * These weights control how different dimensions contribute to the overall
+ * benchmark composite score. Total sums to 1.0 (100%).
+ *
+ * Rationale:
+ * - Coherence (35%): HIGHEST weight — logical consistency is primary indicator of quality
+ * - Data Reference (20%): Must reference actual market data to be credible
+ * - Hallucination-Free (20%): Critical to avoid fabricated data
+ * - Structural (15%): Nice-to-have but not essential for quality
+ * - Confidence (10%): Calibration matters but is secondary to reasoning quality
+ * - Placeholder (10%): Reserved for future dimension (e.g., originality)
+ */
+const COMPOSITE_WEIGHT_COHERENCE = 0.25;
+const COMPOSITE_WEIGHT_DEPTH = 0.20;
+const COMPOSITE_WEIGHT_HALLUCINATION_FREE = 0.20;
+const COMPOSITE_WEIGHT_DISCIPLINE = 0.15;
+const COMPOSITE_WEIGHT_CONFIDENCE = 0.10;
+const COMPOSITE_WEIGHT_PLACEHOLDER = 0.10;
+
+/**
+ * Effect Size Interpretation Thresholds (Cohen's d)
+ *
+ * These thresholds classify the magnitude of differences between agents:
+ * - < 0.2: Negligible (differences too small to matter)
+ * - 0.2-0.5: Small (noticeable but modest difference)
+ * - 0.5-0.8: Medium (substantial practical difference)
+ * - > 0.8: Large (very meaningful difference in performance)
+ *
+ * Based on Cohen (1988) conventional effect size standards for behavioral sciences.
+ */
+const EFFECT_SIZE_THRESHOLD_SMALL = 0.2;
+const EFFECT_SIZE_THRESHOLD_MEDIUM = 0.5;
+const EFFECT_SIZE_THRESHOLD_LARGE = 0.8;
+
+/**
+ * Statistical Significance Threshold (Alpha Level)
+ *
+ * P-value threshold for statistical significance testing.
+ * - Standard alpha = 0.05 (95% confidence level)
+ * - If p-value < 0.05, we reject null hypothesis (difference is significant)
+ * - If p-value >= 0.05, insufficient evidence to claim real difference
+ *
+ * This is the conventional threshold in academic research for hypothesis testing.
+ */
+const STATISTICAL_SIGNIFICANCE_ALPHA = 0.05;
+
+/**
+ * P-Value Bounds
+ *
+ * - MIN_P_VALUE: Lower bound to prevent division by zero and numerical instability
+ *   (p-values can't be exactly 0 due to finite sample sizes)
+ * - MAX_P_VALUE: Upper bound is always 1.0 (100% probability)
+ */
+const MIN_P_VALUE = 0.0001;
+const MAX_P_VALUE = 1;
+
+/**
+ * Bootstrap Confidence Interval Percentiles
+ *
+ * Percentile thresholds for constructing confidence intervals from bootstrap distributions:
+ * - 95% CI: [2.5th percentile, 97.5th percentile]
+ * - 99% CI: [0.5th percentile, 99.5th percentile]
+ */
+const BOOTSTRAP_CI95_LOWER_PERCENTILE = 0.025;
+const BOOTSTRAP_CI95_UPPER_PERCENTILE = 0.975;
+const BOOTSTRAP_CI99_LOWER_PERCENTILE = 0.005;
+const BOOTSTRAP_CI99_UPPER_PERCENTILE = 0.995;
+
+/**
+ * Benchmark Stability Thresholds
+ *
+ * - STABILITY_VARIANCE_THRESHOLD: Rolling window variance < 0.01 = stable agent
+ *   (composite score varies < 1% over 10-round window)
+ * - STABILITY_PUBLICATION_THRESHOLD: Overall stability >= 0.8 = publication-ready
+ *   (80%+ of agents show stable scores)
+ * - MIN_ROUNDS_PER_AGENT: Empirically determined minimum for stable rankings
+ *   (20 rounds gives sufficient data for statistical confidence)
+ */
+const STABILITY_VARIANCE_THRESHOLD = 0.01;
+const STABILITY_PUBLICATION_THRESHOLD = 0.8;
+const MIN_ROUNDS_PER_AGENT = 20;
+
+/**
+ * T-Distribution Critical Values for 95% Confidence Intervals
+ *
+ * These approximate the t-distribution critical values for different degrees of freedom.
+ * Used for constructing confidence intervals in Welch's t-test.
+ *
+ * As df increases, t-distribution converges to normal (z = 1.96).
+ */
+const T_CRITICAL_DF_120_PLUS = 1.96;
+const T_CRITICAL_DF_60 = 2.0;
+const T_CRITICAL_DF_30 = 2.042;
+const T_CRITICAL_DF_20 = 2.086;
+const T_CRITICAL_DF_10 = 2.228;
+const T_CRITICAL_DF_5 = 2.571;
+const T_CRITICAL_DEFAULT = 2.776;
+
+/**
+ * Normal Distribution Approximation Threshold
+ *
+ * For df > 30, the t-distribution is well-approximated by the normal distribution.
+ * Below this threshold, we use the exact incomplete beta function calculation.
+ */
+const NORMAL_APPROXIMATION_DF_THRESHOLD = 30;
+
+/**
+ * Rolling Window Size for Stability Analysis
+ *
+ * Maximum window size for computing rolling variance of agent scores.
+ * Smaller of this value or available sample size is used.
+ */
+const STABILITY_ROLLING_WINDOW_SIZE = 10;
+
+/**
+ * Minimum Sample Size for Statistical Tests
+ *
+ * Welch's t-test requires at least 2 samples per group to compute variance.
+ * Below this, tests return null results (no statistical power).
+ */
+const MIN_SAMPLE_SIZE_FOR_TEST = 2;
+
+/**
+ * Minimum Sample Size for Stability Assessment
+ *
+ * Need at least 3 scores to compute meaningful variance estimates.
+ */
+const MIN_SAMPLE_SIZE_FOR_STABILITY = 3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -158,8 +293,12 @@ export function recordBenchmarkScore(
 ): void {
   const halFree = 1 - scores.hallucinationRate;
   const composite = Math.round(
-    (scores.coherence * 0.25 + scores.depth * 0.20 + halFree * 0.20 +
-      scores.discipline * 0.15 + scores.confidence * 0.10 + 0.5 * 0.10) * 100,
+    (scores.coherence * COMPOSITE_WEIGHT_COHERENCE +
+     scores.depth * COMPOSITE_WEIGHT_DEPTH +
+     halFree * COMPOSITE_WEIGHT_HALLUCINATION_FREE +
+     scores.discipline * COMPOSITE_WEIGHT_DISCIPLINE +
+     scores.confidence * COMPOSITE_WEIGHT_CONFIDENCE +
+     0.5 * COMPOSITE_WEIGHT_PLACEHOLDER) * 100,
   ) / 100;
 
   scoreHistory.unshift({
@@ -190,7 +329,7 @@ export function welchTTest(
   const nA = samplesA.length;
   const nB = samplesB.length;
 
-  if (nA < 2 || nB < 2) {
+  if (nA < MIN_SAMPLE_SIZE_FOR_TEST || nB < MIN_SAMPLE_SIZE_FOR_TEST) {
     return {
       testName: "Welch's t-test",
       statistic: 0,
@@ -242,9 +381,9 @@ export function welchTTest(
   const effectSize = pooledSd > 0 ? Math.abs(meanA - meanB) / pooledSd : 0;
 
   let effectInterpretation: StatisticalTest["effectInterpretation"];
-  if (effectSize < 0.2) effectInterpretation = "negligible";
-  else if (effectSize < 0.5) effectInterpretation = "small";
-  else if (effectSize < 0.8) effectInterpretation = "medium";
+  if (effectSize < EFFECT_SIZE_THRESHOLD_SMALL) effectInterpretation = "negligible";
+  else if (effectSize < EFFECT_SIZE_THRESHOLD_MEDIUM) effectInterpretation = "small";
+  else if (effectSize < EFFECT_SIZE_THRESHOLD_LARGE) effectInterpretation = "medium";
   else effectInterpretation = "large";
 
   // 95% confidence interval for the difference
@@ -258,7 +397,7 @@ export function welchTTest(
     testName: "Welch's t-test",
     statistic: round3(t),
     pValue: Math.round(pValue * 10000) / 10000,
-    significant: pValue < 0.05,
+    significant: pValue < STATISTICAL_SIGNIFICANCE_ALPHA,
     effectSize: round3(effectSize),
     effectInterpretation,
     confidenceInterval: ci,
@@ -272,26 +411,26 @@ export function welchTTest(
  */
 function approximatePValue(t: number, df: number): number {
   // For large df, t distribution approximates normal
-  if (df > 30) {
+  if (df > NORMAL_APPROXIMATION_DF_THRESHOLD) {
     return 2 * normalCDF(-t);
   }
   // For small df, use a rough approximation
   const x = df / (df + t * t);
   const p = incompleteBeta(df / 2, 0.5, x);
-  return Math.max(0.0001, Math.min(1, p));
+  return Math.max(MIN_P_VALUE, Math.min(MAX_P_VALUE, p));
 }
 
 /**
  * Approximate t-critical value for 95% CI.
  */
 function approximateTCritical(df: number): number {
-  if (df >= 120) return 1.96;
-  if (df >= 60) return 2.0;
-  if (df >= 30) return 2.042;
-  if (df >= 20) return 2.086;
-  if (df >= 10) return 2.228;
-  if (df >= 5) return 2.571;
-  return 2.776;
+  if (df >= 120) return T_CRITICAL_DF_120_PLUS;
+  if (df >= 60) return T_CRITICAL_DF_60;
+  if (df >= 30) return T_CRITICAL_DF_30;
+  if (df >= 20) return T_CRITICAL_DF_20;
+  if (df >= 10) return T_CRITICAL_DF_10;
+  if (df >= 5) return T_CRITICAL_DF_5;
+  return T_CRITICAL_DEFAULT;
 }
 
 /**
@@ -535,7 +674,7 @@ export function assessBenchmarkStability(): BenchmarkStability {
     }
 
     // Compute rolling window variance
-    const windowSize = Math.min(10, scores.length);
+    const windowSize = Math.min(STABILITY_ROLLING_WINDOW_SIZE, scores.length);
     const windows: number[] = [];
     for (let i = 0; i <= scores.length - windowSize; i++) {
       const window = scores.slice(i, i + windowSize);
@@ -553,7 +692,7 @@ export function assessBenchmarkStability(): BenchmarkStability {
     return {
       agentId,
       scoreVariance: Math.round(windowVariance * 10000) / 10000,
-      isStable: windowVariance < 0.01,
+      isStable: windowVariance < STABILITY_VARIANCE_THRESHOLD,
       windowSize,
     };
   });
@@ -564,8 +703,7 @@ export function assessBenchmarkStability(): BenchmarkStability {
     : 0;
 
   // Minimum rounds needed: empirically, ~20 rounds per agent for stability
-  const minRoundsPerAgent = 20;
-  const minimumRoundsNeeded = agentIds.length * minRoundsPerAgent;
+  const minimumRoundsNeeded = agentIds.length * MIN_ROUNDS_PER_AGENT;
 
   return {
     overallStability,
