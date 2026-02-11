@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
-import { sumByKey } from "../lib/math-utils.ts";
+import { sumByKey, countByCondition } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;
@@ -787,7 +787,7 @@ export async function calculateRollingPerformance(
 
     const { realizedPnl, tradeOutcomes } = calculateRealizedPnl(records);
     const dailyReturns = calculateDailyReturns(records, INITIAL_CAPITAL);
-    const winCount = tradeOutcomes.filter((t) => t.pnl > 0).length;
+    const winCount = countByCondition(tradeOutcomes, (t) => t.pnl > 0);
 
     results.push({
       period: label,

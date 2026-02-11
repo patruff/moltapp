@@ -18,7 +18,7 @@
  */
 
 import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
-import { round2, round4 } from "../lib/math-utils.ts";
+import { round2, round4, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -973,10 +973,10 @@ export function getAggregatorStats(): AggregatorStats {
       : 0,
     lastFetchAt: prices.length > 0 ? prices[0].updatedAt : null,
     dataQuality: {
-      jupiterHits: prices.filter((p) => p.source === "jupiter").length,
-      coingeckoHits: prices.filter((p) => p.source === "coingecko").length,
-      cachedHits: prices.filter((p) => p.source === "cached").length,
-      mockFallbacks: prices.filter((p) => p.source === "mock").length,
+      jupiterHits: countByCondition(prices, (p) => p.source === "jupiter"),
+      coingeckoHits: countByCondition(prices, (p) => p.source === "coingecko"),
+      cachedHits: countByCondition(prices, (p) => p.source === "cached"),
+      mockFallbacks: countByCondition(prices, (p) => p.source === "mock"),
     },
   };
 }
