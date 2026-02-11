@@ -439,14 +439,14 @@ function detectConfirmation(
 
   // For sell actions: check if agent ignores positive signals
   if (action === "sell") {
-    const positiveSignals = [
+    const positiveSignals = countByCondition([
       /bullish/i, /upside/i, /growth/i, /recovery/i, /undervalued/i,
-    ].filter((p) => p.test(lower)).length;
+    ], (p) => p.test(lower));
 
-    const negativeSignals = [
+    const negativeSignals = countByCondition([
       /bearish/i, /downside/i, /risk/i, /overvalued/i, /decline/i,
       /loss/i, /overexposed/i, /correction/i, /weakness/i,
-    ].filter((p) => p.test(lower)).length;
+    ], (p) => p.test(lower));
 
     if (negativeSignals >= CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD && positiveSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED) {
       return {
@@ -491,8 +491,8 @@ function detectRecency(reasoning: string): BiasDetection | null {
     /\bhistorical/i,
   ];
 
-  const recencyCount = recencyIndicators.filter((p) => p.test(lower)).length;
-  const longTermCount = longTermIndicators.filter((p) => p.test(lower)).length;
+  const recencyCount = countByCondition(recencyIndicators, (p) => p.test(lower));
+  const longTermCount = countByCondition(longTermIndicators, (p) => p.test(lower));
 
   if (recencyCount >= RECENCY_TERM_COUNT_THRESHOLD && longTermCount === RECENCY_LONG_TERM_REQUIRED) {
     const triggers = recencyIndicators
@@ -618,8 +618,8 @@ function detectOverconfidence(
     /\bif\b/i,
   ];
 
-  const certaintyCount = certaintyPatterns.filter((p) => p.test(reasoning)).length;
-  const hedgingCount = hedgingPatterns.filter((p) => p.test(reasoning)).length;
+  const certaintyCount = countByCondition(certaintyPatterns, (p) => p.test(reasoning));
+  const hedgingCount = countByCondition(hedgingPatterns, (p) => p.test(reasoning));
 
   // Overconfidence: high confidence + certainty language + no hedging
   if (confidence > OVERCONFIDENCE_CONFIDENCE_THRESHOLD && certaintyCount >= OVERCONFIDENCE_MIN_CERTAINTY_TERMS && hedgingCount === OVERCONFIDENCE_HEDGING_REQUIRED) {
@@ -766,8 +766,8 @@ function detectLossAversion(
     /potential\s+(?:profit|return|upside)/i,
   ];
 
-  const lossCount = lossAversionPatterns.filter((p) => p.test(lower)).length;
-  const gainCount = gainSeekingPatterns.filter((p) => p.test(lower)).length;
+  const lossCount = countByCondition(lossAversionPatterns, (p) => p.test(lower));
+  const gainCount = countByCondition(gainSeekingPatterns, (p) => p.test(lower));
 
   // Strong loss aversion: much more loss language than gain language
   if (lossCount >= LOSS_AVERSION_TERM_COUNT_THRESHOLD && gainCount <= LOSS_AVERSION_MAX_GAIN_TERMS) {

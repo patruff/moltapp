@@ -716,12 +716,12 @@ function scoreParticipant(
   // Data Usage: agents that cite specific metrics score higher
   const dataKeywords = ["ratio", "volume", "growth", "earnings", "cash flow", "margin", "moving average", "%", "revenue", "insider"];
   const allText = [participant.openingArgument, ...participant.supportingPoints, participant.rebuttal].join(" ").toLowerCase();
-  const dataHits = dataKeywords.filter((kw) => allText.includes(kw)).length;
+  const dataHits = countByCondition(dataKeywords, (kw) => allText.includes(kw));
   const dataUsage = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((dataHits / dataKeywords.length) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   // Risk Awareness: agents that acknowledge risk or opposing views score higher
   const riskKeywords = ["risk", "downside", "caution", "however", "although", "despite", "but", "careful", "safety", "protect"];
-  const riskHits = riskKeywords.filter((kw) => allText.includes(kw)).length;
+  const riskHits = countByCondition(riskKeywords, (kw) => allText.includes(kw));
   const riskAwareness = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((riskHits / riskKeywords.length) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   const total = conviction + reasoning + dataUsage + riskAwareness;
@@ -834,8 +834,8 @@ export async function generateDebate(symbol: string): Promise<Debate | null> {
   }
 
   // Market implications
-  const bullishCount = participants.filter((p) => p.position === "bullish").length;
-  const bearishCount = participants.filter((p) => p.position === "bearish").length;
+  const bullishCount = countByCondition(participants, (p) => p.position === "bullish");
+  const bearishCount = countByCondition(participants, (p) => p.position === "bearish");
   let marketImplications: string;
   if (bullishCount > bearishCount) {
     marketImplications = `Majority bullish sentiment from AI agents suggests potential upside for ${symbol}. However, dissenting views highlight risks that investors should monitor.`;
@@ -1162,9 +1162,9 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     if (decisions.length === 0) continue;
 
     // Aggregate stance
-    const buyCount = decisions.filter((d: DecisionRow) => d.action === "buy").length;
-    const sellCount = decisions.filter((d: DecisionRow) => d.action === "sell").length;
-    const holdCount = decisions.filter((d: DecisionRow) => d.action === "hold").length;
+    const buyCount = countByCondition(decisions, (d: DecisionRow) => d.action === "buy");
+    const sellCount = countByCondition(decisions, (d: DecisionRow) => d.action === "sell");
+    const holdCount = countByCondition(decisions, (d: DecisionRow) => d.action === "hold");
     const total = decisions.length;
 
     const bullishPct = Math.round((buyCount / total) * 100);
@@ -1404,9 +1404,9 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
   const mostDebatedSymbol = sortedSymbols[0]?.[0] ?? null;
 
   // Favorite position
-  const buyCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "buy").length;
-  const sellCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "sell").length;
-  const holdCount = agentDecisionsList.filter((d: DecisionRow) => d.action === "hold").length;
+  const buyCount = countByCondition(agentDecisionsList, (d: DecisionRow) => d.action === "buy");
+  const sellCount = countByCondition(agentDecisionsList, (d: DecisionRow) => d.action === "sell");
+  const holdCount = countByCondition(agentDecisionsList, (d: DecisionRow) => d.action === "hold");
   const favoritePosition = buyCount >= sellCount && buyCount >= holdCount
     ? "bullish"
     : sellCount >= holdCount
@@ -1600,7 +1600,7 @@ function buildMarketNarrative(
 
   const consensusCount = consensusAreas.length;
   const disagreeCount = disagreementAreas.length;
-  const highIntensityCount = disagreementAreas.filter((d) => d.intensity === "high").length;
+  const highIntensityCount = countByCondition(disagreementAreas, (d) => d.intensity === "high");
 
   let narrative = `The MoltApp AI trading arena is currently signaling ${overallSentiment.toLowerCase()} conditions. `;
   narrative += `Across our three competing agents: ${agentSummaries}. `;

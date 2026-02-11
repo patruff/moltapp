@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { normalize, round2 } from "../lib/math-utils.ts";
+import { countByCondition, normalize, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -238,8 +238,8 @@ export function detectMarketRegime(
   const maxChange = Math.max(...changes.map(Math.abs));
   const variance = changes.reduce((s, c) => s + (c - avgChange) ** 2, 0) / changes.length;
   const changeStdDev = Math.sqrt(variance);
-  const stocksUp = changes.filter((c) => c > 0).length;
-  const stocksDown = changes.filter((c) => c < 0).length;
+  const stocksUp = countByCondition(changes, (c) => c > 0);
+  const stocksDown = countByCondition(changes, (c) => c < 0);
 
   // Classify regime
   const isVolatile = changeStdDev > REGIME_VOLATILITY_STDDEV_THRESHOLD || maxChange > REGIME_VOLATILITY_MAX_CHANGE_THRESHOLD;
@@ -368,7 +368,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
     ) / 100;
 
     const hallucinationRate = Math.round(
-      (regimeEntries.filter((e) => e.hadHallucinations).length / regimeEntries.length) * 100,
+      (countByCondition(regimeEntries, (e) => e.hadHallucinations) / regimeEntries.length) * 100,
     ) / 100;
 
     const avgConfidence = Math.round(
@@ -382,10 +382,10 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
       const highConf = withOutcomes.filter((e) => e.confidence > CONFIDENCE_HIGH_THRESHOLD);
       const lowConf = withOutcomes.filter((e) => e.confidence <= CONFIDENCE_HIGH_THRESHOLD);
       const highWinRate = highConf.length > 0
-        ? highConf.filter((e) => e.wasCorrect).length / highConf.length
+        ? countByCondition(highConf, (e) => e.wasCorrect) / highConf.length
         : CONFIDENCE_CALIBRATION_BASELINE;
       const lowWinRate = lowConf.length > 0
-        ? lowConf.filter((e) => e.wasCorrect).length / lowConf.length
+        ? countByCondition(lowConf, (e) => e.wasCorrect) / lowConf.length
         : CONFIDENCE_CALIBRATION_BASELINE;
       // Good calibration: high confidence -> higher win rate
       confidenceCalibration = Math.round(
@@ -394,9 +394,9 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
     }
 
     const actionDist = {
-      buy: regimeEntries.filter((e) => e.action === "buy").length,
-      sell: regimeEntries.filter((e) => e.action === "sell").length,
-      hold: regimeEntries.filter((e) => e.action === "hold").length,
+      buy: countByCondition(regimeEntries, (e) => e.action === "buy"),
+      sell: countByCondition(regimeEntries, (e) => e.action === "sell"),
+      hold: countByCondition(regimeEntries, (e) => e.action === "hold"),
     };
 
     const perf: RegimePerformance = {
@@ -524,7 +524,7 @@ export function generateRegimeReport(): RegimeReport {
     ? tradeEntries.reduce((s, e) => s + e.depthScore, 0) / tradeEntries.length
     : 0;
   const allTimeHalRate = tradeEntries.length > 0
-    ? tradeEntries.filter((e) => e.hadHallucinations).length / tradeEntries.length
+    ? countByCondition(tradeEntries, (e) => e.hadHallucinations) / tradeEntries.length
     : 0;
 
   const currentRegimeEntries = tradeEntries.filter(
@@ -537,7 +537,7 @@ export function generateRegimeReport(): RegimeReport {
     ? currentRegimeEntries.reduce((s, e) => s + e.depthScore, 0) / currentRegimeEntries.length
     : allTimeAvgDepth;
   const currentHalRate = currentRegimeEntries.length > 0
-    ? currentRegimeEntries.filter((e) => e.hadHallucinations).length / currentRegimeEntries.length
+    ? countByCondition(currentRegimeEntries, (e) => e.hadHallucinations) / currentRegimeEntries.length
     : allTimeHalRate;
 
   return {
