@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords, getTopKey, normalize, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopKey, clamp, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -49,7 +49,7 @@ const CONFIDENCE_NORMALIZATION_THRESHOLD = 1;
 /**
  * Reasoning depth normalization divisor (words → [0, 1] scale).
  * 200 words = 1.0 depth score (very detailed reasoning).
- * Example: 100 words = 0.5, 300 words = 1.5 (capped at 1.0 by normalize()).
+ * Example: 100 words = 0.5, 300 words = 1.5 (capped at 1.0 by clamp(, 0, 1)).
  */
 const REASONING_DEPTH_WORD_DIVISOR = 200;
 
@@ -214,7 +214,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     nonHold.length > 0
       ? nonHold.reduce((s, t) => s + Math.min(CONFIDENCE_NORMALIZATION_THRESHOLD, t.confidence > CONFIDENCE_NORMALIZATION_THRESHOLD ? t.confidence / 100 : t.confidence), 0) / nonHold.length
       : DNA_DEFAULT_VALUE;
-  const riskAppetite = normalize(avgConfidence);
+  const riskAppetite = clamp(avgConfidence, 0, 1);
 
   // 2. Conviction: relative trade sizes (normalized by max)
   const quantities = nonHold.map((t) => t.quantity);
@@ -223,11 +223,11 @@ export function computeDNA(agentId: string): StrategyDNA {
     quantities.length > 0
       ? quantities.reduce((s, q) => s + q / maxQty, 0) / quantities.length
       : DNA_DEFAULT_VALUE;
-  const conviction = normalize(avgRelativeSize);
+  const conviction = clamp(avgRelativeSize, 0, 1);
 
   // 3. Patience: hold rate
   const holdRate = trades.filter((t) => t.action === "hold").length / trades.length;
-  const patience = normalize(holdRate);
+  const patience = clamp(holdRate, 0, 1);
 
   // 4. Sector Concentration: Herfindahl index of symbols traded
   const symbolCounts: Record<string, number> = {};
@@ -239,7 +239,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     (s, c) => s + Math.pow(c / total, 2),
     0,
   );
-  const sectorConcentration = normalize(hhi);
+  const sectorConcentration = clamp(hhi, 0, 1);
 
   // 5. Contrarianism: how often agent goes opposite to peers
   let contrarianCount = 0;
@@ -258,7 +258,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     }
   }
   const contrarianism =
-    peerComparisons > 0 ? normalize(contrarianCount / peerComparisons) : DNA_DEFAULT_VALUE;
+    peerComparisons > 0 ? clamp(contrarianCount / peerComparisons, 0, 1) : DNA_DEFAULT_VALUE;
 
   // 6. Adaptability: variance in intent distribution across time halves
   const half = Math.floor(trades.length / 2);
@@ -279,13 +279,13 @@ export function computeDNA(agentId: string): StrategyDNA {
   for (const intent of allIntents) {
     intentShift += Math.abs((dist1[intent] ?? 0) - (dist2[intent] ?? 0));
   }
-  const adaptability = normalize(intentShift / CORRELATION_NORMALIZATION_DIVISOR); // normalize to [0, 1]
+  const adaptability = clamp(intentShift / CORRELATION_NORMALIZATION_DIVISOR, 0, 1); // normalize to [0, 1]
 
   // 7. Reasoning Depth: average word count / REASONING_DEPTH_WORD_DIVISOR
   const avgWordCount =
     trades.reduce((s, t) => s + countWords(t.reasoning), 0) /
     trades.length;
-  const reasoningDepth = normalize(avgWordCount / REASONING_DEPTH_WORD_DIVISOR);
+  const reasoningDepth = clamp(avgWordCount / REASONING_DEPTH_WORD_DIVISOR, 0, 1);
 
   // 8. Confidence Accuracy: correlation between confidence and coherence
   const confCoherencePairs = trades
@@ -316,7 +316,7 @@ export function computeDNA(agentId: string): StrategyDNA {
 
     const denom = Math.sqrt(varConf * varCoh);
     if (denom > 0) {
-      confidenceAccuracy = normalize((covariance / denom + CORRELATION_NORMALIZATION_ADDEND) / CORRELATION_NORMALIZATION_DIVISOR); // map [-1,1] to [0,1]
+      confidenceAccuracy = clamp((covariance / denom + CORRELATION_NORMALIZATION_ADDEND) / CORRELATION_NORMALIZATION_DIVISOR, 0, 1); // map [-1,1] to [0,1]
     }
   }
 
@@ -336,7 +336,7 @@ export function computeDNA(agentId: string): StrategyDNA {
     0,
   );
   const maxEntropy = Math.log2(Math.max(intentProbs.length, 2));
-  const consistency = normalize(1 - (maxEntropy > 0 ? entropy / maxEntropy : 0));
+  const consistency = clamp(1 - (maxEntropy > 0 ? entropy / maxEntropy : 0), 0, 1);
 
   const dna: StrategyDNA = {
     agentId,

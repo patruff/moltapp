@@ -389,7 +389,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
         : CONFIDENCE_CALIBRATION_BASELINE;
       // Good calibration: high confidence -> higher win rate
       confidenceCalibration = Math.round(
-        normalize(CONFIDENCE_CALIBRATION_BASELINE + (highWinRate - lowWinRate)) * 100,
+        clamp(CONFIDENCE_CALIBRATION_BASELINE + (highWinRate - lowWinRate), 0, 1) * 100,
       ) / 100;
     }
 
