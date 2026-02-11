@@ -13,7 +13,7 @@
  * 6. AGGREGATED CHAIN QUALITY SCORE: Overall chain integrity metric
  */
 
-import { normalize, round2, averageByKey } from "../lib/math-utils.ts";
+import { clamp, round2, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -800,7 +800,7 @@ function computeChainQualityScore(
     score -= defect.severity > CHAIN_QUALITY_MAJOR_DEFECT_SEVERITY_THRESHOLD ? CHAIN_QUALITY_MAJOR_DEFECT_PENALTY : CHAIN_QUALITY_MINOR_DEFECT_PENALTY;
   }
 
-  return Math.round(normalize(score) * 100) / 100;
+  return Math.round(clamp(score, 0, 1) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -890,7 +890,7 @@ export function getChainValidationPillarScore(agentId: string): number {
   const defectRate = totalSteps > 0 ? Math.min(1, totalDefects / totalSteps) : 0;
 
   const pillarScore = avgQuality * PILLAR_SCORE_QUALITY_WEIGHT + avgEvidence * PILLAR_SCORE_EVIDENCE_WEIGHT + (1 - defectRate) * PILLAR_SCORE_DEFECT_WEIGHT;
-  return Math.round(normalize(pillarScore) * 100) / 100;
+  return Math.round(clamp(pillarScore, 0, 1) * 100) / 100;
 }
 
 /**

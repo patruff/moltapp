@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { countByCondition, normalize, round2 } from "../lib/math-utils.ts";
+import { countByCondition, clamp, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -424,7 +424,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
     const mean = regimeScores.reduce((s, v) => s + v, 0) / regimeScores.length;
     const variance = regimeScores.reduce((s, v) => s + (v - mean) ** 2, 0) / regimeScores.length;
     const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
-    robustnessScore = Math.round(normalize(1 - cv) * 100) / 100;
+    robustnessScore = Math.round(clamp(1 - cv, 0, 1) * 100) / 100;
   }
 
   // Best and worst regime
@@ -482,7 +482,7 @@ function computeAdaptationSpeed(entries: RegimeTradeEntry[]): number {
 
   // If transition quality is close to steady quality, adaptation is fast
   const gap = Math.abs(steadyAvg - transitionAvg);
-  return Math.round(normalize(1 - gap * ADAPTATION_GAP_MULTIPLIER) * 100) / 100;
+  return Math.round(clamp(1 - gap * ADAPTATION_GAP_MULTIPLIER, 0, 1) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
