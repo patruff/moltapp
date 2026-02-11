@@ -19,7 +19,7 @@ import {
   getV29Leaderboard,
   type V29BenchmarkScore,
 } from "../services/v29-benchmark-engine.ts";
-import { groupByKey, sumByKey } from "../lib/math-utils.ts";
+import { countByCondition, groupByKey, sumByKey } from "../lib/math-utils.ts";
 import { AGENT_LABELS } from "../config/agent-labels.ts";
 
 export const benchmarkV29ApiRoutes = new Hono();
@@ -261,8 +261,8 @@ benchmarkV29ApiRoutes.get("/compare/:agentA/:agentB", (c) => {
     };
   });
 
-  const aWins = comparison.filter((r) => r.advantage === agentA).length;
-  const bWins = comparison.filter((r) => r.advantage === agentB).length;
+  const aWins = countByCondition(comparison, (r) => r.advantage === agentA);
+  const bWins = countByCondition(comparison, (r) => r.advantage === agentB);
 
   return c.json({
     ok: true,

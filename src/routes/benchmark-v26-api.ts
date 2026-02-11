@@ -29,7 +29,7 @@ import {
   type V26DimensionScores,
   type StrategyDna,
 } from "../services/v26-benchmark-engine.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { countByCondition, round2 } from "../lib/math-utils.ts";
 
 export const benchmarkV26ApiRoutes = new Hono();
 
@@ -319,9 +319,9 @@ benchmarkV26ApiRoutes.get("/risk-reward/:agentId", async (c) => {
     const avgDiscipline =
       analyses.reduce((s: number, a: { disciplineScore: number }) => s + a.disciplineScore, 0) / analyses.length;
     const riskBoundaryRate =
-      analyses.filter((a: { hasRiskBoundary: boolean }) => a.hasRiskBoundary).length / analyses.length;
+      countByCondition(analyses, (a: { hasRiskBoundary: boolean }) => a.hasRiskBoundary) / analyses.length;
     const profitTargetRate =
-      analyses.filter((a: { hasProfitTarget: boolean }) => a.hasProfitTarget).length / analyses.length;
+      countByCondition(analyses, (a: { hasProfitTarget: boolean }) => a.hasProfitTarget) / analyses.length;
 
     return c.json({
       ok: true,

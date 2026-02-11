@@ -628,9 +628,9 @@ benchmarkV35ApiRoutes.get("/predictions", (c) => {
     }));
 
   const resolved = predictions.filter((p) => p.outcomeResolved !== "pending");
-  const correct = resolved.filter((p) => p.outcomeResolved === "correct").length;
-  const incorrect = resolved.filter((p) => p.outcomeResolved === "incorrect").length;
-  const partial = resolved.filter((p) => p.outcomeResolved === "partial").length;
+  const correct = countByCondition(resolved, (p) => p.outcomeResolved === "correct");
+  const incorrect = countByCondition(resolved, (p) => p.outcomeResolved === "incorrect");
+  const partial = countByCondition(resolved, (p) => p.outcomeResolved === "partial");
 
   return c.json({
     ok: true,

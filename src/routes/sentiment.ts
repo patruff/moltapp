@@ -34,6 +34,7 @@ import {
   getSentimentTimeline,
   getMarketMoodIndex,
 } from "../services/sentiment.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 
 export const sentimentRoutes = new Hono();
@@ -73,11 +74,9 @@ sentimentRoutes.get("/", async (c) => {
     const sentiments = filtered.slice(0, limit);
 
     // Summary stats
-    const bullishCount = allSentiments.filter((s) => s.overall > 20).length;
-    const bearishCount = allSentiments.filter((s) => s.overall < -20).length;
-    const neutralCount = allSentiments.filter(
-      (s) => s.overall >= -20 && s.overall <= 20,
-    ).length;
+    const bullishCount = countByCondition(allSentiments, (s) => s.overall > 20);
+    const bearishCount = countByCondition(allSentiments, (s) => s.overall < -20);
+    const neutralCount = countByCondition(allSentiments, (s) => s.overall >= -20 && s.overall <= 20);
     const avgSentiment =
       allSentiments.length > 0
         ? Math.round(
@@ -403,11 +402,9 @@ sentimentRoutes.get("/news", async (c) => {
           ) / 100
         : 0;
 
-    const positiveCount = news.filter((n) => n.sentiment > 0.1).length;
-    const negativeCount = news.filter((n) => n.sentiment < -0.1).length;
-    const neutralCount = news.filter(
-      (n) => n.sentiment >= -0.1 && n.sentiment <= 0.1,
-    ).length;
+    const positiveCount = countByCondition(news, (n) => n.sentiment > 0.1);
+    const negativeCount = countByCondition(news, (n) => n.sentiment < -0.1);
+    const neutralCount = countByCondition(news, (n) => n.sentiment >= -0.1 && n.sentiment <= 0.1);
 
     return c.json({
       status: "ok",

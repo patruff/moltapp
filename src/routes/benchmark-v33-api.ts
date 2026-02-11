@@ -266,9 +266,9 @@ benchmarkV33ApiRoutes.get("/predictions", (c) => {
   };
 
   const resolved = tradesWithPredictions.filter((t) => t.outcomeResolved !== "pending");
-  const correct = tradesWithPredictions.filter((t) => t.outcomeResolved === "correct").length;
-  const incorrect = tradesWithPredictions.filter((t) => t.outcomeResolved === "incorrect").length;
-  const partial = tradesWithPredictions.filter((t) => t.outcomeResolved === "partial").length;
+  const correct = countByCondition(tradesWithPredictions, (t) => t.outcomeResolved === "correct");
+  const incorrect = countByCondition(tradesWithPredictions, (t) => t.outcomeResolved === "incorrect");
+  const partial = countByCondition(tradesWithPredictions, (t) => t.outcomeResolved === "partial");
 
   const agentMap = new Map<string, { scores: number[]; correct: number; total: number }>();
   for (const t of tradesWithPredictions) {
