@@ -18,6 +18,63 @@
 import { round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Divergence Scoring Weights
+ *
+ * These weights control how much each factor contributes to the overall divergence
+ * score between two agents' reasoning. Higher weights mean stronger penalties for
+ * disagreement in that dimension.
+ */
+
+/** Weight for action conflict in divergence calculation (buy vs sell opposition) */
+const ACTION_CONFLICT_WEIGHT = 0.4; // 40% — HIGHEST weight, opposing trades is most severe
+
+/** Weight for intent mismatch in divergence calculation (different strategy types) */
+const INTENT_MISMATCH_WEIGHT = 0.15; // 15% — strategy classification matters
+
+/** Multiplier for confidence spread contribution to divergence (0-1 spread → weighted contribution) */
+const CONFIDENCE_SPREAD_MULTIPLIER = 0.2; // 20% — large conviction gaps significant
+
+/** Multiplier for source coverage divergence (unique sources / total sources) */
+const SOURCE_COVERAGE_MULTIPLIER = 0.1; // 10% — data sourcing matters less than conclusions
+
+/** Weight for coherence delta when difference exceeds threshold */
+const COHERENCE_DELTA_WEIGHT = 0.15; // 15% — reasoning quality divergence
+
+/**
+ * Divergence Detection Thresholds
+ *
+ * These thresholds control when differences are flagged as significant in summary text.
+ */
+
+/** Minimum coherence score difference to add coherence divergence penalty */
+const COHERENCE_DELTA_THRESHOLD = 0.3; // 30% coherence gap triggers divergence penalty
+
+/** Minimum confidence spread (0-1) to report as "Large confidence gap" in summary */
+const CONFIDENCE_SPREAD_SIGNIFICANT_THRESHOLD = 0.3; // 30 percentage points = notable disagreement
+
+/** Minimum reasoning length ratio to report depth divergence in summary */
+const REASONING_LENGTH_RATIO_SIGNIFICANT = 2.0; // 2× word count difference = depth disparity
+
+/**
+ * Query and Memory Limits
+ *
+ * Control how much reasoning diff history is retained for analysis.
+ */
+
+/** Maximum number of diff reports to retain in memory (prevents unbounded growth) */
+const MAX_DIFF_HISTORY = 200; // ~200 rounds = 7-10 days of history
+
+/** Maximum number of rounds cached for snapshot lookup (for pending comparisons) */
+const MAX_ROUND_CACHE = 500; // ~500 rounds = 2-3 weeks of snapshot retention
+
+/** Default number of recent diff reports returned by getRecentDiffReports() */
+const RECENT_DIFFS_DEFAULT_LIMIT = 20; // ~20 rounds = 1 day of recent activity
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -113,8 +170,6 @@ export interface AgentDiffProfile {
 
 const roundSnapshots = new Map<string, ReasoningSnapshot[]>();
 const diffHistory: RoundDiffReport[] = [];
-const MAX_DIFF_HISTORY = 200;
-const MAX_ROUND_CACHE = 500;
 
 // ---------------------------------------------------------------------------
 // Core: Record & Compare
@@ -255,11 +310,11 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
 
   // Compute divergence score (0 = identical thinking, 1 = completely opposed)
   let divergence = 0;
-  if (actionConflict) divergence += 0.4;
-  if (!intentMatch) divergence += 0.15;
-  divergence += confidenceSpread * 0.2;
-  divergence += (1 - (sharedSources.length / Math.max(1, sourcesA.size + sourcesB.size - sharedSources.length))) * 0.1;
-  if (Math.abs(a.coherenceScore - b.coherenceScore) > 0.3) divergence += 0.15;
+  if (actionConflict) divergence += ACTION_CONFLICT_WEIGHT;
+  if (!intentMatch) divergence += INTENT_MISMATCH_WEIGHT;
+  divergence += confidenceSpread * CONFIDENCE_SPREAD_MULTIPLIER;
+  divergence += (1 - (sharedSources.length / Math.max(1, sourcesA.size + sourcesB.size - sharedSources.length))) * SOURCE_COVERAGE_MULTIPLIER;
+  if (Math.abs(a.coherenceScore - b.coherenceScore) > COHERENCE_DELTA_THRESHOLD) divergence += COHERENCE_DELTA_WEIGHT;
   divergence = Math.min(1, divergence);
 
   // Build summary
@@ -269,7 +324,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
       `ACTION CONFLICT: ${a.agentId} wants to ${a.action} while ${b.agentId} wants to ${b.action}`,
     );
   }
-  if (confidenceSpread > 0.3) {
+  if (confidenceSpread > CONFIDENCE_SPREAD_SIGNIFICANT_THRESHOLD) {
     summaryParts.push(
       `Large confidence gap: ${a.agentId}=${(confA * 100).toFixed(0)}% vs ${b.agentId}=${(confB * 100).toFixed(0)}%`,
     );
@@ -279,7 +334,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
       `Different strategies: ${a.agentId} (${a.intent}) vs ${b.agentId} (${b.intent})`,
     );
   }
-  if (reasoningLengthRatio > 2) {
+  if (reasoningLengthRatio > REASONING_LENGTH_RATIO_SIGNIFICANT) {
     summaryParts.push(
       `${deeperReasoningAgent} provided ${reasoningLengthRatio}x more detailed reasoning`,
     );
@@ -319,7 +374,7 @@ function computeDiff(a: ReasoningSnapshot, b: ReasoningSnapshot): ReasoningDiff 
 /**
  * Get diff reports for recent rounds.
  */
-export function getRecentDiffReports(limit = 20): RoundDiffReport[] {
+export function getRecentDiffReports(limit = RECENT_DIFFS_DEFAULT_LIMIT): RoundDiffReport[] {
   return diffHistory.slice(0, limit);
 }
 
