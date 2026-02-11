@@ -155,6 +155,41 @@ export function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+            <View style={[styles.actionsRow, { marginTop: 12 }]}>
+              <TouchableOpacity
+                style={[styles.actionCard, { borderColor: "#14f195" }]}
+                onPress={() => nav.navigate("Quests")}
+              >
+                <Text style={[styles.actionIcon, { color: "#14f195" }]}>Q</Text>
+                <Text style={styles.actionLabel}>Quests</Text>
+                <Text style={styles.actionDesc}>
+                  Earn points
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionCard, { borderColor: "#ffd700" }]}
+                onPress={() => nav.navigate("Leaderboard")}
+              >
+                <Text style={[styles.actionIcon, { color: "#ffd700" }]}>L</Text>
+                <Text style={styles.actionLabel}>Leaderboard</Text>
+                <Text style={styles.actionDesc}>
+                  Top traders
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.actionsRow, { marginTop: 12 }]}>
+              <TouchableOpacity
+                style={[styles.actionCard, { borderColor: "#00d4ff" }]}
+                onPress={() => nav.navigate("Referrals")}
+              >
+                <Text style={[styles.actionIcon, { color: "#00d4ff" }]}>R</Text>
+                <Text style={styles.actionLabel}>Refer Friends</Text>
+                <Text style={styles.actionDesc}>
+                  Earn 500 pts each
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.actionCard, { borderColor: "transparent", backgroundColor: "transparent" }]} />
+            </View>
           </View>
         )}
 

@@ -16,6 +16,9 @@ import { CreateAgentScreen } from "../screens/CreateAgentScreen";
 import { RunAnalysisScreen } from "../screens/RunAnalysisScreen";
 import { ShareAnalysisScreen } from "../screens/ShareAnalysisScreen";
 import { BrowseSharedScreen } from "../screens/BrowseSharedScreen";
+import { QuestsScreen } from "../screens/QuestsScreen";
+import { LeaderboardScreen } from "../screens/LeaderboardScreen";
+import { ReferralsScreen } from "../screens/ReferralsScreen";
 import type { RootStackParamList, MainTabParamList } from "../types";
 
 const ONBOARDING_KEY = "moltapp_onboarding_complete";
@@ -164,6 +167,21 @@ export function AppNavigator() {
           name="BrowseShared"
           component={BrowseSharedScreen}
           options={{ headerTitle: "Shared Analyses" }}
+        />
+        <Stack.Screen
+          name="Quests"
+          component={QuestsScreen}
+          options={{ headerTitle: "Quest Board" }}
+        />
+        <Stack.Screen
+          name="Leaderboard"
+          component={LeaderboardScreen}
+          options={{ headerTitle: "Leaderboard" }}
+        />
+        <Stack.Screen
+          name="Referrals"
+          component={ReferralsScreen}
+          options={{ headerTitle: "Referrals" }}
         />
       </Stack.Navigator>
     </NavigationContainer>

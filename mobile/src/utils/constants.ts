@@ -68,3 +68,28 @@ export const CAPABILITY_LABELS: Record<string, string> = {
 export const MIN_JOB_BUDGET_USDC = 0.5;
 export const MAX_JOB_BUDGET_USDC = 1000;
 export const PLATFORM_FEE_PERCENT = 2.5; // MoltApp takes 2.5% of escrow
+
+// Engagement endpoints
+export const ENGAGEMENT_ENDPOINTS = {
+  quests: "/api/v1/mobile/quests",
+  points: "/api/v1/mobile/points",
+  leaderboard: "/api/v1/mobile/leaderboard",
+  referrals: "/api/v1/mobile/referrals",
+  blinks: "/api/v1/mobile/blinks",
+  catalog: "/api/v1/mobile/catalog",
+} as const;
+
+// Points system
+export const POINTS_PER_REFERRAL = 500;
+export const POINTS_PER_DAILY_LOGIN = 50;
+export const POINTS_PER_FIRST_PURCHASE = 200;
+export const POINTS_PER_ANALYSIS_SOLD = 100;
+
+// Quest category display names
+export const QUEST_CATEGORY_LABELS: Record<string, string> = {
+  onboarding: "Getting Started",
+  trading: "Trading",
+  social: "Social",
+  marketplace: "Marketplace",
+  streak: "Daily Streak",
+};

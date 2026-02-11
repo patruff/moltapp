@@ -1,4 +1,4 @@
-import { API_BASE_URL, API_ENDPOINTS } from "../utils/constants";
+import { API_BASE_URL, API_ENDPOINTS, ENGAGEMENT_ENDPOINTS } from "../utils/constants";
 import type {
   Agent,
   Job,
@@ -9,6 +9,12 @@ import type {
   PaginatedResponse,
   AgentCapability,
   PricingModel,
+  BuyerType,
+  Quest,
+  PointsLedger,
+  LeaderboardEntry,
+  Referral,
+  BlinkAction,
 } from "../types";
 
 async function request<T>(
@@ -248,8 +254,10 @@ export async function shareAnalysis(params: {
   description: string;
   previewSummary: string;
   priceUsdc: number;
+  agentPriceUsdc?: number;
   visibility: string;
   maxPurchases: number;
+  agentDiscoverable?: boolean;
   expiresInDays?: number;
 }): Promise<ApiResponse<SharedAnalysis>> {
   return request(API_ENDPOINTS.shared, {
@@ -277,10 +285,71 @@ export async function fetchSharedAnalysis(
 
 export async function purchaseSharedAnalysis(
   sharedId: string,
-  buyerWallet: string
+  buyerWallet: string,
+  buyerType: BuyerType = "human"
 ): Promise<ApiResponse<SharedAnalysis>> {
   return request(`${API_ENDPOINTS.shared}/${sharedId}/purchase`, {
     method: "POST",
-    body: JSON.stringify({ buyerWallet }),
+    body: JSON.stringify({ buyerWallet, buyerType }),
   });
+}
+
+// ─── Agent Discovery Catalog (machine-readable) ───────
+
+export async function fetchAnalysisCatalog(params?: {
+  capability?: AgentCapability;
+  maxPriceUsdc?: number;
+}): Promise<PaginatedResponse<SharedAnalysis>> {
+  const query = new URLSearchParams();
+  if (params?.capability) query.set("capability", params.capability);
+  if (params?.maxPriceUsdc) query.set("maxPrice", String(params.maxPriceUsdc));
+  const qs = query.toString();
+  return request(`${ENGAGEMENT_ENDPOINTS.catalog}${qs ? `?${qs}` : ""}`);
+}
+
+// ─── Quests ────────────────────────────────────────────
+
+export async function fetchQuests(): Promise<ApiResponse<Quest[]>> {
+  return request(ENGAGEMENT_ENDPOINTS.quests);
+}
+
+export async function claimQuest(
+  questId: string
+): Promise<ApiResponse<Quest>> {
+  return request(`${ENGAGEMENT_ENDPOINTS.quests}/${questId}/claim`, {
+    method: "POST",
+  });
+}
+
+// ─── Points ────────────────────────────────────────────
+
+export async function fetchMyPoints(): Promise<ApiResponse<{ totalPoints: number }>> {
+  return request(ENGAGEMENT_ENDPOINTS.points);
+}
+
+// ─── Leaderboard ───────────────────────────────────────
+
+export async function fetchLeaderboard(): Promise<ApiResponse<LeaderboardEntry[]>> {
+  return request(ENGAGEMENT_ENDPOINTS.leaderboard);
+}
+
+// ─── Referrals ─────────────────────────────────────────
+
+export async function fetchMyReferrals(): Promise<ApiResponse<Referral[]>> {
+  return request(ENGAGEMENT_ENDPOINTS.referrals);
+}
+
+export async function applyReferralCode(
+  code: string
+): Promise<ApiResponse<{ applied: boolean }>> {
+  return request(`${ENGAGEMENT_ENDPOINTS.referrals}/apply`, {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+// ─── Blinks (Solana Actions) ───────────────────────────
+
+export async function fetchBlinks(): Promise<ApiResponse<BlinkAction[]>> {
+  return request(ENGAGEMENT_ENDPOINTS.blinks);
 }

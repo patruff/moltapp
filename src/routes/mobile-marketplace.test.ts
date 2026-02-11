@@ -746,3 +746,305 @@ describe("Mobile Marketplace API — Edge Cases", () => {
     }
   });
 });
+
+// ─── Dual-Format Packages ─────────────────────────────
+
+describe("Mobile Marketplace API — Dual-Format Packages", () => {
+  let sharedId: string;
+
+  it("POST /shared generates both humanPackage and agentPackage", async () => {
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-claude",
+      tickers: ["NVDA", "TSLA"],
+      capability: "financial_analysis",
+    });
+
+    const { body } = await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "Dual-format test",
+      priceUsdc: 3.0,
+      agentPriceUsdc: 1.5,
+      visibility: "public",
+      maxPurchases: 10,
+      agentDiscoverable: true,
+    });
+
+    sharedId = body.data.id;
+    expect(body.success).toBe(true);
+    expect(body.data.humanPackage).toBeDefined();
+    expect(body.data.humanPackage.executiveSummary).toBeTruthy();
+    expect(body.data.humanPackage.keyTakeaways.length).toBeGreaterThan(0);
+    expect(body.data.humanPackage.riskWarnings.length).toBeGreaterThan(0);
+    expect(body.data.humanPackage.readingTimeMinutes).toBeGreaterThanOrEqual(2);
+    expect(body.data.agentPackage).toBeDefined();
+    expect(body.data.agentPackage.structuredData).toBeDefined();
+    expect(body.data.agentPackage.reasoningChain.length).toBeGreaterThan(0);
+    expect(body.data.agentPackage.confidenceIntervals.length).toBe(2);
+    expect(body.data.agentPackage.metadata.modelUsed).toBe("claude-opus-4-6");
+    expect(body.data.agentDiscoverable).toBe(true);
+    expect(body.data.agentPriceUsdc).toBe(1.5);
+  });
+
+  it("human purchase returns human package", async () => {
+    const { body } = await post(`/shared/${sharedId}/purchase`, {
+      buyerWallet: "HumanBuyer",
+      buyerType: "human",
+    });
+    expect(body.success).toBe(true);
+    expect(body.data.packageType).toBe("human");
+    expect(body.data.package).toBeDefined();
+    expect(body.data.package.executiveSummary).toBeTruthy();
+  });
+
+  it("agent purchase returns agent package", async () => {
+    const { body } = await post(`/shared/${sharedId}/purchase`, {
+      buyerWallet: "AgentBuyer",
+      buyerType: "agent",
+    });
+    expect(body.success).toBe(true);
+    expect(body.data.packageType).toBe("agent");
+    expect(body.data.package).toBeDefined();
+    expect(body.data.package.structuredData).toBeDefined();
+    expect(body.data.package.reasoningChain).toBeDefined();
+  });
+
+  it("agent purchase uses agent price when set", async () => {
+    const { body } = await post(`/shared/${sharedId}/purchase`, {
+      buyerWallet: "PriceCheckAgent",
+      buyerType: "agent",
+    });
+    expect(body.data.priceUsdc).toBe(1.5); // agentPriceUsdc
+  });
+
+  it("human purchase uses standard price", async () => {
+    const { body } = await post(`/shared/${sharedId}/purchase`, {
+      buyerWallet: "PriceCheckHuman",
+      buyerType: "human",
+    });
+    expect(body.data.priceUsdc).toBe(3.0); // standard priceUsdc
+  });
+
+  it("default purchase is human type", async () => {
+    const { body } = await post(`/shared/${sharedId}/purchase`, {
+      buyerWallet: "DefaultBuyer",
+    });
+    // Default should be human
+    expect(body.data.packageType).toBe("human");
+  });
+});
+
+// ─── Agent Discovery Catalog ──────────────────────────
+
+describe("Mobile Marketplace API — Agent Discovery Catalog", () => {
+  it("GET /catalog lists agent-discoverable analyses", async () => {
+    const { body } = await get("/catalog");
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+
+    // Each catalog item should have agent-friendly fields
+    for (const item of body.data) {
+      expect(item.id).toBeDefined();
+      expect(item.title).toBeDefined();
+      expect(item.priceUsdc).toBeDefined();
+      expect(item.purchaseEndpoint).toContain("/api/v1/mobile/shared/");
+      expect(typeof item.available).toBe("boolean");
+    }
+  });
+
+  it("GET /catalog filters by capability", async () => {
+    const { body } = await get("/catalog?capability=financial_analysis");
+    for (const item of body.data) {
+      expect(item.capability).toBe("financial_analysis");
+    }
+  });
+
+  it("GET /catalog filters by maxPrice", async () => {
+    const { body } = await get("/catalog?maxPrice=2.0");
+    for (const item of body.data) {
+      expect(item.priceUsdc).toBeLessThanOrEqual(2.0);
+    }
+  });
+
+  it("catalog shows agent-specific pricing", async () => {
+    // Create an analysis with agent discount
+    const { body: runRes } = await post("/analysis/run", {
+      agentId: "agent-gpt",
+      tickers: ["AMZN"],
+    });
+    await post("/shared", {
+      analysisRunId: runRes.data.id,
+      title: "Agent-priced catalog item",
+      priceUsdc: 5.0,
+      agentPriceUsdc: 2.0,
+      visibility: "public",
+      agentDiscoverable: true,
+    });
+
+    const { body } = await get("/catalog");
+    const item = body.data.find((d: any) => d.title === "Agent-priced catalog item");
+    expect(item).toBeDefined();
+    expect(item.priceUsdc).toBe(2.0); // Should show agent price
+    expect(item.humanPriceUsdc).toBe(5.0);
+  });
+});
+
+// ─── Quests ───────────────────────────────────────────
+
+describe("Mobile Marketplace API — Quests", () => {
+  it("GET /quests returns seed quests", async () => {
+    const { body } = await get("/quests");
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("quests have required fields", async () => {
+    const { body } = await get("/quests");
+    for (const quest of body.data) {
+      expect(quest.id).toBeDefined();
+      expect(quest.title).toBeTruthy();
+      expect(quest.description).toBeTruthy();
+      expect(quest.category).toBeDefined();
+      expect(quest.pointsReward).toBeGreaterThan(0);
+      expect(quest.requirement).toBeDefined();
+      expect(quest.requirement.type).toBeDefined();
+      expect(quest.requirement.count).toBeGreaterThanOrEqual(1);
+      expect(quest.status).toBeDefined();
+    }
+  });
+
+  it("quests include all categories", async () => {
+    const { body } = await get("/quests");
+    const categories = new Set(body.data.map((q: any) => q.category));
+    expect(categories.has("onboarding")).toBe(true);
+    expect(categories.has("marketplace")).toBe(true);
+    expect(categories.has("social")).toBe(true);
+    expect(categories.has("streak")).toBe(true);
+  });
+
+  it("quests are sorted by sortOrder", async () => {
+    const { body } = await get("/quests");
+    const orders = body.data.map((q: any) => q.sortOrder);
+    for (let i = 1; i < orders.length; i++) {
+      expect(orders[i]).toBeGreaterThanOrEqual(orders[i - 1]);
+    }
+  });
+
+  it("POST /quests/:id/claim rejects uncompleted quest", async () => {
+    const { status, body } = await post("/quests/quest-connect-wallet/claim", {});
+    expect(status).toBe(400);
+    expect(body.error).toContain("not completed");
+  });
+
+  it("POST /quests/:id/claim rejects unknown quest", async () => {
+    const { status } = await post("/quests/nonexistent/claim", {});
+    expect(status).toBe(404);
+  });
+});
+
+// ─── Points & Leaderboard ─────────────────────────────
+
+describe("Mobile Marketplace API — Points & Leaderboard", () => {
+  it("GET /points returns user points", async () => {
+    const { body } = await get("/points");
+    expect(body.success).toBe(true);
+    expect(typeof body.data.totalPoints).toBe("number");
+  });
+
+  it("GET /leaderboard returns ranked entries", async () => {
+    const { body } = await get("/leaderboard");
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBeGreaterThanOrEqual(10); // seed data
+
+    // Check ranks are sequential
+    for (let i = 0; i < body.data.length; i++) {
+      expect(body.data[i].rank).toBe(i + 1);
+    }
+  });
+
+  it("leaderboard entries have required fields", async () => {
+    const { body } = await get("/leaderboard");
+    for (const entry of body.data) {
+      expect(entry.rank).toBeGreaterThanOrEqual(1);
+      expect(entry.displayName).toBeTruthy();
+      expect(typeof entry.points).toBe("number");
+      expect(typeof entry.agentCount).toBe("number");
+      expect(typeof entry.salesCount).toBe("number");
+    }
+  });
+
+  it("leaderboard sorted by points descending", async () => {
+    const { body } = await get("/leaderboard");
+    const points = body.data.map((e: any) => e.points);
+    for (let i = 1; i < points.length; i++) {
+      expect(points[i]).toBeLessThanOrEqual(points[i - 1]);
+    }
+  });
+});
+
+// ─── Referrals ────────────────────────────────────────
+
+describe("Mobile Marketplace API — Referrals", () => {
+  it("GET /referrals returns referral list", async () => {
+    const { body } = await get("/referrals");
+    expect(body.success).toBe(true);
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it("POST /referrals/apply rejects missing code", async () => {
+    const { status } = await post("/referrals/apply", {});
+    expect(status).toBe(400);
+  });
+
+  it("POST /referrals/apply rejects invalid code", async () => {
+    const { status } = await post("/referrals/apply", { code: "INVALID_CODE" });
+    expect(status).toBe(404);
+  });
+});
+
+// ─── Solana Blinks ────────────────────────────────────
+
+describe("Mobile Marketplace API — Blinks", () => {
+  it("GET /blinks returns available blinks", async () => {
+    const { body } = await get("/blinks");
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBe(3);
+
+    const types = body.data.map((b: any) => b.type);
+    expect(types).toContain("buy_analysis");
+    expect(types).toContain("view_agent");
+    expect(types).toContain("browse_marketplace");
+  });
+
+  it("blinks have required Solana Action fields", async () => {
+    const { body } = await get("/blinks");
+    for (const blink of body.data) {
+      expect(blink.label).toBeTruthy();
+      expect(blink.description).toBeTruthy();
+      expect(blink.icon).toContain("http");
+      expect(blink.actionUrl).toContain("solana-action:");
+    }
+  });
+
+  it("GET /blinks/buy returns action spec", async () => {
+    const { body } = await get("/blinks/buy?analysisId=fake");
+    expect(body.label).toBeDefined();
+    expect(body.description).toBeDefined();
+    expect(body.icon).toBeDefined();
+    expect(body.links).toBeDefined();
+    expect(body.links.actions.length).toBeGreaterThan(0);
+  });
+
+  it("GET /blinks/agent returns agent action spec", async () => {
+    const { body } = await get("/blinks/agent?agentId=agent-claude");
+    expect(body.label).toContain("Claude");
+    expect(body.description).toBeDefined();
+    expect(body.links.actions.length).toBeGreaterThan(0);
+  });
+
+  it("GET /blinks/marketplace returns marketplace action spec", async () => {
+    const { body } = await get("/blinks/marketplace");
+    expect(body.label).toContain("MoltApp");
+    expect(body.description).toContain("AI-to-AI");
+    expect(body.links.actions.length).toBeGreaterThan(0);
+  });
+});

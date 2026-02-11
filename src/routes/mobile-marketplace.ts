@@ -691,22 +691,79 @@ interface SharedAnalysisRecord {
   tickers: string[];
   visibility: "public" | "unlisted" | "private";
   priceUsdc: number;
+  agentPriceUsdc?: number;
   maxPurchases: number;
   purchaseCount: number;
   content?: any;
+  humanPackage?: {
+    executiveSummary: string;
+    detailedNarrative: string;
+    keyTakeaways: string[];
+    riskWarnings: string[];
+    suggestedActions: string[];
+    readingTimeMinutes: number;
+  };
+  agentPackage?: {
+    structuredData: any;
+    reasoningChain: string[];
+    confidenceIntervals: { ticker: string; low: number; mid: number; high: number }[];
+    metadata: { modelUsed: string; tokensUsed: number; dataFreshness: string; capability: string };
+  };
   rating: number;
   ratingCount: number;
+  agentDiscoverable: boolean;
   createdAt: string;
   expiresAt?: string;
 }
 
 const sharedAnalyses = new Map<string, SharedAnalysisRecord>();
 
-// POST /shared — Share an analysis
+// POST /shared — Share an analysis (generates dual-format packages)
 mobileMarketplaceRoutes.post("/shared", async (c) => {
   try {
     const body = await c.req.json();
     const run = analysisRuns.get(body.analysisRunId);
+    const agent = run ? agents.get(run.agentId) : undefined;
+    const result = run?.result;
+
+    // Generate human-readable package from analysis result
+    const humanPackage = result ? {
+      executiveSummary: result.summary,
+      detailedNarrative: `Based on our comprehensive ${run?.config.capability ?? "financial"} analysis of ${run?.config.tickers?.join(", ") ?? "selected tickers"}, here are our findings:\n\n` +
+        result.reasoning.map((r: any) => `${r.thought}: ${r.conclusion}`).join("\n\n"),
+      keyTakeaways: result.recommendations.map((r: any) =>
+        `${r.ticker}: ${r.action.toUpperCase()} — ${r.reasoning} (confidence: ${(r.confidenceScore * 100).toFixed(0)}%)`
+      ),
+      riskWarnings: [
+        "Past performance does not guarantee future results",
+        "AI-generated analysis should be used alongside other research",
+        `Analysis confidence: ${(result.confidence * 100).toFixed(0)}%`,
+      ],
+      suggestedActions: result.recommendations
+        .filter((r: any) => r.action === "buy")
+        .map((r: any) => `Consider ${r.ticker} with ${r.timeHorizon} horizon`),
+      readingTimeMinutes: Math.max(2, Math.ceil(result.reasoning.length * 1.5)),
+    } : undefined;
+
+    // Generate agent-consumable package
+    const agentPackage = result ? {
+      structuredData: result,
+      reasoningChain: result.reasoning.map((r: any) =>
+        `[Step ${r.step}] ${r.thought} → Evidence: ${r.evidence} → ${r.conclusion}`
+      ),
+      confidenceIntervals: result.recommendations.map((r: any) => ({
+        ticker: r.ticker,
+        low: Math.max(0, r.confidenceScore - 0.15),
+        mid: r.confidenceScore,
+        high: Math.min(1, r.confidenceScore + 0.1),
+      })),
+      metadata: {
+        modelUsed: agent?.model ?? "unknown",
+        tokensUsed: run?.tokensUsed ?? 0,
+        dataFreshness: new Date().toISOString(),
+        capability: run?.config.capability ?? "financial_analysis",
+      },
+    } : undefined;
 
     const shared: SharedAnalysisRecord = {
       id: generateId("shared"),
@@ -720,11 +777,15 @@ mobileMarketplaceRoutes.post("/shared", async (c) => {
       tickers: run?.config.tickers ?? [],
       visibility: body.visibility ?? "public",
       priceUsdc: parseFloat(body.priceUsdc) || 0,
+      agentPriceUsdc: body.agentPriceUsdc != null ? parseFloat(body.agentPriceUsdc) : undefined,
       maxPurchases: parseInt(body.maxPurchases) || 0,
       purchaseCount: 0,
-      content: run?.result,
+      content: result,
+      humanPackage,
+      agentPackage,
       rating: 0,
       ratingCount: 0,
+      agentDiscoverable: body.agentDiscoverable !== false, // default true
       createdAt: new Date().toISOString(),
       expiresAt: body.expiresInDays
         ? new Date(Date.now() + body.expiresInDays * 86400000).toISOString()
@@ -766,6 +827,7 @@ mobileMarketplaceRoutes.get("/shared/:id", (c) => {
 });
 
 // POST /shared/:id/purchase — Purchase a shared analysis
+// Supports buyerType: "human" (default) or "agent" for different packages
 mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
   const shared = sharedAnalyses.get(c.req.param("id"));
   if (!shared) return c.json({ success: false, error: "Not found" }, 404);
@@ -774,8 +836,421 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
     return c.json({ success: false, error: "Sold out" }, 400);
   }
 
+  let buyerType = "human";
+  try {
+    const body = await c.req.json();
+    buyerType = body.buyerType ?? "human";
+  } catch {}
+
   shared.purchaseCount += 1;
 
-  // Return full content after purchase
-  return c.json({ success: true, data: shared });
+  // Determine price based on buyer type
+  const price = buyerType === "agent" && shared.agentPriceUsdc != null
+    ? shared.agentPriceUsdc
+    : shared.priceUsdc;
+
+  // Return different package formats based on buyer type
+  if (buyerType === "agent") {
+    return c.json({
+      success: true,
+      data: {
+        id: shared.id,
+        title: shared.title,
+        capability: shared.capability,
+        tickers: shared.tickers,
+        priceUsdc: price,
+        package: shared.agentPackage ?? shared.content,
+        packageType: "agent",
+      },
+    });
+  }
+
+  // Human buyer — return human-friendly package
+  return c.json({
+    success: true,
+    data: {
+      ...shared,
+      priceUsdc: price,
+      package: shared.humanPackage,
+      packageType: "human",
+    },
+  });
+});
+
+// ─── Agent Discovery Catalog ──────────────────────────
+// Machine-readable catalog for external AI agents to discover and purchase analyses
+
+// GET /catalog — Browse available analyses (agent-friendly format)
+mobileMarketplaceRoutes.get("/catalog", (c) => {
+  const capability = c.req.query("capability");
+  const maxPrice = c.req.query("maxPrice") ? parseFloat(c.req.query("maxPrice")!) : undefined;
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
+
+  let items = Array.from(sharedAnalyses.values()).filter(
+    (s) => s.visibility === "public" && s.agentDiscoverable
+  );
+  if (capability) items = items.filter((s) => s.capability === capability);
+  if (maxPrice != null) {
+    items = items.filter((s) => {
+      const price = s.agentPriceUsdc ?? s.priceUsdc;
+      return price <= maxPrice;
+    });
+  }
+
+  items.sort((a, b) => b.rating - a.rating || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Return agent-optimized catalog format
+  const catalogItems = items.map((s) => ({
+    id: s.id,
+    title: s.title,
+    description: s.description,
+    capability: s.capability,
+    tickers: s.tickers,
+    priceUsdc: s.agentPriceUsdc ?? s.priceUsdc,
+    humanPriceUsdc: s.priceUsdc,
+    rating: s.rating,
+    purchaseCount: s.purchaseCount,
+    available: s.maxPurchases === 0 || s.purchaseCount < s.maxPurchases,
+    expiresAt: s.expiresAt,
+    purchaseEndpoint: `/api/v1/mobile/shared/${s.id}/purchase`,
+  }));
+
+  return c.json(paginate(catalogItems, page, 20));
+});
+
+// ─── Engagement: Quests & Points ──────────────────────
+
+interface QuestRecord {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  pointsReward: number;
+  usdcReward?: number;
+  requirement: { type: string; count: number };
+  progress: number;
+  status: "available" | "in_progress" | "completed" | "claimed";
+  sortOrder: number;
+  expiresAt?: string;
+}
+
+interface PointsRecord {
+  userId: string;
+  totalPoints: number;
+  entries: { id: string; amount: number; reason: string; questId?: string; createdAt: string }[];
+}
+
+interface ReferralRecord {
+  id: string;
+  referrerUserId: string;
+  referredUserId: string;
+  referralCode: string;
+  pointsAwarded: number;
+  createdAt: string;
+}
+
+const quests = new Map<string, QuestRecord>();
+const pointsLedger = new Map<string, PointsRecord>();
+const referrals: ReferralRecord[] = [];
+
+// Seed default quests
+const SEED_QUESTS: QuestRecord[] = [
+  {
+    id: "quest-connect-wallet", title: "Connect Your Wallet",
+    description: "Link a Solana wallet to start trading on the marketplace",
+    category: "onboarding", pointsReward: 100, requirement: { type: "connect_wallet", count: 1 },
+    progress: 0, status: "available", sortOrder: 1,
+  },
+  {
+    id: "quest-first-agent", title: "Create Your First Agent",
+    description: "Build and configure an AI analysis agent",
+    category: "onboarding", pointsReward: 250, requirement: { type: "create_agent", count: 1 },
+    progress: 0, status: "available", sortOrder: 2,
+  },
+  {
+    id: "quest-run-analysis", title: "Run Your First Analysis",
+    description: "Use your agent to analyze market data",
+    category: "onboarding", pointsReward: 200, requirement: { type: "run_analysis", count: 1 },
+    progress: 0, status: "available", sortOrder: 3,
+  },
+  {
+    id: "quest-share-analysis", title: "Share an Analysis",
+    description: "List an analysis on the marketplace for others to buy",
+    category: "marketplace", pointsReward: 300, requirement: { type: "share_analysis", count: 1 },
+    progress: 0, status: "available", sortOrder: 4,
+  },
+  {
+    id: "quest-first-purchase", title: "Buy Your First Analysis",
+    description: "Purchase a shared analysis from the marketplace",
+    category: "marketplace", pointsReward: 200, usdcReward: 0.10,
+    requirement: { type: "first_purchase", count: 1 },
+    progress: 0, status: "available", sortOrder: 5,
+  },
+  {
+    id: "quest-refer-friend", title: "Refer a Friend",
+    description: "Invite someone to MoltApp using your referral code",
+    category: "social", pointsReward: 500, requirement: { type: "refer_friend", count: 1 },
+    progress: 0, status: "available", sortOrder: 6,
+  },
+  {
+    id: "quest-sell-3", title: "Sell 3 Analyses",
+    description: "Have 3 of your shared analyses purchased by others",
+    category: "marketplace", pointsReward: 750, usdcReward: 0.50,
+    requirement: { type: "sell_shared", count: 3 },
+    progress: 0, status: "available", sortOrder: 7,
+  },
+  {
+    id: "quest-refer-3", title: "Refer 3 Friends",
+    description: "Build your network — invite 3 friends to join",
+    category: "social", pointsReward: 1500, requirement: { type: "refer_friend", count: 3 },
+    progress: 0, status: "available", sortOrder: 8,
+  },
+  {
+    id: "quest-daily-streak", title: "7-Day Streak",
+    description: "Log in for 7 consecutive days",
+    category: "streak", pointsReward: 1000, requirement: { type: "daily_login", count: 7 },
+    progress: 0, status: "available", sortOrder: 9,
+  },
+  {
+    id: "quest-rate-5", title: "Rate 5 Analyses",
+    description: "Help the community by rating purchased analyses",
+    category: "social", pointsReward: 300, requirement: { type: "rate_analysis", count: 5 },
+    progress: 0, status: "available", sortOrder: 10,
+  },
+];
+
+for (const q of SEED_QUESTS) {
+  quests.set(q.id, q);
+}
+
+// GET /quests — Get all quests with user progress
+mobileMarketplaceRoutes.get("/quests", (c) => {
+  const items = Array.from(quests.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+  return c.json({ success: true, data: items });
+});
+
+// POST /quests/:id/claim — Claim completed quest reward
+mobileMarketplaceRoutes.post("/quests/:id/claim", (c) => {
+  const quest = quests.get(c.req.param("id"));
+  if (!quest) return c.json({ success: false, error: "Quest not found" }, 404);
+  if (quest.status !== "completed") {
+    return c.json({ success: false, error: "Quest not completed yet" }, 400);
+  }
+
+  quest.status = "claimed";
+
+  // Award points
+  const userId = "demo-user";
+  let ledger = pointsLedger.get(userId);
+  if (!ledger) {
+    ledger = { userId, totalPoints: 0, entries: [] };
+    pointsLedger.set(userId, ledger);
+  }
+  ledger.totalPoints += quest.pointsReward;
+  ledger.entries.push({
+    id: generateId("pts"),
+    amount: quest.pointsReward,
+    reason: `Completed quest: ${quest.title}`,
+    questId: quest.id,
+    createdAt: new Date().toISOString(),
+  });
+
+  return c.json({ success: true, data: quest });
+});
+
+// GET /points — Get user's points
+mobileMarketplaceRoutes.get("/points", (c) => {
+  const userId = "demo-user";
+  const ledger = pointsLedger.get(userId);
+  return c.json({
+    success: true,
+    data: { totalPoints: ledger?.totalPoints ?? 0 },
+  });
+});
+
+// GET /leaderboard — Get points leaderboard
+mobileMarketplaceRoutes.get("/leaderboard", (c) => {
+  // Build leaderboard from all users + seed data
+  const entries = [
+    { rank: 1, userId: "power-user-1", displayName: "CryptoWhale", points: 15200, agentCount: 4, salesCount: 89 },
+    { rank: 2, userId: "power-user-2", displayName: "DeFiDegen", points: 12800, agentCount: 3, salesCount: 67 },
+    { rank: 3, userId: "power-user-3", displayName: "SolanaMaxi", points: 11500, agentCount: 5, salesCount: 54 },
+    { rank: 4, userId: "power-user-4", displayName: "AlphaHunter", points: 9800, agentCount: 2, salesCount: 42 },
+    { rank: 5, userId: "power-user-5", displayName: "QuanTrader", points: 8100, agentCount: 3, salesCount: 38 },
+    { rank: 6, userId: "power-user-6", displayName: "AIArbitrage", points: 7200, agentCount: 2, salesCount: 31 },
+    { rank: 7, userId: "power-user-7", displayName: "TokenSage", points: 5900, agentCount: 1, salesCount: 24 },
+    { rank: 8, userId: "power-user-8", displayName: "BlockBeats", points: 4500, agentCount: 2, salesCount: 19 },
+    { rank: 9, userId: "power-user-9", displayName: "MevMaster", points: 3200, agentCount: 1, salesCount: 12 },
+    { rank: 10, userId: "power-user-10", displayName: "YieldFarmer", points: 2100, agentCount: 1, salesCount: 8 },
+  ];
+
+  // Merge in real user points
+  for (const [userId, ledger] of pointsLedger) {
+    const user = users.get(userId);
+    if (user && ledger.totalPoints > 0) {
+      entries.push({
+        rank: 0,
+        userId,
+        displayName: user.displayName,
+        points: ledger.totalPoints,
+        agentCount: user.agentIds.length,
+        salesCount: 0,
+      });
+    }
+  }
+
+  // Sort by points, assign ranks
+  entries.sort((a, b) => b.points - a.points);
+  entries.forEach((e, i) => { e.rank = i + 1; });
+
+  return c.json({ success: true, data: entries });
+});
+
+// ─── Referrals ────────────────────────────────────────
+
+// GET /referrals — Get user's referral history
+mobileMarketplaceRoutes.get("/referrals", (c) => {
+  // In production: filter by authenticated user
+  return c.json({ success: true, data: referrals });
+});
+
+// POST /referrals/apply — Apply a referral code
+mobileMarketplaceRoutes.post("/referrals/apply", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { code } = body;
+    if (!code) return c.json({ success: false, error: "code required" }, 400);
+
+    // Find user with this referral code
+    const referrer = Array.from(users.values()).find((u) => u.walletAddress === code || u.id === code);
+    if (!referrer) return c.json({ success: false, error: "Invalid referral code" }, 404);
+
+    const referral: ReferralRecord = {
+      id: generateId("ref"),
+      referrerUserId: referrer.id,
+      referredUserId: "demo-user",
+      referralCode: code,
+      pointsAwarded: 500,
+      createdAt: new Date().toISOString(),
+    };
+    referrals.push(referral);
+
+    // Award points to referrer
+    let ledger = pointsLedger.get(referrer.id);
+    if (!ledger) {
+      ledger = { userId: referrer.id, totalPoints: 0, entries: [] };
+      pointsLedger.set(referrer.id, ledger);
+    }
+    ledger.totalPoints += 500;
+    ledger.entries.push({
+      id: generateId("pts"),
+      amount: 500,
+      reason: "Referral bonus",
+      createdAt: new Date().toISOString(),
+    });
+
+    return c.json({ success: true, data: { applied: true } });
+  } catch {
+    return c.json({ success: false, error: "Invalid request" }, 400);
+  }
+});
+
+// ─── Solana Blinks (Actions) ──────────────────────────
+// Blinks let users interact with MoltApp directly from social media posts
+
+// GET /blinks — Available Blinks for this dApp
+mobileMarketplaceRoutes.get("/blinks", (c) => {
+  const baseUrl = "https://www.patgpt.us/api/v1/mobile";
+
+  const blinks = [
+    {
+      type: "buy_analysis",
+      label: "Buy AI Analysis",
+      description: "Purchase AI-generated financial analysis with USDC on Solana",
+      icon: "https://www.patgpt.us/favicon.ico",
+      actionUrl: `solana-action:${baseUrl}/blinks/buy`,
+      parameters: [
+        { name: "analysisId", label: "Analysis ID", required: true },
+      ],
+    },
+    {
+      type: "view_agent",
+      label: "View AI Agent",
+      description: "Explore a top-rated AI financial analyst on MoltApp",
+      icon: "https://www.patgpt.us/favicon.ico",
+      actionUrl: `solana-action:${baseUrl}/blinks/agent`,
+      parameters: [
+        { name: "agentId", label: "Agent ID", required: true },
+      ],
+    },
+    {
+      type: "browse_marketplace",
+      label: "Browse Marketplace",
+      description: "Discover AI agents and financial analyses on MoltApp",
+      icon: "https://www.patgpt.us/favicon.ico",
+      actionUrl: `solana-action:${baseUrl}/blinks/marketplace`,
+      parameters: [],
+    },
+  ];
+
+  return c.json({ success: true, data: blinks });
+});
+
+// GET /blinks/buy — Solana Action: Buy analysis (returns action spec)
+mobileMarketplaceRoutes.get("/blinks/buy", (c) => {
+  const analysisId = c.req.query("analysisId");
+  const shared = analysisId ? sharedAnalyses.get(analysisId) : undefined;
+
+  return c.json({
+    icon: "https://www.patgpt.us/favicon.ico",
+    label: shared ? `Buy "${shared.title}" — $${shared.priceUsdc} USDC` : "Buy AI Analysis",
+    description: shared?.previewSummary ?? "Purchase AI-generated financial analysis from MoltApp",
+    links: {
+      actions: [
+        {
+          label: "Buy Now",
+          href: `/api/v1/mobile/shared/${analysisId}/purchase`,
+        },
+      ],
+    },
+  });
+});
+
+// GET /blinks/agent — Solana Action: View agent profile
+mobileMarketplaceRoutes.get("/blinks/agent", (c) => {
+  const agentId = c.req.query("agentId");
+  const agent = agentId ? agents.get(agentId) : undefined;
+
+  return c.json({
+    icon: "https://www.patgpt.us/favicon.ico",
+    label: agent ? `${agent.name} — ${agent.rating.toFixed(1)} rating` : "View AI Agent",
+    description: agent?.description ?? "Explore AI financial analysts on MoltApp",
+    links: {
+      actions: [
+        {
+          label: "View on MoltApp",
+          href: `https://www.patgpt.us/agents/${agentId}`,
+        },
+      ],
+    },
+  });
+});
+
+// GET /blinks/marketplace — Solana Action: Browse marketplace
+mobileMarketplaceRoutes.get("/blinks/marketplace", (c) => {
+  const topAgents = Array.from(agents.values())
+    .sort((a, b) => b.rating - a.rating)
+    .slice(0, 3);
+
+  return c.json({
+    icon: "https://www.patgpt.us/favicon.ico",
+    label: `MoltApp — ${agents.size} AI Agents, ${sharedAnalyses.size} Analyses`,
+    description: "AI-to-AI financial intelligence marketplace on Solana. Buy and sell financial analysis packages.",
+    links: {
+      actions: topAgents.map((a) => ({
+        label: `${a.name} (${a.rating.toFixed(1)})`,
+        href: `https://www.patgpt.us/agents/${a.id}`,
+      })),
+    },
+  });
 });

@@ -15,6 +15,12 @@ import {
   USDC_MINT,
   APP_IDENTITY,
   SOLANA_CLUSTER,
+  ENGAGEMENT_ENDPOINTS,
+  QUEST_CATEGORY_LABELS,
+  POINTS_PER_REFERRAL,
+  POINTS_PER_DAILY_LOGIN,
+  POINTS_PER_FIRST_PURCHASE,
+  POINTS_PER_ANALYSIS_SOLD,
 } from "../utils/constants";
 
 describe("Constants", () => {
@@ -45,7 +51,7 @@ describe("Constants", () => {
       expect(API_ENDPOINTS.brainFeed).not.toContain("/mobile/");
     });
 
-    it("has exactly 9 endpoints", () => {
+    it("has exactly 9 base endpoints", () => {
       expect(Object.keys(API_ENDPOINTS)).toHaveLength(9);
     });
 
@@ -247,5 +253,62 @@ describe("USDC math", () => {
     const humanAmount = 0.01; // 1 cent
     const raw = Math.round(humanAmount * 10 ** USDC_DECIMALS);
     expect(raw).toBe(10_000);
+  });
+});
+
+describe("Engagement constants", () => {
+  describe("ENGAGEMENT_ENDPOINTS", () => {
+    it("has all required engagement endpoints", () => {
+      expect(ENGAGEMENT_ENDPOINTS.quests).toBeDefined();
+      expect(ENGAGEMENT_ENDPOINTS.points).toBeDefined();
+      expect(ENGAGEMENT_ENDPOINTS.leaderboard).toBeDefined();
+      expect(ENGAGEMENT_ENDPOINTS.referrals).toBeDefined();
+      expect(ENGAGEMENT_ENDPOINTS.blinks).toBeDefined();
+      expect(ENGAGEMENT_ENDPOINTS.catalog).toBeDefined();
+    });
+
+    it("all engagement endpoints use mobile prefix", () => {
+      for (const [, path] of Object.entries(ENGAGEMENT_ENDPOINTS)) {
+        expect(path).toMatch(/^\/api\/v1\/mobile\//);
+      }
+    });
+
+    it("has exactly 6 engagement endpoints", () => {
+      expect(Object.keys(ENGAGEMENT_ENDPOINTS)).toHaveLength(6);
+    });
+  });
+
+  describe("QUEST_CATEGORY_LABELS", () => {
+    it("has labels for all 5 quest categories", () => {
+      const expected = ["onboarding", "trading", "social", "marketplace", "streak"];
+      for (const cat of expected) {
+        expect(QUEST_CATEGORY_LABELS[cat]).toBeDefined();
+        expect(typeof QUEST_CATEGORY_LABELS[cat]).toBe("string");
+      }
+    });
+  });
+
+  describe("Points constants", () => {
+    it("referral reward is positive", () => {
+      expect(POINTS_PER_REFERRAL).toBeGreaterThan(0);
+    });
+
+    it("daily login reward is positive", () => {
+      expect(POINTS_PER_DAILY_LOGIN).toBeGreaterThan(0);
+    });
+
+    it("first purchase reward is positive", () => {
+      expect(POINTS_PER_FIRST_PURCHASE).toBeGreaterThan(0);
+    });
+
+    it("analysis sold reward is positive", () => {
+      expect(POINTS_PER_ANALYSIS_SOLD).toBeGreaterThan(0);
+    });
+
+    it("referral reward is highest", () => {
+      expect(POINTS_PER_REFERRAL).toBeGreaterThan(POINTS_PER_DAILY_LOGIN);
+      expect(POINTS_PER_REFERRAL).toBeGreaterThan(POINTS_PER_FIRST_PURCHASE);
+      expect(POINTS_PER_REFERRAL).toBeGreaterThan(POINTS_PER_ANALYSIS_SOLD);
+    });
   });
 });
