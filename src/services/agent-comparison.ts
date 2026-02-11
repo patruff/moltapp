@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { averageByKey, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -347,8 +347,8 @@ export function buildAgentSnapshot(
     }
   }
 
-  const buyCount = trades.filter((t) => t.action === "buy").length;
-  const sellCount = trades.filter((t) => t.action === "sell").length;
+  const buyCount = countByCondition(trades, (t) => t.action === "buy");
+  const sellCount = countByCondition(trades, (t) => t.action === "sell");
   const holdCount = allDecisions.length - trades.length;
 
   // Win rate
@@ -559,8 +559,8 @@ function computeStyleProfile(
   const consistencyScore = Math.max(MIN_CONSISTENCY_SCORE, 100 - confStdDev * CONFIDENCE_STDDEV_MULTIPLIER);
 
   // Dominant style
-  const buys = trades.filter((t) => t.action === "buy").length;
-  const sells = trades.filter((t) => t.action === "sell").length;
+  const buys = countByCondition(trades, (t) => t.action === "buy");
+  const sells = countByCondition(trades, (t) => t.action === "sell");
   const holds = totalDecisions - trades.length;
   let dominantStyle = "passive";
   if (holds > buys + sells) dominantStyle = "passive";
