@@ -355,6 +355,11 @@ app.get("/", (c) => {
   </div>
 
   <script>
+    // Helper: counts items matching condition (single-pass, no intermediate array)
+    function countByCondition(items, predicate) {
+      return items.reduce((count, item) => predicate(item) ? count + 1 : count, 0);
+    }
+
     const agentIdMap = {
       'claude-trader': 'claude',
       'gpt-trader': 'gpt',
@@ -472,7 +477,7 @@ app.get("/", (c) => {
         }
 
         // Stats
-        const trades = (data.results || []).filter(r => r.executed && r.decision.action !== 'hold').length;
+        const trades = countByCondition(data.results || [], r => r.executed && r.decision.action !== 'hold');
         document.getElementById('statConsensus').textContent = (data.consensus || '—').replace('_', ' ');
         document.getElementById('statTrades').textContent = trades;
         document.getElementById('statBreakers').textContent = (data.circuitBreakerActivations || []).length;
@@ -517,7 +522,7 @@ app.get("/", (c) => {
               addCircuitBreaker(a);
             }
           }
-          const trades = (r.results || []).filter(x => x.executed && x.decision.action !== 'hold').length;
+          const trades = countByCondition(r.results || [], x => x.executed && x.decision.action !== 'hold');
           document.getElementById('statConsensus').textContent = (r.consensus || '—').replace('_', ' ');
           document.getElementById('statTrades').textContent = trades;
           document.getElementById('statBreakers').textContent = (r.circuitBreakerActivations || []).length;

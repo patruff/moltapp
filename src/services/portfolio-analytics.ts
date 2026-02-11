@@ -288,7 +288,7 @@ export async function calculatePortfolioMetrics(
   const totalReturn =
     INITIAL_CAPITAL > 0 ? totalPnl / INITIAL_CAPITAL : 0;
   const calmarRatio =
-    maxDrawdownPercent > 0 ? totalReturn / (maxDrawdownPercent / 100) : null;
+    maxDrawdownPercent > 0 ? totalReturn / (maxDrawdownPercent / PERCENT_MULTIPLIER) : null;
 
   // Trade statistics
   const winningTrades = tradeOutcomes.filter((t) => t.pnl > 0);
@@ -765,7 +765,7 @@ export async function calculateRollingPerformance(
   const results: RollingPerformance[] = [];
 
   for (const { label, days } of periods) {
-    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const since = new Date(Date.now() - days * MS_PER_DAY);
 
     const periodTrades = await db
       .select()
