@@ -1067,3 +1067,60 @@ export function getFilteredWords(text: string, minLength: number = 0): string[] 
     .split(/\s+/)
     .filter(word => word.length >= minLength && !stopWords.has(word));
 }
+
+// ============================================================================
+// SCORE COLORIZATION CONSTANTS
+// ============================================================================
+
+/**
+ * Excellent score threshold (>= 70) for green color indicator (#00ff88)
+ * Scores at or above this threshold indicate exceptional performance.
+ * Used for UI visualizations of benchmark scores, agent ratings, dimension scores.
+ */
+export const SCORE_EXCELLENT_THRESHOLD = 70;
+
+/**
+ * Good score threshold (>= 40) for gold color indicator (#ffd700)
+ * Scores at or above this threshold indicate acceptable/good performance.
+ * Used for UI visualizations where scores between 40-69 are considered adequate.
+ */
+export const SCORE_GOOD_THRESHOLD = 40;
+
+/**
+ * Color for excellent scores (>= 70): bright green
+ */
+export const SCORE_COLOR_EXCELLENT = "#00ff88";
+
+/**
+ * Color for good scores (40-69): gold
+ */
+export const SCORE_COLOR_GOOD = "#ffd700";
+
+/**
+ * Color for poor scores (< 40): red
+ */
+export const SCORE_COLOR_POOR = "#ff4444";
+
+/**
+ * Returns color string for a numeric score using standard benchmark thresholds.
+ *
+ * Color mapping:
+ * - score >= 70: #00ff88 (bright green) - Excellent
+ * - score >= 40: #ffd700 (gold) - Good
+ * - score < 40: #ff4444 (red) - Poor
+ *
+ * @param score - Numeric score to colorize (typically 0-100 scale)
+ * @returns Hex color string for UI display
+ *
+ * @example
+ * colorizeScore(85) // returns "#00ff88" (green)
+ * colorizeScore(55) // returns "#ffd700" (gold)
+ * colorizeScore(25) // returns "#ff4444" (red)
+ */
+export function colorizeScore(score: number): string {
+  return score >= SCORE_EXCELLENT_THRESHOLD
+    ? SCORE_COLOR_EXCELLENT
+    : score >= SCORE_GOOD_THRESHOLD
+    ? SCORE_COLOR_GOOD
+    : SCORE_COLOR_POOR;
+}
