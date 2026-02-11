@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { normalize } from "../lib/math-utils.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 /**
  * Valid trading intent classifications.
@@ -103,9 +103,9 @@ export type AgentDecisionWithReasoning = z.infer<typeof agentDecisionWithReasoni
 export function normalizeConfidence(raw: number): number {
   if (raw > 1) {
     // Assume 0-100 scale, convert to 0-1
-    return normalize(raw / 100);
+    return clamp(raw / 100, 0, 1);
   }
-  return normalize(raw);
+  return clamp(raw, 0, 1);
 }
 
 /**

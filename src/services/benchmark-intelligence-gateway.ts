@@ -15,7 +15,7 @@
  * - Export-ready researcher payloads (JSONL, CSV, summary stats)
  */
 
-import { normalize, weightedSum } from "../lib/math-utils.ts";
+import { clamp, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -235,7 +235,7 @@ export function recordV17Scores(
 
   // Build pillar details
   const pillars: PillarScore[] = Object.entries(V17_PILLAR_WEIGHTS).map(([name, weight]) => {
-    const score = normalize(scores[name] ?? 0.5);
+    const score = clamp(scores[name] ?? 0.5, 0, 1);
     return {
       name,
       score,
@@ -248,7 +248,7 @@ export function recordV17Scores(
   });
 
   // Compute weighted composite
-  const composite = weightedSum(pillars, 'score', 'weight');
+  const composite = pillars.reduce((sum, p) => sum + p.score * p.weight, 0);
 
   // Identify strengths (top 3) and weaknesses (bottom 3)
   const sorted = [...pillars].sort((a, b) => b.score - a.score);

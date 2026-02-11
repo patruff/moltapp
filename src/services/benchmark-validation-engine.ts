@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { normalize, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
+import { clamp, round3, splitSentences, weightedSum } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -614,7 +614,7 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
     score = 0.6;
   }
 
-  return normalize(score);
+  return clamp(score, 0, 1);
 }
 
 function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[]): number {
@@ -641,7 +641,7 @@ function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[
     score -= 0.1;
   }
 
-  return normalize(score);
+  return clamp(score, 0, 1);
 }
 
 function validateConfidenceCalibration(
@@ -696,7 +696,7 @@ function validateConfidenceCalibration(
     score -= 0.2;
   }
 
-  return normalize(score);
+  return clamp(score, 0, 1);
 }
 
 function validateActionAlignment(decision: TradingDecision, issues: ValidationIssue[]): number {

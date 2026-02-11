@@ -13,7 +13,7 @@
  * 5. CONFIDENCE RECALIBRATION: Does confidence adjust after feedback?
  */
 
-import { normalize, round3 } from "../lib/math-utils.ts";
+import { clamp, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -377,7 +377,7 @@ function analyzeSymbolKnowledge(entries: MemoryEntry[]): { score: number } {
   }
 
   const score = totalTrackedSymbols > 0 ? improvingSymbols / totalTrackedSymbols : 0.5;
-  return { score: round3(normalize(score * 0.8 + 0.2)) };
+  return { score: round3(clamp(score * 0.8 + 0.2, 0, 1)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +405,7 @@ function analyzeConfidenceRecalibration(entries: MemoryEntry[]): { score: number
   }
 
   const score = postMissTotal > 0 ? postMissAdjustments / postMissTotal : 0.5;
-  return { score: round3(normalize(score)) };
+  return { score: round3(clamp(score, 0, 1)) };
 }
 
 // ---------------------------------------------------------------------------

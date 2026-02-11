@@ -357,7 +357,7 @@ export function analyzeForensics(
 }
 
 function analyzeStructure(reasoning: string): StructuralAnalysis {
-  const sentences = splitSentences(reasoning, 5);
+  const sentences = splitSentences(reasoning);
   const sentenceCount = sentences.length;
   const avgSentenceLength = sentenceCount > 0
     ? sentences.reduce((sum, s) => sum + countWords(s), 0) / sentenceCount
@@ -443,7 +443,7 @@ function analyzeDepth(reasoning: string): DepthAnalysis {
 
 function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnalysis {
   const history = agentHistory.get(agentId) ?? [];
-  const words = new Set(getFilteredWords(reasoning, ORIGINALITY_NGRAM_SIZE));
+  const words = new Set(getFilteredWords(reasoning));
 
   // Jaccard similarity to most recent previous reasoning
   let jaccardSimilarityToPrevious = 0;
@@ -565,7 +565,7 @@ function analyzeCrossTrade(
 
     // Copypasta detection: very similar reasoning to previous trade
     const prevWords = new Set(getFilteredWords(prev.reasoning, ORIGINALITY_NGRAM_SIZE));
-    const currWords = new Set(getFilteredWords(reasoning, ORIGINALITY_NGRAM_SIZE));
+    const currWords = new Set(getFilteredWords(reasoning));
     const intersection = [...currWords].filter((w) => prevWords.has(w)).length;
     const union = new Set([...prevWords, ...currWords]).size;
     const jaccard = union > 0 ? intersection / union : 0;
@@ -597,7 +597,7 @@ function analyzeCrossTrade(
 // ---------------------------------------------------------------------------
 
 function extractNGrams(text: string, n: number): Set<string> {
-  const words = getFilteredWords(text, 2);
+  const words = getFilteredWords(text);
   const ngrams = new Set<string>();
   for (let i = 0; i <= words.length - n; i++) {
     ngrams.add(words.slice(i, i + n).join(" "));

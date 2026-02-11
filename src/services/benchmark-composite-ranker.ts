@@ -16,7 +16,7 @@
  * and gets exported to HuggingFace.
  */
 
-import { normalize } from "../lib/math-utils.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -283,10 +283,10 @@ export function normalizeFactors(factors: RankingFactors): Record<string, number
   return {
     pnlPercent: normalizePnl(factors.pnlPercent),
     sharpeRatio: normalizeSharpe(factors.sharpeRatio),
-    coherence: normalize(factors.coherence),
+    coherence: clamp(factors.coherence, 0, 1),
     hallucinationRate: invertRate(factors.hallucinationRate),
-    disciplineRate: normalize(factors.disciplineRate),
-    calibration: normalize(factors.calibration),
+    disciplineRate: clamp(factors.disciplineRate, 0, 1),
+    calibration: clamp(factors.calibration, 0, 1),
   };
 }
 
