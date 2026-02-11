@@ -218,14 +218,12 @@ export interface AgentCorrelation {
 
 /** In-memory store of recent decisions for analysis */
 const decisionLog: AgentDecisionRecord[] = [];
-const MAX_DECISIONS = 5000;
 
 /** Cached consensus metrics per round */
 const consensusCache = new Map<string, ConsensusMetrics>();
 
 /** Herding alerts */
 const herdingAlerts: HerdingAlert[] = [];
-const MAX_ALERTS = 200;
 
 /** Contrarian signals */
 const contrarianSignals: ContrarianSignal[] = [];
