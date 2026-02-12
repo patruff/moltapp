@@ -427,7 +427,7 @@ function computeVolumeSentiment(marketData: MarketData): { score: number; driver
 
   if (volumeRatio > SENTIMENT_THRESHOLDS.VOLUME_RATIO_HIGH) {
     // High volume amplifies the price direction
-    score = change > 0 ? Math.min(100, volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER) : Math.max(-100, -volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER);
+    score = change > 0 ? clamp(volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER, -100, 100) : clamp(-volumeRatio * SENTIMENT_THRESHOLDS.VOLUME_SCORE_MULTIPLIER, -100, 100);
   } else if (volumeRatio < SENTIMENT_THRESHOLDS.VOLUME_RATIO_LOW) {
     // Low volume = low conviction, dampen signal
     score = change > 0 ? SENTIMENT_THRESHOLDS.VOLUME_LOW_SCORE : change < 0 ? -SENTIMENT_THRESHOLDS.VOLUME_LOW_SCORE : 0;
@@ -636,7 +636,7 @@ export async function getStockSentiment(symbol: string): Promise<SentimentScore 
       socialResult.score * SENTIMENT_WEIGHTS.socialSentiment +
       newsResult.score * SENTIMENT_WEIGHTS.newsSentiment;
 
-    const clampedOverall = Math.max(-100, Math.min(100, Math.round(overall)));
+    const clampedOverall = clamp(Math.round(overall), -100, 100);
 
     // Aggregate drivers
     const drivers: SentimentDriver[] = [
@@ -712,9 +712,11 @@ export async function getSentimentHeatmap(): Promise<SentimentHeatmap> {
       // Simulate timeframe variation: shorter = noisier, longer = smoother
       const tfMultiplier: Record<string, number> = { "1h": 0.6, "4h": 0.8, "1d": 1.0, "1w": 1.1 };
       const noise = seededRandom(`${sentiment.symbol}-${tf}`, -15, 15);
-      const tfSentiment = Math.max(-100, Math.min(100,
+      const tfSentiment = clamp(
         Math.round(sentiment.overall * (tfMultiplier[tf] ?? 1) + noise),
-      ));
+        -100,
+        100,
+      );
 
       // Determine dominant driver for this cell
       const drivers = sentiment.drivers.sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
@@ -849,7 +851,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
     }
 
     const overallBias = biasWeight > 0
-      ? Math.max(-100, Math.min(100, Math.round((biasSum / biasWeight) * 100)))
+      ? clamp(Math.round((biasSum / biasWeight) * 100), -100, 100)
       : 0;
 
     const biasLabel =
