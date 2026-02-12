@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
-import { sumByKey, countByCondition } from "../lib/math-utils.ts";
+import { sumByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;
@@ -312,8 +312,8 @@ export async function calculatePortfolioMetrics(
       : 0;
   const avgWinLossRatio = averageLoss > 0 ? averageWin / averageLoss : null;
 
-  const largestWin = Math.max(0, ...tradeOutcomes.map((t) => t.pnl));
-  const largestLoss = Math.min(0, ...tradeOutcomes.map((t) => t.pnl));
+  const largestWin = Math.max(0, findMax(tradeOutcomes, 'pnl')?.pnl ?? 0);
+  const largestLoss = Math.min(0, findMin(tradeOutcomes, 'pnl')?.pnl ?? 0);
 
   // Expectancy: (winRate * avgWin) - (lossRate * avgLoss)
   const lossRate = tradeOutcomes.length > 0

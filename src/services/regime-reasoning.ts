@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { countByCondition, clamp, round2, calculateAverage, averageByKey } from "../lib/math-utils.ts";
+import { countByCondition, clamp, round2, calculateAverage, averageByKey, absMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -235,7 +235,7 @@ export function detectMarketRegime(
   }
 
   const avgChange = calculateAverage(changes);
-  const maxChange = Math.max(...changes.map(Math.abs));
+  const maxChange = absMax(changes);
   const variance = changes.reduce((s, c) => s + (c - avgChange) ** 2, 0) / changes.length;
   const changeStdDev = Math.sqrt(variance);
   const stocksUp = countByCondition(changes, (c) => c > 0);
