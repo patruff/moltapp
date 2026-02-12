@@ -352,9 +352,9 @@ type AgentDecision = InferSelectModel<typeof agentDecisions>;
 
 /** The competing AI agents (gated on API key availability) */
 const ALL_AGENTS: BaseTradingAgent[] = [
-  claudeTrader,
-  gptTrader,
-  grokTrader,
+  ...(process.env.ANTHROPIC_API_KEY ? [claudeTrader] : []),
+  ...(process.env.OPENAI_API_KEY ? [gptTrader] : []),
+  ...(process.env.XAI_API_KEY ? [grokTrader] : []),
   ...(process.env.GOOGLE_API_KEY ? [geminiTrader] : []),
 ];
 

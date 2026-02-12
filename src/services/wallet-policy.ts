@@ -34,11 +34,11 @@ const DEFAULT_ALLOWED_MINTS: string[] = [
 ];
 
 export const DEFAULT_POLICY: WalletPolicy = {
-  maxTradeSize: 500,
-  dailyVolumeLimit: 5000,
-  sessionLimit: 2000,
+  maxTradeSize: 5,
+  dailyVolumeLimit: 20,
+  sessionLimit: 10,
   allowedMints: DEFAULT_ALLOWED_MINTS,
-  maxTradesPerHour: 10,
+  maxTradesPerHour: 2,
   requireQuoteFirst: true,
   enabled: true,
 };
