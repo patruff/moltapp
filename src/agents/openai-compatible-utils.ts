@@ -110,6 +110,8 @@ export interface OpenAICallerOptions {
   reasoningEffort?: "low" | "medium" | "high" | "xhigh";
   /** Use max_completion_tokens instead of max_tokens (required for GPT-5.x models) */
   useCompletionTokens?: boolean;
+  /** Override default max tokens (default: 16000) */
+  maxTokens?: number;
 }
 
 /**
@@ -135,10 +137,11 @@ export function createOpenAICompatibleCaller(
     };
 
     // GPT-5.x models use max_completion_tokens instead of max_tokens
+    const maxTok = options?.maxTokens ?? 16000;
     if (options?.useCompletionTokens || model.startsWith("gpt-5")) {
-      requestParams.max_completion_tokens = 16000;
+      requestParams.max_completion_tokens = maxTok;
     } else {
-      requestParams.max_tokens = 16000;
+      requestParams.max_tokens = maxTok;
     }
 
     // Add reasoning_effort for GPT-5.2 and similar reasoning models

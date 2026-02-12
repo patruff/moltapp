@@ -40,6 +40,7 @@ const GPT_AGENT_CONFIG = {
   maxPortfolioAllocation: 80,
   temperature: 1, // Required for reasoning models
   reasoningEffort: "xhigh" as const, // Maximum reasoning for complex trading decisions
+  researchModel: "gpt-4o-mini",
   skillOverrides: {
     AGENT_NAME: "GPT-5.2",
   },
@@ -56,6 +57,12 @@ export class GPTTrader extends BaseTradingAgent {
     tools: ChatCompletionTool[],
   ) => Promise<AgentTurn>;
 
+  callWithToolsForResearch: (
+    system: string,
+    messages: ChatCompletionMessageParam[],
+    tools: ChatCompletionTool[],
+  ) => Promise<AgentTurn>;
+
   constructor() {
     super(GPT_AGENT_CONFIG);
     const getClient = createOpenAIClientGetter();
@@ -64,6 +71,12 @@ export class GPTTrader extends BaseTradingAgent {
       this.config.model,
       this.config.temperature,
       { reasoningEffort: GPT_AGENT_CONFIG.reasoningEffort },
+    );
+    this.callWithToolsForResearch = createOpenAICompatibleCaller(
+      getClient,
+      "gpt-4o-mini",
+      0.3,
+      { maxTokens: 4000 },
     );
   }
 

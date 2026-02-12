@@ -40,6 +40,7 @@ const GROK_AGENT_CONFIG = {
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
   temperature: 0.7,
+  researchModel: "grok-4-fast",
   skillOverrides: {
     AGENT_NAME: "Grok 4",
   },
@@ -56,6 +57,12 @@ export class GrokTrader extends BaseTradingAgent {
     tools: ChatCompletionTool[],
   ) => Promise<AgentTurn>;
 
+  callWithToolsForResearch: (
+    system: string,
+    messages: ChatCompletionMessageParam[],
+    tools: ChatCompletionTool[],
+  ) => Promise<AgentTurn>;
+
   constructor() {
     super(GROK_AGENT_CONFIG);
     const getClient = createXAIClientGetter();
@@ -63,6 +70,12 @@ export class GrokTrader extends BaseTradingAgent {
       getClient,
       this.config.model,
       this.config.temperature,
+    );
+    this.callWithToolsForResearch = createOpenAICompatibleCaller(
+      getClient,
+      "grok-4-fast",
+      0.3,
+      { maxTokens: 4000 },
     );
   }
 

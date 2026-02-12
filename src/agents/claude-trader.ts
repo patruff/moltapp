@@ -37,6 +37,7 @@ const CLAUDE_AGENT_CONFIG = {
   maxPositionSize: 25,
   maxPortfolioAllocation: 80,
   temperature: 1, // Opus 4.6 uses extended thinking, temperature must be 1
+  researchModel: "claude-haiku-4-5-20251101",
   skillOverrides: {
     AGENT_NAME: "Opus 4.6",
   },
@@ -112,11 +113,29 @@ export class ClaudeTrader extends BaseTradingAgent {
     messages: MessageParam[],
     tools: ToolUnion[],
   ): Promise<AgentTurn> {
+    return this._callAnthropic(this.config.model, 16000, system, messages, tools);
+  }
+
+  callWithToolsForResearch(
+    system: string,
+    messages: MessageParam[],
+    tools: ToolUnion[],
+  ): Promise<AgentTurn> {
+    return this._callAnthropic("claude-haiku-4-5-20251101", 4000, system, messages, tools);
+  }
+
+  private async _callAnthropic(
+    model: string,
+    maxTokens: number,
+    system: string,
+    messages: MessageParam[],
+    tools: ToolUnion[],
+  ): Promise<AgentTurn> {
     const client = this.getClient();
 
     const response = await client.messages.create({
-      model: this.config.model,
-      max_tokens: 16000, // Extended for Opus 4.6 deep reasoning
+      model,
+      max_tokens: maxTokens,
       system,
       messages,
       ...(tools.length > 0 ? { tools } : {}),

@@ -25,6 +25,9 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   "gpt-4o-mini": { input: 0.15, output: 0.6 },
   "gpt-4o": { input: 2.5, output: 10 },
 
+  // Google Gemini models
+  "gemini-2.5-flash-preview-05-20": { input: 0.15, output: 0.60 },
+
   // xAI Grok models
   "grok-4": { input: 10, output: 30 },
   "grok-3-beta": { input: 5, output: 15 },

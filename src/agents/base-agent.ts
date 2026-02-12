@@ -95,6 +95,8 @@ export interface AgentConfig {
   walletAddress?: string;
   /** Optional overrides for skill.md template placeholders */
   skillOverrides?: Record<string, string>;
+  /** Cheap model for research/tool-calling phase (defaults to main model) */
+  researchModel?: string;
 }
 
 /** Aggregate stats for an agent */
@@ -190,11 +192,19 @@ export function loadSkillPrompt(overrides?: Record<string, string>): string {
 // Abstract Base Class
 // ---------------------------------------------------------------------------
 
-/** Max tool-calling turns before forcing a decision */
-const MAX_TURNS = 10;
+/** Max tool-calling turns in research phase before forcing a decision */
+const MAX_TURNS = 6;
 
-/** Max total tool calls before forcing a decision */
-const MAX_TOOL_CALLS = 25;
+/** Max total tool calls in research phase before forcing a decision */
+const MAX_TOOL_CALLS = 12;
+
+/** Minimal system prompt for the research phase (~80 tokens) */
+const RESEARCH_SYSTEM_PROMPT = `You are a trading research assistant. Gather market data using the available tools. Steps:
+1. Check portfolio positions and active theses (get_portfolio, get_theses)
+2. Get prices and news for relevant stocks (get_stock_price, get_stock_news)
+3. Check technical indicators (get_technical_indicators)
+4. Update or manage theses as needed (update_thesis, close_thesis, create_thesis)
+Call tools systematically to gather comprehensive data. Do NOT output a trading decision.`;
 
 /**
  * Abstract base class for all AI trading agents.
@@ -252,6 +262,18 @@ export abstract class BaseTradingAgent {
   /** Append a user message to the conversation (for forced decision prompts) */
   abstract appendUserMessage(messages: unknown[], text: string): unknown[];
 
+  /**
+   * Make a single LLM call using the cheap research model.
+   * Defaults to callWithTools() (same model). Subclasses override to use cheaper models.
+   */
+  callWithToolsForResearch(
+    system: string,
+    messages: unknown[],
+    tools: unknown[],
+  ): Promise<AgentTurn> {
+    return this.callWithTools(system, messages, tools);
+  }
+
   // -------------------------------------------------------------------------
   // Public API — analyze() delegates to the tool-calling loop
   // -------------------------------------------------------------------------
@@ -278,17 +300,15 @@ export abstract class BaseTradingAgent {
   // -------------------------------------------------------------------------
 
   /**
-   * Run the autonomous tool-calling loop:
-   * 1. Load skill.md as system prompt
-   * 2. Build initial user message with top movers summary
-   * 3. Loop: call LLM → if tool calls, execute tools → if text, parse decision
-   * 4. Return TradingDecision
+   * Two-phase agent loop:
+   * Phase 1 (Research): Cheap model gathers data via tool calls
+   * Phase 2 (Decision): Expensive model receives full skill.md + compiled research brief
    */
   protected async runAgentLoop(
     marketData: MarketData[],
     portfolio: PortfolioContext,
   ): Promise<TradingDecision> {
-    // System prompt from skill.md with agent-specific overrides
+    // System prompt from skill.md with agent-specific overrides (used in decision phase)
     const system = loadSkillPrompt(this.config.skillOverrides);
 
     // Build initial user message with top movers summary
@@ -313,7 +333,6 @@ export abstract class BaseTradingAgent {
 
     // Get tools in provider format
     const tools = this.getProviderTools();
-    let messages = this.buildInitialMessages(userMessage);
 
     // Tool context for executing tool calls
     const ctx: ToolContext = {
@@ -326,52 +345,56 @@ export abstract class BaseTradingAgent {
     const toolTrace: ToolTraceEntry[] = [];
     let totalToolCalls = 0;
 
-    // Track LLM token usage across all turns
-    let totalUsage = { inputTokens: 0, outputTokens: 0 };
+    // Track LLM token usage separately for research and decision phases
+    const researchUsage = { inputTokens: 0, outputTokens: 0 };
+    const decisionUsage = { inputTokens: 0, outputTokens: 0 };
 
     // Helper to record usage to database before returning
     const recordUsage = async () => {
-      if (totalUsage.inputTokens > 0 || totalUsage.outputTokens > 0) {
-        const roundId = `round_${Date.now()}`;
+      const roundId = `round_${Date.now()}`;
+      const researchModel = this.config.researchModel ?? this.config.model;
+      if (researchUsage.inputTokens > 0 || researchUsage.outputTokens > 0) {
+        await recordLlmUsage({
+          roundId,
+          agentId: this.config.agentId,
+          model: researchModel,
+          inputTokens: researchUsage.inputTokens,
+          outputTokens: researchUsage.outputTokens,
+        }).catch((err) => console.error(`[${this.config.name}] Failed to record research usage:`, err));
+      }
+      if (decisionUsage.inputTokens > 0 || decisionUsage.outputTokens > 0) {
         await recordLlmUsage({
           roundId,
           agentId: this.config.agentId,
           model: this.config.model,
-          inputTokens: totalUsage.inputTokens,
-          outputTokens: totalUsage.outputTokens,
-        }).catch((err) => console.error(`[${this.config.name}] Failed to record LLM usage:`, err));
+          inputTokens: decisionUsage.inputTokens,
+          outputTokens: decisionUsage.outputTokens,
+        }).catch((err) => console.error(`[${this.config.name}] Failed to record decision usage:`, err));
       }
     };
 
-    // Tool-calling loop
-    for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const agentTurn = await this.callWithTools(system, messages, tools);
+    // ---- Phase 1: Research (cheap model with minimal system prompt) ----
+    const researchModel = this.config.researchModel ?? this.config.model;
+    console.log(`[${this.config.name}] Research phase (${researchModel})`);
 
-      // Accumulate usage if available
+    let messages = this.buildInitialMessages(userMessage);
+
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const agentTurn = await this.callWithToolsForResearch(RESEARCH_SYSTEM_PROMPT, messages, tools);
+
+      // Accumulate research usage
       if (agentTurn.usage) {
-        totalUsage.inputTokens += agentTurn.usage.inputTokens;
-        totalUsage.outputTokens += agentTurn.usage.outputTokens;
+        researchUsage.inputTokens += agentTurn.usage.inputTokens;
+        researchUsage.outputTokens += agentTurn.usage.outputTokens;
       }
 
       if (agentTurn.stopReason === "tool_use" && agentTurn.toolCalls.length > 0) {
         // Check if we're at the tool call limit
         if (totalToolCalls + agentTurn.toolCalls.length >= MAX_TOOL_CALLS) {
           console.log(
-            `[${this.config.name}] Tool call limit reached (${totalToolCalls}/${MAX_TOOL_CALLS}). Forcing final decision.`,
+            `[${this.config.name}] Tool call limit reached (${totalToolCalls}/${MAX_TOOL_CALLS}). Moving to decision phase.`,
           );
-          // Give the agent one last chance to decide with data gathered so far
-          const forced = await this.forceDecisionTurn(system, messages);
-          if (forced) {
-            forced.toolTrace = toolTrace;
-            await recordUsage();
-            return forced;
-          }
-          const fallback = this.fallbackHold(
-            `Tool call limit reached (${MAX_TOOL_CALLS}). Based on data gathered, holding position.`,
-          );
-          fallback.toolTrace = toolTrace;
-          await recordUsage();
-          return fallback;
+          break;
         }
 
         // Execute all tool calls
@@ -399,55 +422,35 @@ export abstract class BaseTradingAgent {
         continue;
       }
 
-      // Text response — try to parse a trading decision
-      if (agentTurn.textResponse) {
-        try {
-          const decision = this.parseLLMResponse(agentTurn.textResponse);
-          // Attach tool trace to decision
-          decision.toolTrace = toolTrace;
-          await recordUsage();
-          return decision;
-        } catch (err) {
-          console.warn(
-            `[${this.config.name}] Failed to parse response on turn ${turn + 1}: ${errorMessage(err)}`,
-          );
-          // If max_tokens, try partial parse; otherwise continue
-          if (agentTurn.stopReason === "max_tokens") {
-            const fallback = this.fallbackHold("Response truncated (max_tokens)");
-            fallback.toolTrace = toolTrace;
-            await recordUsage();
-            return fallback;
-          }
-          // If end_turn but parse failed, give up
-          if (agentTurn.stopReason === "end_turn") {
-            const fallback = this.fallbackHold(
-              `Could not parse decision: ${errorMessage(err)}`,
-            );
-            fallback.toolTrace = toolTrace;
-            await recordUsage();
-            return fallback;
-          }
-        }
+      // Research model stopped calling tools — move to decision phase
+      break;
+    }
+
+    // ---- Phase 2: Decision (expensive model with full skill.md, NO tools) ----
+    console.log(`[${this.config.name}] Decision phase (${this.config.model})`);
+    const researchBrief = this.compileResearchBrief(toolTrace, userMessage);
+    const decisionMessages = this.buildInitialMessages(researchBrief);
+
+    try {
+      const decisionTurn = await this.callWithTools(system, decisionMessages, []);
+
+      // Accumulate decision usage
+      if (decisionTurn.usage) {
+        decisionUsage.inputTokens += decisionTurn.usage.inputTokens;
+        decisionUsage.outputTokens += decisionTurn.usage.outputTokens;
       }
 
-      // No text and no tool calls — shouldn't happen, but guard against it
-      if (!agentTurn.textResponse && agentTurn.toolCalls.length === 0) {
-        const fallback = this.fallbackHold("Empty response from LLM");
-        fallback.toolTrace = toolTrace;
+      if (decisionTurn.textResponse) {
+        const decision = this.parseLLMResponse(decisionTurn.textResponse);
+        decision.toolTrace = toolTrace;
         await recordUsage();
-        return fallback;
+        return decision;
       }
+    } catch (err) {
+      console.warn(`[${this.config.name}] Decision phase failed: ${errorMessage(err)}`);
     }
 
-    // Exhausted all turns without a decision — try one forced decision
-    console.log(`[${this.config.name}] Max turns exceeded (${MAX_TURNS}). Forcing final decision.`);
-    const forced = await this.forceDecisionTurn(system, messages);
-    if (forced) {
-      forced.toolTrace = toolTrace;
-      await recordUsage();
-      return forced;
-    }
-    const fallback = this.fallbackHold(`Max turns exceeded (${MAX_TURNS})`);
+    const fallback = this.fallbackHold("Decision phase failed to produce a valid response");
     fallback.toolTrace = toolTrace;
     await recordUsage();
     return fallback;
@@ -456,6 +459,29 @@ export abstract class BaseTradingAgent {
   // -------------------------------------------------------------------------
   // Shared Helpers
   // -------------------------------------------------------------------------
+
+  /**
+   * Compile tool trace into a concise research brief for the decision model.
+   * Includes round context and all tool results, truncated to ~1500 tokens (~6000 chars).
+   */
+  protected compileResearchBrief(toolTrace: ToolTraceEntry[], userMessage: string): string {
+    let brief = `ROUND CONTEXT:\n${userMessage}\n\nRESEARCH DATA GATHERED (${toolTrace.length} tool calls):\n`;
+
+    for (const entry of toolTrace) {
+      const args = JSON.stringify(entry.arguments).slice(0, 100);
+      brief += `\n--- ${entry.tool}(${args}) ---\n`;
+      brief += entry.result.slice(0, 500) + "\n";
+    }
+
+    // Truncate to ~1500 tokens (~6000 chars) to keep decision model input reasonable
+    if (brief.length > 6000) {
+      brief = brief.slice(0, 6000) + "\n\n...[research data truncated]";
+    }
+
+    brief += "\n\nBased on ALL the research above, output ONLY a valid JSON trading decision with: action (buy/sell/hold), symbol, quantity (USDC for buys, shares for sells, 0 for holds), reasoning, confidence (0-100), sources (array of data sources used), intent, predictedOutcome, thesisStatus.";
+
+    return brief;
+  }
 
   /**
    * Parse and validate an LLM response into a TradingDecision.
@@ -522,29 +548,6 @@ export abstract class BaseTradingAgent {
       predictedOutcome,
       thesisStatus,
     };
-  }
-
-  /**
-   * Force the agent to make a final decision with no tools available.
-   * Used when the agent exhausts tool call limits or max turns.
-   * Returns null if the forced turn also fails (caller should fallback to hold).
-   */
-  protected async forceDecisionTurn(
-    system: string,
-    messages: unknown[],
-  ): Promise<TradingDecision | null> {
-    const forceMsg =
-      "IMPORTANT: You have used all available tool calls. You MUST now make your final trading decision based on ALL the data you have already gathered. Output ONLY a valid JSON object with: action (buy/sell/hold), symbol, quantity, reasoning, confidence (0-100). Do NOT call any more tools.";
-    const forcedMessages = this.appendUserMessage(messages, forceMsg);
-    try {
-      const turn = await this.callWithTools(system, forcedMessages, []);
-      if (turn.textResponse) {
-        return this.parseLLMResponse(turn.textResponse);
-      }
-    } catch (err) {
-      console.warn(`[${this.config.name}] Forced decision turn failed: ${errorMessage(err)}`);
-    }
-    return null;
   }
 
   /**

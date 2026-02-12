@@ -937,8 +937,8 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
 
       comparisonCount++;
       // Consensus of others
-      const otherBuys = otherDecs.filter((d: typeof otherDecs[number]) => d.action === "buy").length;
-      const otherSells = otherDecs.filter((d: typeof otherDecs[number]) => d.action === "sell").length;
+      const otherBuys = countByCondition(otherDecs, (d: typeof otherDecs[number]) => d.action === "buy");
+      const otherSells = countByCondition(otherDecs, (d: typeof otherDecs[number]) => d.action === "sell");
       const otherConsensus = otherBuys > otherSells ? "buy" : otherSells > otherBuys ? "sell" : "hold";
 
       if (thisAgentDec.action !== otherConsensus && thisAgentDec.action !== "hold" && otherConsensus !== "hold") {
@@ -1491,7 +1491,7 @@ export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
     const volumeTrend = allSentiments.reduce((s, st) => s + st.components.volumeSentiment, 0) / allSentiments.length;
 
     // Component 4: Market breadth (% of stocks with positive sentiment)
-    const positiveStocks = allSentiments.filter((s) => s.overall > 0).length;
+    const positiveStocks = countByCondition(allSentiments, (s) => s.overall > 0);
     const breadth = (positiveStocks / allSentiments.length) * 100;
 
     // Weighted composite mood
