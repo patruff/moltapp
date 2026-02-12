@@ -17,7 +17,7 @@
  * - Calibration trend over time
  */
 
-import { round4 } from "../lib/math-utils.ts";
+import { round4, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -239,7 +239,7 @@ export function computeCalibration(
       continue;
     }
 
-    const winCount = inBucket.filter((o) => o.isProfit).length;
+    const winCount = countByCondition(inBucket, (o) => o.isProfit);
     const actualWinRate = winCount / inBucket.length;
     const avgConfidence = inBucket.reduce((s, o) => s + o.confidence, 0) / inBucket.length;
 
@@ -286,8 +286,8 @@ export function computeCalibration(
 
   const avgOverconfidence = overconfidenceBuckets > 0 ? overconfidenceSum / overconfidenceBuckets : 0;
   const nonEmptyBuckets = buckets.filter((b) => b.count > 0);
-  const overconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap > CALIBRATION_GAP_SIGNIFICANCE).length;
-  const underconfidentBuckets = nonEmptyBuckets.filter((b) => b.gap < -CALIBRATION_GAP_SIGNIFICANCE).length;
+  const overconfidentBuckets = countByCondition(nonEmptyBuckets, (b) => b.gap > CALIBRATION_GAP_SIGNIFICANCE);
+  const underconfidentBuckets = countByCondition(nonEmptyBuckets, (b) => b.gap < -CALIBRATION_GAP_SIGNIFICANCE);
 
   return {
     agentId: resolvedAgentId,
@@ -338,7 +338,7 @@ export function computeCalibrationTrend(
       );
       if (inBucket.length === 0) continue;
 
-      const winRate = inBucket.filter((o) => o.isProfit).length / inBucket.length;
+      const winRate = countByCondition(inBucket, (o) => o.isProfit) / inBucket.length;
       const avgConf = inBucket.reduce((s, o) => s + o.confidence, 0) / inBucket.length;
       ece += (inBucket.length / n) * Math.abs(avgConf - winRate);
     }

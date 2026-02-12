@@ -18,7 +18,7 @@
  * No database access is required — feed trade data via recordHistoricalTrade().
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -355,7 +355,7 @@ export function runMonteCarloSimulation(
   const returns = trades.map((t) => t.returnPct);
 
   // Precompute distribution statistics for the agent
-  const agentWinRate = returns.filter((r) => r > 0).length / returns.length;
+  const agentWinRate = countByCondition(returns, (r) => r > 0) / returns.length;
   const positiveReturns = returns.filter((r) => r > 0);
   const negativeReturns = returns.filter((r) => r <= 0);
   const avgGain = positiveReturns.length > 0
@@ -511,14 +511,14 @@ function aggregateResults(
   // Probability metrics
   const totalSims = results.length;
   const probabilityOfProfit = round2(
-    finalValues.filter((v) => v > config.initialCapital).length / totalSims * 100,
+    countByCondition(finalValues, (v) => v > config.initialCapital) / totalSims * 100,
   );
   const lossThreshold = config.initialCapital * LOSS_THRESHOLD_MULTIPLIER;
   const probabilityOfLosing10Pct = round2(
-    finalValues.filter((v) => v < lossThreshold).length / totalSims * 100,
+    countByCondition(finalValues, (v) => v < lossThreshold) / totalSims * 100,
   );
   const probabilityOfDoubling = round2(
-    finalValues.filter((v) => v >= config.initialCapital * DOUBLING_THRESHOLD_MULTIPLIER).length / totalSims * 100,
+    countByCondition(finalValues, (v) => v >= config.initialCapital * DOUBLING_THRESHOLD_MULTIPLIER) / totalSims * 100,
   );
 
   // Value at Risk and Conditional VaR

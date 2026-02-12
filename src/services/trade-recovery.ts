@@ -14,6 +14,7 @@
  */
 
 import { logTradeEvent, logTradeFailure, logSystemEvent } from "./audit-log.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -401,10 +402,10 @@ export function getRecoveryReport(): RecoveryReport {
 
   return {
     totalFailed: all.length,
-    pendingRetry: all.filter((t) => t.status === "pending").length,
-    deadLettered: all.filter((t) => t.status === "dead_letter").length,
-    recovered: all.filter((t) => t.status === "recovered").length,
-    stuck: all.filter((t) => t.status === "stuck").length,
+    pendingRetry: countByCondition(all, (t) => t.status === "pending"),
+    deadLettered: countByCondition(all, (t) => t.status === "dead_letter"),
+    recovered: countByCondition(all, (t) => t.status === "recovered"),
+    stuck: countByCondition(all, (t) => t.status === "stuck"),
     byErrorCode,
     byAgent,
     bySymbol,

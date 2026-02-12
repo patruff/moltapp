@@ -31,7 +31,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -377,7 +377,7 @@ export function evaluateTrade(params: {
       deterministic: true,
     },
     adversarialFlags: adversarialFlags.map((f) => `${f.type}: ${f.evidence}`),
-    integrityPassed: adversarialFlags.filter((f) => f.severity === "high").length === 0,
+    integrityPassed: countByCondition(adversarialFlags, (f) => f.severity === "high") === 0,
   };
 
   // 7. Store in history
@@ -518,8 +518,8 @@ export function getAdversarialReport(agentId: string): AdversarialReport {
   }
 
   // Determine risk level
-  const highSeverity = allFlags.filter((f) => f.severity === "high").length;
-  const mediumSeverity = allFlags.filter((f) => f.severity === "medium").length;
+  const highSeverity = countByCondition(allFlags, (f) => f.severity === "high");
+  const mediumSeverity = countByCondition(allFlags, (f) => f.severity === "medium");
   const riskLevel = highSeverity >= ADVERSARIAL_RISK_BLOCKED_HIGH_THRESHOLD ? "blocked" :
     highSeverity >= ADVERSARIAL_RISK_FLAGGED_HIGH_THRESHOLD || mediumSeverity >= ADVERSARIAL_RISK_FLAGGED_MEDIUM_THRESHOLD ? "flagged" :
     mediumSeverity >= ADVERSARIAL_RISK_SUSPICIOUS_MEDIUM_THRESHOLD ? "suspicious" : "clean";
@@ -635,7 +635,7 @@ export function getGatewayStats(): {
   const agentSummaries = Array.from(agentMap.entries()).map(([agentId, evals]) => {
     const avgComposite = evals.reduce((s, e) => s + e.scores.composite, 0) / evals.length;
     const avgCoherence = evals.reduce((s, e) => s + e.scores.coherence.score, 0) / evals.length;
-    const halCount = evals.filter((e) => e.scores.hallucinations.flags.length > 0).length;
+    const halCount = countByCondition(evals, (e) => e.scores.hallucinations.flags.length > 0);
     const report = getAdversarialReport(agentId);
 
     return {

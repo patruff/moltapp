@@ -31,6 +31,7 @@ import { env } from "../config/env.ts";
 import { getCircuitBreakerStatus } from "./circuit-breaker.ts";
 import { getLockStatus } from "./trading-lock.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -440,10 +441,10 @@ export async function runPreRoundGate(
   }
 
   // Count results
-  const passed = checks.filter((c) => c.status === "pass").length;
-  const failed = checks.filter((c) => c.status === "fail").length;
-  const warnings = checks.filter((c) => c.status === "warn").length;
-  const skipped = checks.filter((c) => c.status === "skip").length;
+  const passed = countByCondition(checks, (c) => c.status === "pass");
+  const failed = countByCondition(checks, (c) => c.status === "fail");
+  const warnings = countByCondition(checks, (c) => c.status === "warn");
+  const skipped = countByCondition(checks, (c) => c.status === "skip");
 
   const failedChecks = checks
     .filter((c) => c.status === "fail")

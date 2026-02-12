@@ -15,6 +15,8 @@
  * This is the "receipts" engine — every claim an agent makes gets checked.
  */
 
+import { countByCondition } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
@@ -770,7 +772,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   // By confidence bucket
   const byConfidence = CONFIDENCE_BUCKET_BOUNDARIES.map((b) => {
     const inBucket = resolved.filter((c) => c.confidence >= b.min && c.confidence < (b.max === 1.0 ? CONFIDENCE_BUCKET_UPPER_OFFSET : b.max));
-    const correctInBucket = inBucket.filter((c) => c.status === "correct").length;
+    const correctInBucket = countByCondition(inBucket, (c) => c.status === "correct");
     return {
       bucket: b.label,
       total: inBucket.length,
@@ -781,7 +783,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
 
   // Overconfidence rate
   const highConfResolved = resolved.filter((c) => c.confidence > HIGH_CONFIDENCE_THRESHOLD);
-  const highConfWrong = highConfResolved.filter((c) => c.status === "incorrect").length;
+  const highConfWrong = countByCondition(highConfResolved, (c) => c.status === "incorrect");
   const overconfidenceRate = highConfResolved.length > 0
     ? Math.round((highConfWrong / highConfResolved.length) * 100) / 100
     : 0;
@@ -790,8 +792,8 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   const halfIdx = Math.floor(resolved.length / 2);
   const firstHalf = resolved.slice(halfIdx);
   const secondHalf = resolved.slice(0, halfIdx);
-  const firstAcc = firstHalf.length > 0 ? firstHalf.filter((c) => c.status === "correct").length / firstHalf.length : 0;
-  const secondAcc = secondHalf.length > 0 ? secondHalf.filter((c) => c.status === "correct").length / secondHalf.length : 0;
+  const firstAcc = firstHalf.length > 0 ? countByCondition(firstHalf, (c) => c.status === "correct") / firstHalf.length : 0;
+  const secondAcc = secondHalf.length > 0 ? countByCondition(secondHalf, (c) => c.status === "correct") / secondHalf.length : 0;
   let learningTrend: "improving" | "stable" | "declining" = "stable";
   if (secondAcc - firstAcc > LEARNING_TREND_IMPROVEMENT_THRESHOLD) learningTrend = "improving";
   if (firstAcc - secondAcc > LEARNING_TREND_DECLINE_THRESHOLD) learningTrend = "declining";

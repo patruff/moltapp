@@ -25,6 +25,7 @@
  */
 
 import { createHash } from "crypto";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types for the 24 dimensions
@@ -271,7 +272,7 @@ export function scoreConsensusQuality(
   if (peerActions.length === 0) return 50; // No peers to compare
 
   // Count agreement/disagreement
-  const sameAction = peerActions.filter((p) => p.action === action).length;
+  const sameAction = countByCondition(peerActions, (p) => p.action === action);
   const totalPeers = peerActions.length;
   const agreementRate = sameAction / totalPeers;
 
@@ -413,7 +414,7 @@ export function gradeTrade(input: {
 
   // Score reasoning depth
   const wordCount = input.reasoning.split(/\s+/).length;
-  const clauseCount = input.reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
+  const clauseCount = countByCondition(input.reasoning.split(/[.;!?]/), (s) => s.trim().length > 0);
   const reasoningDepthScore = Math.min(100, Math.round(
     Math.min(50, wordCount / 2) + Math.min(50, clauseCount * 8),
   ));
@@ -583,7 +584,7 @@ export function scoreAgent(input: {
     return hasRegime ? 80 : 45;
   }));
   const edgeConsistency = t.length >= 3
-    ? Math.min(100, 40 + (t.filter((x) => x.coherenceScore > 0.6).length / t.length) * 60)
+    ? Math.min(100, 40 + (countByCondition(t, (x) => x.coherenceScore > 0.6) / t.length) * 60)
     : 50;
 
   // Governance (4 dims)
@@ -662,9 +663,9 @@ export function createRoundSummary(
 
   const actions = trades.map((t) => t.action);
   const modeAction = actions.sort((a, b) =>
-    actions.filter((v) => v === a).length - actions.filter((v) => v === b).length,
+    countByCondition(actions, (v) => v === a) - countByCondition(actions, (v) => v === b),
   ).pop() ?? "hold";
-  const consensusAgreement = actions.filter((a) => a === modeAction).length / Math.max(1, actions.length);
+  const consensusAgreement = countByCondition(actions, (a) => a === modeAction) / Math.max(1, actions.length);
 
   const summary: V32RoundSummary = {
     roundId,

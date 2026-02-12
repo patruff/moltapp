@@ -15,7 +15,7 @@
  * - Symbol-level disagreement patterns
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -355,12 +355,12 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
 
   // Basic stats
   const avgAgreementScore = roundSnapshots.reduce((s, r) => s + r.agreementScore, 0) / n;
-  const unanimousCount = roundSnapshots.filter((r) => r.consensusType === "unanimous").length;
-  const splitCount = roundSnapshots.filter((r) => r.consensusType === "split").length;
+  const unanimousCount = countByCondition(roundSnapshots, (r) => r.consensusType === "unanimous");
+  const splitCount = countByCondition(roundSnapshots, (r) => r.consensusType === "split");
 
   // Consensus accuracy
   const resolved = consensusOutcomes.filter((o) => o.outcome !== "pending");
-  const consensusCorrect = resolved.filter((o) => o.outcome === "correct").length;
+  const consensusCorrect = countByCondition(resolved, (o) => o.outcome === "correct");
   const consensusAccuracy = resolved.length > 0 ? consensusCorrect / resolved.length : 0;
 
   // Contrarian alpha (placeholder — needs actual P&L data)
@@ -447,8 +447,8 @@ export function buildDivergenceProfile(): ConsensusDivergenceProfile {
       const allSame = actions.every((a) => a === actions[0]);
       if (allSame) agreeRounds++;
 
-      const buys = actions.filter((a) => a === "buy").length;
-      const sells = actions.filter((a) => a === "sell").length;
+      const buys = countByCondition(actions, (a) => a === "buy");
+      const sells = countByCondition(actions, (a) => a === "sell");
       totalBullish += buys;
       totalBearish += sells;
     }

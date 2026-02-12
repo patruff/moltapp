@@ -497,7 +497,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   for (const e of entries.filter((e) => e.action !== "hold")) {
     symbolCounts.set(e.symbol, (symbolCounts.get(e.symbol) ?? 0) + 1);
   }
-  const nonHoldCount = entries.filter((e) => e.action !== "hold").length;
+  const nonHoldCount = countByCondition(entries, (e) => e.action !== "hold");
   const topSymbolCount = Math.max(...symbolCounts.values(), 0);
   if (nonHoldCount > PATTERN_MIN_TRADES && topSymbolCount / nonHoldCount > PATTERN_SYMBOL_FIXATION_RATIO) {
     const topSymbol = [...symbolCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
@@ -510,7 +510,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   }
 
   // Pattern: Momentum following
-  const momentumTrades = entries.filter((e) => e.intent === "momentum").length;
+  const momentumTrades = countByCondition(entries, (e) => e.intent === "momentum");
   if (momentumTrades / total > PATTERN_MOMENTUM_THRESHOLD) {
     patterns.push({
       name: "Momentum Follower",
@@ -521,7 +521,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   }
 
   // Pattern: Contrarian tendency
-  const contrarianTrades = entries.filter((e) => e.intent === "contrarian").length;
+  const contrarianTrades = countByCondition(entries, (e) => e.intent === "contrarian");
   if (contrarianTrades / total > PATTERN_CONTRARIAN_THRESHOLD) {
     patterns.push({
       name: "Contrarian Tendency",
@@ -536,9 +536,9 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
 
 function buildRiskProfile(entries: ReasoningEntry[]): RiskProfile {
   const total = entries.length;
-  const buyCount = entries.filter((e) => e.action === "buy").length;
-  const sellCount = entries.filter((e) => e.action === "sell").length;
-  const holdCount = entries.filter((e) => e.action === "hold").length;
+  const buyCount = countByCondition(entries, (e) => e.action === "buy");
+  const sellCount = countByCondition(entries, (e) => e.action === "sell");
+  const holdCount = countByCondition(entries, (e) => e.action === "hold");
   const confidences = entries.map((e) => e.confidence);
 
   return {

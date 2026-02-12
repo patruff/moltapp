@@ -15,6 +15,7 @@
 
 import { createAgentWallet, getTurnkeySigner } from "./wallet.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -316,7 +317,7 @@ export async function provisionAllWallets(): Promise<ProvisioningResult> {
   const durationMs = Date.now() - startTime;
 
   console.log(
-    `[WalletProvisioner] Provisioning complete: ${results.filter((r) => r.status !== "error").length}/3 wallets ready in ${durationMs}ms`,
+    `[WalletProvisioner] Provisioning complete: ${countByCondition(results, (r) => r.status !== "error")}/3 wallets ready in ${durationMs}ms`,
   );
 
   return {
@@ -429,9 +430,9 @@ export function getProvisioningStatus(): {
   const wallets = getAllProvisionedWallets();
   return {
     totalAgents: AGENT_DEFINITIONS.length,
-    provisioned: wallets.filter((w) => w.status === "active").length,
-    pendingFund: wallets.filter((w) => w.status === "pending_fund").length,
-    errors: wallets.filter((w) => w.status === "error").length,
+    provisioned: countByCondition(wallets, (w) => w.status === "active"),
+    pendingFund: countByCondition(wallets, (w) => w.status === "pending_fund"),
+    errors: countByCondition(wallets, (w) => w.status === "error"),
     wallets,
   };
 }

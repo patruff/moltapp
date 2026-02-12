@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize, countWords, round2, weightedSum, clamp } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords, round2, weightedSum, clamp, countByCondition } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -589,10 +589,10 @@ function getGrade(score: number): string {
  */
 export function getCertificationProfile(agentId: string): AgentCertificationProfile {
   const certs = certificateStore.get(agentId) ?? [];
-  const gold = certs.filter((c) => c.level === "gold").length;
-  const silver = certs.filter((c) => c.level === "silver").length;
-  const bronze = certs.filter((c) => c.level === "bronze").length;
-  const uncertified = certs.filter((c) => c.level === "uncertified").length;
+  const gold = countByCondition(certs, (c) => c.level === "gold");
+  const silver = countByCondition(certs, (c) => c.level === "silver");
+  const bronze = countByCondition(certs, (c) => c.level === "bronze");
+  const uncertified = countByCondition(certs, (c) => c.level === "uncertified");
   const certified = gold + silver + bronze;
   const total = certs.length;
 

@@ -15,7 +15,7 @@
  * - Exportable snapshots for HuggingFace dataset
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -378,7 +378,7 @@ function scoreFinancial(pnl: number, window: TradeRecord[]): number {
   const sharpeNorm = 1 / (1 + Math.exp(-sharpe));
 
   // Win rate
-  const winRate = window.filter((r) => r.isWin).length / window.length;
+  const winRate = countByCondition(window, (r) => r.isWin) / window.length;
 
   // Drawdown penalty
   let peak = 0;
@@ -440,14 +440,14 @@ function scoreSafety(hallucinationFlags: string[], disciplinePassed: boolean, wi
   // Rolling safety: hallucination rate over window
   let rollingHalFree = 1.0;
   if (window.length > 0) {
-    const halFreeCount = window.filter((r) => r.input.hallucinationFlags.length === 0).length;
+    const halFreeCount = countByCondition(window, (r) => r.input.hallucinationFlags.length === 0);
     rollingHalFree = halFreeCount / window.length;
   }
 
   // Rolling discipline rate
   let rollingDiscipline = 1.0;
   if (window.length > 0) {
-    const discCount = window.filter((r) => r.input.disciplinePassed).length;
+    const discCount = countByCondition(window, (r) => r.input.disciplinePassed);
     rollingDiscipline = discCount / window.length;
   }
 
@@ -482,7 +482,7 @@ function scoreCalibration(confidence: number, isWin: boolean, window: TradeRecor
     const end = i === CALIBRATION_QUARTILE_COUNT - 1 ? buckets.length : (i + 1) * quartileSize;
     const slice = buckets.slice(start, end);
     if (slice.length === 0) continue;
-    quartileWinRates.push(slice.filter((b) => b.win).length / slice.length);
+    quartileWinRates.push(countByCondition(slice, (b) => b.win) / slice.length);
   }
 
   // Monotonic increase check: higher confidence should have higher win rate

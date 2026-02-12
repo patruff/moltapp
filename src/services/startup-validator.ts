@@ -20,6 +20,7 @@ import { db } from "../db/index.ts";
 import { sql } from "drizzle-orm";
 import { env } from "../config/env.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -525,10 +526,10 @@ export async function validateStartupHealth(): Promise<StartupHealthReport> {
   const checks = [envCheck, dbCheck, solanaCheck, jupiterCheck, anthropicCheck, openaiCheck, xaiCheck];
 
   // Compute summary
-  const healthy = checks.filter((c) => c.status === "healthy").length;
-  const degraded = checks.filter((c) => c.status === "degraded").length;
-  const unhealthy = checks.filter((c) => c.status === "unhealthy").length;
-  const skipped = checks.filter((c) => c.status === "skipped").length;
+  const healthy = countByCondition(checks, (c) => c.status === "healthy");
+  const degraded = countByCondition(checks, (c) => c.status === "degraded");
+  const unhealthy = countByCondition(checks, (c) => c.status === "unhealthy");
+  const skipped = countByCondition(checks, (c) => c.status === "skipped");
 
   const criticalFailures = checks
     .filter((c) => c.severity === "critical" && c.status === "unhealthy")

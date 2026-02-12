@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
-import { getTopKey, round2, groupByKey, sortEntriesDescending } from "../lib/math-utils.ts";
+import { getTopKey, round2, groupByKey, sortEntriesDescending, countByCondition } from "../lib/math-utils.ts";
 
 // Database query result types
 type DecisionRow = typeof agentDecisions.$inferSelect;
@@ -586,7 +586,7 @@ async function buildRoundContext(
   const actions = allDecisions.map((d: { action: string }) => d.action);
   const uniqueActions = new Set(actions);
   const consensus: "unanimous" | "majority" | "split" =
-    uniqueActions.size === 1 ? "unanimous" : actions.length >= CONSENSUS_MIN_AGENTS && actions.filter((a: string) => a === actions[0]).length >= CONSENSUS_MIN_AGREEMENTS ? "majority" : "split";
+    uniqueActions.size === 1 ? "unanimous" : actions.length >= CONSENSUS_MIN_AGENTS && countByCondition(actions, (a: string) => a === actions[0]) >= CONSENSUS_MIN_AGREEMENTS ? "majority" : "split";
 
   // Agreement summary
   let agreementSummary: string;
@@ -766,9 +766,9 @@ function analyzeReasoning(reasoning: string, confidence: number): ReasoningBreak
   const cautionWords = ["hold", "wait", "uncertain", "cautious", "mixed", "volatile"];
 
   const lowerReasoning = reasoning.toLowerCase();
-  const bullishScore = bullishWords.filter((w) => lowerReasoning.includes(w)).length;
-  const bearishScore = bearishWords.filter((w) => lowerReasoning.includes(w)).length;
-  const cautionScore = cautionWords.filter((w) => lowerReasoning.includes(w)).length;
+  const bullishScore = countByCondition(bullishWords, (w) => lowerReasoning.includes(w));
+  const bearishScore = countByCondition(bearishWords, (w) => lowerReasoning.includes(w));
+  const cautionScore = countByCondition(cautionWords, (w) => lowerReasoning.includes(w));
 
   let sentiment: "bullish" | "bearish" | "neutral" | "cautious";
   if (cautionScore > bullishScore && cautionScore > bearishScore) {

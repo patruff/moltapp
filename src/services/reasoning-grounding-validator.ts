@@ -26,7 +26,7 @@
  */
 
 import type { MarketData } from "../agents/base-agent.ts";
-import { round3 } from "../lib/math-utils.ts";
+import { round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -723,11 +723,11 @@ export function validateGrounding(
   const claims = extractClaims(reasoning);
   const verifications = claims.map((c) => verifyClaim(c, marketData, citedSources));
 
-  const groundedClaims = verifications.filter((v) => v.status === "grounded").length;
-  const ungroundedClaims = verifications.filter((v) => v.status === "ungrounded").length;
-  const hallucinatedClaims = verifications.filter((v) => v.status === "hallucinated").length;
-  const embellishedClaims = verifications.filter((v) => v.status === "embellished").length;
-  const inferredClaims = verifications.filter((v) => v.status === "inferred").length;
+  const groundedClaims = countByCondition(verifications, (v) => v.status === "grounded");
+  const ungroundedClaims = countByCondition(verifications, (v) => v.status === "ungrounded");
+  const hallucinatedClaims = countByCondition(verifications, (v) => v.status === "hallucinated");
+  const embellishedClaims = countByCondition(verifications, (v) => v.status === "embellished");
+  const inferredClaims = countByCondition(verifications, (v) => v.status === "inferred");
 
   // Grounding score: weighted by severity
   // Grounded = 1.0, Inferred = 0.7, Embellished = 0.4, Ungrounded = 0.1, Hallucinated = 0.0
