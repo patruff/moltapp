@@ -169,7 +169,9 @@ benchmarkLeaderboardRoutes.get("/data", async (c) => {
 
   // Sort by composite score descending
   leaderboard.sort((a, b) => b.compositeScore - a.compositeScore);
-  leaderboard.forEach((a, i) => { a.rank = i + 1; });
+  leaderboard.forEach((a, i) => {
+    a.rank = i + 1;
+  });
 
   // Get recent brain feed
   let recentReasoning: { agentId: string; action: string; symbol: string; reasoning: string; confidence: number | null; coherenceScore: number | null; intent: string; timestamp: Date | null }[] = [];

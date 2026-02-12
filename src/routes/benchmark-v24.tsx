@@ -133,7 +133,10 @@ benchmarkV24Routes.get("/", async (c) => {
       let topPattern = "general";
       let topPatternCount = 0;
       for (const [p, count] of patterns) {
-        if (count > topPatternCount) { topPattern = p; topPatternCount = count; }
+        if (count > topPatternCount) {
+          topPattern = p;
+          topPatternCount = count;
+        }
       }
 
       // Top source categories
@@ -164,7 +167,9 @@ benchmarkV24Routes.get("/", async (c) => {
 
     // Rank
     agents.sort((a, b) => b.compositeScore - a.compositeScore);
-    agents.forEach((a, i) => { a.rank = i + 1; });
+    agents.forEach((a, i) => {
+      a.rank = i + 1;
+    });
 
     // Brain feed entries
     const recentTrades = justifications.slice(0, 10);

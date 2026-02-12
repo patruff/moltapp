@@ -185,7 +185,9 @@ function computeAllScores(): V22Score[] {
   });
 
   scores.sort((a, b) => b.composite - a.composite);
-  scores.forEach((s, i) => { s.rank = i + 1; });
+  scores.forEach((s, i) => {
+    s.rank = i + 1;
+  });
   return scores;
 }
 

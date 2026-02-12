@@ -193,7 +193,9 @@ export function updateV24Leaderboard(
 
   // Re-rank
   leaderboardCache.sort((a, b) => b.compositeScore - a.compositeScore);
-  leaderboardCache.forEach((e, i) => { e.rank = i + 1; });
+  leaderboardCache.forEach((e, i) => {
+    e.rank = i + 1;
+  });
 
   // Persist to DB (fire and forget)
   const leaderboardId = `lb24_${agentId}`;
