@@ -17,7 +17,7 @@
  * Production would persist to DynamoDB.
  */
 
-import { round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
+import { round2, averageByKey, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -493,7 +493,8 @@ export function getStockSlippageProfiles(): StockSlippageProfile[] {
     const avgBps = stockRecords.length > 0
       ? stockRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / stockRecords.length
       : 0;
-    const maxBps = Math.max(...stockRecords.map((r) => Math.abs(r.slippageBps)));
+    const absBpsValues = stockRecords.map((r) => ({ value: Math.abs(r.slippageBps) }));
+    const maxBps = findMax(absBpsValues, 'value')?.value ?? 0;
 
     const buys = stockRecords.filter((r) => r.action === "buy");
     const sells = stockRecords.filter((r) => r.action === "sell");
