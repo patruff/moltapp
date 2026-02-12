@@ -16,7 +16,50 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.js";
+import { averageByKey, countByCondition } from "../lib/math-utils.js";
+
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of entries retained in the forensic ledger.
+ * When exceeded, oldest entries are evicted (FIFO eviction).
+ *
+ * 5,000 entries ≈ 1,667 rounds of 3-agent trading (Claude, GPT, Grok).
+ * At 3 rounds/hour, this represents ~555 hours (~23 days) of trading history.
+ *
+ * Tuning: Increase to 10,000 for longer retention (46 days), decrease to 2,500 for memory-constrained environments.
+ */
+const MAX_LEDGER_SIZE = 5000;
+
+/**
+ * Default limit for ledger query results.
+ * Prevents overwhelming API responses when querying large ledgers.
+ *
+ * 50 entries = ~16-17 rounds of 3-agent trading.
+ *
+ * Tuning: Increase to 100 for researcher exports, decrease to 20 for UI pagination.
+ */
+const DEFAULT_QUERY_LIMIT = 50;
+
+/**
+ * Benchmark version stamped on all ledger entries.
+ * Used for forensic reproducibility — researchers can filter by version.
+ *
+ * Current: v17 (forensic ledger with cryptographic sealing + outcome resolution).
+ *
+ * Update: Increment when ledger schema changes (e.g., v18 for new quality metrics).
+ */
+const BENCHMARK_VERSION = "v17";
+
+/**
+ * Fallback sequence number when ledger is empty.
+ * Used in getLedgerStats() for lastSequence initialization.
+ *
+ * -1 indicates "no entries exist" (sequence numbers start at 0).
+ */
+const EMPTY_LEDGER_SEQUENCE = -1;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,7 +147,6 @@ export interface LedgerQuery {
 // ---------------------------------------------------------------------------
 
 const ledger: LedgerEntry[] = [];
-const MAX_LEDGER_SIZE = 5000;
 
 // ---------------------------------------------------------------------------
 // Hash helpers
@@ -194,7 +236,7 @@ export function appendToLedger(params: {
     outcomeTimestamp: null,
     witnesses: params.witnesses,
     timestamp: new Date().toISOString(),
-    benchmarkVersion: "v17",
+    benchmarkVersion: BENCHMARK_VERSION,
   };
 
   const entryHash = hashEntry(entry);
@@ -247,7 +289,7 @@ export function queryLedger(query: LedgerQuery): { entries: LedgerEntry[]; total
 
   const total = filtered.length;
   const offset = query.offset ?? 0;
-  const limit = query.limit ?? 50;
+  const limit = query.limit ?? DEFAULT_QUERY_LIMIT;
   const entries = filtered.slice(offset, offset + limit);
 
   return { entries, total };
@@ -326,8 +368,8 @@ export function getLedgerStats(): LedgerStats {
   // Compute averages
   for (const [agentId, stats] of Object.entries(agentBreakdown)) {
     const agentEntries = ledger.filter((e) => e.agentId === agentId);
-    stats.avgCoherence = agentEntries.reduce((s, e) => s + e.coherenceScore, 0) / agentEntries.length;
-    stats.avgDepth = agentEntries.reduce((s, e) => s + e.depthScore, 0) / agentEntries.length;
+    stats.avgCoherence = averageByKey(agentEntries, 'coherenceScore');
+    stats.avgDepth = averageByKey(agentEntries, 'depthScore');
     stats.hallucinationRate = countByCondition(agentEntries, (e: LedgerEntry) => e.hallucinationFlags.length > 0) / agentEntries.length;
     const resolved = agentEntries.filter((e) => e.outcomeResolved);
     stats.outcomeResolvedRate = resolved.length / agentEntries.length;
@@ -343,7 +385,7 @@ export function getLedgerStats(): LedgerStats {
     chainIntact: integrity.intact,
     agentBreakdown,
     lastEntryHash: ledger.length > 0 ? ledger[ledger.length - 1].entryHash : "empty",
-    lastSequence: ledger.length > 0 ? ledger[ledger.length - 1].sequenceNumber : -1,
+    lastSequence: ledger.length > 0 ? ledger[ledger.length - 1].sequenceNumber : EMPTY_LEDGER_SEQUENCE,
     oldestEntry: ledger.length > 0 ? ledger[0].timestamp : null,
     newestEntry: ledger.length > 0 ? ledger[ledger.length - 1].timestamp : null,
   };
