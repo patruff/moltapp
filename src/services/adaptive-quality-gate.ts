@@ -20,7 +20,7 @@ import {
   detectHallucinations,
 } from "./coherence-analyzer.ts";
 import { ADAPTIVE_GATE_WEIGHTS } from "../lib/scoring-weights.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -293,7 +293,7 @@ export function getAdaptiveGateStats(): AdaptiveGateStats {
     const currentThresholds = computeAdaptiveThresholds(agentId);
     const records = evaluationHistory.get(agentId) ?? [];
     const totalEvaluated = records.length;
-    const passCount = records.filter((r) => r.passed).length;
+    const passCount = countByCondition(records, (r) => r.passed);
     const passRate = totalEvaluated > 0 ? round2(passCount / totalEvaluated) : 0;
 
     globalPassed += passCount;
