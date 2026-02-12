@@ -1122,9 +1122,9 @@ function calculateConsistency(
   const decisionConsistency = Math.max(0, 100 - confStdDev * 2);
 
   // Style adherence: does the agent follow its personality?
-  const buyCount = decisions.filter((d) => d.action === "buy").length;
-  const sellCount = decisions.filter((d) => d.action === "sell").length;
-  const holdCount = decisions.filter((d) => d.action === "hold").length;
+  const buyCount = countByCondition(decisions, (d) => d.action === "buy");
+  const sellCount = countByCondition(decisions, (d) => d.action === "sell");
+  const holdCount = countByCondition(decisions, (d) => d.action === "hold");
   const total = decisions.length;
 
   let styleAdherence = 50;
