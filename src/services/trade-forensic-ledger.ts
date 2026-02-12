@@ -16,6 +16,7 @@
  */
 
 import { createHash } from "crypto";
+import { countByCondition } from "../lib/math-utils.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -327,11 +328,11 @@ export function getLedgerStats(): LedgerStats {
     const agentEntries = ledger.filter((e) => e.agentId === agentId);
     stats.avgCoherence = agentEntries.reduce((s, e) => s + e.coherenceScore, 0) / agentEntries.length;
     stats.avgDepth = agentEntries.reduce((s, e) => s + e.depthScore, 0) / agentEntries.length;
-    stats.hallucinationRate = agentEntries.filter((e) => e.hallucinationFlags.length > 0).length / agentEntries.length;
+    stats.hallucinationRate = countByCondition(agentEntries, (e: LedgerEntry) => e.hallucinationFlags.length > 0) / agentEntries.length;
     const resolved = agentEntries.filter((e) => e.outcomeResolved);
     stats.outcomeResolvedRate = resolved.length / agentEntries.length;
     stats.outcomeAccuracyRate = resolved.length > 0
-      ? resolved.filter((e) => e.outcomeCorrect).length / resolved.length
+      ? countByCondition(resolved, (e: LedgerEntry) => e.outcomeCorrect === true) / resolved.length
       : 0;
   }
 
