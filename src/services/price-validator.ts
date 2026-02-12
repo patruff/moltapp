@@ -25,7 +25,7 @@
 
 import { getPrice, getAggregatedPrice, type PricePoint } from "./realtime-prices.ts";
 import { logTradeEvent } from "./audit-log.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -328,7 +328,7 @@ export async function validatePrice(
   confidence += sourceDetails.length * CONFIDENCE_PER_SOURCE_BONUS;
 
   // Fresh prices = higher confidence
-  const freshRatio = sourceDetails.filter((s) => !s.isStale).length / sourceDetails.length;
+  const freshRatio = countByCondition(sourceDetails, (s) => !s.isStale) / sourceDetails.length;
   confidence += freshRatio * CONFIDENCE_FRESH_RATIO_MULTIPLIER;
 
   // Low deviation = higher confidence

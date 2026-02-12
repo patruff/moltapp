@@ -361,7 +361,7 @@ export function getSlippageStats(since?: Date): SlippageStats {
     (sum, r) => sum + r.totalImpactUsd,
     0,
   );
-  const favorableCount = filtered.filter((r) => r.favorable).length;
+  const favorableCount = countByCondition(filtered, (r) => r.favorable);
 
   // 24-hour stats
   const now24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -427,7 +427,7 @@ export function getAgentSlippageProfiles(): AgentSlippageProfile[] {
       (sum, r) => sum + r.totalImpactUsd,
       0,
     );
-    const favorableCount = agentRecords.filter((r) => r.favorable).length;
+    const favorableCount = countByCondition(agentRecords, (r) => r.favorable);
     const avgBps = agentRecords.length > 0
       ? agentRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / agentRecords.length
       : 0;
