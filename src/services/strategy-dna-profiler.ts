@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords, getTopKey, clamp, round3 } from "../lib/math-utils.ts";
+import { countWords, getTopKey, clamp, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -226,7 +226,7 @@ export function computeDNA(agentId: string): StrategyDNA {
   const conviction = clamp(avgRelativeSize, 0, 1);
 
   // 3. Patience: hold rate
-  const holdRate = trades.filter((t) => t.action === "hold").length / trades.length;
+  const holdRate = countByCondition(trades, (t) => t.action === "hold") / trades.length;
   const patience = clamp(holdRate, 0, 1);
 
   // 4. Sector Concentration: Herfindahl index of symbols traded
@@ -246,8 +246,8 @@ export function computeDNA(agentId: string): StrategyDNA {
   let peerComparisons = 0;
   for (const t of trades) {
     if (t.peerActions && t.peerActions.length > 0 && t.action !== "hold") {
-      const peerBuys = t.peerActions.filter((p) => p.action === "buy").length;
-      const peerSells = t.peerActions.filter((p) => p.action === "sell").length;
+      const peerBuys = countByCondition(t.peerActions, (p) => p.action === "buy");
+      const peerSells = countByCondition(t.peerActions, (p) => p.action === "sell");
       const peerConsensus =
         peerBuys > peerSells ? "buy" : peerSells > peerBuys ? "sell" : null;
 
