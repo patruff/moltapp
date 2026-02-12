@@ -18,7 +18,7 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
-import { clamp, cosineSimilarity, countWords, weightedSum } from "../lib/math-utils.ts";
+import { clamp, cosineSimilarity, countWords, weightedSum, countByCondition } from "../lib/math-utils.ts";
 import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ function scoreRiskAppetite(obs: TradeObservation[]): Gene {
   const nonHold = obs.filter((o) => o.action !== "hold");
   const holdRate = 1 - (nonHold.length / Math.max(1, obs.length));
   const avgQuantity = nonHold.length > 0 ? nonHold.reduce((s, o) => s + o.quantity, 0) / nonHold.length : 0;
-  const highConfTrades = nonHold.filter((o) => o.confidence > HIGH_CONFIDENCE_THRESHOLD).length;
+  const highConfTrades = countByCondition(nonHold, (o) => o.confidence > HIGH_CONFIDENCE_THRESHOLD);
 
   // Higher = more risk-taking
   const score = Math.min(1,
@@ -264,7 +264,7 @@ function scoreContrarianism(obs: TradeObservation[]): Gene {
     return { name: "contrarianism", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient consensus data"], sampleSize: withConsensus.length };
   }
 
-  const contrarian = withConsensus.filter((o) => o.action !== o.consensusAction).length;
+  const contrarian = countByCondition(withConsensus, (o) => o.action !== o.consensusAction);
   const score = contrarian / withConsensus.length;
 
   const evidence: string[] = [];
@@ -279,7 +279,7 @@ function scoreContrarianism(obs: TradeObservation[]): Gene {
 function scoreInformationProcessing(obs: TradeObservation[]): Gene {
   // How well does reasoning quality correlate with outcomes?
   const avgCoherence = obs.reduce((s, o) => s + o.coherenceScore, 0) / Math.max(1, obs.length);
-  const hallRate = obs.filter((o) => o.hallucinationCount > 0).length / Math.max(1, obs.length);
+  const hallRate = countByCondition(obs, (o) => o.hallucinationCount > 0) / Math.max(1, obs.length);
   const avgReasoningLength = obs.reduce((s, o) => s + countWords(o.reasoning), 0) / Math.max(1, obs.length);
 
   const score = Math.min(1,

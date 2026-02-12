@@ -685,8 +685,8 @@ export function computeMarketBreadth(): MarketBreadth {
   }
 
   const changes = prices.map((p) => p.change24h);
-  const advancing = changes.filter((c) => c > MARKET_BREADTH_UNCHANGED_THRESHOLD).length;
-  const declining = changes.filter((c) => c < -MARKET_BREADTH_UNCHANGED_THRESHOLD).length;
+  const advancing = countByCondition(changes, (c) => c > MARKET_BREADTH_UNCHANGED_THRESHOLD);
+  const declining = countByCondition(changes, (c) => c < -MARKET_BREADTH_UNCHANGED_THRESHOLD);
   const unchanged = prices.length - advancing - declining;
 
   const averageChange = changes.reduce((a, b) => a + b, 0) / changes.length;
@@ -928,7 +928,7 @@ export function analyzeLiquidity(prices: AggregatedPrice[]): LiquidityAnalysis {
 
   const analysis: LiquidityAnalysis = {
     tokens,
-    tradeableCount: tokens.filter((t) => t.tradeable).length,
+    tradeableCount: countByCondition(tokens, (t) => t.tradeable),
     totalCount: tokens.length,
     analyzedAt: new Date().toISOString(),
   };

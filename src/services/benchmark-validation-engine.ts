@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { clamp, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { clamp, round3, splitSentences, weightedSum, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -506,7 +506,7 @@ function validateReasoningDepth(reasoning: string, issues: ValidationIssue[], su
     { pattern: /news|event|catalyst|announcement/i, name: "catalyst_awareness" },
   ];
 
-  const dimensionsPresent = dimensions.filter((d) => d.pattern.test(reasoning)).length;
+  const dimensionsPresent = countByCondition(dimensions, (d) => d.pattern.test(reasoning));
   score += Math.min(DEPTH_DIMENSION_BONUS_MAX, dimensionsPresent * DEPTH_DIMENSION_BONUS_PER_ANGLE);
 
   if (dimensionsPresent < DEPTH_DIMENSION_MIN_FOR_QUALITY) {
@@ -748,7 +748,7 @@ function validateActionAlignment(decision: TradingDecision, issues: ValidationIs
 }
 
 function validateRiskAwareness(reasoning: string, action: string, issues: ValidationIssue[], suggestions: string[]): number {
-  const riskMentions = RISK_VOCABULARY.filter((p) => p.test(reasoning)).length;
+  const riskMentions = countByCondition(RISK_VOCABULARY, (p) => p.test(reasoning));
 
   if (action === "hold") {
     // Hold decisions don't need as much risk discussion
@@ -813,7 +813,7 @@ export function validateDatasetBatch(
     validateForBenchmark(decision, agentId, marketData),
   );
 
-  const validCount = results.filter((r) => r.valid).length;
+  const validCount = countByCondition(results, (r) => r.valid);
   const avgScore = results.length > 0
     ? results.reduce((s, r) => s + r.qualityScore, 0) / results.length
     : 0;

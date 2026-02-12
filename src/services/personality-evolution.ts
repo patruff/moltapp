@@ -18,7 +18,7 @@
  * No database dependency — designed for real-time dashboard consumption.
  */
 
-import { round1 } from "../lib/math-utils.ts";
+import { round1, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -567,7 +567,7 @@ export function computePersonality(agentId: string): PersonalitySnapshot | null 
  */
 function computeAggressiveness(window: RecordedDecision[]): number {
   if (window.length === 0) return 0;
-  const nonHold = window.filter((d) => d.decision.action !== "hold").length;
+  const nonHold = countByCondition(window, (d) => d.decision.action !== "hold");
   return (nonHold / window.length) * 100;
 }
 
@@ -716,8 +716,8 @@ function computeOutcomeSensitivity(
     const confDelta = Math.abs(avgConfAfter - avgConfBefore);
 
     // Aggressiveness delta (trade rate)
-    const tradeRateBefore = before.filter((d) => d.decision.action !== "hold").length / before.length;
-    const tradeRateAfter = after.filter((d) => d.decision.action !== "hold").length / after.length;
+    const tradeRateBefore = countByCondition(before, (d) => d.decision.action !== "hold") / before.length;
+    const tradeRateAfter = countByCondition(after, (d) => d.decision.action !== "hold") / after.length;
     const aggDelta = Math.abs(tradeRateAfter - tradeRateBefore) * 100;
 
     // Combined behavioral change

@@ -13,7 +13,7 @@
  * 6. AGGREGATED CHAIN QUALITY SCORE: Overall chain integrity metric
  */
 
-import { clamp, round2, averageByKey } from "../lib/math-utils.ts";
+import { clamp, round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -788,8 +788,8 @@ function computeChainQualityScore(
   if (steps.length === 0) return 0;
 
   const totalSteps = steps.length;
-  const evidenceSteps = steps.filter((s) => s.hasEvidence).length;
-  const validConnectors = connectors.filter((c) => c.strength >= CHAIN_QUALITY_CONNECTOR_STRENGTH_THRESHOLD).length;
+  const evidenceSteps = countByCondition(steps, (s) => s.hasEvidence);
+  const validConnectors = countByCondition(connectors, (c) => c.strength >= CHAIN_QUALITY_CONNECTOR_STRENGTH_THRESHOLD);
 
   let score = CHAIN_QUALITY_BASE_SCORE;
   score += CHAIN_QUALITY_EVIDENCE_WEIGHT * (evidenceSteps / totalSteps);
@@ -837,7 +837,7 @@ export function validateReasoningChain(
   ];
 
   const longestChain = computeLongestChain(steps);
-  const evidenceSteps = steps.filter((s) => s.hasEvidence).length;
+  const evidenceSteps = countByCondition(steps, (s) => s.hasEvidence);
   const avgStepEvidence = steps.length > 0 ? evidenceSteps / steps.length : 0;
   const chainQualityScore = computeChainQualityScore(steps, connectors, defects, longestChain);
 

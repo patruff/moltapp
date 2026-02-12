@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { getWalletBalances, type TokenBalance } from "./solana-tracker.ts";
 import { XSTOCKS_CATALOG, TOKEN_2022_PROGRAM_ADDRESS } from "../config/constants.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 type PositionRow = InferSelectModel<typeof positions>;
@@ -264,10 +264,10 @@ export async function reconcileAgent(
   }
 
   // Step 5: Compute summary
-  const matched = reconciliations.filter((r) => r.discrepancy === "MATCH").length;
-  const phantoms = reconciliations.filter((r) => r.discrepancy === "PHANTOM").length;
-  const excesses = reconciliations.filter((r) => r.discrepancy === "EXCESS").length;
-  const deficits = reconciliations.filter((r) => r.discrepancy === "DEFICIT").length;
+  const matched = countByCondition(reconciliations, (r) => r.discrepancy === "MATCH");
+  const phantoms = countByCondition(reconciliations, (r) => r.discrepancy === "PHANTOM");
+  const excesses = countByCondition(reconciliations, (r) => r.discrepancy === "EXCESS");
+  const deficits = countByCondition(reconciliations, (r) => r.discrepancy === "DEFICIT");
 
   let overallStatus: "healthy" | "warning" | "critical" = "healthy";
   if (phantoms > 0 || deficits > 0) {
