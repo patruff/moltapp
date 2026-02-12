@@ -27,7 +27,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2, countByCondition } from "../lib/math-utils.ts";
+import { round2, countByCondition, clamp } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
     }
 
     const rawScore = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
-    const score = Math.max(-100, Math.min(100, rawScore));
+    const score = clamp(rawScore, -100, 100);
 
     // Build driver descriptions per agent
     for (const agentId of AGENT_IDS) {
