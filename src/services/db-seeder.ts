@@ -23,6 +23,7 @@ import { errorMessage } from "../lib/errors.ts";
 import { wallets } from "../db/schema/wallets.ts";
 import { apiKeys } from "../db/schema/api-keys.ts";
 import { eq, sql } from "drizzle-orm";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -393,9 +394,9 @@ export async function seedDatabase(): Promise<SeedResult> {
   await seedWallets(records);
   await seedApiKeys(records);
 
-  const created = records.filter((r) => r.action === "created").length;
-  const existing = records.filter((r) => r.action === "exists").length;
-  const errors = records.filter((r) => r.action === "error").length;
+  const created = countByCondition(records, (r) => r.action === "created");
+  const existing = countByCondition(records, (r) => r.action === "exists");
+  const errors = countByCondition(records, (r) => r.action === "error");
   const durationMs = Date.now() - startTime;
 
   console.log(

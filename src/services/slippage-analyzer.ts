@@ -17,7 +17,7 @@
  * Production would persist to DynamoDB.
  */
 
-import { round2, averageByKey } from "../lib/math-utils.ts";
+import { round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
