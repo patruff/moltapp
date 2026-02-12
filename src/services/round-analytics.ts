@@ -15,7 +15,7 @@
  * 7. Historical trend detection (improving or degrading performance?)
  */
 
-import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, round2, round3, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -299,16 +299,9 @@ export function analyzeRound(
   const marketContext = analyzeMarketContext(decisions, marketData);
 
   // Aggregate metrics
-  const totalUsdc = decisions.reduce((s, d) => s + (d.usdcAmount ?? 0), 0);
-  const avgConf =
-    decisions.length > 0
-      ? decisions.reduce((s, d) => s + d.confidence, 0) / decisions.length
-      : 0;
-  const avgQty =
-    activeDecisions.length > 0
-      ? activeDecisions.reduce((s, d) => s + d.quantity, 0) /
-        activeDecisions.length
-      : 0;
+  const totalUsdc = sumByKey(decisions, 'usdcAmount');
+  const avgConf = averageByKey(decisions, 'confidence');
+  const avgQty = averageByKey(activeDecisions, 'quantity');
   const uniqueStocks = new Set(
     activeDecisions.map((d) => d.symbol),
   ).size;
@@ -417,10 +410,7 @@ function analyzeConsensus(decisions: RoundDecision[]): RoundAnalytics["consensus
 
   const confidences = decisions.map((d) => d.confidence);
   const spread = Math.max(...confidences) - Math.min(...confidences);
-  const majAvgConf =
-    majorityGroup.length > 0
-      ? majorityGroup.reduce((s, d) => s + d.confidence, 0) / majorityGroup.length
-      : 0;
+  const majAvgConf = averageByKey(majorityGroup, 'confidence');
 
   return {
     type,
