@@ -21,6 +21,7 @@
  */
 
 import { createHash } from "crypto";
+import { countByCondition } from "./math-utils.js";
 
 // ---------------------------------------------------------------------------
 // Types for the 26 dimensions
@@ -277,7 +278,7 @@ export function scoreConsensusQuality(
   if (peerActions.length === 0) return 50; // No peers to compare
 
   // Count agreement/disagreement
-  const sameAction = peerActions.filter((p) => p.action === action).length;
+  const sameAction = countByCondition(peerActions, (p) => p.action === action);
   const totalPeers = peerActions.length;
   const agreementRate = sameAction / totalPeers;
 
@@ -470,7 +471,7 @@ export function scoreCausalReasoning(
     /\bMACD\b/i, /\bsupply\b/i, /\bdemand\b/i,
     /\bcorrelation\b/i, /\brotation\b/i, /\bon-?chain\b/i,
   ];
-  const factorsFound = factorKeywords.filter((p) => p.test(reasoning)).length;
+  const factorsFound = countByCondition(factorKeywords, (p) => p.test(reasoning));
   if (factorsFound >= 3) {
     multiFactorScore += Math.min(5, (factorsFound - 2) * 2);
   }
@@ -846,7 +847,7 @@ export function scoreAgent(input: {
     return hasRegime ? 80 : 45;
   }));
   const edgeConsistency = t.length >= 3
-    ? Math.min(100, 40 + (t.filter((x) => x.coherenceScore > 0.6).length / t.length) * 60)
+    ? Math.min(100, 40 + (countByCondition(t, (x) => x.coherenceScore > 0.6) / t.length) * 60)
     : 50;
 
   // Governance (4 dims)
