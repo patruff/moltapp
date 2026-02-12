@@ -14,7 +14,7 @@
  * 5. CONSISTENCY UNDER PRESSURE: Same fundamentals, different framing — same decision?
  */
 
-import { clamp, countWords, round3 } from "../lib/math-utils.ts";
+import { clamp, countWords, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -447,7 +447,7 @@ export function measureFramingConsistency(
     /in\s+the\s+last\s+(?:few|24)\s+(?:hours|minutes)/i,
     /this\s+morning|this\s+afternoon/i,
   ];
-  const recencyCount = recencyPatterns.filter((p) => p.test(reasoning)).length;
+  const recencyCount = countByCondition(recencyPatterns, (p) => p.test(reasoning));
   if (recencyCount >= FRAMING_RECENCY_PATTERN_MIN_COUNT) {
     indicators.push("heavy_recency_bias");
   }

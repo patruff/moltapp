@@ -27,7 +27,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
-import { round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
+import { round2, round3, sumByKey, averageByKey, mean } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -473,9 +473,7 @@ export function calculateVaR(portfolio: PortfolioContext): VaRResult {
   const tailLosses = dailyReturns.slice(0, var95Index);
   const cvar95 =
     tailLosses.length > 0
-      ? Math.abs(
-          (tailLosses.reduce((sum, r) => sum + r, 0) / tailLosses.length) * portfolioValue,
-        )
+      ? Math.abs(mean(tailLosses) * portfolioValue)
       : var95;
 
   return {
@@ -650,7 +648,7 @@ export function calculateRiskAdjustedMetrics(
       ? dailyReturns
       : generateSimulatedReturns(VAR_LOOKBACK_DAYS, VAR_SIMULATED_RETURN_VOLATILITY);
 
-  const meanReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
+  const meanReturn = mean(returns);
   const riskFreeRate = RISK_FREE_RATE_ANNUAL / VAR_LOOKBACK_DAYS; // Daily risk-free rate
 
   // Standard deviation
@@ -692,8 +690,7 @@ export function calculateRiskAdjustedMetrics(
   const marketReturns = generateSimulatedReturns(returns.length, MARKET_RETURN_VOLATILITY);
   let covXY = 0;
   let varMarket = 0;
-  const meanMarket =
-    marketReturns.reduce((s, r) => s + r, 0) / marketReturns.length;
+  const meanMarket = mean(marketReturns);
   for (let i = 0; i < returns.length; i++) {
     covXY += (returns[i] - meanReturn) * (marketReturns[i] - meanMarket);
     varMarket += (marketReturns[i] - meanMarket) ** 2;
@@ -709,8 +706,7 @@ export function calculateRiskAdjustedMetrics(
 
   // Information ratio
   const excessReturns = returns.map((r, i) => r - marketReturns[i]);
-  const meanExcess =
-    excessReturns.reduce((s, r) => s + r, 0) / excessReturns.length;
+  const meanExcess = mean(excessReturns);
   const trackingErrorVar =
     excessReturns.reduce((s, r) => s + (r - meanExcess) ** 2, 0) /
     excessReturns.length;
