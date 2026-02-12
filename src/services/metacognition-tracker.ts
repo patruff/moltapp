@@ -18,7 +18,7 @@
  */
 
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -488,7 +488,7 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
   const tradeCount = events.length;
 
   // 1. EPISTEMIC HUMILITY
-  const avgHedge = events.reduce((s, e) => s + e.hedgeCount, 0) / tradeCount;
+  const avgHedge = averageByKey(events, 'hedgeCount');
   const uncertaintyRate = countByCondition(events, (e) => e.uncertaintyExpressions.length > 0) / tradeCount;
   const conditionalRate = countByCondition(events, (e) => e.conditionalsCount > 0) / tradeCount;
 
