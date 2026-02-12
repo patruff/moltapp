@@ -13,7 +13,7 @@
  * and HuggingFace forensic exports.
  */
 
-import { clamp, countWords, getFilteredWords, round2, round3, splitSentences } from "../lib/math-utils.ts";
+import { clamp, countByCondition, countWords, getFilteredWords, round2, round3, splitSentences } from "../lib/math-utils.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
 import { FORENSIC_COMPONENT_WEIGHTS, ORIGINALITY_ANALYSIS_WEIGHTS } from "../lib/scoring-weights.ts";
 
@@ -463,7 +463,7 @@ function analyzeOriginality(agentId: string, reasoning: string): OriginalityAnal
   }
 
   const uniqueNGramRatio = currentNGrams.size > 0 && totalHistoryNGrams.size > 0
-    ? [...currentNGrams].filter((ng) => !totalHistoryNGrams.has(ng)).length / currentNGrams.size
+    ? countByCondition([...currentNGrams], (ng) => !totalHistoryNGrams.has(ng)) / currentNGrams.size
     : 1;
 
   // Template probability (high similarity = likely templated)
@@ -566,7 +566,7 @@ function analyzeCrossTrade(
     // Copypasta detection: very similar reasoning to previous trade
     const prevWords = new Set(getFilteredWords(prev.reasoning, ORIGINALITY_NGRAM_SIZE));
     const currWords = new Set(getFilteredWords(reasoning));
-    const intersection = [...currWords].filter((w) => prevWords.has(w)).length;
+    const intersection = countByCondition([...currWords], (w) => prevWords.has(w));
     const union = new Set([...prevWords, ...currWords]).size;
     const jaccard = union > 0 ? intersection / union : 0;
 
