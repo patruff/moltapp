@@ -200,11 +200,13 @@ const MAX_TOOL_CALLS = 12;
 
 /** Minimal system prompt for the research phase (~80 tokens) */
 const RESEARCH_SYSTEM_PROMPT = `You are a trading research assistant. Gather market data using the available tools. Steps:
-1. Check portfolio positions and active theses (get_portfolio, get_theses)
-2. Get prices and news for relevant stocks (get_stock_price, get_stock_news)
+1. Check portfolio positions and active theses (get_portfolio, get_active_theses)
+2. Get prices and news for relevant stocks (get_stock_prices, search_news)
 3. Check technical indicators (get_technical_indicators)
-4. Update or manage theses as needed (update_thesis, close_thesis, create_thesis)
-Call tools systematically to gather comprehensive data. Do NOT output a trading decision.`;
+4. Update or manage theses as needed (update_thesis, close_thesis)
+5. Check wallet status before trading (get_wallet_status)
+6. If you have high conviction, get a quote first (get_execution_quote) then execute (execute_trade)
+Call tools systematically to gather comprehensive data. You may execute trades directly if conviction is high.`;
 
 /**
  * Abstract base class for all AI trading agents.
@@ -467,6 +469,16 @@ export abstract class BaseTradingAgent {
   protected compileResearchBrief(toolTrace: ToolTraceEntry[], userMessage: string): string {
     let brief = `ROUND CONTEXT:\n${userMessage}\n\nRESEARCH DATA GATHERED (${toolTrace.length} tool calls):\n`;
 
+    // Check if any trades were executed during research phase
+    const executedTrades = toolTrace.filter((e) => e.tool === "execute_trade");
+    if (executedTrades.length > 0) {
+      brief += `\nTRADES ALREADY EXECUTED THIS ROUND (${executedTrades.length}):\n`;
+      for (const trade of executedTrades) {
+        brief += `- ${trade.result.slice(0, 300)}\n`;
+      }
+      brief += "\n";
+    }
+
     for (const entry of toolTrace) {
       const args = JSON.stringify(entry.arguments).slice(0, 100);
       brief += `\n--- ${entry.tool}(${args}) ---\n`;
@@ -479,6 +491,9 @@ export abstract class BaseTradingAgent {
     }
 
     brief += "\n\nBased on ALL the research above, output ONLY a valid JSON trading decision with: action (buy/sell/hold), symbol, quantity (USDC for buys, shares for sells, 0 for holds), reasoning, confidence (0-100), sources (array of data sources used), intent, predictedOutcome, thesisStatus.";
+    if (executedTrades.length > 0) {
+      brief += " NOTE: Trades were already executed during research. Your decision should reflect what ADDITIONAL action (if any) to take, or 'hold' if the executed trades are sufficient.";
+    }
 
     return brief;
   }

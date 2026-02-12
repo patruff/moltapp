@@ -1,9 +1,10 @@
 /**
  * Trading Tools — Tool definitions & central executor for autonomous agents
  *
- * 7 tools agents can call during their tool-calling loop:
+ * 10 tools agents can call during their tool-calling loop:
  *   get_portfolio, get_stock_prices, get_active_theses,
- *   update_thesis, close_thesis, search_news, get_technical_indicators
+ *   update_thesis, close_thesis, search_news, get_technical_indicators,
+ *   get_execution_quote, execute_trade, get_wallet_status
  *
  * Provides dual-format output for Anthropic and OpenAI tool schemas.
  */
@@ -20,6 +21,14 @@ import type { agentTheses } from "../db/schema/agent-theses.ts";
 import type { InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG, USDC_MINT_MAINNET } from "../config/constants.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { executeBuy, executeSell } from "../services/trading.ts";
+import { getAgentWalletStatus } from "../services/agent-wallets.ts";
+import {
+  enforcePolicy,
+  recordTrade,
+  getAgentTradeStats,
+  getAgentPolicy,
+} from "../services/wallet-policy.ts";
 
 // ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
@@ -77,6 +86,19 @@ export interface GetExecutionQuoteArgs {
   amount: number;
 }
 
+export interface ExecuteTradeArgs {
+  symbol: string;
+  side: "buy" | "sell";
+  /** For buys: USDC to spend. For sells: number of shares to sell. */
+  amount: number;
+  /** Required reasoning for why the agent is executing this trade now. */
+  reasoning: string;
+}
+
+export interface GetWalletStatusArgs {
+  // No arguments
+}
+
 export type ToolArgs =
   | GetPortfolioArgs
   | GetStockPricesArgs
@@ -85,7 +107,9 @@ export type ToolArgs =
   | CloseThesisArgs
   | SearchNewsArgs
   | GetTechnicalIndicatorsArgs
-  | GetExecutionQuoteArgs;
+  | GetExecutionQuoteArgs
+  | ExecuteTradeArgs
+  | GetWalletStatusArgs;
 
 // ---------------------------------------------------------------------------
 // Input Validation Helpers
@@ -293,6 +317,27 @@ const TOOL_DEFINITIONS: ToolDef[] = [
       required: ["symbol", "side", "amount"],
     },
   },
+  {
+    name: "execute_trade",
+    description:
+      "Execute a real trade on-chain via Jupiter DEX. IMPORTANT: This sends a real Solana transaction that buys/sells tokenized stocks. Use get_execution_quote first to check price impact. Subject to wallet policy limits (max trade size, daily volume, rate limits).",
+    parameters: {
+      type: "object",
+      properties: {
+        symbol: { type: "string", description: "Stock symbol to trade (e.g. AAPLx)" },
+        side: { type: "string", description: "Trade direction", enum: ["buy", "sell"] },
+        amount: { type: "number", description: "For buys: USDC to spend. For sells: number of shares to sell." },
+        reasoning: { type: "string", description: "Why you are executing this trade now (required for audit trail)" },
+      },
+      required: ["symbol", "side", "amount", "reasoning"],
+    },
+  },
+  {
+    name: "get_wallet_status",
+    description:
+      "Get your wallet status: SOL balance (for fees), USDC balance, xStock holdings, and trading policy limits (daily volume used, trades remaining).",
+    parameters: { type: "object", properties: {}, required: [] },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -360,6 +405,12 @@ export async function executeTool(
 
     case "get_execution_quote":
       return executeGetExecutionQuote(args as GetExecutionQuoteArgs, ctx);
+
+    case "execute_trade":
+      return executeExecuteTrade(args as ExecuteTradeArgs, ctx);
+
+    case "get_wallet_status":
+      return executeGetWalletStatus(ctx);
 
     default:
       return JSON.stringify({ error: `Unknown tool: ${toolName}` });
@@ -1039,6 +1090,141 @@ async function executeGetExecutionQuote(
       side: args.side,
       error: errorMessage(err),
       note: "Use get_stock_prices for mid-market estimates instead.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// execute_trade — On-chain trade execution via Jupiter + Turnkey
+// ---------------------------------------------------------------------------
+
+async function executeExecuteTrade(
+  args: ExecuteTradeArgs,
+  ctx: ToolContext,
+): Promise<string> {
+  // Validate required fields
+  const symbolError = validateStringField(args.symbol, "symbol");
+  if (symbolError) {
+    return JSON.stringify({ success: false, error: symbolError });
+  }
+  if (!args.side || !["buy", "sell"].includes(args.side)) {
+    return JSON.stringify({ success: false, error: "side must be 'buy' or 'sell'" });
+  }
+  if (!args.amount || typeof args.amount !== "number" || args.amount <= 0) {
+    return JSON.stringify({ success: false, error: "amount must be a positive number" });
+  }
+  if (!Number.isFinite(args.amount)) {
+    return JSON.stringify({ success: false, error: "amount must be a finite number" });
+  }
+  const reasoningError = validateStringField(args.reasoning, "reasoning", 2000);
+  if (reasoningError) {
+    return JSON.stringify({ success: false, error: reasoningError });
+  }
+
+  // Verify symbol exists
+  const stock = XSTOCKS_CATALOG.find(
+    (s) => s.symbol.toLowerCase() === args.symbol.toLowerCase(),
+  );
+  if (!stock) {
+    return JSON.stringify({
+      success: false,
+      error: `Unknown symbol: ${args.symbol}. Use get_stock_prices to see available stocks.`,
+    });
+  }
+
+  // Enforce wallet policy guardrails
+  const policyCheck = enforcePolicy(ctx.agentId, stock.symbol, args.side, args.amount);
+  if (!policyCheck.allowed) {
+    return JSON.stringify({
+      success: false,
+      error: `Policy rejected: ${policyCheck.reason}`,
+      note: "Use get_wallet_status to check your current trading limits.",
+    });
+  }
+
+  try {
+    let result;
+    if (args.side === "buy") {
+      result = await executeBuy({
+        agentId: ctx.agentId,
+        stockSymbol: stock.symbol,
+        usdcAmount: args.amount.toFixed(6),
+      });
+    } else {
+      result = await executeSell({
+        agentId: ctx.agentId,
+        stockSymbol: stock.symbol,
+        usdcAmount: "0",
+        stockQuantity: args.amount.toFixed(9),
+      });
+    }
+
+    // Record successful trade in policy tracker
+    const tradeUsdcAmount = parseFloat(result.usdcAmount);
+    recordTrade(ctx.agentId, stock.symbol, tradeUsdcAmount);
+
+    return JSON.stringify({
+      success: true,
+      tradeId: result.tradeId,
+      txSignature: result.txSignature,
+      side: result.side,
+      symbol: result.stockSymbol,
+      quantity: result.stockQuantity,
+      usdcAmount: result.usdcAmount,
+      pricePerToken: result.pricePerToken,
+      reasoning: args.reasoning,
+    });
+  } catch (err) {
+    const msg = errorMessage(err);
+    return JSON.stringify({
+      success: false,
+      error: msg,
+      note: msg.includes("slippage")
+        ? "Trade rejected due to excessive slippage. Try a smaller amount or different stock."
+        : msg.includes("insufficient")
+          ? "Insufficient balance. Use get_wallet_status to check your balances."
+          : "Trade execution failed. Check error details and try again.",
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// get_wallet_status — Wallet balances + policy limits
+// ---------------------------------------------------------------------------
+
+async function executeGetWalletStatus(ctx: ToolContext): Promise<string> {
+  try {
+    const [walletStatus, tradeStats] = await Promise.all([
+      getAgentWalletStatus(ctx.agentId),
+      Promise.resolve(getAgentTradeStats(ctx.agentId)),
+    ]);
+
+    const policy = getAgentPolicy(ctx.agentId);
+
+    return JSON.stringify({
+      publicKey: walletStatus.publicKey,
+      solBalance: walletStatus.solBalance,
+      hasMinimumSol: walletStatus.hasMinimumSol,
+      xStockHoldings: walletStatus.xStockHoldings.map((h) => ({
+        symbol: h.symbol,
+        name: h.name,
+        amount: h.amount,
+      })),
+      tradingPolicy: {
+        enabled: policy.enabled,
+        maxTradeSize: policy.maxTradeSize,
+        dailyVolumeUsed: tradeStats.dailyVolumeUsed,
+        dailyVolumeLimit: tradeStats.dailyVolumeLimit,
+        tradesLastHour: tradeStats.tradesLastHour,
+        maxTradesPerHour: tradeStats.maxTradesPerHour,
+        tradesLast24h: tradeStats.tradesLast24h,
+      },
+      lastCheckedAt: walletStatus.lastCheckedAt,
+    });
+  } catch (err) {
+    return JSON.stringify({
+      error: errorMessage(err),
+      note: "Could not fetch wallet status. Wallet may not be configured for this agent.",
     });
   }
 }
