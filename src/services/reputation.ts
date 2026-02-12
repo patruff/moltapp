@@ -19,7 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1164,7 +1164,7 @@ function calculateConsistency(
       streakDiscipline -= 10;
     }
   }
-  streakDiscipline = Math.max(0, Math.min(100, streakDiscipline));
+  streakDiscipline = clamp(streakDiscipline, 0, 100);
 
   // Time consistency: are trades evenly spaced?
   const gaps: number[] = [];
@@ -1225,7 +1225,7 @@ function calculateTrustScore(
     consistencyScore * TRUST_WEIGHT_CONSISTENCY +
     activityScore * TRUST_WEIGHT_ACTIVITY;
 
-  return Math.round(Math.max(0, Math.min(100, raw)) * 10) / 10;
+  return Math.round(clamp(raw, 0, 100) * 10) / 10;
 }
 
 function getTrustLevel(score: number): TrustLevel {
