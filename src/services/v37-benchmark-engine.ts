@@ -24,7 +24,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, clamp } from "../lib/math-utils.ts";
 
 // Re-export inherited scoring functions from v36
 export {
@@ -1003,9 +1003,9 @@ export function scoreAgent(input: {
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
   // Financial (normalized to 0-100)
-  const pnlScore = Math.max(0, Math.min(100, 50 + input.pnlPercent * 2));
-  const sharpeScore = Math.max(0, Math.min(100, 50 + input.sharpeRatio * 20));
-  const drawdownScore = Math.max(0, Math.min(100, 100 - Math.abs(input.maxDrawdown) * 2));
+  const pnlScore = clamp(50 + input.pnlPercent * 2, 0, 100);
+  const sharpeScore = clamp(50 + input.sharpeRatio * 20, 0, 100);
+  const drawdownScore = clamp(100 - Math.abs(input.maxDrawdown) * 2, 0, 100);
 
   // Reasoning Quality (17 dims)
   const coherence = avg(t.map((x) => x.coherenceScore * 100));
@@ -1043,8 +1043,8 @@ export function scoreAgent(input: {
   const confStdDev = Math.sqrt(
     confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
   );
-  const adaptability = Math.max(0, Math.min(100, 50 + confStdDev * 200));
-  const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - 0.6) * 200)));
+  const adaptability = clamp(50 + confStdDev * 200, 0, 100);
+  const confidenceCalibration = avg(confidences.map((c) => clamp(100 - Math.abs(c - 0.6) * 200, 0, 100)));
   const crossRoundLearning = Math.min(100, 40 + t.length * 5);
 
   // Predictive

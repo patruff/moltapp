@@ -719,6 +719,33 @@ export function createKeyMap<T, K extends keyof T, V extends keyof T>(
 }
 
 /**
+ * Finds the maximum absolute value in an array.
+ * Useful for finding the largest magnitude regardless of sign (e.g., max slippage, max drawdown).
+ *
+ * @param arr - Array of numbers
+ * @returns Maximum absolute value, or 0 if array is empty
+ *
+ * @example
+ * absMax([5, -10, 3, -2])  // returns 10
+ * absMax([-5, -3, -1])     // returns 5
+ * absMax([])               // returns 0
+ *
+ * Common use cases:
+ * - Max absolute slippage (largest deviation from expected price)
+ * - Max absolute P&L swing (largest gain or loss)
+ * - Max absolute confidence deviation (largest under/overconfidence)
+ */
+export function absMax(arr: readonly number[]): number {
+  if (arr.length === 0) return 0;
+  let max = 0;
+  for (const val of arr) {
+    const abs = Math.abs(val);
+    if (abs > max) max = abs;
+  }
+  return max;
+}
+
+/**
  * Filters an array of objects by checking if a lookup map contains their key property.
  * Useful for filtering catalogs/arrays where availability is defined by a separate map.
  *
