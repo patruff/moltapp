@@ -14,7 +14,7 @@
  * 6. SEVERITY TRACKING: Are hallucinations getting more or less severe?
  */
 
-import { round2, round3 } from "../lib/math-utils.ts";
+import { round2, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -229,8 +229,8 @@ export function generateHallucinationReport(): HallucinationReport {
   const agentIds = [...new Set(tradeAnalyses.map((t) => t.agentId))];
   const agentTrends = agentIds.map((id) => computeAgentTrend(id));
 
-  const totalEvents = tradeAnalyses.filter((t) => t.hadHallucinations).length;
-  const totalClean = tradeAnalyses.filter((t) => !t.hadHallucinations).length;
+  const totalEvents = countByCondition(tradeAnalyses, (t) => t.hadHallucinations);
+  const totalClean = countByCondition(tradeAnalyses, (t) => !t.hadHallucinations);
   const overallRate = tradeAnalyses.length > 0
     ? totalEvents / tradeAnalyses.length
     : 0;
@@ -260,10 +260,10 @@ function computeAgentTrend(agentId: string): AgentHallucinationTrend {
   const recent30 = agentTrades.slice(0, ROLLING_WINDOW_MEDIUM);
 
   const rolling7 = recent7.length > 0
-    ? recent7.filter((t) => t.hadHallucinations).length / recent7.length
+    ? countByCondition(recent7, (t) => t.hadHallucinations) / recent7.length
     : 0;
   const rolling30 = recent30.length > 0
-    ? recent30.filter((t) => t.hadHallucinations).length / recent30.length
+    ? countByCondition(recent30, (t) => t.hadHallucinations) / recent30.length
     : 0;
   const allTimeRate = totalTrades > 0 ? totalEvents / totalTrades : 0;
   const currentRate = rolling7;
@@ -273,7 +273,7 @@ function computeAgentTrend(agentId: string): AgentHallucinationTrend {
   if (agentTrades.length >= TREND_COMPARISON_MIN_TRADES) {
     const prev7 = agentTrades.slice(ROLLING_WINDOW_RECENT, TREND_COMPARISON_MIN_TRADES);
     const prevRate = prev7.length > 0
-      ? prev7.filter((t) => t.hadHallucinations).length / prev7.length
+      ? countByCondition(prev7, (t) => t.hadHallucinations) / prev7.length
       : 0;
     if (rolling7 < prevRate - TREND_IMPROVEMENT_THRESHOLD) trend = "improving";
     else if (rolling7 > prevRate + TREND_WORSENING_THRESHOLD) trend = "worsening";

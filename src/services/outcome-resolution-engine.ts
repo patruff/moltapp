@@ -29,7 +29,7 @@ import {
   computeGrade,
   normalizeMetric,
 } from "../schemas/benchmark-v23.ts";
-import { weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { weightedSum, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 import { round2 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
@@ -443,7 +443,7 @@ export function computeCalibration(
 
     if (inBucket.length === 0) continue;
 
-    const wins = inBucket.filter((r) => r.directionCorrect).length;
+    const wins = countByCondition(inBucket, (r) => !!r.directionCorrect);
     const winRate = wins / inBucket.length;
     const expectedWinRate = (def.min + def.max) / 2;
     const ece = Math.abs(winRate - expectedWinRate);
@@ -727,14 +727,14 @@ export function getResolutionStats(): {
   avgPnl: number;
 } {
   const resolved = predictionStore.filter((p) => p.resolved);
-  const correct = resolved.filter((p) => p.directionCorrect).length;
+  const correct = countByCondition(resolved, (p) => !!p.directionCorrect);
   const avgPnl = resolved.length > 0
     ? resolved.reduce((s, p) => s + (p.pnlPercent ?? 0), 0) / resolved.length
     : 0;
   return {
     totalRegistered: predictionStore.length,
     totalResolved: resolved.length,
-    pendingCount: predictionStore.filter((p) => !p.resolved).length,
+    pendingCount: countByCondition(predictionStore, (p) => !p.resolved),
     directionAccuracy: resolved.length > 0 ? round2(correct / resolved.length) : 0,
     avgPnl: round2(avgPnl),
   };
@@ -753,7 +753,7 @@ export function buildAgentPredictionProfile(agentId: string): {
 } {
   const agentPredictions = predictionStore.filter((p) => p.agentId === agentId);
   const resolved = agentPredictions.filter((p) => p.resolved);
-  const correct = resolved.filter((p) => p.directionCorrect).length;
+  const correct = countByCondition(resolved, (p) => !!p.directionCorrect);
   const avgConf = agentPredictions.length > 0
     ? agentPredictions.reduce((s, p) => s + p.confidence, 0) / agentPredictions.length
     : 0;
@@ -779,7 +779,7 @@ export function buildAgentPredictionProfile(agentId: string): {
     agentId,
     totalPredictions: agentPredictions.length,
     resolved: resolved.length,
-    pending: agentPredictions.filter((p) => !p.resolved).length,
+    pending: countByCondition(agentPredictions, (p) => !p.resolved),
     accuracy: resolved.length > 0 ? round2(correct / resolved.length) : 0,
     avgConfidence: round2(avgConf),
     avgPnl: round2(avgPnl),

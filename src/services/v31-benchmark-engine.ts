@@ -13,6 +13,7 @@
  */
 
 import { createHash } from "crypto";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -517,7 +518,7 @@ export function gradeTrade(input: {
 
   // Score reasoning depth (word count, clause density)
   const wordCount = input.reasoning.split(/\s+/).length;
-  const clauseCount = input.reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
+  const clauseCount = countByCondition(input.reasoning.split(/[.;!?]/), (s) => s.trim().length > 0);
   const reasoningDepthScore = Math.min(100, Math.round(
     Math.min(REASONING_DEPTH_WORD_COUNT_MAX, wordCount / REASONING_DEPTH_WORD_COUNT_DIVISOR) +
     Math.min(REASONING_DEPTH_CLAUSE_COUNT_MAX, clauseCount * REASONING_DEPTH_CLAUSE_POINTS_MULTIPLIER),
@@ -652,7 +653,7 @@ export function scoreAgent(input: {
   const actionCounts = { buy: 0, sell: 0, hold: 0 };
   actions.forEach((a) => { if (a in actionCounts) actionCounts[a as keyof typeof actionCounts]++; });
   const strategyConsistency = Math.max(40, 100 - Math.abs(actionCounts.buy - actionCounts.sell) * 5);
-  const adaptability = Math.min(100, 50 + Object.values(actionCounts).filter((v) => v > 0).length * 15);
+  const adaptability = Math.min(100, 50 + countByCondition(Object.values(actionCounts), (v) => v > 0) * 15);
   const confScores = t.map((x) => x.confidence);
   const confidenceCalibration = confScores.length > 1
     ? Math.max(30, 100 - Math.abs(avg(confScores) - 0.6) * 100)
@@ -662,12 +663,12 @@ export function scoreAgent(input: {
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
   const outcomeAccuracy = resolved.length > 0
-    ? (resolved.filter((x) => x.outcomeResolved === "correct").length / resolved.length) * 100
+    ? (countByCondition(resolved, (x) => x.outcomeResolved === "correct") / resolved.length) * 100
     : 50;
   const marketRegimeAwareness = avg(t.map((x) =>
     /regime|volatil|bull\s*market|bear\s*market|correction|recovery/i.test(x.reasoning) ? 75 : 40,
   ));
-  const edgeConsistency = Math.min(100, 50 + t.filter((x) => x.overallGrade.startsWith("A") || x.overallGrade.startsWith("B")).length * 5);
+  const edgeConsistency = Math.min(100, 50 + countByCondition(t, (x) => x.overallGrade.startsWith("A") || x.overallGrade.startsWith("B")) * 5);
 
   // Governance
   const tradeAccountability = avg(t.map((x) => x.disciplinePassed ? 85 : 35));

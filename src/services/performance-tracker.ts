@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, sortDescending, sortByDescending } from "../lib/math-utils.ts";
+import { round2, sortDescending, sortByDescending, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -228,9 +228,9 @@ export async function computeAgentPerformance(agentId: string): Promise<AgentPer
     risk,
     trading: {
       totalTrades: agentTrades.length,
-      buyCount: agentTrades.filter((t: Trade) => t.side === "buy").length,
-      sellCount: agentTrades.filter((t: Trade) => t.side === "sell").length,
-      holdCount: agentDecisionRows.filter((d: AgentDecision) => d.action === "hold").length,
+      buyCount: countByCondition(agentTrades, (t: Trade) => t.side === "buy"),
+      sellCount: countByCondition(agentTrades, (t: Trade) => t.side === "sell"),
+      holdCount: countByCondition(agentDecisionRows, (d: AgentDecision) => d.action === "hold"),
       winRate: sellAnalysis.winRate,
       avgWin: round2(sellAnalysis.avgWin),
       avgLoss: round2(sellAnalysis.avgLoss),

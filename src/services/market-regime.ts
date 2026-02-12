@@ -13,7 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
-import { round2, stdDev, averageByKey } from "../lib/math-utils.ts";
+import { round2, stdDev, averageByKey, countByCondition } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -572,8 +572,8 @@ export async function detectCurrentRegime(): Promise<MarketRegime> {
 
   // --- Indicator 4: Breadth Score ---
   // Advance/decline ratio normalized to -100..+100
-  const advancing = momentumValues.filter((v) => v > 0).length;
-  const declining = momentumValues.filter((v) => v < 0).length;
+  const advancing = countByCondition(momentumValues, (v) => v > 0);
+  const declining = countByCondition(momentumValues, (v) => v < 0);
   const total = momentumValues.length || 1;
   const breadthScore = ((advancing - declining) / total) * 100;
 
@@ -639,7 +639,7 @@ export async function detectCurrentRegime(): Promise<MarketRegime> {
   if (volatilityLevel > MOMENTUM_VOL_MIN) scores.momentum += MOMENTUM_WEIGHT_VOL;
 
   // Mean reversion: over-extended moves likely to revert
-  const overExtendedCount = momentumValues.filter((v) => Math.abs(v) > MEAN_REVERSION_OVEREXTENDED_THRESHOLD).length;
+  const overExtendedCount = countByCondition(momentumValues, (v) => Math.abs(v) > MEAN_REVERSION_OVEREXTENDED_THRESHOLD);
   if (overExtendedCount > total * MEAN_REVERSION_OVEREXTENDED_FRACTION) scores.mean_reversion += MEAN_REVERSION_WEIGHT_OVEREXTENDED;
   if (volatilityLevel > MEAN_REVERSION_VOL_MIN && Math.abs(trendStrength) < MEAN_REVERSION_TREND_MAX) scores.mean_reversion += MEAN_REVERSION_WEIGHT_VOL_TREND;
   if (sectorDispersion > MEAN_REVERSION_DISPERSION_MIN) scores.mean_reversion += MEAN_REVERSION_WEIGHT_DISPERSION;
@@ -996,7 +996,7 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     ? changes.reduce((s, c) => s + c, 0) / changes.length
     : 0;
   const decliningPct = changes.length > 0
-    ? (changes.filter((c) => c < 0).length / changes.length) * 100
+    ? (countByCondition(changes, (c) => c < 0) / changes.length) * 100
     : 50;
 
   // Scale: 0 = extreme fear, 50 = neutral, 100 = extreme greed
@@ -1388,7 +1388,7 @@ function classifyDayRegime(
 
   const avgChange = changes.reduce((s, c) => s + c, 0) / changes.length;
   const absAvg = changes.reduce((s, c) => s + Math.abs(c), 0) / changes.length;
-  const advancing = changes.filter((c) => c > 0).length;
+  const advancing = countByCondition(changes, (c) => c > 0);
   const total = changes.length;
   const advPct = (advancing / total) * 100;
   const dispersion = stdDev(changes);
@@ -1614,7 +1614,7 @@ function detectRotationPhase(
   if (allNegative) return "risk_off_rotation";
 
   // Early cycle: broad-based recovery
-  const positiveCount = sectors.filter((s) => s.momentum > 0).length;
+  const positiveCount = countByCondition(sectors, (s) => s.momentum > 0);
   if (positiveCount > sectors.length * 0.7) return "early_cycle_recovery";
 
   return "mid_cycle_rotation";

@@ -31,7 +31,7 @@ import { emitTradeAlert, emitCircuitBreakerAlert } from "./alert-webhooks.ts";
 import { registerFailedTrade, recordRetryAttempt } from "./trade-recovery.ts";
 import { logTradeEvent, logTradeFailure } from "./audit-log.ts";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
@@ -387,11 +387,11 @@ export async function executePipeline(
 
   const summary = {
     total: results.length,
-    executed: results.filter((r) => r.success).length,
-    held: results.filter((r) => r.decision.action === "hold").length,
-    failed: results.filter((r) => !r.success).length,
-    paperTrades: results.filter((r) => r.mode === "paper" && r.success && r.decision.action !== "hold").length,
-    liveTrades: results.filter((r) => r.mode === "live" && r.success && r.decision.action !== "hold").length,
+    executed: countByCondition(results, (r) => r.success),
+    held: countByCondition(results, (r) => r.decision.action === "hold"),
+    failed: countByCondition(results, (r) => !r.success),
+    paperTrades: countByCondition(results, (r) => r.mode === "paper" && r.success && r.decision.action !== "hold"),
+    liveTrades: countByCondition(results, (r) => r.mode === "live" && r.success && r.decision.action !== "hold"),
   };
 
   // Emit round completion event

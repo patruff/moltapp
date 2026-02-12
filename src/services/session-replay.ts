@@ -20,7 +20,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
 import { errorMessage } from "../lib/errors.ts";
-import { getTopKey } from "../lib/math-utils.ts";
+import { getTopKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -283,13 +283,13 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
     : [];
 
   // 5. Build summary
-  const buyCount = decisions.filter((d: typeof decisions[number]) => d.action === "buy").length;
-  const sellCount = decisions.filter((d: typeof decisions[number]) => d.action === "sell").length;
-  const holdCount = decisions.filter((d: typeof decisions[number]) => d.action === "hold").length;
-  const executed = decisions.filter(
+  const buyCount = countByCondition(decisions, (d: typeof decisions[number]) => d.action === "buy");
+  const sellCount = countByCondition(decisions, (d: typeof decisions[number]) => d.action === "sell");
+  const holdCount = countByCondition(decisions, (d: typeof decisions[number]) => d.action === "hold");
+  const executed = countByCondition(decisions,
     (d: typeof decisions[number]) => d.executed === "executed" || d.executed === "executed_paper",
-  ).length;
-  const failed = decisions.filter((d: typeof decisions[number]) => d.executed === "failed").length;
+  );
+  const failed = countByCondition(decisions, (d: typeof decisions[number]) => d.executed === "failed");
 
   // Consensus: if majority agrees on action
   let consensusAction: string | null = null;
@@ -459,7 +459,7 @@ export async function compareAgentSessions(
   const executionRate =
     decisions.length > 0
       ? Math.round(
-          (sessions.filter((s: typeof sessions[number]) => s.executed).length / decisions.length) * 100,
+          (countByCondition(sessions, (s: typeof sessions[number]) => !!s.executed) / decisions.length) * 100,
         )
       : 0;
 

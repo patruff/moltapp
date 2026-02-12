@@ -24,7 +24,7 @@ import { trades } from "../db/schema/trades.ts";
 import { eq, desc, sql, and, gte, inArray, type InferSelectModel } from "drizzle-orm";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, averageByCondition } from "../lib/math-utils.ts";
+import { round2, averageByCondition, countByCondition } from "../lib/math-utils.ts";
 
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 
@@ -381,10 +381,10 @@ export function analyzeRoundConsensus(
       // Divergence score: average confidence of opposing sides
       const buyConf =
         decisions.filter((d) => d.action === "buy").reduce((s, d) => s + d.confidence, 0) /
-        Math.max(1, decisions.filter((d) => d.action === "buy").length);
+        Math.max(1, countByCondition(decisions, (d) => d.action === "buy"));
       const sellConf =
         decisions.filter((d) => d.action === "sell").reduce((s, d) => s + d.confidence, 0) /
-        Math.max(1, decisions.filter((d) => d.action === "sell").length);
+        Math.max(1, countByCondition(decisions, (d) => d.action === "sell"));
       const divergenceScore = Math.round((buyConf + sellConf) / DIVERGENCE_SCORE_DIVISOR);
 
       divergences.push({
@@ -705,8 +705,8 @@ export function getConsensusHistory(limit: number = 20): ConsensusHistory {
 
   for (const [sector, signals] of sectorSignals.entries()) {
     const recentSignals = signals.slice(0, 5);
-    const bullish = recentSignals.filter((s) => s.action === "buy").length;
-    const bearish = recentSignals.filter((s) => s.action === "sell").length;
+    const bullish = countByCondition(recentSignals, (s) => s.action === "buy");
+    const bearish = countByCondition(recentSignals, (s) => s.action === "sell");
 
     sectorConsensus[sector] = {
       sentiment:
