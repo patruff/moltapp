@@ -15,7 +15,7 @@
  * - Cross-agent comparison signals
  */
 
-import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -399,15 +399,9 @@ export function getPerformanceProfile(
   const winRate = resolved.length > 0 ? wins.length / resolved.length : 0;
 
   // PnL calculations
-  const totalWinPnl = wins.reduce((sum, o) => sum + (o.realizedPnl ?? 0), 0);
-  const totalLossPnl = Math.abs(
-    losses.reduce((sum, o) => sum + (o.realizedPnl ?? 0), 0),
-  );
-  const averagePnl =
-    resolved.length > 0
-      ? resolved.reduce((sum, o) => sum + (o.realizedPnl ?? 0), 0) /
-        resolved.length
-      : 0;
+  const totalWinPnl = sumByKey(wins, 'realizedPnl');
+  const totalLossPnl = Math.abs(sumByKey(losses, 'realizedPnl'));
+  const averagePnl = averageByKey(resolved, 'realizedPnl');
   const averageWin = wins.length > 0 ? totalWinPnl / wins.length : 0;
   const averageLoss =
     losses.length > 0 ? totalLossPnl / losses.length : 0;
@@ -519,8 +513,9 @@ function calculateSymbolPerformance(
 
   for (const [symbol, trades] of bySymbol) {
     const wins = trades.filter((t) => t.profitable === true);
+    const totalPnl = sumByKey(trades, 'realizedPnl');
+    const averagePnl = averageByKey(trades, 'realizedPnl');
     const pnls = trades.map((t) => t.realizedPnl ?? 0);
-    const totalPnl = pnls.reduce((a, b) => a + b, 0);
 
     result[symbol] = {
       symbol,
@@ -528,7 +523,7 @@ function calculateSymbolPerformance(
       wins: wins.length,
       winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
       totalPnl: round2(totalPnl),
-      averagePnl: trades.length > 0 ? round2(totalPnl / trades.length) : 0,
+      averagePnl: round2(averagePnl),
       bestTrade: pnls.length > 0 ? round2(Math.max(...pnls)) : 0,
       worstTrade: pnls.length > 0 ? round2(Math.min(...pnls)) : 0,
     };
@@ -556,12 +551,8 @@ function calculateActionPerformance(
 
   for (const [action, trades] of byAction) {
     const wins = trades.filter((t) => t.profitable === true);
-    const pnls = trades.map((t) => t.realizedPnl ?? 0);
-    const totalPnl = pnls.reduce((a, b) => a + b, 0);
-    const avgConfidence =
-      trades.length > 0
-        ? trades.reduce((sum, t) => sum + t.confidence, 0) / trades.length
-        : 0;
+    const totalPnl = sumByKey(trades, 'realizedPnl');
+    const avgConfidence = averageByKey(trades, 'confidence');
 
     result[action] = {
       action,
