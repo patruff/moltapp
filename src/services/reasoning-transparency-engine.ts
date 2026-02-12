@@ -15,7 +15,7 @@
  * "here is exactly how the agent reasoned, claim by claim."
  */
 
-import { countWords, splitSentences, round2 } from "../lib/math-utils.ts";
+import { countWords, splitSentences, round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -481,15 +481,15 @@ export function analyzeTransparency(
   // Compute component scores
   const wordCount = countWords(reasoning);
   const claimDensity = Math.min(1, claims.length / Math.max(1, wordCount / 20));
-  const directLinks = evidenceMap.filter((l) => l.strength === "direct").length;
+  const directLinks = countByCondition(evidenceMap, (l) => l.strength === "direct");
   const evidenceCoverage = claims.length > 0
     ? Math.min(1, directLinks / claims.length)
     : 0;
-  const validSteps = logicChain.filter((s) => s.valid).length;
+  const validSteps = countByCondition(logicChain, (s) => s.valid);
   const logicValidity = logicChain.length > 0
     ? validSteps / logicChain.length
     : 0.5;
-  const highCritAssumptions = assumptions.filter((a) => a.criticality === "high").length;
+  const highCritAssumptions = countByCondition(assumptions, (a) => a.criticality === "high");
   const assumptionAwareness = Math.max(0, 1 - highCritAssumptions * 0.2);
   const counterfactualDepth = Math.min(1, counterfactuals.length / 4);
 
