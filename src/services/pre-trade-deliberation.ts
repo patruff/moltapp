@@ -21,7 +21,7 @@ import type {
   MarketData,
   PortfolioContext,
 } from "../agents/base-agent.ts";
-import { getTopKey } from "../lib/math-utils.ts";
+import { getTopKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -288,7 +288,7 @@ export async function runDeliberation(
   console.log(
     `[Deliberation] Completed ${deliberationId}: consensus=${consensus.type} ` +
       `agreement=${consensus.agreementScore}% quality=${qualityScore} ` +
-      `revisions=${revisions.filter((r) => r.didRevise).length}/${revisions.length} ` +
+      `revisions=${countByCondition(revisions, (r) => r.didRevise)}/${revisions.length} ` +
       `duration=${durationMs}ms`,
   );
 
@@ -709,7 +709,7 @@ function calculateQualityScore(
   score += Math.min(substantiveCritiques.length, QUALITY_SCORE_MAX_SUBSTANTIVE_CRITIQUES) * QUALITY_SCORE_PER_SUBSTANTIVE_CRITIQUE;
 
   // Revisions indicate agents are responsive to feedback
-  const revisionCount = revisions.filter((r) => r.didRevise).length;
+  const revisionCount = countByCondition(revisions, (r) => r.didRevise);
   score += revisionCount * QUALITY_SCORE_PER_REVISION;
 
   // Strong consensus (agreement >= threshold) = bonus
@@ -812,7 +812,7 @@ export function getDeliberationMetrics(): DeliberationMetrics {
   for (const d of deliberationHistory) {
     consensusDistribution[d.consensus.type] =
       (consensusDistribution[d.consensus.type] ?? 0) + 1;
-    totalRevisions += d.revisions.filter((r) => r.didRevise).length;
+    totalRevisions += countByCondition(d.revisions, (r) => r.didRevise);
     totalAgentDecisions += d.revisions.length;
   }
 
