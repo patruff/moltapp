@@ -395,8 +395,7 @@ function computeMomentumSentiment(marketData: MarketData): { score: number; driv
   const change = marketData.change24h ?? 0;
 
   // Map % change to sentiment: +-5% -> +-100
-  let score = (change / SENTIMENT_THRESHOLDS.PRICE_CHANGE_DIVISOR) * 100;
-  score = Math.max(-100, Math.min(100, score));
+  let score = clamp((change / SENTIMENT_THRESHOLDS.PRICE_CHANGE_DIVISOR) * 100, -100, 100);
 
   const direction = change > SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "positive" : change < -SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "negative" : "flat";
   const strength = Math.abs(change) > SENTIMENT_THRESHOLDS.MOMENTUM_STRONG ? "strong" : Math.abs(change) > SENTIMENT_THRESHOLDS.MOMENTUM_MODERATE ? "moderate" : "mild";
@@ -437,7 +436,7 @@ function computeVolumeSentiment(marketData: MarketData): { score: number; driver
     score = change > 0 ? SENTIMENT_THRESHOLDS.VOLUME_HIGH_SCORE : change < 0 ? -SENTIMENT_THRESHOLDS.VOLUME_HIGH_SCORE : 0;
   }
 
-  score = Math.max(-100, Math.min(100, score));
+  score = clamp(score, -100, 100);
   const volLabel = volumeRatio > SENTIMENT_THRESHOLDS.VOLUME_RATIO_HIGH ? "above average" : volumeRatio < SENTIMENT_THRESHOLDS.VOLUME_RATIO_LOW ? "below average" : "normal";
   const volFormatted = volume > 0 ? `$${(volume / 1_000_000).toFixed(1)}M` : "N/A";
 
@@ -466,7 +465,7 @@ function computeSocialSentiment(symbol: string, marketData: MarketData): { score
   const keywordBoost = keywords.length > SENTIMENT_THRESHOLDS.SOCIAL_KEYWORD_THRESHOLD ? SENTIMENT_THRESHOLDS.SOCIAL_KEYWORD_BOOST : 0; // popular stocks get a mention boost
 
   let score = priceInfluence + socialNoise + keywordBoost;
-  score = Math.max(-100, Math.min(100, score));
+  score = clamp(score, -100, 100);
 
   const mentionCount = Math.round(seededRandom(`mentions-${symbol}`, 50, 5000));
   const buzzWord = keywords.length > 0 ? keywords[hashSeed(symbol + nowISO().slice(0, 13)) % keywords.length] : symbol;
@@ -496,7 +495,7 @@ function computeNewsSentiment(symbol: string, marketData: MarketData): { score: 
   const newsNoise = seededRandom(`news-${symbol}`, SENTIMENT_THRESHOLDS.NEWS_NOISE_MIN, SENTIMENT_THRESHOLDS.NEWS_NOISE_MAX);
 
   let score = priceInfluence + sectorBias + newsNoise;
-  score = Math.max(-100, Math.min(100, score));
+  score = clamp(score, -100, 100);
 
   const headline = generateSingleHeadline(symbol, marketData, score);
 
