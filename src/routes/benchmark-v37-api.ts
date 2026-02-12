@@ -36,6 +36,14 @@ import {
   type V37TradeGrade,
 } from "../services/v37-benchmark-engine.ts";
 import { countByCondition, round2 } from "../lib/math-utils.ts";
+import {
+  TOP_TRADES_LIMIT,
+  TOP_DIMENSIONS_LIMIT,
+  WEAK_DIMENSIONS_LIMIT,
+  REASONING_DISPLAY_LENGTH,
+  REASONING_PREVIEW_LENGTH,
+  TOP_CORRELATIONS_LIMIT,
+} from "../lib/display-constants.ts";
 
 export const benchmarkV37ApiRoutes = new Hono();
 
@@ -66,11 +74,11 @@ benchmarkV37ApiRoutes.get("/leaderboard", (c) => {
       roundsPlayed: s.roundsPlayed,
       topDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
+        .slice(0, TOP_DIMENSIONS_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       weakestDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => a - b)
-        .slice(0, 3)
+        .slice(0, WEAK_DIMENSIONS_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       reasoningProfitCorrelation: s.reasoningProfitCorrelation ?? null,
       lastUpdated: s.lastUpdated,
