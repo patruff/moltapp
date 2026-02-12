@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { countByCondition, clamp, round2 } from "../lib/math-utils.ts";
+import { countByCondition, clamp, round2, calculateAverage, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -234,7 +234,7 @@ export function detectMarketRegime(
     };
   }
 
-  const avgChange = changes.reduce((s, c) => s + c, 0) / changes.length;
+  const avgChange = calculateAverage(changes);
   const maxChange = Math.max(...changes.map(Math.abs));
   const variance = changes.reduce((s, c) => s + (c - avgChange) ** 2, 0) / changes.length;
   const changeStdDev = Math.sqrt(variance);
@@ -360,11 +360,11 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
     if (regimeEntries.length === 0) continue;
 
     const avgCoherence = Math.round(
-      (regimeEntries.reduce((s, e) => s + e.coherenceScore, 0) / regimeEntries.length) * 100,
+      averageByKey(regimeEntries, 'coherenceScore') * 100,
     ) / 100;
 
     const avgDepth = Math.round(
-      (regimeEntries.reduce((s, e) => s + e.depthScore, 0) / regimeEntries.length) * 100,
+      averageByKey(regimeEntries, 'depthScore') * 100,
     ) / 100;
 
     const hallucinationRate = Math.round(
@@ -372,7 +372,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
     ) / 100;
 
     const avgConfidence = Math.round(
-      (regimeEntries.reduce((s, e) => s + e.confidence, 0) / regimeEntries.length) * 100,
+      averageByKey(regimeEntries, 'confidence') * 100,
     ) / 100;
 
     // Confidence calibration: correlation between confidence and correctness
@@ -421,7 +421,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
   // Robustness: 1 - (stddev of regime scores / mean)
   let robustnessScore = ROBUSTNESS_DEFAULT;
   if (regimeScores.length >= 2) {
-    const mean = regimeScores.reduce((s, v) => s + v, 0) / regimeScores.length;
+    const mean = calculateAverage(regimeScores);
     const variance = regimeScores.reduce((s, v) => s + (v - mean) ** 2, 0) / regimeScores.length;
     const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
     robustnessScore = Math.round(clamp(1 - cv, 0, 1) * 100) / 100;
