@@ -18,7 +18,7 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
-import { countByCondition, countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -375,10 +375,10 @@ export function generateAllReports(): IntelligenceReport[] {
 function identifyStrengths(entries: ReasoningEntry[]): ReportInsight[] {
   const insights: ReportInsight[] = [];
   const total = entries.length;
-  const avgCoherence = entries.reduce((s, e) => s + e.coherenceScore, 0) / total;
+  const avgCoherence = averageByKey(entries, 'coherenceScore');
   const halRate = countByCondition(entries, (e) => e.hallucinationCount > 0) / total;
   const discRate = countByCondition(entries, (e) => e.disciplinePass) / total;
-  const avgWords = entries.reduce((s, e) => s + e.wordCount, 0) / total;
+  const avgWords = averageByKey(entries, 'wordCount');
 
   if (avgCoherence >= STRENGTH_COHERENCE_THRESHOLD) {
     insights.push({
