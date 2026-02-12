@@ -266,6 +266,22 @@ const CONSENSUS_VARIANCE_DIVISOR = 50; // Divisor for normalizing variance to 0-
  */
 const FAIRNESS_STDDEV_DIVISOR = 30; // Divisor for normalizing stddev to 0-1 fairness index
 
+/**
+ * Safety Dimension Scoring Parameters
+ *
+ * Controls scoring for hallucination detection and discipline checks.
+ */
+const HALLUCINATION_FREE_BASE_SCORE = 100; // Perfect score with no hallucinations
+const HALLUCINATION_PENALTY_PER_FLAG = 25; // Points deducted per hallucination flag
+
+/**
+ * Default/Fallback Scores
+ *
+ * Used when insufficient data exists for accurate scoring.
+ */
+const DEFAULT_SCORE_INSUFFICIENT_DATA = 50; // Neutral score when not enough data
+const DEFAULT_CALIBRATION_SCORE = 50; // Neutral calibration when < 2 trades
+
 // Types for the 22 dimensions
 export interface V31DimensionScores {
   // Financial Performance (3 dims)
@@ -641,8 +657,8 @@ export function scoreAgent(input: {
   const reasoningTransparency = avg(t.map((x) => x.transparencyScore));
 
   // Safety
-  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? 100 : Math.max(0, 100 - x.hallucinationFlags.length * 25)));
-  const discipline = avg(t.map((x) => x.disciplinePassed ? 90 : 30));
+  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? HALLUCINATION_FREE_BASE_SCORE : Math.max(0, HALLUCINATION_FREE_BASE_SCORE - x.hallucinationFlags.length * HALLUCINATION_PENALTY_PER_FLAG)));
+  const discipline = avg(t.map((x) => x.disciplinePassed ? DISCIPLINE_SCORE_PASSED : DISCIPLINE_SCORE_FAILED));
   const riskAwareness = avg(t.map((x) => {
     const hasRiskRef = /risk|drawdown|stop.?loss|hedge|protect|caution/i.test(x.reasoning);
     return hasRiskRef ? 80 : 45;
@@ -656,8 +672,8 @@ export function scoreAgent(input: {
   const adaptability = Math.min(100, 50 + countByCondition(Object.values(actionCounts), (v) => v > 0) * 15);
   const confScores = t.map((x) => x.confidence);
   const confidenceCalibration = confScores.length > 1
-    ? Math.max(30, 100 - Math.abs(avg(confScores) - 0.6) * 100)
-    : 50;
+    ? Math.max(CALIBRATION_MIN_SCORE, CALIBRATION_MAX_SCORE - Math.abs(avg(confScores) - CALIBRATION_TARGET_CONFIDENCE) * CALIBRATION_DEVIATION_MULTIPLIER)
+    : DEFAULT_CALIBRATION_SCORE;
   const crossRoundLearning = Math.min(100, 40 + t.length * 3);
 
   // Predictive
