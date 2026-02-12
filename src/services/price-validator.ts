@@ -25,7 +25,7 @@
 
 import { getPrice, getAggregatedPrice, type PricePoint } from "./realtime-prices.ts";
 import { logTradeEvent } from "./audit-log.ts";
-import { round2, countByCondition } from "../lib/math-utils.ts";
+import { round2, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -269,7 +269,8 @@ export async function validatePrice(
   if (config.strictMode) {
     const freshSources = sourceDetails.filter((s) => !s.isStale && s.ageMs < config.maxStalenessMs);
     if (freshSources.length === 0) {
-      const reason = `All price sources are stale (oldest: ${Math.round(Math.max(...sourceDetails.map((s) => s.ageMs)) / 1000)}s)`;
+      const maxAge = findMax(sourceDetails, 'ageMs')?.ageMs ?? 0;
+      const reason = `All price sources are stale (oldest: ${Math.round(maxAge / 1000)}s)`;
       return rejectPrice(request, reason, sourceDetails, config);
     }
   }
