@@ -21,7 +21,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round3, averageByKey, sumByKey } from "../lib/math-utils.ts";
+import { round2, round3, averageByKey, sumByKey, calculateAverage } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -510,10 +510,10 @@ function kellyOptimize(
     const winProb = wins.length / returns.length;
     const lossProb = 1 - winProb;
 
-    const avgWin = wins.length > 0 ? averageByKey(wins, (x) => x) : 0;
+    const avgWin = wins.length > 0 ? calculateAverage(wins) : 0;
     const avgLoss =
       losses.length > 0
-        ? Math.abs(averageByKey(losses, (x) => x))
+        ? Math.abs(calculateAverage(losses))
         : 0.01;
 
     if (avgLoss === 0 || avgWin === 0) return 0;
