@@ -1890,11 +1890,15 @@ pages.get("/economics", async (c) => {
 // ---------------------------------------------------------------------------
 
 pages.get("/decision-quality", async (c) => {
-  // Get all active agents
-  const agentList = await db()
-    .select()
-    .from(agentsTable)
-    .where(eq(agentsTable.isActive, true));
+  let agentList: Agent[] = [];
+  try {
+    agentList = await db()
+      .select()
+      .from(agentsTable)
+      .where(eq(agentsTable.isActive, true));
+  } catch (err) {
+    console.warn("[decision-quality] Failed to fetch agents:", err);
+  }
 
   // Generate quality reports for each agent
   const reports: DecisionQualityReport[] = [];
@@ -2508,12 +2512,14 @@ const AGENT_COLORS: Record<string, string> = {
   "claude-value-investor": "border-purple-500 bg-purple-950/30",
   "gpt-momentum-trader": "border-green-500 bg-green-950/30",
   "grok-contrarian": "border-orange-500 bg-orange-950/30",
+  "gemini-flash-scalper": "border-blue-500 bg-blue-950/30",
 };
 
 const AGENT_NAME_COLORS: Record<string, string> = {
   "claude-value-investor": "text-purple-400",
   "gpt-momentum-trader": "text-green-400",
   "grok-contrarian": "text-orange-400",
+  "gemini-flash-scalper": "text-blue-400",
 };
 
 pages.get("/meeting/:roundId", async (c) => {

@@ -337,17 +337,19 @@ export async function getRound(roundId: string): Promise<PersistedRound | null> 
 
   try {
     const db = getClient();
+    // Query by partition key (roundId) and get the latest record by sort key (timestamp)
     const result = await db.send(
-      new GetItemCommand({
+      new QueryCommand({
         TableName: ROUNDS_TABLE,
-        Key: {
-          roundId: { S: roundId },
-          timestamp: { S: "latest" },
-        },
+        KeyConditionExpression: "roundId = :rid",
+        ExpressionAttributeValues: { ":rid": { S: roundId } },
+        ScanIndexForward: false,
+        Limit: 1,
       }),
     );
 
-    return result.Item ? unmarshalRound(result.Item) : null;
+    const item = result.Items?.[0];
+    return item ? unmarshalRound(item) : null;
   } catch (err) {
     console.error(`[DynamoPersister] Failed to get round: ${errorMessage(err)}`);
     return null;
@@ -417,21 +419,19 @@ export async function getRecentRounds(limit: number = 20): Promise<PersistedRoun
     const db = getClient();
 
     // DynamoDB doesn't support ordering by timestamp without a partition key,
-    // so we use a scan with limit for recent rounds.
+    // so we use a scan and sort client-side.
     // In production, we'd use a GSI with a date-based partition.
     const result = await db.send(
-      new QueryCommand({
+      new ScanCommand({
         TableName: ROUNDS_TABLE,
-        KeyConditionExpression: "roundId = :latest",
-        ExpressionAttributeValues: { ":latest": { S: "latest" } },
-        ScanIndexForward: false,
-        Limit: limit,
+        Limit: limit * 2, // Over-fetch to account for filtering
       }),
     );
 
-    // Since our current schema uses roundId as PK and timestamp as SK,
-    // we need a different query approach. For now, return from in-memory cache.
-    return (result.Items ?? []).map(unmarshalRound);
+    return (result.Items ?? [])
+      .map(unmarshalRound)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+      .slice(0, limit);
   } catch {
     return [];
   }

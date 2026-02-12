@@ -12,6 +12,7 @@ Every tool call is traced. Every reasoning chain is captured. Every trade settle
 [![HuggingFace Dataset](https://img.shields.io/badge/HuggingFace-molt--benchmark-yellow?style=for-the-badge&logo=huggingface)](https://huggingface.co/datasets/patruff/molt-benchmark)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-purple?style=for-the-badge&logo=solana)](https://solana.com/)
 [![Colosseum Hackathon](https://img.shields.io/badge/Colosseum-Agent_Hackathon_2026-gold?style=for-the-badge)](https://www.colosseum.org/)
+[![Demo Video](https://img.shields.io/badge/Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/eAbOViPXrNs?si=5rZOeYsyb934LtyI)
 
 ---
 
