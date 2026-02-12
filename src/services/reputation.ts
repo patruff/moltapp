@@ -19,7 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countByCondition, clamp } from "../lib/math-utils.ts";
+import { countByCondition, clamp, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1014,9 +1014,7 @@ function calculateCalibration(
       continue;
     }
 
-    const avgConfidence =
-      binDecisions.reduce((s, d) => s + d.confidence, 0) /
-      binDecisions.length;
+    const avgConfidence = averageByKey(binDecisions, 'confidence');
 
     let correct = 0;
     for (const d of binDecisions) {
@@ -1056,27 +1054,22 @@ function calculateCalibration(
   }
 
   // Overall calibration score
-  const totalCalibrationError =
-    bins.filter((b) => b.count > 0).reduce((s, b) => s + b.calibrationError, 0);
-  const activeBins = countByCondition(bins, (b) => b.count > 0);
+  const activeBinsWithData = bins.filter((b) => b.count > 0);
   const avgCalibrationError =
-    activeBins > 0 ? totalCalibrationError / activeBins : 50;
+    activeBinsWithData.length > 0 ? averageByKey(activeBinsWithData, 'calibrationError') : 50;
   const overallCalibration = Math.max(0, 100 - avgCalibrationError);
 
   // Brier score
   const brierScore = brierCount > 0 ? totalBrierScore / brierCount : 0.5;
 
   // Over/under confidence
-  const activeBinsForAvg = countByCondition(bins, (b) => b.count > 0);
   const avgPredicted =
-    activeBinsForAvg > 0
-      ? bins.filter((b) => b.count > 0).reduce((s, b) => s + b.predictedProbability, 0) /
-        activeBinsForAvg
+    activeBinsWithData.length > 0
+      ? averageByKey(activeBinsWithData, 'predictedProbability')
       : 50;
   const avgActual =
-    activeBinsForAvg > 0
-      ? bins.filter((b) => b.count > 0).reduce((s, b) => s + b.actualAccuracy, 0) /
-        activeBinsForAvg
+    activeBinsWithData.length > 0
+      ? averageByKey(activeBinsWithData, 'actualAccuracy')
       : 50;
 
   return {
