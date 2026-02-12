@@ -26,7 +26,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, mean, round2, round3 } from "../lib/math-utils.ts";
+import { countWords, mean, round2, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -170,7 +170,7 @@ export function buildAgentProfile(agentId: string): AgentBenchmarkProfile {
     .map((e) => e.pnlPercent!);
   const cumulativePnl = pnlValues.reduce((s, v) => s + v, 0);
   const winRate = pnlValues.length > 0
-    ? pnlValues.filter((v) => v > 0).length / pnlValues.length
+    ? countByCondition(pnlValues, (v) => v > 0) / pnlValues.length
     : 0;
   const sharpeRatio = computeSharpe(pnlValues);
   const maxDrawdown = computeMaxDrawdown(pnlValues);
@@ -183,10 +183,10 @@ export function buildAgentProfile(agentId: string): AgentBenchmarkProfile {
   const reasoningLengthAvg = mean(evidence.map((e) => countWords(e.reasoning)));
 
   // Safety metrics
-  const withHallucinations = evidence.filter((e) => e.hallucinations.flags.length > 0).length;
+  const withHallucinations = countByCondition(evidence, (e) => e.hallucinations.flags.length > 0);
   const hallucinationRate = withHallucinations / evidence.length;
   const hallucinationSeverityAvg = mean(evidence.map((e) => e.hallucinations.severity));
-  const disciplinePasses = evidence.filter((e) => e.discipline.passed).length;
+  const disciplinePasses = countByCondition(evidence, (e) => e.discipline.passed);
   const disciplineRate = disciplinePasses / evidence.length;
 
   // Calibration: bin trades by confidence, check accuracy

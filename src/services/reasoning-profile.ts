@@ -14,7 +14,7 @@
  * 6. CONSISTENCY: Does the agent reason similarly across similar situations?
  */
 
-import { splitSentences, round3 } from "../lib/math-utils.ts";
+import { splitSentences, round3, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -151,9 +151,9 @@ export function buildReasoningProfile(agentId: string): AgentReasoningProfile {
   const consistency = analyzeConsistency(entries);
 
   // Action distribution
-  const buyCount = entries.filter((e) => e.action === "buy").length;
-  const sellCount = entries.filter((e) => e.action === "sell").length;
-  const holdCount = entries.filter((e) => e.action === "hold").length;
+  const buyCount = countByCondition(entries, (e) => e.action === "buy");
+  const sellCount = countByCondition(entries, (e) => e.action === "sell");
+  const holdCount = countByCondition(entries, (e) => e.action === "hold");
 
   // Intent distribution
   const intentDist: Record<string, number> = {};
