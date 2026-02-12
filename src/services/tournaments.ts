@@ -17,6 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
+import { countByCondition } from "../utils/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -746,9 +747,9 @@ function calculateParticipantStats(
   currentMarket: MarketData[],
 ): ParticipantStats {
   const total = decisions.length;
-  const buys = decisions.filter((d) => d.action === "buy").length;
-  const sells = decisions.filter((d) => d.action === "sell").length;
-  const holds = decisions.filter((d) => d.action === "hold").length;
+  const buys = countByCondition(decisions, (d) => d.action === "buy");
+  const sells = countByCondition(decisions, (d) => d.action === "sell");
+  const holds = countByCondition(decisions, (d) => d.action === "hold");
 
   let correct = 0;
   let bestCall: ParticipantStats["bestCall"] = null;
