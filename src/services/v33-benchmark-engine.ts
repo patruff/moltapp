@@ -659,7 +659,7 @@ export function gradeTrade(input: {
 
   // Score reasoning depth
   const wordCount = input.reasoning.split(/\s+/).length;
-  const clauseCount = input.reasoning.split(/[.;!?]/).filter((s) => s.trim().length > 0).length;
+  const clauseCount = countByCondition(input.reasoning.split(/[.;!?]/), (s) => s.trim().length > 0);
   const reasoningDepthScore = Math.min(100, Math.round(
     Math.min(50, wordCount / 2) + Math.min(50, clauseCount * 8),
   ));
@@ -931,9 +931,9 @@ export function createRoundSummary(
 
   const actions = trades.map((t) => t.action);
   const modeAction = actions.sort((a, b) =>
-    actions.filter((v) => v === a).length - actions.filter((v) => v === b).length,
+    countByCondition(actions, (v) => v === a) - countByCondition(actions, (v) => v === b),
   ).pop() ?? "hold";
-  const consensusAgreement = actions.filter((a) => a === modeAction).length / Math.max(1, actions.length);
+  const consensusAgreement = countByCondition(actions, (a) => a === modeAction) / Math.max(1, actions.length);
 
   const summary: V33RoundSummary = {
     roundId,
