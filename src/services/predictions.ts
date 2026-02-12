@@ -95,6 +95,69 @@ const VALID_HORIZONS: TimeHorizon[] = ["1h", "4h", "1d", "1w", "1m"];
 const ODDS_EVEN = 2.0;
 
 /**
+ * Volatility Prediction Thresholds
+ *
+ * These thresholds control correctness grading for volatility-type predictions.
+ * Volatility predictions classify whether absolute price movement falls into
+ * high/medium/low volatility buckets based on percentage change thresholds.
+ */
+
+/**
+ * Bullish volatility threshold (expecting high volatility).
+ *
+ * When an agent predicts "bullish" volatility, they expect the stock to move
+ * significantly in EITHER direction (up or down). The prediction is correct
+ * if absolute price change >= 2.0%.
+ *
+ * @example TSLAx moves +3.5% → absChange = 3.5 >= 2.0 → CORRECT bullish vol
+ * @example NVDAx moves -2.8% → absChange = 2.8 >= 2.0 → CORRECT bullish vol
+ * @example AAPLx moves +1.2% → absChange = 1.2 < 2.0 → INCORRECT bullish vol
+ */
+const VOLATILITY_BULLISH_THRESHOLD = 2.0;
+
+/**
+ * Bearish volatility threshold (expecting low volatility).
+ *
+ * When an agent predicts "bearish" volatility, they expect the stock to remain
+ * relatively stable with minimal price movement. The prediction is correct
+ * if absolute price change < 1.0%.
+ *
+ * @example AAPLx moves +0.4% → absChange = 0.4 < 1.0 → CORRECT bearish vol
+ * @example MSFTx moves -0.7% → absChange = 0.7 < 1.0 → CORRECT bearish vol
+ * @example TSLAx moves +1.5% → absChange = 1.5 >= 1.0 → INCORRECT bearish vol
+ */
+const VOLATILITY_BEARISH_THRESHOLD = 1.0;
+
+/**
+ * Neutral volatility range (expecting moderate volatility).
+ *
+ * When an agent predicts "neutral" volatility, they expect moderate price
+ * movement — neither extremely volatile nor completely flat. The prediction
+ * is correct if absolute price change falls in [0.5%, 2.0%) range.
+ *
+ * @example GOOGx moves +1.2% → absChange = 1.2 in [0.5, 2.0) → CORRECT neutral vol
+ * @example METAx moves -0.8% → absChange = 0.8 in [0.5, 2.0) → CORRECT neutral vol
+ * @example TSLAx moves +2.5% → absChange = 2.5 >= 2.0 → INCORRECT neutral vol
+ * @example AAPLx moves +0.3% → absChange = 0.3 < 0.5 → INCORRECT neutral vol
+ */
+const VOLATILITY_NEUTRAL_MIN = 0.5;
+const VOLATILITY_NEUTRAL_MAX = 2.0;
+
+/**
+ * Outperform neutral threshold (expecting minimal relative movement).
+ *
+ * When an agent predicts "neutral" outperformance, they expect the stock to
+ * track the benchmark closely with minimal deviation. The prediction is correct
+ * if absolute price change < 1.0% (simplified benchmark comparison).
+ *
+ * Note: Full implementation would compare against SPY/QQQ benchmark returns.
+ *
+ * @example AAPLx moves +0.6% → absChange = 0.6 < 1.0 → CORRECT neutral outperform
+ * @example NVDAx moves +1.8% → absChange = 1.8 >= 1.0 → INCORRECT neutral outperform
+ */
+const OUTPERFORM_NEUTRAL_THRESHOLD = 1.0;
+
+/**
  * Maximum odds ceiling to prevent infinite payouts.
  *
  * Caps the highest payout multiplier at 100x when a market becomes extremely
@@ -830,11 +893,11 @@ export async function resolvePrediction(
       // bullish = expecting high volatility (>2% move), bearish = low vol (<1%)
       const absChange = Math.abs(priceDeltaPercent);
       if (prediction.direction === "bullish") {
-        isCorrect = absChange >= 2.0;
+        isCorrect = absChange >= VOLATILITY_BULLISH_THRESHOLD;
       } else if (prediction.direction === "bearish") {
-        isCorrect = absChange < 1.0;
+        isCorrect = absChange < VOLATILITY_BEARISH_THRESHOLD;
       } else {
-        isCorrect = absChange >= 0.5 && absChange < 2.0;
+        isCorrect = absChange >= VOLATILITY_NEUTRAL_MIN && absChange < VOLATILITY_NEUTRAL_MAX;
       }
 
       resolutionDetails = isCorrect
@@ -851,7 +914,7 @@ export async function resolvePrediction(
       } else if (prediction.direction === "bearish") {
         isCorrect = priceDeltaPercent < 0;
       } else {
-        isCorrect = Math.abs(priceDeltaPercent) < 1.0;
+        isCorrect = Math.abs(priceDeltaPercent) < OUTPERFORM_NEUTRAL_THRESHOLD;
       }
 
       resolutionDetails = isCorrect
