@@ -445,17 +445,17 @@ function computeOriginality(textA: string, textB: string): [number, number] {
 
   if (wordsA.size === 0 && wordsB.size === 0) return [0.5, 0.5];
 
-  const intersectionSize = [...wordsA].filter(w => wordsB.has(w)).length;
+  const intersectionSize = countByCondition([...wordsA], w => wordsB.has(w));
   const unionSize = new Set([...wordsA, ...wordsB]).size;
   const jaccard = unionSize > 0 ? intersectionSize / unionSize : 0;
 
   // Lower overlap = more original
   const overlap = jaccard;
   const uniqueA = wordsA.size > 0
-    ? [...wordsA].filter(w => !wordsB.has(w)).length / wordsA.size
+    ? countByCondition([...wordsA], w => !wordsB.has(w)) / wordsA.size
     : 0;
   const uniqueB = wordsB.size > 0
-    ? [...wordsB].filter(w => !wordsA.has(w)).length / wordsB.size
+    ? countByCondition([...wordsB], w => !wordsA.has(w)) / wordsB.size
     : 0;
 
   return [
