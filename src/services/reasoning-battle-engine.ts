@@ -15,7 +15,7 @@
  *  7. Uniqueness: Is the reasoning original or templated?
  */
 
-import { round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { countByCondition, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -428,8 +428,8 @@ export function compareReasoning(
 
   // Generate summary
   const winnerName = winner ?? "Neither agent";
-  const aWins = mappedDimensions.filter((d) => d.winner === agentAId).length;
-  const bWins = mappedDimensions.filter((d) => d.winner === agentBId).length;
+  const aWins = countByCondition(mappedDimensions, (d) => d.winner === agentAId);
+  const bWins = countByCondition(mappedDimensions, (d) => d.winner === agentBId);
 
   const summary = winner
     ? `${winnerName} wins the reasoning comparison (${Math.round(Math.max(agentAScore, agentBScore) * 100)}% vs ${Math.round(Math.min(agentAScore, agentBScore) * 100)}%). ` +

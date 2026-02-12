@@ -1,0 +1,27 @@
+{
+  "name": "demo-video",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion render MoltAppDemo out/moltapp-demo.mp4",
+    "render": "remotion render MoltAppDemo out/moltapp-demo.mp4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@remotion/cli": "^4.0.421",
+    "@remotion/paths": "^4.0.421",
+    "@remotion/transitions": "^4.0.421",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.421"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}
