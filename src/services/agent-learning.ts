@@ -575,9 +575,9 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
 
   if (buyOutcomes.length >= PATTERN_MIN_TRADES_PER_ACTION && sellOutcomes.length >= PATTERN_MIN_TRADES_PER_ACTION) {
     const buyAccuracy =
-      buyOutcomes.filter((o) => o.directionCorrect).length / buyOutcomes.length;
+      countByCondition(buyOutcomes, (o) => o.directionCorrect) / buyOutcomes.length;
     const sellAccuracy =
-      sellOutcomes.filter((o) => o.directionCorrect).length / sellOutcomes.length;
+      countByCondition(sellOutcomes, (o) => o.directionCorrect) / sellOutcomes.length;
 
     if (buyAccuracy > sellAccuracy + PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD) {
       patterns.push(createPattern(agentId, "winning_setup",
@@ -716,7 +716,7 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
 
   // Calculate recent win rate
   const tradingRecent = recent.filter((o) => o.action !== "hold");
-  const wins = tradingRecent.filter((o) => o.directionCorrect).length;
+  const wins = countByCondition(tradingRecent, (o) => o.directionCorrect);
   const winRate = tradingRecent.length > 0 ? wins / tradingRecent.length : 0.5;
 
   // Position size multiplier based on win rate
@@ -891,7 +891,7 @@ export function getAgentLearningContext(agentId: string): AgentLearningContext {
   const tradingOutcomes = outcomes.filter((o) => o.action !== "hold");
   const winRate =
     tradingOutcomes.length > 0
-      ? (tradingOutcomes.filter((o) => o.directionCorrect).length /
+      ? (countByCondition(tradingOutcomes, (o) => o.directionCorrect) /
           tradingOutcomes.length) *
         100
       : 0;

@@ -27,7 +27,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -363,9 +363,9 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
       if (agentDecs.length === 0) continue;
 
       const agentConfig = agentConfigs.find((a) => a.agentId === agentId);
-      const buys = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "buy").length;
-      const sells = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "sell").length;
-      const holds = agentDecs.filter((d: typeof agentDecs[number]) => d.action === "hold").length;
+      const buys = countByCondition(agentDecs, (d: typeof agentDecs[number]) => d.action === "buy");
+      const sells = countByCondition(agentDecs, (d: typeof agentDecs[number]) => d.action === "sell");
+      const holds = countByCondition(agentDecs, (d: typeof agentDecs[number]) => d.action === "hold");
       const avgConf = agentDecs.reduce((s: number, d: typeof agentDecs[number]) => s + d.confidence, 0) / agentDecs.length;
       const latest = agentDecs[0];
 
