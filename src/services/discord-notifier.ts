@@ -21,6 +21,7 @@
 
 import { pnlSign } from "../lib/format-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -219,7 +220,7 @@ async function sendToDiscord(
   // Rate limit check
   const now = Date.now();
   const oneMinuteAgo = now - 60_000;
-  const recentCount = recentTimestamps.filter((t) => t > oneMinuteAgo).length;
+  const recentCount = countByCondition(recentTimestamps, (t) => t > oneMinuteAgo);
 
   if (recentCount >= config.maxMessagesPerMinute) {
     totalRateLimited++;

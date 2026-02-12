@@ -23,6 +23,7 @@
 
 import { createHmac, randomBytes } from "crypto";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -596,7 +597,7 @@ export function getAlertStats(): AlertStats {
 
   return {
     totalSubscriptions: subscriptions.size,
-    activeSubscriptions: Array.from(subscriptions.values()).filter((s) => s.active).length,
+    activeSubscriptions: countByCondition(Array.from(subscriptions.values()), (s) => s.active),
     totalEventsEmitted: recentEvents.length + Object.values(eventCounts).reduce((s, c) => s + c, 0) - recentEvents.length,
     totalDeliveries,
     successfulDeliveries,
