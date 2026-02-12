@@ -135,8 +135,8 @@ backtestRoutes.get("/:agentId/equity", async (c) => {
       period: `${days} days`,
       startEquity: curve.length > 0 ? curve[0].equity : 10000,
       endEquity: curve.length > 0 ? curve[curve.length - 1].equity : 10000,
-      peakEquity: curve.length > 0 ? Math.max(...curve.map((p) => p.equity)) : 10000,
-      maxDrawdown: curve.length > 0 ? Math.min(...curve.map((p) => p.drawdown)) : 0,
+      peakEquity: findMax(curve, 'equity')?.equity ?? 10000,
+      maxDrawdown: findMin(curve, 'drawdown')?.drawdown ?? 0,
     });
   } catch (error) {
     console.error(`[Backtest] Equity curve error for ${agentId}:`, error);
