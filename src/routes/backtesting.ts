@@ -24,7 +24,7 @@ import {
 import { errorMessage } from "../lib/errors.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
-import { clamp } from "../lib/math-utils.ts";
+import { clamp, findMax, findMin } from "../lib/math-utils.ts";
 
 export const backtestRoutes = new Hono();
 

@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -1003,9 +1003,9 @@ function computeStreaks(
 
   return {
     currentStreak: streaks[streaks.length - 1] ?? { type: "hold", length: 0 },
-    longestWinStreak: winStreaks.length > 0 ? Math.max(...winStreaks.map((s) => s.length)) : 0,
-    longestLossStreak: lossStreaks.length > 0 ? Math.max(...lossStreaks.map((s) => s.length)) : 0,
-    longestHoldStreak: holdStreaks.length > 0 ? Math.max(...holdStreaks.map((s) => s.length)) : 0,
+    longestWinStreak: findMax(winStreaks, 'length')?.length ?? 0,
+    longestLossStreak: findMax(lossStreaks, 'length')?.length ?? 0,
+    longestHoldStreak: findMax(holdStreaks, 'length')?.length ?? 0,
     avgWinStreakLength: Math.round(averageByKey(winStreaks, 'length') * 10) / 10,
     avgLossStreakLength: Math.round(averageByKey(lossStreaks, 'length') * 10) / 10,
   };
