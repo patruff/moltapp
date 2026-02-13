@@ -18,6 +18,63 @@
 import { countByCondition, mean, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Dataset Split Ratios
+ *
+ * Standard ML train/test/validation split following industry best practices.
+ * Must sum to 1.0 for complete dataset coverage.
+ */
+
+/** Training set ratio (70% of data) - Used for model training and pattern learning */
+const DATASET_SPLIT_TRAIN = 0.7;
+
+/** Test set ratio (20% of data) - Used for model evaluation and hyperparameter tuning */
+const DATASET_SPLIT_TEST = 0.2;
+
+/** Validation set ratio (10% of data) - Used for final model validation and publication metrics */
+const DATASET_SPLIT_VALIDATION = 0.1;
+
+/**
+ * Consensus Classification Thresholds
+ */
+
+/**
+ * Consensus majority multiplier (2× threshold)
+ *
+ * When buy_count > sell_count × 2 (or vice versa), classify as "majority" consensus.
+ * Example: 6 buys, 2 sells → 6 > 2×2 → majority
+ * Example: 5 buys, 3 sells → 5 < 3×2 → split
+ *
+ * Tuning impact:
+ * - Lower (e.g., 1.5×): More rounds classified as "majority" (looser consensus)
+ * - Higher (e.g., 3×): Fewer rounds classified as "majority" (stricter consensus)
+ */
+const CONSENSUS_MAJORITY_MULTIPLIER = 2;
+
+/**
+ * Time Calculation Constants
+ */
+
+/** Milliseconds per day (24 hours × 60 minutes × 60 seconds × 1000 milliseconds) */
+const MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/**
+ * Statistical Distribution Percentiles
+ */
+
+/** 25th percentile (first quartile) - 25% of values fall below this */
+const PERCENTILE_25 = 25;
+
+/** 50th percentile (median) - Middle value of the distribution */
+const PERCENTILE_50 = 50;
+
+/** 75th percentile (third quartile) - 75% of values fall below this */
+const PERCENTILE_75 = 75;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -166,7 +223,7 @@ interface RawJustification {
  */
 export function buildDataset(
   rawData: RawJustification[],
-  splitRatios = { train: 0.7, test: 0.2, validation: 0.1 },
+  splitRatios = { train: DATASET_SPLIT_TRAIN, test: DATASET_SPLIT_TEST, validation: DATASET_SPLIT_VALIDATION },
 ): DatasetBundle {
   // Sort by timestamp for consistent splitting
   const sorted = [...rawData].sort((a, b) => {
@@ -265,7 +322,7 @@ function buildRoundAggregations(records: DatasetRecord[]): RoundAggregation[] {
     const nonHold = buyCount + sellCount;
     if (nonHold === 0) consensus = "all_hold";
     else if (buyCount === nonHold || sellCount === nonHold) consensus = "unanimous";
-    else if (buyCount > sellCount * 2 || sellCount > buyCount * 2) consensus = "majority";
+    else if (buyCount > sellCount * CONSENSUS_MAJORITY_MULTIPLIER || sellCount > buyCount * CONSENSUS_MAJORITY_MULTIPLIER) consensus = "majority";
     else consensus = "split";
 
     // Count intents
@@ -340,7 +397,7 @@ function computeStatistics(records: DatasetRecord[]): DatasetStatistics {
   if (timestamps.length >= 2) {
     const first = new Date(timestamps[0]);
     const last = new Date(timestamps[timestamps.length - 1]);
-    totalDays = Math.ceil((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24));
+    totalDays = Math.ceil((last.getTime() - first.getTime()) / MILLISECONDS_PER_DAY);
   }
 
   return {
@@ -380,9 +437,9 @@ function computeDistributionStats(values: number[]): DistributionStats {
     std: round4(Math.sqrt(variance)),
     min: round4(sorted[0]),
     max: round4(sorted[sorted.length - 1]),
-    p25: round4(percentile(sorted, 25)),
-    p50: round4(percentile(sorted, 50)),
-    p75: round4(percentile(sorted, 75)),
+    p25: round4(percentile(sorted, PERCENTILE_25)),
+    p50: round4(percentile(sorted, PERCENTILE_50)),
+    p75: round4(percentile(sorted, PERCENTILE_75)),
   };
 }
 

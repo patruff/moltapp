@@ -771,7 +771,7 @@ cd infra && cdk deploy
 
 | Metric | Value |
 |--------|-------|
-| Production TypeScript | **185,869 lines** across 406 files |
+| Production TypeScript | **217,472 lines** across 457 files |
 | Services | **186** independent service modules |
 | API Routes | **140** route files |
 | Benchmark Dimensions | **34** (v37, evolved through 13 engine versions) |
@@ -781,7 +781,7 @@ cd infra && cdk deploy
 | Services with Named Constants | **69** (every threshold documented and tunable) |
 | Database Schemas | **35** PostgreSQL + 3 DynamoDB tables |
 | Tests | **170** passing across 8 test suites |
-| Git Commits | **543** |
+| Git Commits | **755** |
 | Runtime Dependencies | **22** packages (deliberately minimal) |
 
 For a full technical deep-dive, see [`TECHNICAL_DECISIONS.md`](TECHNICAL_DECISIONS.md).
