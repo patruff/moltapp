@@ -30,7 +30,7 @@ import type {
 } from "../db/schema/strategies.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -670,11 +670,11 @@ export async function getStrategyLeaderboard() {
       avgPerformance: round2(avgPerf),
       bestPerformance:
         performances.length > 0
-          ? Math.round(Math.max(...performances) * 100) / 100
+          ? Math.round((findMax(performances.map((p: number) => ({ value: p })), 'value')?.value ?? 0) * 100) / 100
           : 0,
       worstPerformance:
         performances.length > 0
-          ? Math.round(Math.min(...performances) * 100) / 100
+          ? Math.round((findMin(performances.map((p: number) => ({ value: p })), 'value')?.value ?? 0) * 100) / 100
           : 0,
       totalTrades,
     });
@@ -1005,11 +1005,11 @@ export async function getStrategyPerformance(
     avgPerformance: round2(avgPerf),
     bestPerformance:
       performances.length > 0
-        ? Math.round(Math.max(...performances) * 100) / 100
+        ? Math.round((findMax(performances.map((p: number) => ({ value: p })), 'value')?.value ?? 0) * 100) / 100
         : 0,
     worstPerformance:
       performances.length > 0
-        ? Math.round(Math.min(...performances) * 100) / 100
+        ? Math.round((findMin(performances.map((p: number) => ({ value: p })), 'value')?.value ?? 0) * 100) / 100
         : 0,
     medianPerformance: round2(medianPerf),
     totalTradesExecuted: totalTrades,
