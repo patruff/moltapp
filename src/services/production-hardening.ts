@@ -97,6 +97,85 @@ const MIN_REAL_PRICE_PERCENT = 30; // At least 30% of prices must be real
 const MAX_CONSECUTIVE_FAILURES = 5; // Auto-halt after 5 consecutive failures
 const JUPITER_FAILURE_THRESHOLD = 3; // Halt after 3 consecutive Jupiter failures
 
+/**
+ * Health Check Thresholds
+ *
+ * These constants control alert severity levels in checkHealth() and determine
+ * when the system reports "degraded" vs "critical" states. Tuning these affects
+ * ops team alert noise and response urgency.
+ */
+
+/**
+ * Consecutive failure warning threshold.
+ *
+ * When consecutive round failures reach this value, health check reports "warn"
+ * status. This is lower than MAX_CONSECUTIVE_FAILURES (5, which triggers auto-halt).
+ *
+ * Impact: Controls early warning system before critical auto-halt.
+ */
+const HEALTH_CONSECUTIVE_FAILURES_WARN_THRESHOLD = 3;
+
+/**
+ * Market data staleness critical multiplier.
+ *
+ * When data age exceeds (MAX_MARKET_DATA_AGE_SECONDS * this multiplier), health
+ * check reports "fail" vs "warn". Multiplier of 2 means 240s (4 minutes) triggers
+ * critical alert.
+ *
+ * Impact: Determines how stale data must be before critical alert.
+ */
+const HEALTH_MARKET_DATA_CRITICAL_MULTIPLIER = 2;
+
+/**
+ * Jupiter API failure warning threshold.
+ *
+ * When consecutive Jupiter failures reach this value, health check reports "warn"
+ * status. This is lower than JUPITER_FAILURE_THRESHOLD (3, which triggers halt).
+ *
+ * Impact: Early warning before Jupiter failure halt.
+ */
+const HEALTH_JUPITER_FAILURES_WARN_THRESHOLD = 2;
+
+/**
+ * Agent timeout rate critical threshold (as fraction 0-1).
+ *
+ * When (agentTimeouts / totalRoundsProtected) exceeds this value, health check
+ * reports "fail" status. 0.5 = 50% of rounds experiencing agent timeouts.
+ *
+ * Impact: Defines when timeout rate becomes critical vs warning.
+ */
+const HEALTH_TIMEOUT_RATE_CRITICAL_THRESHOLD = 0.5;
+
+/**
+ * Agent timeout rate warning threshold (as fraction 0-1).
+ *
+ * When (agentTimeouts / totalRoundsProtected) exceeds this value, health check
+ * reports "warn" status. 0.2 = 20% of rounds experiencing agent timeouts.
+ *
+ * Impact: Early warning for elevated timeout rate.
+ */
+const HEALTH_TIMEOUT_RATE_WARN_THRESHOLD = 0.2;
+
+/**
+ * Last successful round age critical threshold (minutes).
+ *
+ * When last successful round age exceeds this value, health check reports "fail"
+ * status. 90 minutes of no successful rounds = critical alert.
+ *
+ * Impact: Defines when prolonged failure becomes critical.
+ */
+const HEALTH_LAST_ROUND_AGE_CRITICAL_MINUTES = 90;
+
+/**
+ * Last successful round age warning threshold (minutes).
+ *
+ * When last successful round age exceeds this value, health check reports "warn"
+ * status. 45 minutes of no successful rounds = warning alert.
+ *
+ * Impact: Early warning for prolonged failures.
+ */
+const HEALTH_LAST_ROUND_AGE_WARN_MINUTES = 45;
+
 let timeoutConfig: AgentTimeoutConfig = { ...DEFAULT_TIMEOUT_CONFIG };
 
 // ---------------------------------------------------------------------------
@@ -308,7 +387,7 @@ export function checkHealth(): HealthStatus {
     status:
       metrics.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES
         ? "fail"
-        : metrics.consecutiveFailures >= 3
+        : metrics.consecutiveFailures >= HEALTH_CONSECUTIVE_FAILURES_WARN_THRESHOLD
           ? "warn"
           : "pass",
     message: `${metrics.consecutiveFailures} consecutive round failures`,
@@ -321,7 +400,7 @@ export function checkHealth(): HealthStatus {
     name: "market_data_freshness",
     status: freshness.fresh
       ? "pass"
-      : freshness.ageSeconds > MAX_MARKET_DATA_AGE_SECONDS * 2
+      : freshness.ageSeconds > MAX_MARKET_DATA_AGE_SECONDS * HEALTH_MARKET_DATA_CRITICAL_MULTIPLIER
         ? "fail"
         : "warn",
     message: `Data age: ${freshness.ageSeconds}s, real prices: ${freshness.realPricePercent}%`,
@@ -334,7 +413,7 @@ export function checkHealth(): HealthStatus {
     status:
       jupiterConsecutiveFailures >= JUPITER_FAILURE_THRESHOLD
         ? "fail"
-        : jupiterConsecutiveFailures >= 2
+        : jupiterConsecutiveFailures >= HEALTH_JUPITER_FAILURES_WARN_THRESHOLD
           ? "warn"
           : "pass",
     message: `${jupiterConsecutiveFailures} consecutive Jupiter failures`,
@@ -349,9 +428,9 @@ export function checkHealth(): HealthStatus {
   checks.push({
     name: "agent_timeouts",
     status:
-      recentTimeoutRate > 0.5
+      recentTimeoutRate > HEALTH_TIMEOUT_RATE_CRITICAL_THRESHOLD
         ? "fail"
-        : recentTimeoutRate > 0.2
+        : recentTimeoutRate > HEALTH_TIMEOUT_RATE_WARN_THRESHOLD
           ? "warn"
           : "pass",
     message: `${metrics.agentTimeouts} total timeouts across ${metrics.totalRoundsProtected} rounds (${(recentTimeoutRate * 100).toFixed(1)}% rate)`,
@@ -366,7 +445,11 @@ export function checkHealth(): HealthStatus {
     checks.push({
       name: "last_successful_round",
       status:
-        ageMinutes > 90 ? "fail" : ageMinutes > 45 ? "warn" : "pass",
+        ageMinutes > HEALTH_LAST_ROUND_AGE_CRITICAL_MINUTES
+          ? "fail"
+          : ageMinutes > HEALTH_LAST_ROUND_AGE_WARN_MINUTES
+            ? "warn"
+            : "pass",
       message: `Last success: ${Math.round(ageMinutes)} minutes ago`,
       value: Math.round(ageMinutes),
     });
