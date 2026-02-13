@@ -740,8 +740,8 @@ function calculateHoldingPeriods(tradeRecords: TradeRecord[]): {
   return {
     avgHours:
       holdingPeriods.reduce((s, h) => s + h, 0) / holdingPeriods.length,
-    shortestHours: Math.min(...holdingPeriods),
-    longestHours: Math.max(...holdingPeriods),
+    shortestHours: findMin(holdingPeriods.map(h => ({value: h})), 'value')?.value ?? 0,
+    longestHours: findMax(holdingPeriods.map(h => ({value: h})), 'value')?.value ?? 0,
   };
 }
 

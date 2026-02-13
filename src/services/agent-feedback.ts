@@ -15,7 +15,7 @@
  * - Cross-agent comparison signals
  */
 
-import { countByCondition, round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin, round2, round3, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -524,8 +524,8 @@ function calculateSymbolPerformance(
       winRate: trades.length > 0 ? round3(wins.length / trades.length) : 0,
       totalPnl: round2(totalPnl),
       averagePnl: round2(averagePnl),
-      bestTrade: pnls.length > 0 ? round2(Math.max(...pnls)) : 0,
-      worstTrade: pnls.length > 0 ? round2(Math.min(...pnls)) : 0,
+      bestTrade: round2(findMax(pnls.map(p => ({value: p})), 'value')?.value ?? 0),
+      worstTrade: round2(findMin(pnls.map(p => ({value: p})), 'value')?.value ?? 0),
     };
   }
 

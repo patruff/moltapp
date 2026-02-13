@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, sortDescending, sortByDescending, countByCondition } from "../lib/math-utils.ts";
+import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -558,8 +558,8 @@ function analyzeSellTrades(
     avgWin: wins.length > 0 ? totalWins / wins.length : 0,
     avgLoss: losses.length > 0 ? totalLosses / losses.length : 0,
     profitFactor: totalLosses > 0 ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0,
-    largestWin: wins.length > 0 ? Math.max(...wins) : 0,
-    largestLoss: losses.length > 0 ? Math.min(...losses) : 0,
+    largestWin: findMax(wins.map(w => ({value: w})), 'value')?.value ?? 0,
+    largestLoss: findMin(losses.map(l => ({value: l})), 'value')?.value ?? 0,
     avgHoldTimeHours: holdTimes.length > 0
       ? holdTimes.reduce((s, h) => s + h, 0) / holdTimes.length
       : 0,
