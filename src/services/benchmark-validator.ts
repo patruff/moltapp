@@ -16,7 +16,7 @@
  * 8. OUTLIER DETECTION: Are there statistical outliers in metrics?
  */
 
-import { countByCondition, round2, round3 } from "../lib/math-utils.ts";
+import { countByCondition, round2, round3, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

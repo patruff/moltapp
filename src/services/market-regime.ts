@@ -13,7 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
-import { round2, stdDev, averageByKey, countByCondition } from "../lib/math-utils.ts";
+import { round2, stdDev, averageByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -1141,8 +1141,8 @@ export async function getMarketBreadth(): Promise<MarketBreadth> {
     if (currentPrice > sma50Val) aboveSMA50++;
 
     // New highs / new lows (current price vs 30-period range)
-    const maxPrice = Math.max(...prices);
-    const minPrice = Math.min(...prices);
+    const maxPrice = findMax(prices.map(p => ({ value: p })), 'value')?.value ?? 0;
+    const minPrice = findMin(prices.map(p => ({ value: p })), 'value')?.value ?? 0;
     if (currentPrice >= maxPrice * 0.99) newHighs++;
     if (currentPrice <= minPrice * 1.01) newLows++;
   }

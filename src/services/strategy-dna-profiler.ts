@@ -22,7 +22,7 @@
  * - Benchmark feature for characterizing agent intelligence
  */
 
-import { countWords, getTopKey, clamp, round3, countByCondition } from "../lib/math-utils.ts";
+import { countWords, getTopKey, clamp, round3, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -218,7 +218,7 @@ export function computeDNA(agentId: string): StrategyDNA {
 
   // 2. Conviction: relative trade sizes (normalized by max)
   const quantities = nonHold.map((t) => t.quantity);
-  const maxQty = Math.max(...quantities, 1);
+  const maxQty = findMax(quantities.map(q => ({ value: q })), 'value')?.value ?? 1;
   const avgRelativeSize =
     quantities.length > 0
       ? quantities.reduce((s, q) => s + q / maxQty, 0) / quantities.length
