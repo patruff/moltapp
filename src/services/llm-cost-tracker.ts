@@ -134,6 +134,63 @@ export async function getTotalCosts(): Promise<{
   };
 }
 
+// Provider mapping and top-up URLs
+const PROVIDER_CONFIG: Record<string, { displayName: string; topUpUrl: string }> = {
+  anthropic: { displayName: "Anthropic", topUpUrl: "https://console.anthropic.com/settings/billing" },
+  openai: { displayName: "OpenAI", topUpUrl: "https://platform.openai.com/settings/organization/billing" },
+  xai: { displayName: "xAI", topUpUrl: "https://console.x.ai/" },
+  google: { displayName: "Google", topUpUrl: "https://aistudio.google.com/apikey" },
+};
+
+function modelToProvider(model: string): string {
+  if (model.startsWith("claude-")) return "anthropic";
+  if (model.startsWith("gpt-")) return "openai";
+  if (model.startsWith("grok-") || model.startsWith("grok")) return "xai";
+  if (model.startsWith("gemini-")) return "google";
+  return "unknown";
+}
+
+/**
+ * Get total costs grouped by LLM provider.
+ */
+export async function getCostsByProvider(): Promise<{
+  totalCost: number;
+  byProvider: Array<{
+    provider: string;
+    displayName: string;
+    cost: number;
+    tokens: number;
+    topUpUrl: string;
+  }>;
+}> {
+  const rows = await db.select().from(llmUsage);
+
+  const byProvider = new Map<string, { cost: number; tokens: number }>();
+  let totalCost = 0;
+
+  for (const row of rows) {
+    const cost = parseFloat(row.estimatedCostUsd ?? "0");
+    totalCost += cost;
+    const provider = modelToProvider(row.model);
+    const existing = byProvider.get(provider) ?? { cost: 0, tokens: 0 };
+    byProvider.set(provider, {
+      cost: existing.cost + cost,
+      tokens: existing.tokens + row.totalTokens,
+    });
+  }
+
+  return {
+    totalCost,
+    byProvider: Array.from(byProvider.entries()).map(([provider, data]) => ({
+      provider,
+      displayName: PROVIDER_CONFIG[provider]?.displayName ?? provider,
+      cost: data.cost,
+      tokens: data.tokens,
+      topUpUrl: PROVIDER_CONFIG[provider]?.topUpUrl ?? "#",
+    })),
+  };
+}
+
 /**
  * Get cost summary for a specific round.
  */

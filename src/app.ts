@@ -177,6 +177,7 @@ import { benchmarkV36Routes } from "./routes/benchmark-v36.tsx";
 import { benchmarkV36ApiRoutes } from "./routes/benchmark-v36-api.ts";
 import { benchmarkV37Routes } from "./routes/benchmark-v37.tsx";
 import { benchmarkV37ApiRoutes } from "./routes/benchmark-v37-api.ts";
+import { mobileDashboardRoutes } from "./routes/mobile-dashboard.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
 import { initializeNewsProviders } from "./services/news-init.ts";
 
@@ -682,6 +683,9 @@ app.route("/api/v1/benchmark-v37", benchmarkV37ApiRoutes);
 
 // Battle Dashboard (public -- interactive competition visualization for judges)
 app.route("/battle", battleDashboardRoutes);
+
+// Mobile Agent Dashboard (public -- agents, LLM spend, top-up links)
+app.route("/mobile", mobileDashboardRoutes);
 
 // Trading Monitor Dashboard (public -- real-time charts, agent comparison)
 app.route("/monitor", monitorRoutes);
