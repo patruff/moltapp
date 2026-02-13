@@ -18,7 +18,7 @@
  * 9. RECOMMENDATIONS — What would improve this agent?
  */
 
-import { averageByKey, countByCondition, countWords, round2, round3, stdDev } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, countWords, findMax, findMin, round2, round3, stdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -498,7 +498,8 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
     symbolCounts.set(e.symbol, (symbolCounts.get(e.symbol) ?? 0) + 1);
   }
   const nonHoldCount = countByCondition(entries, (e) => e.action !== "hold");
-  const topSymbolCount = Math.max(...symbolCounts.values(), 0);
+  const symbolCountValues = Array.from(symbolCounts.values());
+  const topSymbolCount = findMax(symbolCountValues, (v) => v) ?? 0;
   if (nonHoldCount > PATTERN_MIN_TRADES && topSymbolCount / nonHoldCount > PATTERN_SYMBOL_FIXATION_RATIO) {
     const topSymbol = [...symbolCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     patterns.push({
@@ -550,8 +551,8 @@ function buildRiskProfile(entries: ReasoningEntry[]): RiskProfile {
       sell: round2(sellCount / total),
       hold: round2(holdCount / total),
     },
-    maxConfidence: Math.max(...confidences),
-    minConfidence: Math.min(...confidences),
+    maxConfidence: findMax(confidences, (c) => c) ?? 0,
+    minConfidence: findMin(confidences, (c) => c) ?? 100,
     prefersBullish: buyCount > sellCount,
   };
 }
@@ -585,8 +586,8 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
     hallucinationRate: round3(halRate),
     disciplineRate: round2(discRate),
     qualityTrend,
-    bestCoherenceScore: Math.max(...coherences),
-    worstCoherenceScore: Math.min(...coherences),
+    bestCoherenceScore: findMax(coherences, (c) => c) ?? 0,
+    worstCoherenceScore: findMin(coherences, (c) => c) ?? 1,
   };
 }
 
