@@ -421,16 +421,16 @@ export function analyzeStrategyGenome(
   ) / GENOME_COMPOSITE_ROUNDING;
 
   return {
-    styleConsistencyScore: Math.round(styleConsistencyScore * 100) / 100,
+    styleConsistencyScore: Math.round(styleConsistencyScore * GENOME_COMPOSITE_ROUNDING) / GENOME_COMPOSITE_ROUNDING,
     strategyDrift,
     detectedStrategy: detected,
     strategyDna: {
-      valueWeight: Math.round(dna.valueWeight * 1000) / 1000,
-      momentumWeight: Math.round(dna.momentumWeight * 1000) / 1000,
-      contrarianWeight: Math.round(dna.contrarianWeight * 1000) / 1000,
-      hedgeWeight: Math.round(dna.hedgeWeight * 1000) / 1000,
-      arbitrageWeight: Math.round(dna.arbitrageWeight * 1000) / 1000,
-      meanReversionWeight: Math.round(dna.meanReversionWeight * 1000) / 1000,
+      valueWeight: Math.round(dna.valueWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
+      momentumWeight: Math.round(dna.momentumWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
+      contrarianWeight: Math.round(dna.contrarianWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
+      hedgeWeight: Math.round(dna.hedgeWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
+      arbitrageWeight: Math.round(dna.arbitrageWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
+      meanReversionWeight: Math.round(dna.meanReversionWeight * DNA_ROUNDING_PRECISION) / DNA_ROUNDING_PRECISION,
     },
     genomeScore,
   };
@@ -493,7 +493,7 @@ function calculateHerfindahl(
     sumSquares += weight * weight;
   }
 
-  return Math.round(sumSquares * 100) / 100;
+  return Math.round(sumSquares * HERFINDAHL_ROUNDING_PRECISION) / HERFINDAHL_ROUNDING_PRECISION;
 }
 
 /**
@@ -531,7 +531,7 @@ export function analyzeRiskRewardDiscipline(
   // High confidence should → larger position, low confidence → smaller
   let sizingDisciplineScore: number;
   if (action === "hold") {
-    sizingDisciplineScore = 1.0; // Hold = no sizing risk
+    sizingDisciplineScore = SIZING_DISCIPLINE_PERFECT_HOLD_SCORE; // Hold = no sizing risk
   } else {
     const expectedSizeRange = agentConfig.maxPositionSize * confidence;
     const sizingRatio =
@@ -539,10 +539,10 @@ export function analyzeRiskRewardDiscipline(
         ? Math.min(positionSizePercent, expectedSizeRange) / expectedSizeRange
         : 1;
     // Penalize oversizing relative to confidence
-    if (positionSizePercent > expectedSizeRange * 1.5) {
-      sizingDisciplineScore = Math.max(0.1, 1 - (positionSizePercent - expectedSizeRange) / agentConfig.maxPositionSize);
+    if (positionSizePercent > expectedSizeRange * SIZING_OVERSIZING_PENALTY_MULTIPLIER) {
+      sizingDisciplineScore = Math.max(SIZING_DISCIPLINE_MIN_SCORE, 1 - (positionSizePercent - expectedSizeRange) / agentConfig.maxPositionSize);
     } else {
-      sizingDisciplineScore = 0.5 + sizingRatio * 0.5;
+      sizingDisciplineScore = SIZING_DISCIPLINE_BASE_SCORE + sizingRatio * SIZING_DISCIPLINE_RATIO_WEIGHT;
     }
   }
 
@@ -577,7 +577,7 @@ export function analyzeRiskRewardDiscipline(
   // 7. Cash buffer check
   const minCash =
     portfolio.totalValue * ((100 - agentConfig.maxPortfolioAllocation) / 100);
-  const cashBufferMaintained = portfolio.cashBalance >= minCash * 0.9; // 10% tolerance
+  const cashBufferMaintained = portfolio.cashBalance >= minCash * CASH_BUFFER_TOLERANCE; // Tolerance for minimum cash requirement
 
   // 8. Portfolio concentration
   const portfolioConcentration = calculateHerfindahl(
@@ -586,24 +586,24 @@ export function analyzeRiskRewardDiscipline(
   );
 
   // Composite score
-  // Sizing: 30%, Risk awareness: 25%, Boundaries: 15%, Targets: 10%, Buffer: 10%, Concentration: 10%
-  const concentrationScore = 1 - Math.min(1, portfolioConcentration * 2); // penalize concentration > 0.5
+  // Sizing: DISCIPLINE_WEIGHT_SIZING, Risk awareness: DISCIPLINE_WEIGHT_RISK_AWARENESS, etc.
+  const concentrationScore = 1 - Math.min(1, portfolioConcentration * CONCENTRATION_PENALTY_MULTIPLIER); // penalize concentration > 0.5
   const disciplineScore = Math.round(
-    (sizingDisciplineScore * 0.30 +
-      riskAwarenessScore * 0.25 +
-      (hasRiskBoundary ? 1 : 0) * 0.15 +
-      (hasProfitTarget ? 1 : 0) * 0.10 +
-      (cashBufferMaintained ? 1 : 0) * 0.10 +
-      concentrationScore * 0.10) *
-      100,
-  ) / 100;
+    (sizingDisciplineScore * DISCIPLINE_WEIGHT_SIZING +
+      riskAwarenessScore * DISCIPLINE_WEIGHT_RISK_AWARENESS +
+      (hasRiskBoundary ? 1 : 0) * DISCIPLINE_WEIGHT_RISK_BOUNDARY +
+      (hasProfitTarget ? 1 : 0) * DISCIPLINE_WEIGHT_PROFIT_TARGET +
+      (cashBufferMaintained ? 1 : 0) * DISCIPLINE_WEIGHT_CASH_BUFFER +
+      concentrationScore * DISCIPLINE_WEIGHT_CONCENTRATION) *
+      DISCIPLINE_ROUNDING_PRECISION,
+  ) / DISCIPLINE_ROUNDING_PRECISION;
 
   return {
-    sizingDisciplineScore: Math.round(sizingDisciplineScore * 100) / 100,
+    sizingDisciplineScore: Math.round(sizingDisciplineScore * DISCIPLINE_ROUNDING_PRECISION) / DISCIPLINE_ROUNDING_PRECISION,
     impliedRiskReward,
     hasRiskBoundary,
     hasProfitTarget,
-    riskAwarenessScore: Math.round(riskAwarenessScore * 100) / 100,
+    riskAwarenessScore: Math.round(riskAwarenessScore * DISCIPLINE_ROUNDING_PRECISION) / DISCIPLINE_ROUNDING_PRECISION,
     cashBufferMaintained,
     portfolioConcentration,
     disciplineScore,
