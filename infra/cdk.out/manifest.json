@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::528546457264:role/cdk-hnb659fds-deploy-role-528546457264-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::528546457264:role/cdk-hnb659fds-cfn-exec-role-528546457264-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-528546457264-us-east-1/2e7ca390e8015727d602a7c5230e450475d7af38f472e9dc4608b18ee990cf95.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-528546457264-us-east-1/d42bffd2fb82d5372d07e0d396eb27bdc1139f39aa01a272159af67e6a7d9935.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -172,10 +172,10 @@
             "data": "HttpApiANYproxy435A1FB9"
           }
         ],
-        "/MoltappStack/Certificate/Resource": [
+        "/MoltappStack/CertificateV2/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "Certificate4E7ABB08"
+            "data": "CertificateV29EE77EAF"
           }
         ],
         "/MoltappStack/ShortCachePolicy/Resource": [
@@ -200,6 +200,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "AWSCloudFrontPartitionHostedZoneIdMap"
+          }
+        ],
+        "/MoltappStack/WwwAliasRecord/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "WwwAliasRecord1B442697"
           }
         ],
         "/MoltappStack/CloudFrontDomain": [

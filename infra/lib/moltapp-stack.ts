@@ -119,7 +119,7 @@ export class MoltappStack extends cdk.Stack {
             return [];
           },
           afterBundling(inputDir: string, outputDir: string): string[] {
-            return [`cp ${inputDir}/SKILL.md ${outputDir}/SKILL.md`];
+            return [`cp ${inputDir}/../SKILL.md ${outputDir}/SKILL.md`];
           },
         },
       },

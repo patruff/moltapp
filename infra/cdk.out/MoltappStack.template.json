@@ -421,7 +421,7 @@
     ],
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-528546457264-us-east-1",
-     "S3Key": "d4401f78b32b3149819ff0a55e41f87dfb20479780f2a8a85093536c147e83fc.zip"
+     "S3Key": "985f1f4a0d13a49851278a360bde5cb8bfdaff61e0aa65bdd035de7047faddcf.zip"
     },
     "Environment": {
      "Variables": {
@@ -457,7 +457,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "MoltappStack/ApiFunction/Resource",
-    "aws:asset:path": "asset.d4401f78b32b3149819ff0a55e41f87dfb20479780f2a8a85093536c147e83fc",
+    "aws:asset:path": "asset.985f1f4a0d13a49851278a360bde5cb8bfdaff61e0aa65bdd035de7047faddcf",
     "aws:asset:is-bundled": true,
     "aws:asset:property": "Code"
    }
@@ -945,7 +945,7 @@
     "aws:cdk:path": "MoltappStack/HttpApi/ANY--{proxy+}/Resource"
    }
   },
-  "Certificate4E7ABB08": {
+  "CertificateV29EE77EAF": {
    "Type": "AWS::CertificateManager::Certificate",
    "Properties": {
     "DomainName": "patgpt.us",
@@ -953,18 +953,25 @@
      {
       "DomainName": "patgpt.us",
       "HostedZoneId": "Z0120448TE4EO5EEUBIP"
+     },
+     {
+      "DomainName": "www.patgpt.us",
+      "HostedZoneId": "Z0120448TE4EO5EEUBIP"
      }
+    ],
+    "SubjectAlternativeNames": [
+     "www.patgpt.us"
     ],
     "Tags": [
      {
       "Key": "Name",
-      "Value": "MoltappStack/Certificate"
+      "Value": "MoltappStack/CertificateV2"
      }
     ],
     "ValidationMethod": "DNS"
    },
    "Metadata": {
-    "aws:cdk:path": "MoltappStack/Certificate/Resource"
+    "aws:cdk:path": "MoltappStack/CertificateV2/Resource"
    }
   },
   "ShortCachePolicy51CE6641": {
@@ -1006,7 +1013,8 @@
    "Properties": {
     "DistributionConfig": {
      "Aliases": [
-      "patgpt.us"
+      "patgpt.us",
+      "www.patgpt.us"
      ],
      "CacheBehaviors": [
       {
@@ -1109,7 +1117,7 @@
      ],
      "ViewerCertificate": {
       "AcmCertificateArn": {
-       "Ref": "Certificate4E7ABB08"
+       "Ref": "CertificateV29EE77EAF"
       },
       "MinimumProtocolVersion": "TLSv1.2_2021",
       "SslSupportMethod": "sni-only"
@@ -1146,6 +1154,34 @@
    },
    "Metadata": {
     "aws:cdk:path": "MoltappStack/AliasRecord/Resource"
+   }
+  },
+  "WwwAliasRecord1B442697": {
+   "Type": "AWS::Route53::RecordSet",
+   "Properties": {
+    "AliasTarget": {
+     "DNSName": {
+      "Fn::GetAtt": [
+       "Distribution830FAC52",
+       "DomainName"
+      ]
+     },
+     "HostedZoneId": {
+      "Fn::FindInMap": [
+       "AWSCloudFrontPartitionHostedZoneIdMap",
+       {
+        "Ref": "AWS::Partition"
+       },
+       "zoneId"
+      ]
+     }
+    },
+    "HostedZoneId": "Z0120448TE4EO5EEUBIP",
+    "Name": "www.patgpt.us.",
+    "Type": "A"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MoltappStack/WwwAliasRecord/Resource"
    }
   },
   "CDKMetadata": {

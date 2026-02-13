@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, gte, asc } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { clamp, round2 } from "../lib/math-utils.ts";
+import { clamp, round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Risk Analysis Configuration Constants
@@ -938,7 +938,7 @@ function computeRiskScore(params: {
   }
 
   // Position count risk (0-10 points)
-  const highRiskPositions = params.positionRisk.filter((p) => p.riskLevel === "high").length;
+  const highRiskPositions = countByCondition(params.positionRisk, (p) => p.riskLevel === "high");
   if (highRiskPositions >= RISK_THRESHOLD_POSITION_HIGH) {
     score += RISK_SCORE_POSITION_HIGH_POINTS;
     warnings.push(`${highRiskPositions} high-risk positions`);

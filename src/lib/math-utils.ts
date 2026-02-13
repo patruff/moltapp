@@ -625,6 +625,36 @@ export function groupByKey<T, K extends keyof T>(
 }
 
 /**
+ * Calculates the average of absolute values of a numeric property across an array.
+ * Returns 0 for empty arrays.
+ *
+ * Useful for averaging unsigned metrics like slippage basis points, volatility,
+ * or error magnitudes where sign doesn't matter.
+ *
+ * @param items - Array of objects
+ * @param key - Property name containing numeric values
+ * @returns Average of absolute values, or 0 if array is empty
+ *
+ * @example
+ * const slippage = [{slippageBps: -50}, {slippageBps: 100}, {slippageBps: -75}];
+ * averageAbsoluteByKey(slippage, 'slippageBps') // returns (50 + 100 + 75) / 3 = 75
+ *
+ * @example
+ * averageAbsoluteByKey([], 'value') // returns 0 (handles empty arrays safely)
+ */
+export function averageAbsoluteByKey<T>(
+  items: readonly T[],
+  key: keyof T,
+): number {
+  if (items.length === 0) return 0;
+  const sum = items.reduce((acc, item) => {
+    const value = Number(item[key]) || 0;
+    return acc + Math.abs(value);
+  }, 0);
+  return sum / items.length;
+}
+
+/**
  * Groups and aggregates an array using custom key extraction and aggregation functions.
  * More flexible than groupByKey() for complex grouping scenarios.
  *

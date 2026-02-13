@@ -17,7 +17,7 @@
  * Production would persist to DynamoDB.
  */
 
-import { round2, averageByKey, countByCondition, findMax } from "../lib/math-utils.ts";
+import { round2, averageByKey, averageAbsoluteByKey, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -366,20 +366,14 @@ export function getSlippageStats(since?: Date): SlippageStats {
   // 24-hour stats
   const now24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const last24h = filtered.filter((r) => new Date(r.timestamp) >= now24h);
-  const avg24h = last24h.length > 0
-    ? last24h.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / last24h.length
-    : 0;
+  const avg24h = averageAbsoluteByKey(last24h, 'slippageBps');
 
   // Trend: compare first half vs second half average slippage
   const halfIdx = Math.floor(filtered.length / 2);
   const firstHalf = filtered.slice(halfIdx);
   const secondHalf = filtered.slice(0, halfIdx);
-  const firstAvg = firstHalf.length > 0
-    ? firstHalf.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / firstHalf.length
-    : 0;
-  const secondAvg = secondHalf.length > 0
-    ? secondHalf.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / secondHalf.length
-    : 0;
+  const firstAvg = averageAbsoluteByKey(firstHalf, 'slippageBps');
+  const secondAvg = averageAbsoluteByKey(secondHalf, 'slippageBps');
   const trendBps = Math.round(secondAvg - firstAvg);
 
   return {
@@ -428,9 +422,7 @@ export function getAgentSlippageProfiles(): AgentSlippageProfile[] {
       0,
     );
     const favorableCount = countByCondition(agentRecords, (r) => r.favorable);
-    const avgBps = agentRecords.length > 0
-      ? agentRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / agentRecords.length
-      : 0;
+    const avgBps = averageAbsoluteByKey(agentRecords, 'slippageBps');
 
     // Find worst and best slippage
     const sorted = [...agentRecords].sort(
