@@ -15,7 +15,7 @@
  * 7. Historical trend detection (improving or degrading performance?)
  */
 
-import { averageByKey, countByCondition, round2, round3, sumByKey } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, findMax, findMin, round2, round3, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -409,7 +409,8 @@ function analyzeConsensus(decisions: RoundDecision[]): RoundAnalytics["consensus
   }
 
   const confidences = decisions.map((d) => d.confidence);
-  const spread = Math.max(...confidences) - Math.min(...confidences);
+  const confObjs = confidences.map(c => ({ value: c }));
+  const spread = (findMax(confObjs, 'value')?.value ?? 0) - (findMin(confObjs, 'value')?.value ?? 0);
   const majAvgConf = averageByKey(majorityGroup, 'confidence');
 
   return {

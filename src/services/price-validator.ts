@@ -25,7 +25,7 @@
 
 import { getPrice, getAggregatedPrice, type PricePoint } from "./realtime-prices.ts";
 import { logTradeEvent } from "./audit-log.ts";
-import { round2, countByCondition, findMax } from "../lib/math-utils.ts";
+import { round2, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -277,8 +277,9 @@ export async function validatePrice(
 
   // Check 3: Source agreement (deviation check)
   const prices = sourceDetails.map((s) => s.price);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
+  const priceObjs = prices.map(p => ({ value: p }));
+  const minPrice = findMin(priceObjs, 'value')?.value ?? 0;
+  const maxPrice = findMax(priceObjs, 'value')?.value ?? 0;
   const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
   const maxDeviation = avgPrice > 0 ? ((maxPrice - minPrice) / avgPrice) * 100 : 0;
 
