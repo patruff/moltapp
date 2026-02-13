@@ -18,7 +18,7 @@
  */
 
 import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
-import { round2, round4, countByCondition } from "../lib/math-utils.ts";
+import { round2, round4, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -594,8 +594,9 @@ async function fetchDexScreenerLiquidity(mintAddress: string): Promise<DexScreen
 
     if (liquidities.length === 0) return null;
 
+    const liquidityValues = liquidities.map(l => ({ value: l }));
     return {
-      liquidityUsd: Math.max(...liquidities),
+      liquidityUsd: findMax(liquidityValues, 'value')?.value ?? 0,
     };
   } catch {
     return null;
@@ -759,12 +760,13 @@ export function buildCandles(
 
     const prices = windowPrices.map((h) => h.price);
     const volumes = windowPrices.map((h) => h.volume);
+    const priceValues = prices.map(p => ({ value: p }));
 
     candles.push({
       symbol,
       open: prices[0],
-      high: Math.max(...prices),
-      low: Math.min(...prices),
+      high: findMax(priceValues, 'value')?.value ?? prices[0],
+      low: findMin(priceValues, 'value')?.value ?? prices[0],
       close: prices[prices.length - 1],
       volume: volumes.reduce((a, b) => a + b, 0) / windowPrices.length,
       trades: windowPrices.length,
