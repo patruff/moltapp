@@ -18,7 +18,7 @@
  * Storage: In-memory ring buffer capped at 5000 entries.
  */
 
-import { round2 } from "../lib/math-utils.ts";
+import { round2, findMin, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -487,9 +487,9 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
 
   // Holding period estimate based on flow frequency
   // Time span of observed flows / number of round-trips
-  const timestamps = agentFlows.map((f) => new Date(f.timestamp).getTime());
-  const minTs = Math.min(...timestamps);
-  const maxTs = Math.max(...timestamps);
+  const timestampObjects = agentFlows.map((f) => ({ ts: new Date(f.timestamp).getTime() }));
+  const minTs = findMin(timestampObjects, 'ts')?.ts ?? 0;
+  const maxTs = findMax(timestampObjects, 'ts')?.ts ?? 0;
   const timeSpanHours = Math.max((maxTs - minTs) / (1000 * 60 * 60), 1);
   const roundTrips = Math.min(totalBought, totalSold) / Math.max(totalBought * 0.5, 1);
   const holdingPeriodEstimate = roundTrips > 0

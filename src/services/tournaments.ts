@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
