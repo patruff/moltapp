@@ -31,6 +31,12 @@ import { clamp, countByCondition, round2, round3 } from "../lib/math-utils.ts";
  * - UP: price change > 0.5%
  * - DOWN: price change < -0.5%
  * - FLAT: |price change| < 1.0%
+ *
+ * IMPACT: Directly affects directionCorrect scoring in forecast resolution.
+ * Tightening thresholds (e.g., 0.005 → 0.003) makes "flat" detection stricter,
+ * reducing false positives when agent predicts flat but market moves slightly.
+ * Loosening thresholds (e.g., 0.005 → 0.008) makes classification more forgiving,
+ * increasing direction accuracy scores but reducing forecast precision.
  */
 const DIRECTION_UP_THRESHOLD = 0.005; // 0.5%
 const DIRECTION_DOWN_THRESHOLD = -0.005; // -0.5%
@@ -44,6 +50,11 @@ const DIRECTION_FLAT_THRESHOLD = 0.01; // 1.0%
  * - Moderate: 0.25-0.50
  * - High: 0.50-0.75
  * - Very High: 0.75-1.0
+ *
+ * IMPACT: Controls granularity of confidence calibration analysis shown in UI.
+ * Fewer buckets (e.g., 3 instead of 4) → smoother confidence curves but less precision.
+ * More buckets (e.g., 5-6) → finer-grained analysis but requires more data per bucket.
+ * Current 4-bucket structure balances statistical significance with detail.
  */
 const CONFIDENCE_BUCKET_BOUNDARIES = [
   { range: "0.0-0.25", min: 0, max: 0.25 },
@@ -57,6 +68,10 @@ const CONFIDENCE_BUCKET_BOUNDARIES = [
  *
  * Ensures forecasts with exactly 100% confidence fall into the 0.75-1.0 bucket
  * (since bucket check is `confidence < max`, not `<=`).
+ *
+ * IMPACT: Technical fix for inclusive bucket boundaries. Without this offset,
+ * forecasts with confidence=1.0 would be excluded from top bucket, causing
+ * data loss in calibration analysis.
  */
 const CONFIDENCE_UPPER_BOUND_OFFSET = 1.01;
 
@@ -67,6 +82,13 @@ const CONFIDENCE_UPPER_BOUND_OFFSET = 1.01;
  * - MIN_RESOLVED_FOR_LEARNING: Need at least 10 resolved forecasts to calculate velocity
  * - LEARNING_NORMALIZATION_MULTIPLIER: Maps accuracy delta to 0-1 score (1.667 = ±0.3 accuracy → 0-1)
  * - LEARNING_DEFAULT_SCORE: Return 0.5 (neutral) when insufficient data
+ *
+ * IMPACT: Determines how quickly agents can demonstrate learning in forecasts.
+ * Lower MIN_RESOLVED_FOR_LEARNING (e.g., 8) → faster feedback but noisier signals.
+ * Higher threshold (e.g., 15) → more reliable learning detection but slower feedback.
+ * LEARNING_NORMALIZATION_MULTIPLIER controls sensitivity: higher values (e.g., 2.0)
+ * reward smaller improvements more generously, lower values (e.g., 1.3) require
+ * larger accuracy gains to achieve high learning scores.
  */
 const MIN_RESOLVED_FOR_LEARNING = 10;
 const LEARNING_NORMALIZATION_MULTIPLIER = 1.667;
@@ -79,6 +101,13 @@ const LEARNING_DEFAULT_SCORE = 0.5;
  * - HIGH_CONFIDENCE: > 70% (should predict correctly more often)
  * - LOW_CONFIDENCE: ≤ 40% (expected to be less accurate)
  * - DEFAULT_CORRELATION: 0.5 (neutral, when insufficient data)
+ *
+ * IMPACT: Controls how strictly agents are evaluated for confidence calibration.
+ * Tightening HIGH_CONFIDENCE (e.g., 0.7 → 0.8) makes it harder to demonstrate
+ * good calibration (fewer forecasts qualify as "high confidence").
+ * Widening confidence gap (e.g., 0.4-0.7 → 0.3-0.8) captures more extreme
+ * forecasts but requires larger sample sizes for statistical significance.
+ * Poor correlation scores indicate overconfident or underconfident agents.
  */
 const CONFIDENCE_HIGH_THRESHOLD = 0.7;
 const CONFIDENCE_LOW_THRESHOLD = 0.4;
@@ -89,6 +118,10 @@ const DEFAULT_CONVICTION_CORRELATION = 0.5;
  *
  * Need at least 5 resolved forecasts to calculate meaningful correlation
  * between confidence level and accuracy.
+ *
+ * IMPACT: Balances statistical reliability vs. quick feedback.
+ * Lower threshold (e.g., 3) → faster correlation signals but noisier.
+ * Higher threshold (e.g., 8) → more reliable but delays correlation scoring.
  */
 const MIN_RESOLVED_FOR_CORRELATION = 5;
 
@@ -103,6 +136,13 @@ const MIN_RESOLVED_FOR_CORRELATION = 5;
  * - Learning velocity: 25% (is agent improving over time?)
  *
  * Total: 100% (0.30 + 0.15 + 0.20 + 0.10 + 0.25 = 1.00)
+ *
+ * IMPACT: Directly controls agent impact pillar scores shown in leaderboards.
+ * Increasing DIRECTION weight (e.g., 0.30 → 0.35) emphasizes correct predictions
+ * over calibration quality, rewarding agents who get direction right even if
+ * magnitude estimates are off. Increasing LEARNING weight (e.g., 0.25 → 0.30)
+ * rewards improving agents over consistently good-but-static agents.
+ * Weight changes affect relative rankings between agents with different strengths.
  */
 const COMPOSITE_WEIGHT_DIRECTION = 0.30;
 const COMPOSITE_WEIGHT_MAGNITUDE = 0.15;
@@ -117,6 +157,11 @@ const COMPOSITE_WEIGHT_LEARNING = 0.25;
  * Error is capped at 1.0, then multiplied by 10 before applying weight.
  *
  * Example: 5% error → 0.05 * 10 = 0.5 → (1 - 0.5) * 0.15 = 0.075 contribution
+ *
+ * IMPACT: Controls sensitivity to magnitude prediction errors.
+ * Higher multiplier (e.g., 15) penalizes magnitude errors more harshly,
+ * making precise forecasts more valuable. Lower multiplier (e.g., 8)
+ * is more forgiving of imprecise magnitude estimates, focusing on direction.
  */
 const MAGNITUDE_ERROR_MULTIPLIER = 10;
 
@@ -124,6 +169,11 @@ const MAGNITUDE_ERROR_MULTIPLIER = 10;
  * Minimum resolved forecasts for streak calculation.
  *
  * Need at least 2 resolved forecasts to identify win/loss patterns.
+ *
+ * IMPACT: Determines minimum data for streak-based analysis (best/worst symbols).
+ * Lower threshold (e.g., 1) includes more symbols but with less reliable data.
+ * Higher threshold (e.g., 3) ensures statistical significance but excludes
+ * rarely-traded symbols from streak analysis.
  */
 const MIN_RESOLVED_FOR_STREAK = 2;
 
