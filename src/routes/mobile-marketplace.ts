@@ -29,6 +29,61 @@ import { apiError } from "../lib/errors.ts";
 
 export const mobileMarketplaceRoutes = new Hono();
 
+// ─── Configuration Constants ───────────────────────────
+
+/**
+ * Pagination Parameters
+ * Controls how many items are returned in list endpoints
+ */
+/** Maximum page size for paginated endpoints (prevents memory exhaustion) */
+const PAGINATION_MAX_PAGE_SIZE = 50;
+/** Default page size when not specified */
+const PAGINATION_DEFAULT_PAGE_SIZE = 20;
+/** Minimum page size (must return at least 1 item) */
+const PAGINATION_MIN_PAGE_SIZE = 1;
+
+/**
+ * Confidence Range Bounds
+ * Controls how confidence ranges are calculated for analysis results
+ */
+/** Lower bound adjustment for confidence range (subtract from score) */
+const CONFIDENCE_RANGE_LOW_ADJUSTMENT = 0.15;
+/** Upper bound adjustment for confidence range (add to score) */
+const CONFIDENCE_RANGE_HIGH_ADJUSTMENT = 0.1;
+
+/**
+ * Reading Time Estimation
+ * Controls estimated reading time for analysis deliverables
+ */
+/** Multiplier for character count → reading time (higher = slower reading assumption) */
+const READING_TIME_MULTIPLIER = 1.5;
+/** Minimum reading time in minutes (even short analyses need review time) */
+const READING_TIME_MIN_MINUTES = 2;
+
+/**
+ * Rating and Pricing Parameters
+ */
+/** Rating increment per successful job (max 5 stars, gradual improvement) */
+const RATING_INCREMENT_PER_JOB = 0.01;
+/** Kickback percentage for marketplace referrals (5% of transaction) */
+const KICKBACK_PERCENTAGE = 0.05;
+/** Cost multiplier for per-token pricing model (convert tokens to USDC) */
+const PER_TOKEN_COST_MULTIPLIER = 0.01;
+
+/**
+ * Preview and Display Limits
+ */
+/** Character limit for reasoning preview in summaries */
+const REASONING_PREVIEW_MAX_LENGTH = 200;
+/** Default items per page for catalog listings */
+const CATALOG_DEFAULT_PAGE_SIZE = 20;
+
+/**
+ * Rate Limiting
+ */
+/** Default maximum actions per hour (fallback for unknown action types) */
+const RATE_LIMIT_DEFAULT_MAX = 100;
+
 // ─── Types ─────────────────────────────────────────────
 
 type PricingModel = "per_package" | "per_token";
@@ -198,7 +253,7 @@ function paginate<T>(items: T[], page: number, pageSize: number) {
 mobileMarketplaceRoutes.get("/agents", (c) => {
   const capability = c.req.query("capability");
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
-  const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query("pageSize") ?? "20", 10)));
+  const pageSize = Math.min(PAGINATION_MAX_PAGE_SIZE, Math.max(PAGINATION_MIN_PAGE_SIZE, parseInt(c.req.query("pageSize") ?? `${PAGINATION_DEFAULT_PAGE_SIZE}`, 10)));
 
   let items = Array.from(agents.values());
   if (capability) {
@@ -253,7 +308,7 @@ mobileMarketplaceRoutes.get("/jobs", (c) => {
   const buyerWallet = c.req.query("buyerWallet");
   const sellerAgentId = c.req.query("sellerAgentId");
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1", 10));
-  const pageSize = Math.min(50, Math.max(1, parseInt(c.req.query("pageSize") ?? "20", 10)));
+  const pageSize = Math.min(PAGINATION_MAX_PAGE_SIZE, Math.max(PAGINATION_MIN_PAGE_SIZE, parseInt(c.req.query("pageSize") ?? `${PAGINATION_DEFAULT_PAGE_SIZE}`, 10)));
 
   let items = Array.from(jobs.values());
   if (status) items = items.filter((j) => j.status === status);
@@ -397,7 +452,7 @@ mobileMarketplaceRoutes.post("/deliverables/:jobId/verify", async (c) => {
         if (agent) {
           agent.jobsCompleted += 1;
           // Simple rolling average rating (would be more sophisticated in production)
-          agent.rating = Math.min(5, agent.rating + 0.01);
+          agent.rating = Math.min(5, agent.rating + RATING_INCREMENT_PER_JOB);
         }
       }
     } else {
@@ -650,7 +705,7 @@ mobileMarketplaceRoutes.post("/analysis/run", async (c) => {
       },
       tokensUsed: Math.floor(2000 + Math.random() * 6000),
       durationMs: Math.floor(1000 + Math.random() * 5000),
-      costUsdc: agent.pricing.amount * (agent.pricing.model === "per_package" ? 1 : 0.01),
+      costUsdc: agent.pricing.amount * (agent.pricing.model === "per_package" ? 1 : PER_TOKEN_COST_MULTIPLIER),
       createdAt: new Date().toISOString(),
       completedAt: new Date().toISOString(),
     };
@@ -743,7 +798,7 @@ mobileMarketplaceRoutes.post("/shared", async (c) => {
       suggestedActions: result.recommendations
         .filter((r: any) => r.action === "buy")
         .map((r: any) => `Consider ${r.ticker} with ${r.timeHorizon} horizon`),
-      readingTimeMinutes: Math.max(2, Math.ceil(result.reasoning.length * 1.5)),
+      readingTimeMinutes: Math.max(READING_TIME_MIN_MINUTES, Math.ceil(result.reasoning.length * READING_TIME_MULTIPLIER)),
     } : undefined;
 
     // Generate agent-consumable package
@@ -754,9 +809,9 @@ mobileMarketplaceRoutes.post("/shared", async (c) => {
       ),
       confidenceIntervals: result.recommendations.map((r: any) => ({
         ticker: r.ticker,
-        low: Math.max(0, r.confidenceScore - 0.15),
+        low: Math.max(0, r.confidenceScore - CONFIDENCE_RANGE_LOW_ADJUSTMENT),
         mid: r.confidenceScore,
-        high: Math.min(1, r.confidenceScore + 0.1),
+        high: Math.min(1, r.confidenceScore + CONFIDENCE_RANGE_HIGH_ADJUSTMENT),
       })),
       metadata: {
         modelUsed: agent?.model ?? "unknown",
@@ -811,7 +866,7 @@ mobileMarketplaceRoutes.get("/shared", (c) => {
   if (capability) items = items.filter((s) => s.capability === capability);
 
   items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  return c.json(paginate(items, page, 20));
+  return c.json(paginate(items, page, CATALOG_DEFAULT_PAGE_SIZE));
 });
 
 // GET /shared/:id — Get shared analysis detail
@@ -862,7 +917,7 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
   if (referrerAgentId && buyerType === "agent") {
     const referrerAgent = agents.get(referrerAgentId);
     if (referrerAgent) {
-      const kickbackUsdc = Math.round(dynamicPrice * 0.05 * 100) / 100; // 5% kickback
+      const kickbackUsdc = Math.round(dynamicPrice * KICKBACK_PERCENTAGE * 100) / 100;
       referralKickback = { referrerAgentId, kickbackUsdc };
       // Track the agent referral
       agentReferrals.push({
@@ -943,7 +998,7 @@ mobileMarketplaceRoutes.get("/catalog", (c) => {
     purchaseEndpoint: `/api/v1/mobile/shared/${s.id}/purchase`,
   }));
 
-  return c.json(paginate(catalogItems, page, 20));
+  return c.json(paginate(catalogItems, page, CATALOG_DEFAULT_PAGE_SIZE));
 });
 
 // ─── Engagement: Quests & Points ──────────────────────
@@ -1011,7 +1066,7 @@ const RATE_LIMITS: Record<string, number> = {
 
 function checkRateLimit(key: string, action: string): boolean {
   const limitKey = `${action}:${key}`;
-  const maxCount = RATE_LIMITS[action] ?? 100;
+  const maxCount = RATE_LIMITS[action] ?? RATE_LIMIT_DEFAULT_MAX;
   const now = Date.now();
 
   const entry = rateLimits.get(limitKey);
