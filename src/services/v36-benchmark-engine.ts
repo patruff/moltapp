@@ -45,7 +45,7 @@ import {
   scoreInformationAsymmetry,
   scoreTemporalReasoningQuality,
 } from "./v35-benchmark-engine.ts";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

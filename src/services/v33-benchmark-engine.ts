@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.js";
+import { countByCondition, computeStdDev } from "../lib/math-utils.js";
 
 // ---------------------------------------------------------------------------
 // Types for the 26 dimensions

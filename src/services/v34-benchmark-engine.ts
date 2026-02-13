@@ -23,7 +23,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types for the 28 dimensions

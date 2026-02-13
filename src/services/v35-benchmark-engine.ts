@@ -17,7 +17,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // Re-export inherited scoring functions from v34
 export {

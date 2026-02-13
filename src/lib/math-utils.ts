@@ -723,6 +723,52 @@ export function indexBy<T, K extends keyof T>(
 }
 
 /**
+ * Computes the variance of an array of numbers.
+ * Variance measures how spread out the values are from their mean.
+ * Returns 0 for empty arrays or arrays with a single value.
+ *
+ * Formula: Σ(x - mean)² / n
+ *
+ * @param values - Array of numbers to compute variance for
+ * @returns The variance of the values (0 if empty or single value)
+ *
+ * @example
+ * computeVariance([1, 2, 3, 4, 5]) // returns 2.0
+ * computeVariance([10, 10, 10]) // returns 0 (no variation)
+ * computeVariance([]) // returns 0 (empty array)
+ * computeVariance([42]) // returns 0 (single value)
+ */
+export function computeVariance(values: number[]): number {
+  if (values.length === 0 || values.length === 1) return 0;
+
+  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length;
+
+  return variance;
+}
+
+/**
+ * Computes the standard deviation of an array of numbers.
+ * Standard deviation is the square root of variance and measures dispersion
+ * in the same units as the original values.
+ * Returns 0 for empty arrays or arrays with a single value.
+ *
+ * Formula: √(Σ(x - mean)² / n)
+ *
+ * @param values - Array of numbers to compute standard deviation for
+ * @returns The standard deviation of the values (0 if empty or single value)
+ *
+ * @example
+ * computeStdDev([1, 2, 3, 4, 5]) // returns ~1.414
+ * computeStdDev([10, 10, 10]) // returns 0 (no variation)
+ * computeStdDev([]) // returns 0 (empty array)
+ * computeStdDev([42]) // returns 0 (single value)
+ */
+export function computeStdDev(values: number[]): number {
+  return Math.sqrt(computeVariance(values));
+}
+
+/**
  * Creates a Record mapping key values to property values.
  * Useful for extracting dimension weights, symbol prices, etc.
  *
