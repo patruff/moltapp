@@ -120,12 +120,125 @@ export interface BenchmarkSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Data Retention Limits
+ *
+ * These constants control how much historical evidence is retained per agent
+ * for benchmark profile calculations and trend analysis.
+ */
+
+/**
+ * Maximum evidence records retained per agent in memory.
+ * Keeps most recent 500 trades to balance memory usage with trend analysis depth.
+ * 500 trades ≈ 25-30 rounds of active trading per agent.
+ */
+const MAX_EVIDENCE_PER_AGENT = 500;
+
+/**
+ * Number of most recent trades used for trend visualization.
+ * Trend arrays (coherence, confidence, PnL) show last 50 data points
+ * for time-series analysis in benchmark profiles.
+ */
+const TREND_WINDOW_SIZE = 50;
+
+/**
+ * Calibration Analysis Parameters
+ *
+ * These constants control confidence calibration scoring and bias detection.
+ * Calibration measures how well agent confidence predictions match actual outcomes.
+ */
+
+/**
+ * Minimum trades required for reliable calibration analysis.
+ * Below this threshold, return default 0.5 score (neutral) since
+ * statistical significance is insufficient for ECE calculation.
+ */
+const CALIBRATION_MIN_TRADES = 5;
+
+/**
+ * Number of confidence buckets for Expected Calibration Error (ECE) calculation.
+ * Divides confidence range [0, 1] into 5 equal buckets (0-0.2, 0.2-0.4, ..., 0.8-1.0)
+ * to compare predicted confidence vs actual accuracy per bucket.
+ */
+const CALIBRATION_BUCKET_COUNT = 5;
+
+/**
+ * Default calibration score when insufficient data available.
+ * Returns 0.5 (neutral) when fewer than CALIBRATION_MIN_TRADES exist,
+ * indicating neither well-calibrated nor poorly-calibrated until more data collected.
+ */
+const CALIBRATION_DEFAULT_SCORE = 0.5;
+
+/**
+ * Confidence Bias Detection Thresholds
+ *
+ * These thresholds classify agent confidence bias patterns:
+ * - Overconfidence: High confidence (>70%) on incorrect outcomes
+ * - Underconfidence: Low confidence (<30%) on correct outcomes
+ */
+
+/**
+ * High confidence threshold for overconfidence detection.
+ * Trades with confidence > 0.7 (70%) that result in incorrect outcomes
+ * are classified as overconfident predictions.
+ */
+const CONFIDENCE_HIGH_THRESHOLD = 0.7;
+
+/**
+ * Low confidence threshold for underconfidence detection.
+ * Trades with confidence < 0.3 (30%) that result in correct outcomes
+ * are classified as underconfident predictions (agent didn't trust valid thesis).
+ */
+const CONFIDENCE_LOW_THRESHOLD = 0.3;
+
+/**
+ * Statistical Minimums
+ *
+ * Minimum data point requirements for reliable statistical calculations.
+ */
+
+/**
+ * Minimum values required for standard deviation calculation.
+ * stddev requires at least 2 data points for (n-1) denominator in variance formula.
+ */
+const STDDEV_MIN_VALUES = 2;
+
+/**
+ * Minimum returns required for Sharpe ratio calculation.
+ * Sharpe ratio requires at least 2 returns to compute mean and standard deviation.
+ */
+const SHARPE_MIN_RETURNS = 2;
+
+/**
+ * Regime-Adjusted Coherence Bonuses
+ *
+ * These bonuses reward regime-aware reasoning in agent decision-making.
+ * Contrarian trades and volatility-aware reasoning receive coherence score boosts.
+ */
+
+/**
+ * Coherence bonus for contrarian reasoning in extreme regimes.
+ * Applied when agent buys in bear market or sells in bull market
+ * with supporting contrarian/risk-aware reasoning (0.1 = 10% bonus).
+ */
+const REGIME_CONTRARIAN_BONUS = 0.1;
+
+/**
+ * Coherence bonus for volatility-aware reasoning in volatile regimes.
+ * Applied when agent shows risk management awareness during high volatility
+ * (0.05 = 5% bonus, smaller than contrarian since less actionable).
+ */
+const REGIME_VOLATILITY_AWARENESS_BONUS = 0.05;
+
+// ---------------------------------------------------------------------------
 // Storage
 // ---------------------------------------------------------------------------
 
 const evidenceStore = new Map<string, TradeEvidence[]>(); // agentId -> evidence[]
 const profileCache = new Map<string, AgentBenchmarkProfile>();
-const MAX_EVIDENCE_PER_AGENT = 500;
 
 // ---------------------------------------------------------------------------
 // Evidence Collection
@@ -204,11 +317,11 @@ export function buildAgentProfile(agentId: string): AgentBenchmarkProfile {
   // Unique rounds
   const uniqueRounds = new Set(evidence.map((e) => e.roundId));
 
-  // Trends (last 50)
-  const last50 = evidence.slice(-50);
-  const coherenceTrend = last50.map((e) => e.coherence.score);
-  const confidenceTrend = last50.map((e) => e.confidence);
-  const pnlTrend = last50.map((e) => e.pnlPercent ?? 0);
+  // Trends (last N)
+  const lastN = evidence.slice(-TREND_WINDOW_SIZE);
+  const coherenceTrend = lastN.map((e) => e.coherence.score);
+  const confidenceTrend = lastN.map((e) => e.confidence);
+  const pnlTrend = lastN.map((e) => e.pnlPercent ?? 0);
 
   const profile: AgentBenchmarkProfile = {
     agentId,
@@ -363,7 +476,7 @@ function createEmptyProfile(agentId: string): AgentBenchmarkProfile {
     hallucinationRate: 0,
     hallucinationSeverityAvg: 0,
     disciplineRate: 0,
-    calibrationScore: 0.5,
+    calibrationScore: CALIBRATION_DEFAULT_SCORE,
     overconfidenceRate: 0,
     underconfidenceRate: 0,
     intentDistribution: {},
@@ -377,7 +490,7 @@ function createEmptyProfile(agentId: string): AgentBenchmarkProfile {
 }
 
 function stddev(values: number[]): number {
-  if (values.length < 2) return 0;
+  if (values.length < STDDEV_MIN_VALUES) return 0;
   const m = mean(values);
   const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / (values.length - 1);
   return round3(Math.sqrt(variance));
