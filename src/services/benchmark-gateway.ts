@@ -31,7 +31,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2, countByCondition } from "../lib/math-utils.ts";
+import { round2, countByCondition, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -464,7 +464,8 @@ function detectAdversarialPatterns(
   // Check 3: Volume manipulation — burst submissions
   if (patterns.lastSubmissions.length >= ADVERSARIAL_VOLUME_MIN_SUBMISSIONS) {
     const recent = patterns.lastSubmissions.slice(-ADVERSARIAL_VOLUME_MIN_SUBMISSIONS);
-    const minGap = Math.min(...recent.slice(1).map((t, i) => t - recent[i]));
+    const gaps = recent.slice(1).map((t, i) => t - recent[i]);
+    const minGap = gaps.length > 0 ? Math.min(...gaps) : 1000;
     if (minGap < ADVERSARIAL_VOLUME_MIN_GAP_MS) {
       flags.push({
         type: "volume_manipulation",

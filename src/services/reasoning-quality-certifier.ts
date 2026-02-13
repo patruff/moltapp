@@ -21,7 +21,7 @@
 
 import { createHash } from "crypto";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
-import { splitSentences, normalize, countWords, round2, weightedSum, clamp, countByCondition } from "../lib/math-utils.ts";
+import { splitSentences, normalize, countWords, round2, weightedSum, clamp, countByCondition, findMin } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
 
 // ---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ export function certifyReasoning(
   );
 
   // Determine certification level
-  const minScore = Math.min(...dimensions.map((d) => d.score));
+  const minScore = findMin(dimensions, 'score')?.score ?? 0;
   let level: CertificationLevel;
   if (minScore >= CERTIFICATION_THRESHOLD_GOLD) level = "gold";
   else if (minScore >= CERTIFICATION_THRESHOLD_SILVER) level = "silver";
