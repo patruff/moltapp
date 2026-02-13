@@ -47,6 +47,24 @@ const ESTIMATED_SWAP_FEE_RATE = 0.003;
  */
 const ESTIMATED_NETWORK_FEE_USDC = 0.005;
 
+/**
+ * Estimated slippage rate for fallback transaction cost calculations.
+ *
+ * Used in estimateTransactionCosts() when actual slippage data isn't available
+ * (e.g., after server restart, before in-memory records accumulate).
+ *
+ * Conservative estimate: 0.15% (15 bps) average slippage for xStocks on Jupiter.
+ * Based on typical xStock liquidity and market conditions:
+ *   - High liquidity (AAPLx, MSFTx, TSLAx): ~5-10 bps
+ *   - Medium liquidity (NVDAx, GOOGx): ~10-20 bps
+ *   - Lower liquidity (smaller cap): ~20-30 bps
+ *
+ * 15 bps is a reasonable midpoint for portfolio-level estimates.
+ * This directly affects P&L calculations shown on the leaderboard when
+ * actual measured slippage isn't available from in-memory records.
+ */
+const ESTIMATED_SLIPPAGE_RATE = 0.0015;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -234,7 +252,7 @@ export function estimateTransactionCosts(
   const swapFees = totalVolumeUsdc * ESTIMATED_SWAP_FEE_RATE;
 
   // Estimated slippage: ~0.15% average (15bps) — conservative for xStocks liquidity
-  const estimatedSlippage = totalVolumeUsdc * 0.0015;
+  const estimatedSlippage = totalVolumeUsdc * ESTIMATED_SLIPPAGE_RATE;
 
   // Network fees: flat per transaction
   const networkFees = tradeCount * ESTIMATED_NETWORK_FEE_USDC;
