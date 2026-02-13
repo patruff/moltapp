@@ -31,6 +31,7 @@ import type {
 } from "../agents/base-agent.ts";
 import type { CircuitBreakerActivation } from "./circuit-breaker.ts";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -586,8 +587,8 @@ function computeConsensus(results: TradingRoundResult[]): PersistedRound["consen
   if (nonHold.length === 0) return "no_trades";
 
   const actions = nonHold.map((r) => r.decision.action);
-  const buys = actions.filter((a) => a === "buy").length;
-  const sells = actions.filter((a) => a === "sell").length;
+  const buys = countByCondition(actions, (a) => a === "buy");
+  const sells = countByCondition(actions, (a) => a === "sell");
 
   if (buys === nonHold.length || sells === nonHold.length) return "unanimous";
   if (buys > sells && buys > 1) return "majority";

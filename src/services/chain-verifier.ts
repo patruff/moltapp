@@ -22,6 +22,7 @@ import {
   type Address,
 } from "@solana/kit";
 import { errorMessage } from "../lib/errors.ts";
+import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -366,8 +367,8 @@ export async function batchVerifyRound(
     }
   }
 
-  const verifiedCount = verifications.filter((v) => v.verified).length;
-  const failedCount = verifications.filter((v) => !v.verified).length;
+  const verifiedCount = countByCondition(verifications, (v) => v.verified);
+  const failedCount = countByCondition(verifications, (v) => !v.verified);
 
   return {
     roundId,
