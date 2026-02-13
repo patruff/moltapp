@@ -111,6 +111,17 @@ export class MoltappStack extends cdk.Stack {
         sourceMap: true,
         tsconfig: "../tsconfig.json",
         externalModules: [],
+        commandHooks: {
+          beforeBundling(): string[] {
+            return [];
+          },
+          beforeInstall(): string[] {
+            return [];
+          },
+          afterBundling(inputDir: string, outputDir: string): string[] {
+            return [`cp ${inputDir}/SKILL.md ${outputDir}/SKILL.md`];
+          },
+        },
       },
     });
     secret.grantRead(fn);
@@ -200,8 +211,9 @@ export class MoltappStack extends cdk.Stack {
       domainName: "patgpt.us",
     });
 
-    const certificate = new acm.Certificate(this, "Certificate", {
+    const certificate = new acm.Certificate(this, "CertificateV2", {
       domainName: "patgpt.us",
+      subjectAlternativeNames: ["www.patgpt.us"],
       validation: acm.CertificateValidation.fromDns(zone),
     });
 
@@ -234,7 +246,7 @@ export class MoltappStack extends cdk.Stack {
     );
 
     const distribution = new cloudfront.Distribution(this, "Distribution", {
-      domainNames: ["patgpt.us"],
+      domainNames: ["patgpt.us", "www.patgpt.us"],
       certificate,
       // Default: no caching for POST/PUT/DELETE (trading, auth, etc.)
       defaultBehavior: {
@@ -287,9 +299,17 @@ export class MoltappStack extends cdk.Stack {
       },
     });
 
-    // --- Route53 A Record ---
+    // --- Route53 A Records ---
     new route53.ARecord(this, "AliasRecord", {
       zone,
+      target: route53.RecordTarget.fromAlias(
+        new targets.CloudFrontTarget(distribution),
+      ),
+    });
+
+    new route53.ARecord(this, "WwwAliasRecord", {
+      zone,
+      recordName: "www",
       target: route53.RecordTarget.fromAlias(
         new targets.CloudFrontTarget(distribution),
       ),

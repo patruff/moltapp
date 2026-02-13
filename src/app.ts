@@ -204,9 +204,23 @@ app.route("/health", healthRoutes);
 app.get("/skill.md", async (c) => {
   try {
     const { readFile } = await import("node:fs/promises");
-    const content = await readFile("./SKILL.md", "utf-8");
-    c.header("Content-Type", "text/markdown; charset=utf-8");
-    return c.text(content);
+    const { fileURLToPath } = await import("node:url");
+    const { dirname, join } = await import("node:path");
+    // Try multiple paths: relative to bundle (Lambda) and CWD (local dev)
+    const paths = [
+      join(dirname(fileURLToPath(import.meta.url)), "SKILL.md"),
+      "./SKILL.md",
+    ];
+    for (const p of paths) {
+      try {
+        const content = await readFile(p, "utf-8");
+        c.header("Content-Type", "text/markdown; charset=utf-8");
+        return c.text(content);
+      } catch {
+        continue;
+      }
+    }
+    return c.text("# SKILL.md not found", 404);
   } catch {
     return c.text("# SKILL.md not found", 404);
   }
