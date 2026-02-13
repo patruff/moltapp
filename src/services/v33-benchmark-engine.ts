@@ -162,25 +162,48 @@ const DIMENSION_WEIGHTS: Record<keyof V33DimensionScores, number> = {
 };
 
 // ---------------------------------------------------------------------------
+// Score Classification Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Tier classification thresholds for composite scores
+ */
+const TIER_S_THRESHOLD = 85; // >= 85 composite score = S tier (elite)
+const TIER_A_THRESHOLD = 70; // >= 70 composite score = A tier (excellent)
+const TIER_B_THRESHOLD = 55; // >= 55 composite score = B tier (good)
+const TIER_C_THRESHOLD = 40; // >= 40 composite score = C tier (acceptable)
+
+/**
+ * Grade boundaries for dimension scores
+ */
+const GRADE_A_PLUS_THRESHOLD = 95; // >= 95 score = A+ (exceptional)
+const GRADE_A_THRESHOLD = 85; // >= 85 score = A (excellent)
+const GRADE_B_PLUS_THRESHOLD = 75; // >= 75 score = B+ (very good)
+const GRADE_B_THRESHOLD = 65; // >= 65 score = B (good)
+const GRADE_C_PLUS_THRESHOLD = 55; // >= 55 score = C+ (above average)
+const GRADE_C_THRESHOLD = 45; // >= 45 score = C (average)
+const GRADE_D_THRESHOLD = 30; // >= 30 score = D (below average), < 30 = F (failing)
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
-  if (composite >= 85) return "S";
-  if (composite >= 70) return "A";
-  if (composite >= 55) return "B";
-  if (composite >= 40) return "C";
+  if (composite >= TIER_S_THRESHOLD) return "S";
+  if (composite >= TIER_A_THRESHOLD) return "A";
+  if (composite >= TIER_B_THRESHOLD) return "B";
+  if (composite >= TIER_C_THRESHOLD) return "C";
   return "D";
 }
 
 function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
-  if (score >= 95) return "A+";
-  if (score >= 85) return "A";
-  if (score >= 75) return "B+";
-  if (score >= 65) return "B";
-  if (score >= 55) return "C+";
-  if (score >= 45) return "C";
-  if (score >= 30) return "D";
+  if (score >= GRADE_A_PLUS_THRESHOLD) return "A+";
+  if (score >= GRADE_A_THRESHOLD) return "A";
+  if (score >= GRADE_B_PLUS_THRESHOLD) return "B+";
+  if (score >= GRADE_B_THRESHOLD) return "B";
+  if (score >= GRADE_C_PLUS_THRESHOLD) return "C+";
+  if (score >= GRADE_C_THRESHOLD) return "C";
+  if (score >= GRADE_D_THRESHOLD) return "D";
   return "F";
 }
 
