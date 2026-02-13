@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, calculateAverage, averageByKey, countByCondition, MS_PER_DAY } from "../lib/math-utils.ts";
+import { round2, round4, calculateAverage, averageByKey, sumByKey, countByCondition, MS_PER_DAY } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -864,7 +864,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
 
   // Risk appetite: large position sizes, concentrated bets, high frequency
   const quantities = actionDecisions.map((d: typeof decisions[0]) => parseFloat(d.quantity) || 0);
-  const avgQuantity = quantities.length > 0 ? quantities.reduce((s: number, q: number) => s + q, 0) / quantities.length : 0;
+  const avgQuantity = calculateAverage(quantities);
   const riskAppetiteScore = Math.min(100, Math.round(
     avgDecisionsPerDay * 10 +
     avgQuantity * 0.01 +
@@ -1016,10 +1016,10 @@ function computeBacktestMetrics(
 
   // Average win/loss amounts
   const avgWinAmount = wins.length > 0
-    ? round2(wins.reduce((s, t) => s + t.pnl, 0) / wins.length)
+    ? round2(averageByKey(wins, 'pnl'))
     : 0;
   const avgLossAmount = losses.length > 0
-    ? round2(losses.reduce((s, t) => s + Math.abs(t.pnl), 0) / losses.length)
+    ? round2(averageByKey(losses.map(t => ({ pnl: Math.abs(t.pnl) })), 'pnl'))
     : 0;
 
   // Payoff ratio
@@ -1028,8 +1028,8 @@ function computeBacktestMetrics(
     : avgWinAmount > 0 ? Infinity : 0;
 
   // Profit factor
-  const grossProfit = wins.reduce((s, t) => s + t.pnl, 0);
-  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+  const grossProfit = sumByKey(wins, 'pnl');
+  const grossLoss = Math.abs(sumByKey(losses, 'pnl'));
   const profitFactor = grossLoss > 0
     ? round2(grossProfit / grossLoss)
     : grossProfit > 0 ? Infinity : 0;
@@ -1059,9 +1059,7 @@ function computeBacktestMetrics(
     : 0;
 
   // Daily return statistics
-  const meanReturn = dailyReturns.length > 0
-    ? dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length
-    : 0;
+  const meanReturn = calculateAverage(dailyReturns);
 
   const variance = dailyReturns.length > 1
     ? dailyReturns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (dailyReturns.length - 1)
@@ -1072,7 +1070,7 @@ function computeBacktestMetrics(
   // Downside deviation (negative returns only)
   const negativeReturns = dailyReturns.filter((r) => r < 0);
   const downsideVariance = negativeReturns.length > 1
-    ? negativeReturns.reduce((s, r) => s + r ** 2, 0) / negativeReturns.length
+    ? calculateAverage(negativeReturns.map(r => r ** 2))
     : 0;
   const downsideDeviation = Math.sqrt(downsideVariance);
   const annualizedDownside = downsideDeviation * Math.sqrt(252);
