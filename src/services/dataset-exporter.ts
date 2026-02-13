@@ -23,7 +23,7 @@
 
 import { getEvaluations, getCurrentMethodology } from "./benchmark-gateway.ts";
 import { getLeaderboard } from "./leaderboard-engine.ts";
-import { countWords } from "../lib/math-utils.ts";
+import { countWords, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -234,7 +234,7 @@ export function calculateStatistics(rows?: DatasetRow[]): DatasetStatistics {
     actionDistribution: actionDist,
     intentDistribution: intentDist,
     avgCoherence: Math.round(data.reduce((s, r) => s + r.coherenceScore, 0) / data.length * 100) / 100,
-    avgHallucinationRate: Math.round(data.filter((r) => r.hallucinationCount > 0).length / data.length * 100) / 100,
+    avgHallucinationRate: Math.round(countByCondition(data, (r) => r.hallucinationCount > 0) / data.length * 100) / 100,
     avgComposite: Math.round(data.reduce((s, r) => s + r.compositeScore, 0) / data.length * 100) / 100,
     gradeDistribution: gradeDist,
     avgReasoningWordCount: Math.round(data.reduce((s, r) => s + r.reasoningWordCount, 0) / data.length),
