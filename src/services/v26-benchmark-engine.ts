@@ -15,6 +15,100 @@
  */
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * DNA BLENDING WEIGHTS
+ * Controls how declared intent vs detected strategy are mixed in DNA fingerprint.
+ */
+const DNA_BLEND_DECLARED_INTENT = 0.6; // 60% weight to agent's declared intent
+const DNA_BLEND_DETECTED = 0.4; // 40% weight to strategy detected from reasoning
+
+/**
+ * DNA ROUNDING PRECISION
+ * Controls decimal precision for DNA weight display (1000 = 3 decimal places).
+ */
+const DNA_ROUNDING_PRECISION = 1000; // Round to 3 decimal places (0.123)
+
+/**
+ * GENOME SCORE CALCULATION WEIGHTS
+ * Controls how style consistency vs strategy drift contribute to genome score.
+ */
+const GENOME_WEIGHT_STYLE_CONSISTENCY = 0.5; // 50% weight to style consistency
+const GENOME_WEIGHT_DRIFT_STABILITY = 0.5; // 50% weight to drift stability (1 - drift)
+
+/**
+ * STYLE CONSISTENCY SCORING
+ * Scores when detected strategy matches/mismatches declared style.
+ */
+const STYLE_CONSISTENCY_MATCH_SCORE = 1.0; // Perfect score when strategy matches style
+const STYLE_CONSISTENCY_MISMATCH_SCORE = 0.4; // Penalty when strategy diverges from declared style
+
+/**
+ * DRIFT CALCULATION PRECISION
+ * Controls decimal precision for strategy drift display.
+ */
+const DRIFT_ROUNDING_PRECISION = 100; // Round to 2 decimal places (0.12)
+
+/**
+ * GENOME COMPOSITE ROUNDING PRECISION
+ * Controls decimal precision for final genome score.
+ */
+const GENOME_COMPOSITE_ROUNDING = 100; // Round to 2 decimal places (0.85)
+
+/**
+ * POSITION SIZING DISCIPLINE THRESHOLDS
+ * Controls how position size relative to confidence is scored.
+ */
+const SIZING_OVERSIZING_PENALTY_MULTIPLIER = 1.5; // Penalize when size > confidence × maxPosition × 1.5
+const SIZING_DISCIPLINE_MIN_SCORE = 0.1; // Minimum score floor for severe oversizing
+const SIZING_DISCIPLINE_BASE_SCORE = 0.5; // Base score before applying sizing ratio
+const SIZING_DISCIPLINE_RATIO_WEIGHT = 0.5; // Weight for sizing ratio component
+const SIZING_DISCIPLINE_PERFECT_HOLD_SCORE = 1.0; // Perfect score for hold actions (no sizing risk)
+
+/**
+ * CASH BUFFER TOLERANCE
+ * Controls how strictly cash buffer requirements are enforced.
+ */
+const CASH_BUFFER_TOLERANCE = 0.9; // Allow 10% deviation from minimum cash requirement
+
+/**
+ * PORTFOLIO CONCENTRATION PENALTY
+ * Controls how concentration (Herfindahl index) affects discipline score.
+ */
+const CONCENTRATION_PENALTY_MULTIPLIER = 2; // Penalize concentration > 0.5 heavily
+
+/**
+ * HERFINDAHL INDEX ROUNDING PRECISION
+ * Controls decimal precision for concentration index display.
+ */
+const HERFINDAHL_ROUNDING_PRECISION = 100; // Round to 2 decimal places (0.65)
+
+/**
+ * RISK-REWARD DISCIPLINE COMPOSITE WEIGHTS
+ * Controls how different risk factors contribute to overall discipline score.
+ */
+const DISCIPLINE_WEIGHT_SIZING = 0.30; // 30% - Position sizing discipline (HIGHEST weight)
+const DISCIPLINE_WEIGHT_RISK_AWARENESS = 0.25; // 25% - Risk keyword mentions in reasoning
+const DISCIPLINE_WEIGHT_RISK_BOUNDARY = 0.15; // 15% - Has stop-loss or exit criteria
+const DISCIPLINE_WEIGHT_PROFIT_TARGET = 0.10; // 10% - Has profit target specified
+const DISCIPLINE_WEIGHT_CASH_BUFFER = 0.10; // 10% - Maintains minimum cash reserve
+const DISCIPLINE_WEIGHT_CONCENTRATION = 0.10; // 10% - Portfolio diversification
+
+/**
+ * DISCIPLINE SCORE ROUNDING PRECISION
+ * Controls decimal precision for final discipline score and sub-scores.
+ */
+const DISCIPLINE_ROUNDING_PRECISION = 100; // Round to 2 decimal places (0.78)
+
+/**
+ * RISK-REWARD RATIO ROUNDING PRECISION
+ * Controls decimal precision for implied risk-reward ratio extraction.
+ */
+const RISK_REWARD_ROUNDING_PRECISION = 100; // Round to 2 decimal places (2.50)
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -238,14 +332,14 @@ function buildStrategyDna(reasoning: string, intent: string): StrategyDna {
   const detected = detectStrategyFromReasoning(reasoning);
   const detectedDna = INTENT_DNA_MAP[detected] ?? INTENT_DNA_MAP.value;
 
-  // Blend: 60% declared intent, 40% detected from reasoning
+  // Blend: DNA_BLEND_DECLARED_INTENT declared intent, DNA_BLEND_DETECTED detected from reasoning
   const dna: StrategyDna = {
-    valueWeight: baseDna.valueWeight * 0.6 + detectedDna.valueWeight * 0.4,
-    momentumWeight: baseDna.momentumWeight * 0.6 + detectedDna.momentumWeight * 0.4,
-    contrarianWeight: baseDna.contrarianWeight * 0.6 + detectedDna.contrarianWeight * 0.4,
-    hedgeWeight: baseDna.hedgeWeight * 0.6 + detectedDna.hedgeWeight * 0.4,
-    arbitrageWeight: baseDna.arbitrageWeight * 0.6 + detectedDna.arbitrageWeight * 0.4,
-    meanReversionWeight: baseDna.meanReversionWeight * 0.6 + detectedDna.meanReversionWeight * 0.4,
+    valueWeight: baseDna.valueWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.valueWeight * DNA_BLEND_DETECTED,
+    momentumWeight: baseDna.momentumWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.momentumWeight * DNA_BLEND_DETECTED,
+    contrarianWeight: baseDna.contrarianWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.contrarianWeight * DNA_BLEND_DETECTED,
+    hedgeWeight: baseDna.hedgeWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.hedgeWeight * DNA_BLEND_DETECTED,
+    arbitrageWeight: baseDna.arbitrageWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.arbitrageWeight * DNA_BLEND_DETECTED,
+    meanReversionWeight: baseDna.meanReversionWeight * DNA_BLEND_DECLARED_INTENT + detectedDna.meanReversionWeight * DNA_BLEND_DETECTED,
   };
 
   // Normalize to sum to 1
@@ -314,17 +408,17 @@ export function analyzeStrategyGenome(
   };
 
   const expectedStrategies = styleMap[agentDeclaredStyle] ?? [declaredIntent];
-  const styleConsistencyScore = expectedStrategies.includes(detected) ? 1.0 : 0.4;
+  const styleConsistencyScore = expectedStrategies.includes(detected) ? STYLE_CONSISTENCY_MATCH_SCORE : STYLE_CONSISTENCY_MISMATCH_SCORE;
 
   // Update history and compute drift
   const avgDna = updateAgentDnaHistory(agentId, dna);
   const similarity = dnaSimilarity(dna, avgDna);
-  const strategyDrift = Math.round((1 - similarity) * 100) / 100;
+  const strategyDrift = Math.round((1 - similarity) * DRIFT_ROUNDING_PRECISION) / DRIFT_ROUNDING_PRECISION;
 
   // Composite genome score
   const genomeScore = Math.round(
-    (styleConsistencyScore * 0.5 + (1 - strategyDrift) * 0.5) * 100,
-  ) / 100;
+    (styleConsistencyScore * GENOME_WEIGHT_STYLE_CONSISTENCY + (1 - strategyDrift) * GENOME_WEIGHT_DRIFT_STABILITY) * GENOME_COMPOSITE_ROUNDING,
+  ) / GENOME_COMPOSITE_ROUNDING;
 
   return {
     styleConsistencyScore: Math.round(styleConsistencyScore * 100) / 100,
