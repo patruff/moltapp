@@ -936,7 +936,7 @@ export function getCrossAgentInsights(
     const recent = tradingOutcomes.slice(-CROSS_AGENT_RECENT_TRADES_WINDOW);
     const recentWinRate =
       recent.length > 0
-        ? (recent.filter((o) => o.directionCorrect).length / recent.length) * 100
+        ? (countByCondition(recent, (o) => o.directionCorrect) / recent.length) * 100
         : 0;
 
     // Share recent action summary
@@ -977,7 +977,7 @@ export function getLearningMetrics(): LearningMetrics {
     totalPatterns += (agentPatterns.get(agentId) ?? []).length;
 
     const winRate =
-      (tradingOutcomes.filter((o) => o.directionCorrect).length /
+      (countByCondition(tradingOutcomes, (o) => o.directionCorrect) /
         tradingOutcomes.length) *
       100;
     totalWinRate += winRate;
