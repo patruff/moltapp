@@ -18,6 +18,14 @@ const demoRegisterBodySchema = z.object({
   agentName: z.string().min(1, "agentName is required").max(100),
 });
 
+const joinBodySchema = z.object({
+  agentName: z.string().min(1, "agentName is required").max(100),
+  modelProvider: z.enum(["anthropic", "openai", "xai", "google", "other"]),
+  modelName: z.string().min(1, "modelName is required").max(100),
+  walletAddress: z.string().optional(),
+  description: z.string().max(500).optional(),
+});
+
 export const authRoutes = new Hono();
 
 /**
@@ -207,5 +215,68 @@ authRoutes.post("/demo-register", async (c) => {
     },
     demo: true,
     note: "This is a demo account. All trades are simulated. Starting balance: 100 SOL + 10,000 USDC",
+  });
+});
+
+/**
+ * POST /join
+ *
+ * External agent self-registration. No Moltbook identity verification required.
+ * Agents bring their own wallet and LLM — we just register them for benchmark scoring.
+ */
+authRoutes.post("/join", async (c) => {
+  const body = await c.req.json();
+  const parsed = joinBodySchema.safeParse(body);
+
+  if (!parsed.success) {
+    return apiError(c, "VALIDATION_FAILED", parsed.error.flatten());
+  }
+
+  const { agentName, modelProvider, modelName, walletAddress, description } = parsed.data;
+
+  // Generate unique external agent ID
+  const agentId = `ext_${randomBytes(8).toString("hex")}`;
+
+  // Insert agent profile
+  await db.insert(agents).values({
+    id: agentId,
+    name: agentName,
+    description: description ?? `External ${modelProvider} agent (${modelName})`,
+    karma: 0,
+    avatarUrl: null,
+    ownerXHandle: null,
+    ownerXName: null,
+  });
+
+  // If wallet provided, store it (external wallet, not Turnkey-managed)
+  if (walletAddress) {
+    await db.insert(wallets).values({
+      agentId,
+      publicKey: walletAddress,
+      turnkeyWalletId: "external",
+    });
+  }
+
+  // Generate API key (same pattern as /register)
+  const rawKey = randomBytes(32).toString("hex");
+  const fullKey = `${API_KEY_PREFIX}${rawKey}`;
+  const keyHash = createHash("sha256").update(fullKey).digest("hex");
+  const keyPrefix = fullKey.substring(0, 12);
+
+  await db.insert(apiKeys).values({
+    agentId,
+    keyHash,
+    keyPrefix,
+  });
+
+  return c.json({
+    agentId,
+    apiKey: fullKey,
+    walletAddress: walletAddress ?? null,
+    profile: {
+      name: agentName,
+      modelProvider,
+      modelName,
+    },
   });
 });
