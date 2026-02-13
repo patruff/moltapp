@@ -907,8 +907,9 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
 
   const riskContribs = allocations.map((a) => a.riskContribution);
   const totalRisk = riskContribs.reduce((s, r) => s + r, 0);
-  const maxRiskContrib = Math.max(...riskContribs);
-  const minRiskContrib = Math.min(...riskContribs);
+  const riskContribObjects = riskContribs.map((contrib) => ({ contrib }));
+  const maxRiskContrib = findMax(riskContribObjects, 'contrib')?.contrib ?? 0;
+  const minRiskContrib = findMin(riskContribObjects, 'contrib')?.contrib ?? 0;
 
   // Risk parity score: 100 = perfect parity, lower = more concentrated risk
   const avgRisk = totalRisk / allocations.length;

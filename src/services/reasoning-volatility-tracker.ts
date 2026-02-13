@@ -376,8 +376,9 @@ export function analyzeVolatility(agentId: string): VolatilityMetrics {
   for (const [symbol, actions] of symbolActions) {
     const symbolSnaps = history.filter((h) => h.symbol === symbol);
     const symSentiments = symbolSnaps.map((s) => s.sentimentScore);
-    const maxSent = Math.max(...symSentiments);
-    const minSent = Math.min(...symSentiments);
+    const sentimentObjects = symSentiments.map((sent) => ({ sent }));
+    const maxSent = findMax(sentimentObjects, 'sent')?.sent ?? 0;
+    const minSent = findMin(sentimentObjects, 'sent')?.sent ?? 0;
 
     let flips = 0;
     for (let i = 1; i < actions.length; i++) {

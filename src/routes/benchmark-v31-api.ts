@@ -22,7 +22,7 @@
  */
 
 import { Hono } from "hono";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 import {
   getV31Leaderboard,
   getV31TradeGrades,
@@ -334,13 +334,16 @@ benchmarkV31ApiRoutes.get("/transparency", (c) => {
     byAgent.set(g.agentId, arr);
   }
 
-  const agentTransparency = Array.from(byAgent.entries()).map(([agentId, scores]) => ({
-    agentId,
-    avgTransparency: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-    tradeCount: scores.length,
-    bestScore: Math.max(...scores),
-    worstScore: Math.min(...scores),
-  })).sort((a, b) => b.avgTransparency - a.avgTransparency);
+  const agentTransparency = Array.from(byAgent.entries()).map(([agentId, scores]) => {
+    const scoreObjects = scores.map((score) => ({ score }));
+    return {
+      agentId,
+      avgTransparency: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+      tradeCount: scores.length,
+      bestScore: findMax(scoreObjects, 'score')?.score ?? 0,
+      worstScore: findMin(scoreObjects, 'score')?.score ?? 0,
+    };
+  }).sort((a, b) => b.avgTransparency - a.avgTransparency);
 
   return c.json({
     ok: true,
