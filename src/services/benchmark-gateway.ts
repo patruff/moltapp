@@ -464,8 +464,8 @@ function detectAdversarialPatterns(
   // Check 3: Volume manipulation — burst submissions
   if (patterns.lastSubmissions.length >= ADVERSARIAL_VOLUME_MIN_SUBMISSIONS) {
     const recent = patterns.lastSubmissions.slice(-ADVERSARIAL_VOLUME_MIN_SUBMISSIONS);
-    const gaps = recent.slice(1).map((t, i) => t - recent[i]);
-    const minGap = gaps.length > 0 ? Math.min(...gaps) : 1000;
+    const gaps = recent.slice(1).map((t, i) => ({ value: t - recent[i] }));
+    const minGap = findMin(gaps, 'value')?.value ?? 1000;
     if (minGap < ADVERSARIAL_VOLUME_MIN_GAP_MS) {
       flags.push({
         type: "volume_manipulation",

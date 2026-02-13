@@ -13,7 +13,7 @@
  * - Vocabulary stability: Does the agent use consistent terminology?
  */
 
-import { mean, round3 } from "../lib/math-utils.ts";
+import { mean, round3, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types

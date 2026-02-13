@@ -440,9 +440,9 @@ function checkAgentCoverage(records: BenchmarkRecord[], issues: ValidationIssue[
   }
 
   // Check for severely imbalanced agents
-  const counts = [...agentCounts.values()];
-  const maxCount = Math.max(...counts);
-  const minCount = Math.min(...counts);
+  const counts = [...agentCounts.values()].map((value) => ({ value }));
+  const maxCount = findMax(counts, 'value')?.value ?? 0;
+  const minCount = findMin(counts, 'value')?.value ?? 0;
 
   if (counts.length > 1 && maxCount > minCount * AGENT_IMBALANCE_RATIO_THRESHOLD) {
     issues.push({

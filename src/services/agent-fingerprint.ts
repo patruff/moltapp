@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, gte } from "drizzle-orm";
-import { round2, round3, countByCondition } from "../lib/math-utils.ts";
+import { round2, round3, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -506,9 +506,9 @@ function computeRiskAppetite(
 ): RiskAppetite {
   const amounts = tradeHistory.map((t) => parseFloat(t.usdcAmount));
   const avgPositionSize = amounts.length > 0
-    ? amounts.reduce((a, b) => a + b, 0) / amounts.length
+    ? amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length
     : 0;
-  const maxPositionSize = amounts.length > 0 ? Math.max(...amounts) : 0;
+  const maxPositionSize = findMax(amounts.map(value => ({ value })), 'value')?.value ?? 0;
 
   // Trade frequency: non-hold decisions / total decisions
   const nonHolds = countByCondition(decisions, (d) => d.action !== "hold");

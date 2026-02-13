@@ -25,7 +25,7 @@
  *    concrete recommendations for agent improvement.
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round3, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -382,7 +382,8 @@ export function analyzeReasoningPatterns(agentId: string): ReasoningPatternRepor
       openingCounts.set(o, (openingCounts.get(o) ?? 0) + 1);
     }
   }
-  const maxOpeningCount = Math.max(...openingCounts.values(), 0);
+  const openingCountValues = [...openingCounts.values()].map((value) => ({ value }));
+  const maxOpeningCount = findMax(openingCountValues, 'value')?.value ?? 0;
   const templateDetected = entries.length >= TEMPLATE_MIN_ENTRIES && maxOpeningCount / entries.length > TEMPLATE_DETECTION_THRESHOLD;
 
   // --- Reasoning length stats ---
