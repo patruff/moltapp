@@ -100,6 +100,12 @@ export interface ModelDivergenceReport {
 }
 
 // ---------------------------------------------------------------------------
+// Imports
+// ---------------------------------------------------------------------------
+
+import { findMax, findMin } from "../lib/math-utils.js";
+
+// ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
 
@@ -256,7 +262,9 @@ export function compareRoundReasoning(
   const actions = roundDecisions.map((d) => d.action);
   const uniqueActions = new Set(actions);
   const confidences = roundDecisions.map((d) => d.confidence);
-  const confSpread = Math.max(...confidences) - Math.min(...confidences);
+  const maxConf = findMax(confidences, (c) => c) ?? 0;
+  const minConf = findMin(confidences, (c) => c) ?? 0;
+  const confSpread = maxConf - minConf;
 
   if (uniqueActions.size > 1) {
     divergencePoints.push({
