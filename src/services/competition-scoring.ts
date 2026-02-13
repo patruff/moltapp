@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { competitionScores } from "../db/schema/portfolio-snapshots.ts";
 import { eq, desc, and, sql, gte } from "drizzle-orm";
 import type { TradingRoundResult } from "../agents/base-agent.ts";
-import { clamp, round2 } from "../lib/math-utils.ts";
+import { clamp, round2, findMax, findMin } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
@@ -366,8 +366,9 @@ function scorePnL(
     return scores;
   }
 
-  const maxPnl = Math.max(...values);
-  const minPnl = Math.min(...values);
+  const pnlValues = values.map((v) => ({ value: v }));
+  const maxPnl = findMax(pnlValues, 'value')?.value ?? 0;
+  const minPnl = findMin(pnlValues, 'value')?.value ?? 0;
   const range = maxPnl - minPnl;
 
   for (const [agentId, pnl] of agentPnls) {
@@ -693,8 +694,9 @@ export function getLeaderboard(): LeaderboardEntry[] {
       roundsPlayed > 0
         ? Math.round(state.roundScores.reduce((a, b) => a + b, 0) / roundsPlayed)
         : 0;
-    const bestRoundScore = Math.max(...state.roundScores);
-    const worstRoundScore = Math.min(...state.roundScores);
+    const scoreObjects = state.roundScores.map((s) => ({ score: s }));
+    const bestRoundScore = findMax(scoreObjects, 'score')?.score ?? 0;
+    const worstRoundScore = findMin(scoreObjects, 'score')?.score ?? 0;
     const lastRoundScore = state.roundScores[state.roundScores.length - 1] ?? 0;
 
     // Momentum: compare last 3 rounds to previous 3
