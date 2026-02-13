@@ -532,7 +532,7 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
 
   const score = perTradeScores.reduce((s, v) => s + v, 0) / perTradeScores.length;
   const trend = detectTrend(perTradeScores);
-  const tradesWithRisk = perTradeScores.filter((s) => s > RISK_MENTION_THRESHOLD).length;
+  const tradesWithRisk = countByCondition(perTradeScores, (s) => s > RISK_MENTION_THRESHOLD);
 
   return {
     name: "risk_awareness",
@@ -583,7 +583,7 @@ function scoreMarketSensitivity(trades: TradeRecord[]): StrategyDimension {
 
   const score = perTradeScores.reduce((s, v) => s + v, 0) / perTradeScores.length;
   const trend = detectTrend(perTradeScores);
-  const highSensitivity = perTradeScores.filter((s) => s > MARKET_HIGH_SENSITIVITY_THRESHOLD).length;
+  const highSensitivity = countByCondition(perTradeScores, (s) => s > MARKET_HIGH_SENSITIVITY_THRESHOLD);
 
   return {
     name: "market_sensitivity",
