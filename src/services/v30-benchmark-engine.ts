@@ -526,8 +526,9 @@ export function getCrossAgentCalibration(): {
   }
 
   // Fairness index: 1.0 = all providers equal, lower = more unfair
-  const maxComposite = Math.max(...composites, 1);
-  const minComposite = Math.min(...composites, 0);
+  const compositeValues = composites.map((value) => ({ value }));
+  const maxComposite = findMax(compositeValues, 'value')?.value ?? 1;
+  const minComposite = findMin(compositeValues, 'value')?.value ?? 0;
   const fairnessIndex = maxComposite > 0 ? Math.round((1 - (maxComposite - minComposite) / maxComposite) * 100) / 100 : 1;
 
   return { providers: providerStats, fairnessIndex };

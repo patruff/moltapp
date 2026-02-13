@@ -13,7 +13,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -829,12 +829,13 @@ export function getCrossAgentCalibration(): {
     providerBias[provider] = r(pMean - mean);
   }
 
+  const compositeValues = composites.map((value) => ({ value }));
   return {
     fairnessIndex: r(Math.max(0, 1 - stdDev / 30)),
     providerBias,
     spreadAnalysis: {
-      min: r(Math.min(...composites)),
-      max: r(Math.max(...composites)),
+      min: r(findMin(compositeValues, 'value')?.value ?? 0),
+      max: r(findMax(compositeValues, 'value')?.value ?? 0),
       stdDev: r(stdDev),
     },
   };
