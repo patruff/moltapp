@@ -26,6 +26,7 @@ import {
   extractSourcesFromReasoning,
   classifyIntent,
 } from "../schemas/trade-reasoning.ts";
+import { findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -196,7 +197,8 @@ export function computeStrategyConsistencyScore(recentIntents: string[]): number
   if (recentIntents.length <= 1) return 0.5;
   const freq: Record<string, number> = {};
   for (const i of recentIntents) freq[i] = (freq[i] || 0) + 1;
-  const max = Math.max(...Object.values(freq));
+  const freqValues = Object.values(freq).map((value) => ({ value }));
+  const max = findMax(freqValues, 'value')?.value ?? 0;
   return clamp01(max / recentIntents.length);
 }
 
@@ -289,7 +291,8 @@ function computeEdgeConsistency(
   if (winners.length < 2) return 0.5;
   const intentFreq: Record<string, number> = {};
   for (const w of winners) intentFreq[w.intent] = (intentFreq[w.intent] || 0) + 1;
-  const maxFreq = Math.max(...Object.values(intentFreq));
+  const freqValues = Object.values(intentFreq).map((value) => ({ value }));
+  const maxFreq = findMax(freqValues, 'value')?.value ?? 0;
   return clamp01(maxFreq / winners.length);
 }
 

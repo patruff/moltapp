@@ -11,6 +11,8 @@
  * - Decision Latency Quality: faster isn't always better, measure thoughtfulness
  */
 
+import { findMax, findMin } from "../lib/math-utils.ts";
+
 // Types for the 20 dimensions
 export interface V30DimensionScores {
   // Financial Performance (3 dims)
