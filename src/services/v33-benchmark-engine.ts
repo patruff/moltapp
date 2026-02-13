@@ -185,6 +185,49 @@ const GRADE_C_THRESHOLD = 45; // >= 45 score = C (average)
 const GRADE_D_THRESHOLD = 30; // >= 30 score = D (below average), < 30 = F (failing)
 
 // ---------------------------------------------------------------------------
+// Consensus Quality Scoring Parameters
+// ---------------------------------------------------------------------------
+
+/**
+ * Agreement rate threshold for justified divergence bonus
+ * - Agreement rate < 50% = agent diverging from majority
+ * - Divergence + strong reasoning (coherence >= 0.7) = +25 points
+ * - Divergence + moderate reasoning (coherence >= 0.5) = +10 points
+ * - Divergence + weak reasoning (coherence < 0.5) = -15 points (reckless)
+ */
+const CONSENSUS_DIVERGENCE_THRESHOLD = 0.5;
+
+/**
+ * Coherence score threshold for justified divergence detection
+ * - Coherence >= 0.7 = strong reasoning backing divergence
+ */
+const CONSENSUS_DIVERGENCE_STRONG_COHERENCE = 0.7;
+
+/**
+ * Coherence score threshold for moderate divergence reasoning
+ * - Coherence >= 0.5 = moderate reasoning quality
+ */
+const CONSENSUS_DIVERGENCE_MODERATE_COHERENCE = 0.5;
+
+/**
+ * Full agreement threshold for blind herding penalty detection
+ * - Agreement rate = 1.0 = all agents agree
+ */
+const CONSENSUS_FULL_AGREEMENT = 1.0;
+
+/**
+ * Minimum word count for independent reasoning assessment
+ * - Word count < 30 with full agreement = likely blind herding (-15 points)
+ */
+const CONSENSUS_HERDING_WORD_COUNT_MIN = 30;
+
+/**
+ * Minimum coherence score for edge consistency measurement
+ * - Coherence > 0.6 = consistently high-quality reasoning
+ */
+const EDGE_CONSISTENCY_COHERENCE_THRESHOLD = 0.6;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -306,12 +349,12 @@ export function scoreConsensusQuality(
   const agreementRate = sameAction / totalPeers;
 
   // 1. Justified divergence (0-30 bonus)
-  if (agreementRate < 0.5) {
+  if (agreementRate < CONSENSUS_DIVERGENCE_THRESHOLD) {
     // Agent is diverging from majority
-    if (coherenceScore >= 0.7) {
+    if (coherenceScore >= CONSENSUS_DIVERGENCE_STRONG_COHERENCE) {
       // Strong reasoning supports the divergence
       score += 25;
-    } else if (coherenceScore >= 0.5) {
+    } else if (coherenceScore >= CONSENSUS_DIVERGENCE_MODERATE_COHERENCE) {
       score += 10;
     } else {
       // Weak reasoning + divergence = reckless
@@ -320,10 +363,10 @@ export function scoreConsensusQuality(
   }
 
   // 2. Blind herding penalty (0-20 penalty)
-  if (agreementRate === 1.0) {
+  if (agreementRate === CONSENSUS_FULL_AGREEMENT) {
     // Everyone agrees — check if reasoning is independent
     const wordCount = reasoning.split(/\s+/).length;
-    if (wordCount < 30) {
+    if (wordCount < CONSENSUS_HERDING_WORD_COUNT_MIN) {
       score -= 15; // Short reasoning + full agreement = likely herding
     }
     // No penalty for long, well-reasoned agreement
