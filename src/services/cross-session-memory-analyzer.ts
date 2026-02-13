@@ -87,6 +87,41 @@ const DIMENSION_WEIGHT_STRATEGY_EVOLUTION = 0.20; // 20% - Evolving strategy ove
 const DIMENSION_WEIGHT_SYMBOL_KNOWLEDGE = 0.15; // 15% - Building stock-specific expertise
 const DIMENSION_WEIGHT_CONFIDENCE_RECALIBRATION = 0.15; // 15% - Adjusting confidence after errors
 
+/**
+ * Strategy evolution scoring bonuses.
+ * Controls how much credit to award for strategic adaptation indicators.
+ */
+const STRATEGY_EVOLUTION_ENTROPY_MODERATE_BONUS = 0.15; // +15% for +0.1 entropy (moderate diversity increase)
+const STRATEGY_EVOLUTION_ENTROPY_STRONG_BONUS = 0.1; // +10% for +0.3 entropy (strong strategy shift)
+const STRATEGY_EVOLUTION_COHERENCE_MODERATE_BONUS = 0.15; // +15% for +5% coherence (moderate improvement)
+const STRATEGY_EVOLUTION_COHERENCE_STRONG_BONUS = 0.1; // +10% for +10% coherence (strong improvement)
+
+/**
+ * Symbol knowledge improvement threshold.
+ * Minimum coherence improvement to classify as "building expertise" on a symbol.
+ */
+const SYMBOL_KNOWLEDGE_IMPROVEMENT_THRESHOLD = 0.03; // 3% coherence improvement = building knowledge
+
+/**
+ * Confidence recalibration thresholds.
+ * Controls overconfidence detection and adjustment requirements.
+ */
+const RECALIBRATION_OVERCONFIDENT_THRESHOLD = 0.6; // >60% confidence before miss = overconfident
+const RECALIBRATION_ADJUSTMENT_MINIMUM = 0.05; // 5-point confidence drop = meaningful adjustment
+
+/**
+ * Strength/weakness classification thresholds.
+ * Determines when dimension scores qualify as "strong" or "weak" in profile generation.
+ */
+const STRENGTH_THRESHOLD = 0.7; // Score > 0.7 = strength (e.g., "Avoids repeating mistakes")
+const WEAKNESS_THRESHOLD = 0.4; // Score < 0.4 = weakness (e.g., "Repeats losing patterns")
+
+/**
+ * Trend detection threshold.
+ * Coherence change required to classify agent trend as improving/declining vs stable.
+ */
+const TREND_DETECTION_THRESHOLD = 0.05; // ±5% coherence change = improving/declining trend
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -336,10 +371,10 @@ function analyzeStrategyEvolution(entries: MemoryEntry[]): { score: number } {
 
   // Score: reward evolution + improvement
   let score = 0.5;
-  if (entropyChange > 0.1) score += 0.15; // Strategy diversity increased
-  if (entropyChange > 0.3) score += 0.1;
-  if (coherenceImprovement > 0.05) score += 0.15; // Reasoning quality improved
-  if (coherenceImprovement > 0.1) score += 0.1;
+  if (entropyChange > ENTROPY_CHANGE_MODERATE) score += STRATEGY_EVOLUTION_ENTROPY_MODERATE_BONUS; // Strategy diversity increased
+  if (entropyChange > ENTROPY_CHANGE_STRONG) score += STRATEGY_EVOLUTION_ENTROPY_STRONG_BONUS;
+  if (coherenceImprovement > COHERENCE_IMPROVEMENT_MODERATE) score += STRATEGY_EVOLUTION_COHERENCE_MODERATE_BONUS; // Reasoning quality improved
+  if (coherenceImprovement > COHERENCE_IMPROVEMENT_STRONG) score += STRATEGY_EVOLUTION_COHERENCE_STRONG_BONUS;
 
   return { score: round3(Math.min(1, Math.max(0, score))) };
 }
@@ -371,7 +406,7 @@ function analyzeSymbolKnowledge(entries: MemoryEntry[]): { score: number } {
     const earlyCoherence = symbolEntries.slice(0, mid).reduce((s, e) => s + e.coherenceScore, 0) / mid;
     const lateCoherence = symbolEntries.slice(mid).reduce((s, e) => s + e.coherenceScore, 0) / (symbolEntries.length - mid);
 
-    if (lateCoherence > earlyCoherence + 0.03) {
+    if (lateCoherence > earlyCoherence + SYMBOL_KNOWLEDGE_IMPROVEMENT_THRESHOLD) {
       improvingSymbols++;
     }
   }
@@ -395,10 +430,10 @@ function analyzeConfidenceRecalibration(entries: MemoryEntry[]): { score: number
     const prev = entries[i - 1];
     const curr = entries[i];
 
-    if (prev.wasCorrect === false && prev.confidence > 0.6) {
+    if (prev.wasCorrect === false && prev.confidence > RECALIBRATION_OVERCONFIDENT_THRESHOLD) {
       postMissTotal++;
       // Did agent lower confidence after overconfident miss?
-      if (curr.confidence < prev.confidence - 0.05) {
+      if (curr.confidence < prev.confidence - RECALIBRATION_ADJUSTMENT_MINIMUM) {
         postMissAdjustments++;
       }
     }
@@ -475,28 +510,28 @@ export function getAgentMemoryProfile(agentId: string): AgentMemoryProfile {
   const strengths: string[] = [];
   const weaknesses: string[] = [];
 
-  if (dimensions.mistakeRepetition > 0.7) strengths.push("Avoids repeating mistakes");
-  else if (dimensions.mistakeRepetition < 0.4) weaknesses.push("Repeats losing patterns");
+  if (dimensions.mistakeRepetition > STRENGTH_THRESHOLD) strengths.push("Avoids repeating mistakes");
+  else if (dimensions.mistakeRepetition < WEAKNESS_THRESHOLD) weaknesses.push("Repeats losing patterns");
 
-  if (dimensions.lessonRetention > 0.7) strengths.push("Learns from losses");
-  else if (dimensions.lessonRetention < 0.4) weaknesses.push("Does not adapt after losses");
+  if (dimensions.lessonRetention > STRENGTH_THRESHOLD) strengths.push("Learns from losses");
+  else if (dimensions.lessonRetention < WEAKNESS_THRESHOLD) weaknesses.push("Does not adapt after losses");
 
-  if (dimensions.strategyEvolution > 0.7) strengths.push("Evolves strategy over time");
-  else if (dimensions.strategyEvolution < 0.4) weaknesses.push("Static strategy regardless of conditions");
+  if (dimensions.strategyEvolution > STRENGTH_THRESHOLD) strengths.push("Evolves strategy over time");
+  else if (dimensions.strategyEvolution < WEAKNESS_THRESHOLD) weaknesses.push("Static strategy regardless of conditions");
 
-  if (dimensions.symbolKnowledge > 0.7) strengths.push("Builds stock-specific expertise");
-  else if (dimensions.symbolKnowledge < 0.4) weaknesses.push("No improvement on familiar stocks");
+  if (dimensions.symbolKnowledge > STRENGTH_THRESHOLD) strengths.push("Builds stock-specific expertise");
+  else if (dimensions.symbolKnowledge < WEAKNESS_THRESHOLD) weaknesses.push("No improvement on familiar stocks");
 
-  if (dimensions.confidenceRecalibration > 0.7) strengths.push("Adjusts confidence after misses");
-  else if (dimensions.confidenceRecalibration < 0.4) weaknesses.push("Stays overconfident after errors");
+  if (dimensions.confidenceRecalibration > STRENGTH_THRESHOLD) strengths.push("Adjusts confidence after misses");
+  else if (dimensions.confidenceRecalibration < WEAKNESS_THRESHOLD) weaknesses.push("Stays overconfident after errors");
 
   // Trend
   const mid = Math.floor(entries.length / 2);
   const firstHalfScore = entries.slice(0, mid).reduce((s, e) => s + e.coherenceScore, 0) / mid;
   const secondHalfScore = entries.slice(mid).reduce((s, e) => s + e.coherenceScore, 0) / (entries.length - mid);
   const trend: "improving" | "stable" | "declining" =
-    secondHalfScore > firstHalfScore + 0.05 ? "improving" :
-    secondHalfScore < firstHalfScore - 0.05 ? "declining" : "stable";
+    secondHalfScore > firstHalfScore + TREND_DETECTION_THRESHOLD ? "improving" :
+    secondHalfScore < firstHalfScore - TREND_DETECTION_THRESHOLD ? "declining" : "stable";
 
   return {
     agentId,
