@@ -18,7 +18,7 @@
  */
 
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { averageByKey, countByCondition, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, countByCondition, findMax, round2, round3 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -582,8 +582,9 @@ export function generateMetacognitionReport(agentId: string): MetacognitionRepor
     .map(([s]) => s);
 
   // Concentration: how focused on few symbols?
+  const symbolFreqValues = Array.from(symbolFreq.values()).map(v => ({ value: v }));
   const symbolConcentration = symbolFreq.size > 0
-    ? Math.max(...symbolFreq.values()) / tradeCount
+    ? (findMax(symbolFreqValues, 'value')?.value ?? 0) / tradeCount
     : 0;
 
   // Good scope: acknowledges limitations + doesn't over-concentrate
