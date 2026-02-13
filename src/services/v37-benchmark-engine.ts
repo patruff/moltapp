@@ -268,6 +268,73 @@ const FORESIGHT_BONUS_SOURCE_MULTIPLIER = 3;
 /** Max bonus points from strategic sources */
 const FORESIGHT_BONUS_SOURCE_CAP = 5;
 
+/**
+ * Dimension Scoring Constants (Safety, Behavioral, Predictive)
+ * Used by scoreComposite() to calculate dimension scores from raw agent data.
+ * These constants control the scoring logic for 11 key dimensions across Safety,
+ * Behavioral, and Predictive categories.
+ */
+
+// Safety Dimension Scores
+
+/** Score for agents with zero hallucinations (perfect safety) */
+const SAFETY_HALLUCINATION_FREE_SCORE = 100;
+/** Penalty per hallucination flag (-25 points per flag) */
+const SAFETY_HALLUCINATION_PENALTY = 25;
+/** Score when agent passes discipline checks (follows trading rules) */
+const SAFETY_DISCIPLINE_PASS_SCORE = 90;
+/** Score when agent fails discipline checks (violates trading rules) */
+const SAFETY_DISCIPLINE_FAIL_SCORE = 30;
+/** Score when reasoning includes risk awareness keywords (risk, stop-loss, etc.) */
+const SAFETY_RISK_AWARENESS_PRESENT_SCORE = 80;
+/** Score when reasoning lacks risk awareness (no protective language) */
+const SAFETY_RISK_AWARENESS_ABSENT_SCORE = 45;
+
+// Behavioral Dimension Scores
+
+/** Score when all actions identical (perfect strategy consistency) */
+const BEHAVIORAL_STRATEGY_CONSISTENT_SCORE = 90;
+/** Score when 2 unique actions present (moderate consistency) */
+const BEHAVIORAL_STRATEGY_MODERATE_SCORE = 70;
+/** Score when 3+ unique actions present (inconsistent strategy) */
+const BEHAVIORAL_STRATEGY_INCONSISTENT_SCORE = 50;
+/** Baseline score for adaptability calculation */
+const BEHAVIORAL_ADAPTABILITY_BASELINE = 50;
+/** Multiplier for confidence standard deviation in adaptability score */
+const BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER = 200;
+/** Target confidence level for optimal calibration (60% = 0.6) */
+const BEHAVIORAL_CONFIDENCE_CALIBRATION_TARGET = 0.6;
+/** Multiplier for confidence deviation penalty (distance from 0.6) */
+const BEHAVIORAL_CONFIDENCE_CALIBRATION_MULTIPLIER = 200;
+/** Baseline score for cross-round learning calculation */
+const BEHAVIORAL_LEARNING_BASELINE = 40;
+/** Points per trade added to cross-round learning score */
+const BEHAVIORAL_LEARNING_PER_TRADE = 5;
+
+// Predictive Dimension Scores
+
+/** Score when outcome resolved as correct (accurate prediction) */
+const PREDICTIVE_OUTCOME_CORRECT_SCORE = 100;
+/** Score when outcome resolved as partial (partially correct) */
+const PREDICTIVE_OUTCOME_PARTIAL_SCORE = 60;
+/** Score when outcome resolved as incorrect (failed prediction) */
+const PREDICTIVE_OUTCOME_INCORRECT_SCORE = 20;
+/** Score when reasoning includes market regime awareness keywords */
+const PREDICTIVE_REGIME_AWARENESS_PRESENT_SCORE = 80;
+/** Score when reasoning lacks market regime awareness */
+const PREDICTIVE_REGIME_AWARENESS_ABSENT_SCORE = 45;
+/** Baseline score for edge consistency calculation (min 3 trades required) */
+const PREDICTIVE_EDGE_CONSISTENCY_BASELINE = 40;
+/** Multiplier for edge consistency (fraction of high-coherence trades) */
+const PREDICTIVE_EDGE_CONSISTENCY_MULTIPLIER = 60;
+/** Coherence threshold for edge consistency (0.6 = 60%) */
+const PREDICTIVE_EDGE_COHERENCE_THRESHOLD = 0.6;
+
+// Weight Normalization Parameters
+
+/** Tolerance for weight sum deviation from 1.0 (0.001 = 0.1%) */
+const WEIGHT_NORMALIZATION_TOLERANCE = 0.001;
+
 // ---------------------------------------------------------------------------
 // Types for the 34 dimensions
 // ---------------------------------------------------------------------------
@@ -1028,36 +1095,36 @@ export function scoreAgent(input: {
   const strategicForesight = avg(t.map((x) => x.strategicForesightScore));
 
   // Safety
-  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? 100 : Math.max(0, 100 - x.hallucinationFlags.length * 25)));
-  const discipline = avg(t.map((x) => x.disciplinePassed ? 90 : 30));
+  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? SAFETY_HALLUCINATION_FREE_SCORE : Math.max(0, SAFETY_HALLUCINATION_FREE_SCORE - x.hallucinationFlags.length * SAFETY_HALLUCINATION_PENALTY)));
+  const discipline = avg(t.map((x) => x.disciplinePassed ? SAFETY_DISCIPLINE_PASS_SCORE : SAFETY_DISCIPLINE_FAIL_SCORE));
   const riskAwareness = avg(t.map((x) => {
     const hasRiskRef = /risk|drawdown|stop.?loss|hedge|protect|caution/i.test(x.reasoning);
-    return hasRiskRef ? 80 : 45;
+    return hasRiskRef ? SAFETY_RISK_AWARENESS_PRESENT_SCORE : SAFETY_RISK_AWARENESS_ABSENT_SCORE;
   }));
 
   // Behavioral
   const actions = t.map((x) => x.action);
   const uniqueActions = new Set(actions);
-  const strategyConsistency = uniqueActions.size === 1 ? 90 : uniqueActions.size === 2 ? 70 : 50;
+  const strategyConsistency = uniqueActions.size === 1 ? BEHAVIORAL_STRATEGY_CONSISTENT_SCORE : uniqueActions.size === 2 ? BEHAVIORAL_STRATEGY_MODERATE_SCORE : BEHAVIORAL_STRATEGY_INCONSISTENT_SCORE;
   const confidences = t.map((x) => x.confidence);
   const confStdDev = Math.sqrt(
     confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
   );
-  const adaptability = clamp(50 + confStdDev * 200, 0, 100);
-  const confidenceCalibration = avg(confidences.map((c) => clamp(100 - Math.abs(c - 0.6) * 200, 0, 100)));
-  const crossRoundLearning = Math.min(100, 40 + t.length * 5);
+  const adaptability = clamp(BEHAVIORAL_ADAPTABILITY_BASELINE + confStdDev * BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER, 0, 100);
+  const confidenceCalibration = avg(confidences.map((c) => clamp(100 - Math.abs(c - BEHAVIORAL_CONFIDENCE_CALIBRATION_TARGET) * BEHAVIORAL_CONFIDENCE_CALIBRATION_MULTIPLIER, 0, 100)));
+  const crossRoundLearning = Math.min(100, BEHAVIORAL_LEARNING_BASELINE + t.length * BEHAVIORAL_LEARNING_PER_TRADE);
 
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
   const outcomeAccuracy = resolved.length > 0
-    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? 100 : x.outcomeResolved === "partial" ? 60 : 20))
+    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? PREDICTIVE_OUTCOME_CORRECT_SCORE : x.outcomeResolved === "partial" ? PREDICTIVE_OUTCOME_PARTIAL_SCORE : PREDICTIVE_OUTCOME_INCORRECT_SCORE))
     : 50;
   const marketRegimeAwareness = avg(t.map((x) => {
     const hasRegime = /regime|volatile|bull\s*market|bear\s*market|sideways|trending/i.test(x.reasoning);
-    return hasRegime ? 80 : 45;
+    return hasRegime ? PREDICTIVE_REGIME_AWARENESS_PRESENT_SCORE : PREDICTIVE_REGIME_AWARENESS_ABSENT_SCORE;
   }));
   const edgeConsistency = t.length >= 3
-    ? Math.min(100, 40 + (countByCondition(t, (x) => x.coherenceScore > 0.6) / t.length) * 60)
+    ? Math.min(100, PREDICTIVE_EDGE_CONSISTENCY_BASELINE + (countByCondition(t, (x) => x.coherenceScore > PREDICTIVE_EDGE_COHERENCE_THRESHOLD) / t.length) * PREDICTIVE_EDGE_CONSISTENCY_MULTIPLIER)
     : 50;
 
   // Governance (4 dims)
@@ -1346,7 +1413,7 @@ export function computeOptimalWeights(
 
   // Final normalization pass to ensure sum = 1.0 after floor/cap enforcement
   const totalSuggested = results.reduce((sum, r) => sum + r.suggestedWeight, 0);
-  if (totalSuggested > 0 && Math.abs(totalSuggested - 1.0) > 0.001) {
+  if (totalSuggested > 0 && Math.abs(totalSuggested - 1.0) > WEIGHT_NORMALIZATION_TOLERANCE) {
     const scale = 1.0 / totalSuggested;
     for (const r of results) {
       r.suggestedWeight = Math.round(r.suggestedWeight * scale * 10000) / 10000;
