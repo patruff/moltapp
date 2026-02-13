@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, and, gte } from "drizzle-orm";
-import { round2, round3, countByCondition, findMax } from "../lib/math-utils.ts";
+import { round2, round3, countByCondition, findMax, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -476,11 +476,9 @@ function computeConfidenceProfile(
   const mean = confidences.reduce((a, b) => a + b, 0) / confidences.length;
   const median = confidences[Math.floor(confidences.length / 2)];
 
-  // Standard deviation
-  const variance =
-    confidences.reduce((sum, c) => sum + Math.pow(c - mean, 2), 0) /
-    Math.max(1, confidences.length - 1);
-  const stdDev = Math.sqrt(variance);
+  // Standard deviation (sample variance: multiply by n/(n-1) Bessel correction)
+  const n = confidences.length;
+  const stdDev = n > 1 ? computeStdDev(confidences) * Math.sqrt(n / (n - 1)) : 0;
 
   // Distribution buckets
   const distribution = {
