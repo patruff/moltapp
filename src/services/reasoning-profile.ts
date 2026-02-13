@@ -14,7 +14,7 @@
  * 6. CONSISTENCY: Does the agent reason similarly across similar situations?
  */
 
-import { splitSentences, round3, countByCondition } from "../lib/math-utils.ts";
+import { splitSentences, round3, countByCondition, findMax } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -376,7 +376,8 @@ function analyzeConsistency(entries: ReasoningEntry[]): ConsistencyProfile {
   for (const e of entries) {
     intentCounts.set(e.intent, (intentCounts.get(e.intent) ?? 0) + 1);
   }
-  const maxIntentCount = Math.max(...intentCounts.values());
+  const intentCountValues = Array.from(intentCounts.values()).map(count => ({ count }));
+  const maxIntentCount = findMax(intentCountValues, 'count')?.count ?? 0;
   const intentStability = Math.round((maxIntentCount / entries.length) * 100) / 100;
 
   return {
