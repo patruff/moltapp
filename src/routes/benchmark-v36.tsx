@@ -23,6 +23,7 @@ import {
   getDimensionCount,
   getBenchmarkVersion,
 } from "../services/v36-benchmark-engine.ts";
+import { dotClr } from "../lib/benchmark-ui-colors.ts";
 
 export const benchmarkV36Routes = new Hono();
 
@@ -79,8 +80,6 @@ const CAT_CLR: Record<string, string> = {
   Behavioral: "#22d3ee", Predictive: "#34d399", Governance: "#fbbf24",
 };
 const CATS = ["Financial", "Reasoning Quality", "Safety", "Behavioral", "Predictive", "Governance"];
-
-function dotClr(v: number): string { return v >= 70 ? "#00ff88" : v >= 40 ? "#ffd700" : "#ff4444"; }
 
 // ---------------------------------------------------------------------------
 // GET / — Dashboard
