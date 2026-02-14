@@ -262,8 +262,8 @@ export function compareRoundReasoning(
   const actions = roundDecisions.map((d) => d.action);
   const uniqueActions = new Set(actions);
   const confidences = roundDecisions.map((d) => d.confidence);
-  const maxConf = findMax(confidences, (c) => c) ?? 0;
-  const minConf = findMin(confidences, (c) => c) ?? 0;
+  const maxConf = confidences.length > 0 ? Math.max(...confidences) : 0;
+  const minConf = confidences.length > 0 ? Math.min(...confidences) : 0;
   const confSpread = maxConf - minConf;
 
   if (uniqueActions.size > 1) {
