@@ -13,7 +13,7 @@
  * - Vocabulary stability: Does the agent use consistent terminology?
  */
 
-import { mean, round3, findMax, findMin } from "../lib/math-utils.ts";
+import { mean, round3, findMax, findMin, standardDeviation } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -456,13 +456,7 @@ export function compareAgentVolatility(): {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function standardDeviation(values: number[]): number {
-  if (values.length < 2) return 0;
-  const m = mean(values);
-  const squaredDiffs = values.map((v) => Math.pow(v - m, 2));
-  return Math.sqrt(squaredDiffs.reduce((s, v) => s + v, 0) / (values.length - 1));
-}
+// Note: standardDeviation() now imported from math-utils.ts (Session 132)
 
 function computeStabilityScore(
   sentVol: number,
