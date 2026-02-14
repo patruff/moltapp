@@ -13,7 +13,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, findMax, findMin, computeVariance } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin, computeVariance, computeStdDev } from "../lib/math-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -814,7 +814,7 @@ export function getCrossAgentCalibration(): {
 
   const composites = scores.map((s) => s.compositeScore);
   const mean = composites.reduce((a, b) => a + b, 0) / composites.length;
-  const stdDev = Math.sqrt(computeVariance(composites, true));
+  const stdDev = computeStdDev(composites, true);
 
   const providerBias: Record<string, number> = {};
   const byProvider = new Map<string, number[]>();
