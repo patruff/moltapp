@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc, gte, asc } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { clamp, round2, countByCondition } from "../lib/math-utils.ts";
+import { clamp, round2, countByCondition, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Risk Analysis Configuration Constants
@@ -1021,8 +1021,7 @@ function computeDailyReturns(
 function computeVolatility(returns: number[]): number {
   if (returns.length < 2) return VOLATILITY_DEFAULT; // Default estimate
 
-  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / (returns.length - 1);
+  const variance = computeVariance(returns);
   return round2(Math.sqrt(variance));
 }
 

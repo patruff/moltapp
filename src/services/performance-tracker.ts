@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition } from "../lib/math-utils.ts";
+import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition, computeVariance, mean } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -416,13 +416,13 @@ function computeRiskMetrics(
   }
 
   // Volatility (annualized std dev of daily returns)
-  const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-  const variance = dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (dailyReturns.length - 1);
+  const variance = computeVariance(dailyReturns);
   const dailyVol = Math.sqrt(variance);
   const annualizedVol = dailyVol * Math.sqrt(TRADING_DAYS_PER_YEAR);
 
   // Sharpe ratio
-  const annualizedReturn = mean * TRADING_DAYS_PER_YEAR;
+  const avgDailyReturn = mean(dailyReturns);
+  const annualizedReturn = avgDailyReturn * TRADING_DAYS_PER_YEAR;
   const sharpeRatio = annualizedVol > 0
     ? (annualizedReturn - RISK_FREE_RATE) / annualizedVol
     : null;

@@ -1183,8 +1183,7 @@ export async function getRiskContribution(agentId: string): Promise<RiskContribu
       symbolVolatility.set(symbol, 0.02); // Default 2% daily vol
       continue;
     }
-    const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
-    const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1);
+    const variance = computeVariance(returns);
     symbolVolatility.set(symbol, Math.sqrt(variance));
   }
 
