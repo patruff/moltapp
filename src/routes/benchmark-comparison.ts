@@ -17,7 +17,7 @@
 
 import { Hono } from "hono";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { clamp, countByCondition, mean, round2, round3 } from "../lib/math-utils.ts";
+import { clamp, computeVariance, countByCondition, mean, round2, round3 } from "../lib/math-utils.ts";
 
 export const benchmarkComparisonRoutes = new Hono();
 
