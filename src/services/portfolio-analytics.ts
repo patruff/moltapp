@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
-import { sumByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
+import { sumByKey, countByCondition, findMax, findMin, computeSampleVariance } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;
@@ -530,9 +530,7 @@ function calculateSharpeRatio(dailyReturns: number[]): number | null {
   const excessReturns = dailyReturns.map((r) => r - dailyRfRate);
 
   const mean = excessReturns.reduce((s, r) => s + r, 0) / excessReturns.length;
-  const variance =
-    excessReturns.reduce((s, r) => s + (r - mean) ** 2, 0) /
-    (excessReturns.length - 1);
+  const variance = computeSampleVariance(excessReturns);
   const stdDev = Math.sqrt(variance);
 
   if (stdDev === 0) return null;
@@ -570,10 +568,7 @@ function calculateSortinoRatio(dailyReturns: number[]): number | null {
 function calculateVolatility(dailyReturns: number[]): number {
   if (dailyReturns.length < 2) return 0;
 
-  const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-  const variance =
-    dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) /
-    (dailyReturns.length - 1);
+  const variance = computeSampleVariance(dailyReturns);
 
   return Math.sqrt(variance * TRADING_DAYS_PER_YEAR);
 }

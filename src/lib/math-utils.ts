@@ -748,6 +748,36 @@ export function computeVariance(values: number[]): number {
 }
 
 /**
+ * Computes the sample variance of an array of numbers.
+ * Sample variance uses Bessel's correction (divides by n-1 instead of n)
+ * to provide an unbiased estimator of population variance.
+ * Returns 0 for empty arrays or arrays with a single value.
+ *
+ * Used in financial calculations like Sharpe ratio, Sortino ratio, and volatility
+ * where we're estimating population parameters from a sample.
+ *
+ * Formula: Σ(x - mean)² / (n - 1)
+ *
+ * @param values - Array of numbers to compute sample variance for
+ * @returns The sample variance of the values (0 if empty or single value)
+ *
+ * @example
+ * ```ts
+ * const returns = [0.01, 0.02, -0.01, 0.03];
+ * const sampleVar = computeSampleVariance(returns); // 0.000233... (uses n-1)
+ * const popVar = computeVariance(returns);          // 0.000175... (uses n)
+ * ```
+ */
+export function computeSampleVariance(values: number[]): number {
+  if (values.length === 0 || values.length === 1) return 0;
+
+  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+  const variance = values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / (values.length - 1);
+
+  return variance;
+}
+
+/**
  * Computes the standard deviation of an array of numbers.
  * Standard deviation is the square root of variance and measures dispersion
  * in the same units as the original values.
