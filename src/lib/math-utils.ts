@@ -561,10 +561,6 @@ export function stdDev(values: number[]): number {
   return Math.sqrt(avgSquareDiff);
 }
 
-export function computeStdDev(values: number[]): number {
-  return stdDev(values);
-}
-
 export function splitSentences(text: string, minLength = 10): string[] {
   return text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length >= minLength);
 }
@@ -869,6 +865,42 @@ export function computeVariance(values: number[], usePopulation = false): number
   const denominator = usePopulation ? values.length : values.length - 1;
 
   return sumSquaredDiff / denominator;
+}
+
+/**
+ * computeStdDev - Compute standard deviation (square root of variance)
+ *
+ * Standard deviation is the most common measure of statistical dispersion, representing
+ * the average distance of data points from the mean. It's widely used in:
+ * - Portfolio risk analysis (volatility, VaR calculations)
+ * - Performance metrics (Sharpe ratio denominators)
+ * - Quality control (confidence calibration, drift detection)
+ * - Normalization (z-score calculations)
+ *
+ * @param values - Array of numbers to analyze
+ * @param usePopulation - If true, uses population formula (divide by n); if false, uses sample formula (divide by n-1)
+ * @returns Standard deviation, or 0 if fewer than 2 values
+ *
+ * @example
+ * // Portfolio volatility (daily returns)
+ * const returns = [0.02, -0.01, 0.03, -0.02];
+ * const volatility = computeStdDev(returns, true);  // Population stddev
+ *
+ * @example
+ * // Sharpe ratio calculation
+ * const returns = agent.outcomes.map(o => o.pnlPercent);
+ * const meanReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
+ * const stdDev = computeStdDev(returns, true);
+ * const sharpe = stdDev > 0 ? meanReturn / stdDev : 0;
+ *
+ * @example
+ * // Confidence calibration analysis
+ * const confidences = decisions.map(d => d.confidence);
+ * const confStdDev = computeStdDev(confidences, false);  // Sample stddev
+ */
+export function computeStdDev(values: number[], usePopulation = false): number {
+  const variance = computeVariance(values, usePopulation);
+  return Math.sqrt(variance);
 }
 
 // REMOVED: Duplicate weightedSum function - see line 671 for the canonical version with readonly array support
