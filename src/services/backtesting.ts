@@ -17,7 +17,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, calculateAverage, averageByKey, sumByKey, countByCondition, MS_PER_DAY } from "../lib/math-utils.ts";
+import { round2, round4, calculateAverage, averageByKey, sumByKey, countByCondition, computeDownsideVariance, MS_PER_DAY } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -1068,10 +1068,7 @@ function computeBacktestMetrics(
   const annualizedVol = dailyVol * Math.sqrt(252);
 
   // Downside deviation (negative returns only)
-  const negativeReturns = dailyReturns.filter((r) => r < 0);
-  const downsideVariance = negativeReturns.length > 1
-    ? calculateAverage(negativeReturns.map(r => r ** 2))
-    : 0;
+  const downsideVariance = computeDownsideVariance(dailyReturns);
   const downsideDeviation = Math.sqrt(downsideVariance);
   const annualizedDownside = downsideDeviation * Math.sqrt(252);
 
