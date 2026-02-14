@@ -18,7 +18,7 @@
  * No database access is required — feed trade data via recordHistoricalTrade().
  */
 
-import { round2, countByCondition } from "../lib/math-utils.ts";
+import { round2, countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -497,7 +497,7 @@ function aggregateResults(
   // Central tendency
   const mean = finalValues.reduce((s, v) => s + v, 0) / finalValues.length;
   const median = getPercentile(sorted, 0.50);
-  const std = computeStdDev(finalValues, mean);
+  const std = computeStdDev(finalValues);  // Uses canonical helper from math-utils.ts
 
   // Percentiles
   const percentiles = {

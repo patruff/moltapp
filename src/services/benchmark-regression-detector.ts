@@ -13,7 +13,7 @@
  * 5. CALIBRATION DECAY: Is confidence calibration getting worse over time?
  */
 
-import { round3, sortEntriesDescending } from "../lib/math-utils.ts";
+import { round3, sortEntriesDescending, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -611,12 +611,7 @@ function computeAvgMetric(
   return snapshots.reduce((s, snap) => s + extractor(snap), 0) / snapshots.length;
 }
 
-function computeStdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((s, v) => s + v, 0) / values.length;
-  const variance = values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
+// Removed duplicate computeStdDev() - now using canonical version from math-utils.ts (line 901)
 
 // ---------------------------------------------------------------------------
 // Health Report
