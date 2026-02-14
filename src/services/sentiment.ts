@@ -970,7 +970,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
       consistencyScore,
       flipFlopRate,
       contrarianScore,
-      recentBias: Math.max(-100, Math.min(100, recentBias)),
+      recentBias: clamp(recentBias, -100, 100),
     };
   } catch (error) {
     console.error(`[Sentiment] Agent profile error for ${agentId}:`, error);
@@ -1196,7 +1196,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       news.push({
         headline: priceHeadline.text,
         source: NEWS_SOURCES[hashSeed(stock.symbol + "price") % NEWS_SOURCES.length],
-        sentiment: Math.max(-1, Math.min(1, change / 5)),
+        sentiment: clamp(change / 5, -1, 1),
         symbols: [stock.symbol],
         category: "market",
         publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t1") % (4 * 60 * 60 * 1000)).toISOString(),
@@ -1258,7 +1258,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
             ? `Wall Street Selloff Deepens as S&P 500 Drops ${Math.abs(spyChange).toFixed(1)}%`
             : "Markets Tread Water as Traders Await Fed Signals",
           source: "Reuters",
-          sentiment: Math.max(-1, Math.min(1, spyChange / 3)),
+          sentiment: clamp(spyChange / 3, -1, 1),
           symbols: ["SPYx"],
           category: "macro",
           publishedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
@@ -1274,7 +1274,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
             ? `Nasdaq Underperforms as Growth Stock Valuations Compress`
             : "Nasdaq Flat as Sector Rotation Continues",
           source: "Bloomberg",
-          sentiment: Math.max(-1, Math.min(1, qqqChange / 3)),
+          sentiment: clamp(qqqChange / 3, -1, 1),
           symbols: ["QQQx"],
           category: "macro",
           publishedAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
@@ -1433,9 +1433,11 @@ export async function getSentimentTimeline(
     // Simulate historical sentiment by adding time-decayed noise
     const decay = 1 - (i / steps) * 0.4; // older = more different from current
     const noise = seededRandom(`timeline-${symbol}-${timeKey}`, -25, 25);
-    const historicalSentiment = Math.max(-100, Math.min(100,
+    const historicalSentiment = clamp(
       Math.round(currentSentiment.overall * decay + noise),
-    ));
+      -100,
+      100
+    );
 
     // Simulate component breakdown
     const componentNoise = (comp: string) => seededRandom(`tl-${symbol}-${comp}-${timeKey}`, -15, 15);
@@ -1503,7 +1505,7 @@ export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
       (breadth - 50) * 0.50, // breadth centered at 50%, scaled
     );
 
-    const clamped = Math.max(-100, Math.min(100, moodValue));
+    const clamped = clamp(moodValue, -100, 100);
     const classification = classifyMood(clamped);
 
     const labelMap: Record<string, string> = {
