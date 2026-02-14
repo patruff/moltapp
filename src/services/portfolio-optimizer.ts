@@ -455,7 +455,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   }
 
   // Get available symbols
-  const symbols = filterByMapKey(XSTOCKS_CATALOG, BASE_RETURNS, 'symbol');
+  const symbols = filterByMapKey(XSTOCKS_CATALOG, 'symbol', BASE_RETURNS).map(s => s.symbol);
 
   const riskFreeRate = RISK_FREE_RATE;
 

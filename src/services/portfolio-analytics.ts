@@ -530,7 +530,7 @@ function calculateSharpeRatio(dailyReturns: number[]): number | null {
   const excessReturns = dailyReturns.map((r) => r - dailyRfRate);
 
   const mean = excessReturns.reduce((s, r) => s + r, 0) / excessReturns.length;
-  const variance = computeSampleVariance(excessReturns);
+  const variance = excessReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (excessReturns.length - 1);
   const stdDev = Math.sqrt(variance);
 
   if (stdDev === 0) return null;
@@ -568,7 +568,8 @@ function calculateSortinoRatio(dailyReturns: number[]): number | null {
 function calculateVolatility(dailyReturns: number[]): number {
   if (dailyReturns.length < 2) return 0;
 
-  const variance = computeSampleVariance(dailyReturns);
+  const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
+  const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / (dailyReturns.length - 1);
 
   return Math.sqrt(variance * TRADING_DAYS_PER_YEAR);
 }

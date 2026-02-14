@@ -687,7 +687,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
   // Round confidence values
   for (const f of factors) f.confidence = round(f.confidence, 1);
 
-  const dominant = findMaxBy(factors, "loading", (a, b) => Math.abs(a) - Math.abs(b))!;
+  const dominant = findMaxBy(factors, (f) => Math.abs(f.loading))!;
 
   // Determine tilt narrative
   let factorTilt: string;
@@ -1376,7 +1376,7 @@ export async function compareAttribution(
   const bestTimingAgent = findMax(summaries, "timingScore");
   const mostDiversified = findMax(summaries, "diversificationRatio");
   const highestAlpha = findMax(summaries, "alpha");
-  const lowestBeta = findMinBy(summaries, "beta", (a, b) => Math.abs(a) - Math.abs(b));
+  const lowestBeta = findMinBy(summaries, (s) => Math.abs(s.beta));
 
   // Build comparison narrative
   const narrativeParts: string[] = [];
