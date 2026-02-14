@@ -813,7 +813,8 @@ function computeRiskMetrics(
   for (const d of actionDecisions) {
     symbolCounts[d.symbol] = (symbolCounts[d.symbol] || 0) + 1;
   }
-  const maxSymbolCount = Math.max(0, ...Object.values(symbolCounts));
+  const countObjects = Object.values(symbolCounts).map((count) => ({ count }));
+  const maxSymbolCount = findMax(countObjects, 'count')?.count ?? 0;
   const maxPositionConcentration = actionDecisions.length > 0
     ? (maxSymbolCount / actionDecisions.length) * 100
     : 0;
