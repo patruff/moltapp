@@ -485,7 +485,7 @@ export function getStockSlippageProfiles(): StockSlippageProfile[] {
     const avgBps = stockRecords.length > 0
       ? stockRecords.reduce((sum, r) => sum + Math.abs(r.slippageBps), 0) / stockRecords.length
       : 0;
-    const absBpsValues = stockRecords.map((r) => ({ value: Math.abs(r.slippageBps) }));
+    const absBpsValues = stockRecords.map((r: SlippageRecord) => ({ value: Math.abs(r.slippageBps) }));
     const maxBps = findMax(absBpsValues, 'value')?.value ?? 0;
 
     const buys = stockRecords.filter((r) => r.action === "buy");
