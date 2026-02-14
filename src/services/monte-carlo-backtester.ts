@@ -497,7 +497,7 @@ function aggregateResults(
   // Central tendency
   const mean = finalValues.reduce((s, v) => s + v, 0) / finalValues.length;
   const median = getPercentile(sorted, 0.50);
-  const std = computeStdDev(finalValues);  // Uses canonical helper from math-utils.ts
+  const std = computeStdDev(finalValues);  // Uses canonical helper from math-utils.ts (computes mean internally)
 
   // Percentiles
   const percentiles = {
@@ -879,23 +879,7 @@ function getPercentile(sorted: number[], p: number): number {
   return sorted[lowerIndex] + fraction * (sorted[upperIndex] - sorted[lowerIndex]);
 }
 
-/**
- * Compute the sample standard deviation.
- *
- * @param values - Array of numeric values
- * @param mean   - Pre-computed mean of the values
- * @returns Sample standard deviation
- */
-function computeStdDev(values: number[], mean: number): number {
-  if (values.length < 2) return 0;
-
-  const sumSquaredDiffs = values.reduce(
-    (sum, v) => sum + (v - mean) ** 2,
-    0,
-  );
-
-  return Math.sqrt(sumSquaredDiffs / (values.length - 1));
-}
+// REMOVED: Duplicate computeStdDev function - see math-utils.ts for the canonical version
 
 // ---------------------------------------------------------------------------
 // Admin / Reset
