@@ -13,7 +13,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, findMax, findMin, computeVariance, computeStdDev } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin, computeVariance, computeStdDev, clamp } from "../lib/math-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -643,9 +643,9 @@ export function scoreAgent(input: {
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
   // Financial (normalized to 0-100)
-  const pnlScore = Math.max(0, Math.min(100, 50 + input.pnlPercent * 2));
-  const sharpeScore = Math.max(0, Math.min(100, 50 + input.sharpeRatio * 20));
-  const drawdownScore = Math.max(0, Math.min(100, 100 - Math.abs(input.maxDrawdown) * 2));
+  const pnlScore = clamp(50 + input.pnlPercent * 2, 0, 100);
+  const sharpeScore = clamp(50 + input.sharpeRatio * 20, 0, 100);
+  const drawdownScore = clamp(100 - Math.abs(input.maxDrawdown) * 2, 0, 100);
 
   // Reasoning Quality
   const coherence = avg(t.map((x) => x.coherenceScore * 100));
