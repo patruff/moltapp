@@ -889,3 +889,58 @@ export function avgOfProperty<T>(items: readonly T[], key: keyof T): number {
   if (items.length === 0) return 0;
   return items.reduce((sum, item) => sum + Number(item[key]), 0) / items.length;
 }
+
+/**
+ * computeVariance - Calculate sample variance of numeric values.
+ *
+ * Sample variance uses n-1 denominator (Bessel's correction) for unbiased estimation.
+ * Population variance uses n denominator when analyzing entire population.
+ *
+ * @param values - Array of numeric values
+ * @param usePopulation - If true, divide by n (population variance). Default false (sample variance, n-1)
+ * @returns Variance, or 0 if fewer than 2 values
+ *
+ * @example
+ * computeVariance([10, 20, 30]) // 100 (sample variance with n-1=2)
+ * computeVariance([10, 20, 30], true) // 66.67 (population variance with n=3)
+ *
+ * Common use cases:
+ * - Risk metrics: volatility = sqrt(variance of returns)
+ * - Portfolio analysis: variance of daily P&L
+ * - Calibration: variance of confidence scores
+ * - Backtesting: variance of Sharpe ratios across simulations
+ */
+export function computeVariance(values: number[], usePopulation = false): number {
+  if (values.length < 2) return 0;
+
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const sumSquaredDiff = values.reduce((sum, v) => sum + (v - mean) ** 2, 0);
+  const denominator = usePopulation ? values.length : values.length - 1;
+
+  return sumSquaredDiff / denominator;
+}
+
+/**
+ * weightedSum - Calculate weighted sum of values and weights arrays.
+ *
+ * Returns sum(values[i] * weights[i]) for all i.
+ * Used in scoring engines, portfolio calculations, reputation systems.
+ *
+ * @param values - Array of numeric values to weight
+ * @param weights - Array of numeric weights (must match values length)
+ * @returns Weighted sum, or 0 if arrays empty/mismatched
+ *
+ * @example
+ * weightedSum([10, 20, 30], [0.5, 0.3, 0.2]) // 17
+ * // (10 * 0.5) + (20 * 0.3) + (30 * 0.2) = 5 + 6 + 6 = 17
+ *
+ * Common use cases:
+ * - Composite scores: weightedSum([coherence, depth, safety], [0.35, 0.25, 0.20])
+ * - Portfolio value: weightedSum(positions, allocations)
+ * - Reputation: weightedSum(dimensionScores, dimensionWeights)
+ * - Consensus: weightedSum(agentConfidences, agentReputations)
+ */
+export function weightedSum(values: number[], weights: number[]): number {
+  if (values.length === 0 || values.length !== weights.length) return 0;
+  return values.reduce((sum, val, i) => sum + val * weights[i], 0);
+}
