@@ -13,7 +13,7 @@
  * that contextualizes every trade decision the 3 AI agents make.
  */
 
-import { round2, stdDev, averageByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
+import { round2, computeStdDev, averageByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
@@ -550,7 +550,7 @@ export async function detectCurrentRegime(): Promise<MarketRegime> {
   for (const symbol of Object.keys(stockReturns)) {
     const returns = stockReturns[symbol];
     if (returns.length < 5) continue;
-    const vol = stdDev(returns) * Math.sqrt(252) * 100;
+    const vol = computeStdDev(returns) * Math.sqrt(252) * 100;
     stockVols.push(vol);
   }
   const volatilityLevel = stockVols.length > 0
@@ -581,7 +581,7 @@ export async function detectCurrentRegime(): Promise<MarketRegime> {
   // Standard deviation of sector-level average changes
   const sectorChanges = computeSectorAverageChanges(marketData);
   const sectorValues = Object.values(sectorChanges);
-  const sectorDispersion = sectorValues.length > 1 ? stdDev(sectorValues) : 0;
+  const sectorDispersion = sectorValues.length > 1 ? computeStdDev(sectorValues) : 0;
 
   // --- Regime Classification ---
   const scores: Record<RegimeType, number> = {
@@ -938,11 +938,11 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     const returns = dailyReturns(prices);
     if (returns.length < 3) continue;
 
-    const dailyVol = stdDev(returns) * 100;
+    const dailyVol = computeStdDev(returns) * 100;
     const weeklyReturns = returns.length >= 5
       ? computeBlockReturns(returns, 5)
       : returns;
-    const weeklyVol = stdDev(weeklyReturns) * 100;
+    const weeklyVol = computeStdDev(weeklyReturns) * 100;
     const monthlyVol = dailyVol * Math.sqrt(21);
 
     allDailyVols.push(dailyVol);
@@ -952,8 +952,8 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     // Vol trend: compare recent vol (last 5 returns) vs older (first 5)
     const recentReturns = returns.slice(-5);
     const olderReturns = returns.slice(0, Math.min(5, returns.length));
-    const recentVol = stdDev(recentReturns) * 100;
-    const olderVol = stdDev(olderReturns) * 100;
+    const recentVol = computeStdDev(recentReturns) * 100;
+    const olderVol = computeStdDev(olderReturns) * 100;
     const volTrend = recentVol > olderVol * VOL_TREND_INCREASE_FACTOR
       ? "increasing"
       : recentVol < olderVol * VOL_TREND_DECREASE_FACTOR
@@ -964,7 +964,7 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     const meanVol = allDailyVols.length > 1
       ? allDailyVols.reduce((s, v) => s + v, 0) / allDailyVols.length
       : dailyVol;
-    const volStd = allDailyVols.length > 2 ? stdDev(allDailyVols) : 1;
+    const volStd = allDailyVols.length > 2 ? computeStdDev(allDailyVols) : 1;
     const zScore = volStd > 0 ? (dailyVol - meanVol) / volStd : 0;
 
     const md = marketData.find((m) => m.symbol === stock.symbol);
@@ -1313,7 +1313,7 @@ export async function getSectorRotation(): Promise<SectorAnalysis> {
   const laggingSector = sectors[sectors.length - 1]?.name ?? "N/A";
 
   // Sector dispersion: standard deviation of sector momentums
-  const sectorDispersion = allMomentums.length > 1 ? round2(stdDev(allMomentums)) : 0;
+  const sectorDispersion = allMomentums.length > 1 ? round2(computeStdDev(allMomentums)) : 0;
 
   // Rotation phase detection
   // Classic economic cycle: Growth -> Defensive -> Value -> Growth
@@ -1391,7 +1391,7 @@ function classifyDayRegime(
   const advancing = countByCondition(changes, (c) => c > 0);
   const total = changes.length;
   const advPct = (advancing / total) * 100;
-  const dispersion = stdDev(changes);
+  const dispersion = computeStdDev(changes);
 
   if (avgChange > DAY_BULL_AVG_CHANGE_MIN && advPct > DAY_BULL_ADV_PCT_MIN) return "bull_run";
   if (avgChange < DAY_BEAR_AVG_CHANGE_MAX && advPct < DAY_BEAR_ADV_PCT_MAX) return "bear_market";
