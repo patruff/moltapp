@@ -499,7 +499,7 @@ function detectPatterns(entries: ReasoningEntry[]): BehavioralPattern[] {
   }
   const nonHoldCount = countByCondition(entries, (e) => e.action !== "hold");
   const symbolCountValues = Array.from(symbolCounts.values());
-  const topSymbolCount = symbolCountValues.length > 0 ? Math.max(...symbolCountValues) : 0;
+  const topSymbolCount = findMax(symbolCountValues.map((v) => ({ value: v })), 'value')?.value ?? 0;
   if (nonHoldCount > PATTERN_MIN_TRADES && topSymbolCount / nonHoldCount > PATTERN_SYMBOL_FIXATION_RATIO) {
     const topSymbol = [...symbolCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     patterns.push({
@@ -551,8 +551,8 @@ function buildRiskProfile(entries: ReasoningEntry[]): RiskProfile {
       sell: round2(sellCount / total),
       hold: round2(holdCount / total),
     },
-    maxConfidence: confidences.length > 0 ? Math.max(...confidences) : 0,
-    minConfidence: confidences.length > 0 ? Math.min(...confidences) : 100,
+    maxConfidence: findMax(confidences.map((c) => ({ value: c })), 'value')?.value ?? 0,
+    minConfidence: findMin(confidences.map((c) => ({ value: c })), 'value')?.value ?? 100,
     prefersBullish: buyCount > sellCount,
   };
 }
@@ -586,8 +586,8 @@ function buildReasoningQuality(entries: ReasoningEntry[]): ReasoningQualitySecti
     hallucinationRate: round3(halRate),
     disciplineRate: round2(discRate),
     qualityTrend,
-    bestCoherenceScore: coherences.length > 0 ? Math.max(...coherences) : 0,
-    worstCoherenceScore: coherences.length > 0 ? Math.min(...coherences) : 1,
+    bestCoherenceScore: findMax(coherences.map((c) => ({ value: c })), 'value')?.value ?? 0,
+    worstCoherenceScore: findMin(coherences.map((c) => ({ value: c })), 'value')?.value ?? 1,
   };
 }
 
