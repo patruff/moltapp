@@ -15,7 +15,7 @@
  * - Exportable snapshots for HuggingFace dataset
  */
 
-import { round3, countByCondition } from "../lib/math-utils.ts";
+import { round3, countByCondition, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -370,7 +370,7 @@ function scoreFinancial(pnl: number, window: TradeRecord[]): number {
 
   const returns = window.map((r) => r.pnl);
   const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
-  const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / returns.length;
+  const variance = computeVariance(returns, true); // Population variance
   const std = Math.sqrt(variance);
 
   // Sharpe normalized to 0-1 via sigmoid
@@ -415,8 +415,7 @@ function scoreReasoning(coherence: number, reasoning: string, window: TradeRecor
   let consistencyScore = 0.5;
   if (window.length >= REASONING_CONSISTENCY_MIN_TRADES) {
     const coherences = window.map((r) => r.input.coherenceScore);
-    const mean = coherences.reduce((s, c) => s + c, 0) / coherences.length;
-    const variance = coherences.reduce((s, c) => s + (c - mean) ** 2, 0) / coherences.length;
+    const variance = computeVariance(coherences, true); // Population variance
     consistencyScore = Math.max(0, 1 - Math.sqrt(variance) * REASONING_CONSISTENCY_VARIANCE_MULTIPLIER);
   }
 
@@ -529,8 +528,7 @@ function scoreAdaptability(regime: MarketRegime, window: TradeRecord[]): number 
   );
 
   // Low variance across regimes = high adaptability
-  const mean = regimeAvgs.reduce((s, v) => s + v, 0) / regimeAvgs.length;
-  const variance = regimeAvgs.reduce((s, v) => s + (v - mean) ** 2, 0) / regimeAvgs.length;
+  const variance = computeVariance(regimeAvgs, true); // Population variance
 
   return Math.max(0, Math.min(1, 1 - Math.sqrt(variance) * ADAPTABILITY_VARIANCE_MULTIPLIER));
 }
