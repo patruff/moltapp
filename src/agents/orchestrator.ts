@@ -46,7 +46,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { averageByKey, computeStdDev, countByCondition, countWords, getTopKey, round, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, clamp, computeStdDev, countByCondition, countWords, getTopKey, round, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices, getTradeableSymbols } from "../services/market-aggregator.ts";
 
@@ -1128,7 +1128,7 @@ async function executeTradingRound(
           coherenceScore: coherence.score,
           hallucinationCount: hallucinations.flags.length,
           wordCount: countWords(decision.reasoning),
-          sentimentScore: Math.max(-1, Math.min(1, sentimentScore)),
+          sentimentScore: clamp(sentimentScore, -1, 1),
           timestamp: new Date().toISOString(),
         });
 
