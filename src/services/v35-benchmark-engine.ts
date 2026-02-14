@@ -394,7 +394,7 @@ export function scoreInformationAsymmetry(
 
   score += Math.min(15, firstMoverScore);
 
-  return Math.round(Math.min(maxScore, Math.max(0, score)));
+  return Math.round(clamp(score, 0, maxScore));
 }
 
 // ---------------------------------------------------------------------------
@@ -539,7 +539,7 @@ export function scoreTemporalReasoningQuality(
 
   score += clamp(consistencyScore, 0, 15);
 
-  return Math.round(Math.min(maxScore, Math.max(0, score)));
+  return Math.round(clamp(score, 0, maxScore));
 }
 
 // ---------------------------------------------------------------------------
