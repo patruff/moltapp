@@ -21,7 +21,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round3, averageByKey, sumByKey, calculateAverage } from "../lib/math-utils.ts";
+import { round2, round3, averageByKey, sumByKey, calculateAverage, computeVariance } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -377,10 +377,7 @@ export async function getReturnSeries(
 
     const n = dailyReturns.length;
     const meanDaily = n > 0 ? dailyReturns.reduce((s, r) => s + r, 0) / n : 0;
-    const varianceDaily =
-      n > 1
-        ? dailyReturns.reduce((s, r) => s + (r - meanDaily) ** 2, 0) / (n - 1)
-        : 0;
+    const varianceDaily = computeVariance(dailyReturns);
 
     series.push({
       symbol,
