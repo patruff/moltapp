@@ -868,6 +868,39 @@ export function computeVariance(values: number[], usePopulation = false): number
 }
 
 /**
+ * computeVarianceByKey - Calculate variance of a property from array of objects.
+ *
+ * Property-based variant of computeVariance() for object arrays.
+ * Extracts numeric property values and calculates their variance.
+ *
+ * @param items - Array of objects
+ * @param key - Property key to analyze (must be numeric)
+ * @param usePopulation - If true, divide by n (population variance). Default false (sample variance, n-1)
+ * @returns Variance of property values, or 0 if fewer than 2 items
+ *
+ * @example
+ * computeVarianceByKey(trades, 'pnlPercent') // variance of P&L returns
+ * computeVarianceByKey(decisions, 'confidence') // variance of confidence scores
+ * computeVarianceByKey(dailyReturns, 'return', true) // population variance
+ *
+ * Common use cases:
+ * - Portfolio risk: variance of daily returns across trades
+ * - Calibration analysis: variance of confidence scores
+ * - Performance metrics: variance of Sharpe ratios
+ * - Consistency tracking: variance of reasoning quality scores
+ */
+export function computeVarianceByKey<T>(
+  items: readonly T[],
+  key: keyof T,
+  usePopulation = false
+): number {
+  if (items.length < 2) return 0;
+
+  const values = items.map((item) => Number(item[key]));
+  return computeVariance(values, usePopulation);
+}
+
+/**
  * computeDownsideVariance - Compute variance for downside risk metrics (Sortino ratio)
  *
  * Downside variance calculates variance using only negative returns (losses), providing
