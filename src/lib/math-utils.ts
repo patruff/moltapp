@@ -582,3 +582,176 @@ export function colorizeScore(score: number, thresholds = { good: 0.8, ok: 0.6 }
 export function getFilteredWords(text: string, commonWords: Set<string>): string[] {
   return text.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !commonWords.has(w));
 }
+
+/**
+ * Calculate weighted sum of values using corresponding weights array
+ * @param values - Array of numeric values
+ * @param weights - Array of weights (same length as values)
+ * @returns Weighted sum (values[i] * weights[i] summed)
+ * @example weightedSum([10, 20, 30], [0.5, 0.3, 0.2]) → 16 (10*0.5 + 20*0.3 + 30*0.2)
+ */
+export function weightedSum(values: number[], weights: number[]): number {
+  if (values.length !== weights.length) {
+    throw new Error(`weightedSum: values length (${values.length}) must match weights length (${weights.length})`);
+  }
+  return values.reduce((sum, val, i) => sum + val * weights[i], 0);
+}
+
+/**
+ * Calculate weighted sum of object property values using corresponding weights
+ * @param items - Array of objects
+ * @param key - Property key to extract values
+ * @param weights - Array of weights (same length as items)
+ * @returns Weighted sum of property values
+ * @example weightedSumByKey([{score: 10}, {score: 20}], 'score', [0.7, 0.3]) → 13 (10*0.7 + 20*0.3)
+ */
+export function weightedSumByKey<T>(items: readonly T[], key: keyof T, weights: number[]): number {
+  if (items.length !== weights.length) {
+    throw new Error(`weightedSumByKey: items length (${items.length}) must match weights length (${weights.length})`);
+  }
+  return items.reduce((sum, item, i) => sum + (Number(item[key]) || 0) * weights[i], 0);
+}
+
+/**
+ * Sort Record entries by value in descending order
+ * @param record - Record to sort
+ * @returns Array of [key, value] tuples sorted by value descending
+ * @example sortEntriesDescending({a: 10, b: 30, c: 20}) → [['b', 30], ['c', 20], ['a', 10]]
+ */
+export function sortEntriesDescending(record: Record<string, number>): [string, number][] {
+  return Object.entries(record).sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Calculate average of numeric array (alias for mean)
+ * @param values - Array of numbers
+ * @returns Average value or 0 if empty
+ */
+export function calculateAverage(values: number[]): number {
+  return mean(values);
+}
+
+/**
+ * Normalize values to 0-1 range
+ * @param values - Array of numbers to normalize
+ * @returns Array of normalized values in [0, 1] range
+ * @example normalize([10, 20, 30]) → [0, 0.5, 1]
+ */
+export function normalize(values: number[]): number[] {
+  if (values.length === 0) return [];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (max === min) return values.map(() => 0.5);
+  return values.map(v => (v - min) / (max - min));
+}
+
+/**
+ * Sort numeric array in descending order
+ * @param values - Array of numbers
+ * @returns New sorted array (descending)
+ */
+export function sortDescending(values: number[]): number[] {
+  return [...values].sort((a, b) => b - a);
+}
+
+/**
+ * Sort array of objects by property value in descending order
+ * @param items - Array of objects
+ * @param key - Property key to sort by
+ * @returns New sorted array (descending by key value)
+ */
+export function sortByDescending<T>(items: T[], key: keyof T): T[] {
+  return [...items].sort((a, b) => (Number(b[key]) || 0) - (Number(a[key]) || 0));
+}
+
+/**
+ * Milliseconds per day constant (24 * 60 * 60 * 1000)
+ */
+export const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Find maximum object by custom comparison function
+ * @param items - Array of objects
+ * @param compareFn - Function that extracts comparable value
+ * @returns Object with maximum value or null if empty
+ * @example findMaxBy([{x: 5}, {x: 10}], item => Math.abs(item.x)) → {x: 10}
+ */
+export function findMaxBy<T>(items: T[], compareFn: (item: T) => number): T | null {
+  if (items.length === 0) return null;
+  return items.reduce((max, item) => compareFn(item) > compareFn(max) ? item : max, items[0]);
+}
+
+/**
+ * Find minimum object by custom comparison function
+ * @param items - Array of objects
+ * @param compareFn - Function that extracts comparable value
+ * @returns Object with minimum value or null if empty
+ */
+export function findMinBy<T>(items: T[], compareFn: (item: T) => number): T | null {
+  if (items.length === 0) return null;
+  return items.reduce((min, item) => compareFn(item) < compareFn(min) ? item : min, items[0]);
+}
+
+/**
+ * Count items matching a condition
+ * @param items - Array of objects
+ * @param predicate - Condition function
+ * @returns Count of matching items
+ */
+export function countWhere<T>(items: T[], predicate: (item: T) => boolean): number {
+  return items.filter(predicate).length;
+}
+
+/**
+ * Calculate cosine similarity between two numeric vectors
+ * @param a - First vector
+ * @param b - Second vector
+ * @returns Cosine similarity in [-1, 1] range
+ */
+export function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0;
+  const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
+  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
+  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
+  if (magnitudeA === 0 || magnitudeB === 0) return 0;
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+/**
+ * Calculate average of items matching a condition
+ * @param items - Array of objects
+ * @param key - Property key to average
+ * @param predicate - Condition function
+ * @returns Average value or 0 if no matches
+ */
+export function averageByCondition<T>(items: T[], key: keyof T, predicate: (item: T) => boolean): number {
+  const filtered = items.filter(predicate);
+  return averageByKey(filtered, key);
+}
+
+/**
+ * Calculate average of absolute values by key
+ * @param items - Array of objects
+ * @param key - Property key to extract
+ * @returns Average of absolute values
+ */
+export function averageAbsoluteByKey<T>(items: readonly T[], key: keyof T): number {
+  if (items.length === 0) return 0;
+  const sum = items.reduce((acc, item) => acc + Math.abs(Number(item[key]) || 0), 0);
+  return sum / items.length;
+}
+
+/**
+ * Find maximum absolute value in array
+ * @param values - Array of numbers
+ * @returns Maximum absolute value or 0 if empty
+ */
+export function absMax(values: number[]): number {
+  if (values.length === 0) return 0;
+  return Math.max(...values.map(Math.abs));
+}
+
+/**
+ * Round to 1 decimal place (alias for backward compatibility)
+ */
+export const round1 = round;
