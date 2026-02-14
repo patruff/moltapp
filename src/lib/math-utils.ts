@@ -908,6 +908,85 @@ export function computeDownsideVariance(values: number[], usePopulation = false)
 }
 
 /**
+ * computeSortino - Compute Sortino ratio for risk-adjusted performance
+ *
+ * Sortino ratio measures risk-adjusted returns using only downside volatility (losses),
+ * providing a more accurate assessment than Sharpe ratio which penalizes upside volatility.
+ * This is critical for asymmetric return distributions common in trading strategies.
+ *
+ * Formula: (Average Return - Target Return) / Downside Deviation
+ * where Downside Deviation = sqrt(downside variance) of returns below target
+ *
+ * Key advantages over Sharpe ratio:
+ * - Only penalizes downside volatility (losses), not upside gains
+ * - Better for strategies with asymmetric returns (e.g., momentum, trend-following)
+ * - More intuitive: "return per unit of bad volatility"
+ * - Preferred metric for downside risk-averse investors
+ *
+ * @param returns - Array of return values (typically daily returns as decimals, e.g., 0.02 = 2%)
+ * @param targetReturn - Minimum acceptable return (default: 0 for zero-loss threshold)
+ * @param annualize - If true, annualize the ratio assuming daily returns (default: false)
+ * @param tradingDaysPerYear - Trading days for annualization (default: 252)
+ * @returns Sortino ratio, or 0 if insufficient data or no downside volatility
+ *
+ * @example
+ * // Daily returns: [2%, -1%, 3%, -2%, 1%]
+ * const dailyReturns = [0.02, -0.01, 0.03, -0.02, 0.01];
+ * const sortino = computeSortino(dailyReturns);
+ * // Mean = 0.6%, downside deviation from 0% = sqrt(variance of [-1%, -2%])
+ * // Result: 0.006 / downsideStdDev ≈ ratio value
+ *
+ * @example
+ * // Annualized Sortino ratio (common for performance reporting)
+ * const annualizedSortino = computeSortino(dailyReturns, 0, true, 252);
+ * // Scales both return and volatility by sqrt(252) for annual comparison
+ *
+ * @example
+ * // Target 5% annual return (0.02% daily)
+ * const targetDaily = 0.05 / 252;
+ * const sortinoVsTarget = computeSortino(dailyReturns, targetDaily);
+ * // Measures excess return above 5% target per unit downside risk
+ *
+ * Common use cases:
+ * - Portfolio performance attribution (downside risk-adjusted)
+ * - Strategy comparison (asymmetric return profiles)
+ * - Agent ranking (penalize losses, not gains)
+ * - Risk budgeting (allocate based on downside contribution)
+ *
+ * Interpretation:
+ * - Sortino > 2.0: Excellent risk-adjusted returns
+ * - Sortino > 1.0: Good returns relative to downside risk
+ * - Sortino < 1.0: Returns don't justify downside volatility
+ * - Sortino < 0: Negative returns (losing strategy)
+ */
+export function computeSortino(
+  returns: number[],
+  targetReturn = 0,
+  annualize = false,
+  tradingDaysPerYear = 252,
+): number {
+  if (returns.length < 2) return 0;
+
+  // Compute average return
+  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+
+  // Compute downside variance (deviations below target)
+  const deviationsFromTarget = returns.map(r => Math.min(0, r - targetReturn));
+  const sumSquaredDeviations = deviationsFromTarget.reduce((sum, d) => sum + d ** 2, 0);
+  const downsideVariance = sumSquaredDeviations / (returns.length - 1);
+
+  if (downsideVariance === 0) return 0; // No downside volatility
+
+  const downsideDeviation = Math.sqrt(downsideVariance);
+
+  // Compute Sortino ratio
+  const sortinoRatio = (avgReturn - targetReturn) / downsideDeviation;
+
+  // Annualize if requested (scale both numerator and denominator by sqrt(trading days))
+  return annualize ? sortinoRatio * Math.sqrt(tradingDaysPerYear) : sortinoRatio;
+}
+
+/**
  * computeStdDev - Compute standard deviation (square root of variance)
  *
  * Standard deviation is the most common measure of statistical dispersion, representing

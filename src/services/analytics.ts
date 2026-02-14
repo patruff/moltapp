@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, computeDownsideVariance, filterMap } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, computeDownsideVariance, computeSortino, filterMap } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -770,16 +770,12 @@ function computeRiskMetrics(
   const variance = computeVariance(returns);
   const volatility = Math.sqrt(variance);
 
-  // Downside deviation (only negative returns)
-  const downsideVariance = computeDownsideVariance(returns, true);
-  const downsideDeviation = Math.sqrt(downsideVariance);
-
   // Sharpe ratio (annualized, assuming daily trading)
   const riskFreeRate = RISK_FREE_RATE_ANNUAL / TRADING_DAYS_PER_YEAR;
   const sharpeRatio = volatility > 0 ? ((meanReturn - riskFreeRate) / volatility) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
-  // Sortino ratio
-  const sortinoRatio = downsideDeviation > 0 ? ((meanReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
+  // Sortino ratio (annualized, using risk-free rate as target)
+  const sortinoRatio = computeSortino(returns, riskFreeRate, true, TRADING_DAYS_PER_YEAR);
 
   // Max drawdown from confidence series
   let peak = 0;
