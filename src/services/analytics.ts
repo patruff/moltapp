@@ -1201,9 +1201,7 @@ function computeComparisonEntry(
   // Simple Sharpe from confidence
   const returns = actionDecisions.map((d) => (d.confidence - 50) / 50);
   const mean = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
-  const variance = returns.length > 1
-    ? returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1)
-    : 0;
+  const variance = computeVariance(returns, false); // Sample variance (n-1)
   const vol = Math.sqrt(variance);
   const sharpe = vol > 0 ? (mean / vol) * Math.sqrt(252) : 0;
 

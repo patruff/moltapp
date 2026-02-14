@@ -814,7 +814,7 @@ export function getCrossAgentCalibration(): {
 
   const composites = scores.map((s) => s.compositeScore);
   const mean = composites.reduce((a, b) => a + b, 0) / composites.length;
-  const stdDev = Math.sqrt(composites.reduce((s, c) => s + (c - mean) ** 2, 0) / composites.length);
+  const stdDev = Math.sqrt(computeVariance(composites, true));
 
   const providerBias: Record<string, number> = {};
   const byProvider = new Map<string, number[]>();

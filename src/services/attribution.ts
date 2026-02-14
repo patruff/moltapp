@@ -16,7 +16,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp, findMax, findMin, findMaxBy, findMinBy, MS_PER_DAY } from "../lib/math-utils.ts";
+import { clamp, findMax, findMin, findMaxBy, findMinBy, MS_PER_DAY, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
