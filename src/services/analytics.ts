@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, filterMap } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -1271,7 +1271,7 @@ function computeHeadToHead(
   const totalShared = sameDecisionCount + oppositeDecisionCount;
   const agreementRate = totalShared > 0 ? (sameDecisionCount / totalShared) * 100 : 0;
 
-  // Symbol overlap
+  // Symbol overlap - extract symbols from non-hold decisions in single pass
   const symbols1 = new Set(decisions1.filter((d) => d.action !== "hold").map((d) => d.symbol));
   const symbols2 = new Set(decisions2.filter((d) => d.action !== "hold").map((d) => d.symbol));
   const overlap = Array.from(symbols1).filter((s) => symbols2.has(s));

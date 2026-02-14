@@ -700,6 +700,39 @@ export function weightedSumByKey<T>(items: readonly T[], key: keyof T, weights: 
 }
 
 /**
+ * Efficiently combine map and filter operations in a single pass
+ * Applies mapFn to each item, then keeps only items where filterFn returns true
+ * More efficient than .map().filter() which creates intermediate arrays
+ *
+ * @param items - Array to process
+ * @param mapFn - Transformation function to apply to each item
+ * @param filterFn - Predicate function to test mapped items (return true to keep)
+ * @returns Array of mapped items that pass the filter
+ *
+ * @example
+ * // Instead of: trades.map(t => t.symbol).filter(s => s.length > 0)
+ * filterMap(trades, t => t.symbol, s => s.length > 0)
+ *
+ * @example
+ * // Instead of: decisions.map(d => d.pnl).filter(pnl => pnl > 0)
+ * filterMap(decisions, d => d.pnl, pnl => pnl > 0)
+ */
+export function filterMap<T, U>(
+  items: readonly T[],
+  mapFn: (item: T, index: number) => U,
+  filterFn: (mapped: U, index: number) => boolean
+): U[] {
+  const result: U[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const mapped = mapFn(items[i], i);
+    if (filterFn(mapped, i)) {
+      result.push(mapped);
+    }
+  }
+  return result;
+}
+
+/**
  * Sort Record entries by value in descending order
  * @param record - Record to sort
  * @returns Array of [key, value] tuples sorted by value descending
