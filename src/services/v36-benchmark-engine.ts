@@ -45,7 +45,7 @@ import {
   scoreInformationAsymmetry,
   scoreTemporalReasoningQuality,
 } from "./v35-benchmark-engine.ts";
-import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
+import { countByCondition, computeStdDev, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -1068,9 +1068,7 @@ export function scoreAgent(input: {
   const uniqueActions = new Set(actions);
   const strategyConsistency = uniqueActions.size === 1 ? BEHAVIORAL_STRATEGY_CONSISTENCY_SINGLE_ACTION : uniqueActions.size === 2 ? BEHAVIORAL_STRATEGY_CONSISTENCY_TWO_ACTIONS : BEHAVIORAL_STRATEGY_CONSISTENCY_THREE_PLUS;
   const confidences = t.map((x) => x.confidence);
-  const confStdDev = Math.sqrt(
-    confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
-  );
+  const confStdDev = Math.sqrt(computeVariance(confidences, true));
   const adaptability = Math.max(FINANCIAL_SCORE_MIN, Math.min(FINANCIAL_SCORE_MAX, BEHAVIORAL_ADAPTABILITY_BASELINE + confStdDev * BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER));
   const confidenceCalibration = avg(confidences.map((c) => Math.max(BEHAVIORAL_CALIBRATION_BASELINE, FINANCIAL_SCORE_MAX - Math.abs(c - BEHAVIORAL_CALIBRATION_TARGET) * BEHAVIORAL_CALIBRATION_DEVIATION_PENALTY)));
   const crossRoundLearning = Math.min(FINANCIAL_SCORE_MAX, BEHAVIORAL_LEARNING_BASELINE + t.length * BEHAVIORAL_LEARNING_POINTS_PER_TRADE);

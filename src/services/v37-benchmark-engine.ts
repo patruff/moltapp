@@ -24,7 +24,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, clamp } from "../lib/math-utils.ts";
+import { countByCondition, clamp, computeVariance } from "../lib/math-utils.ts";
 
 // Re-export inherited scoring functions from v36
 export {
@@ -1107,9 +1107,7 @@ export function scoreAgent(input: {
   const uniqueActions = new Set(actions);
   const strategyConsistency = uniqueActions.size === 1 ? BEHAVIORAL_STRATEGY_CONSISTENT_SCORE : uniqueActions.size === 2 ? BEHAVIORAL_STRATEGY_MODERATE_SCORE : BEHAVIORAL_STRATEGY_INCONSISTENT_SCORE;
   const confidences = t.map((x) => x.confidence);
-  const confStdDev = Math.sqrt(
-    confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
-  );
+  const confStdDev = Math.sqrt(computeVariance(confidences, true));
   const adaptability = clamp(BEHAVIORAL_ADAPTABILITY_BASELINE + confStdDev * BEHAVIORAL_ADAPTABILITY_STDDEV_MULTIPLIER, 0, 100);
   const confidenceCalibration = avg(confidences.map((c) => clamp(100 - Math.abs(c - BEHAVIORAL_CONFIDENCE_CALIBRATION_TARGET) * BEHAVIORAL_CONFIDENCE_CALIBRATION_MULTIPLIER, 0, 100)));
   const crossRoundLearning = Math.min(100, BEHAVIORAL_LEARNING_BASELINE + t.length * BEHAVIORAL_LEARNING_PER_TRADE);
