@@ -672,7 +672,7 @@ export async function getSeasonStandings(): Promise<SeasonStandings> {
             (finishes.reduce((s, f) => s + f, 0) / finishes.length) * 10,
           ) / 10
         : 0;
-    const bestFinish = finishes.length > 0 ? Math.min(...finishes) : 0;
+    const bestFinish = findMin(finishes.map((f) => ({ value: f })), 'value')?.value ?? 0;
 
     const titles: string[] = [];
     if (daily.winner?.agentId === config.agentId) titles.push("Daily Sprint Champion");
