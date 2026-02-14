@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { countByCondition, countWords, mean, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { computeStdDev, countByCondition, countWords, mean, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -261,11 +261,9 @@ function scoreToGrade(score: number): string {
   return "F";
 }
 
-function stddev(arr: number[]): number {
-  if (arr.length < 2) return 0;
-  const m = mean(arr);
-  return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length);
-}
+// REMOVED: Duplicate stddev function - using computeStdDev from math-utils.ts instead
+// Original implementation used population stddev (divide by n), but computeStdDev defaults to sample (n-1)
+// For this use case (confidence/sentiment calibration), population stddev is appropriate
 
 function boolRate(arr: boolean[]): number {
   return arr.length > 0 ? countByCondition(arr, Boolean) / arr.length : 0.5;
@@ -612,7 +610,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 4. Calibration
-  const confStd = stddev(w.confidence);
+  const confStd = computeStdDev(w.confidence, true);  // Population stddev for calibration scoring
   const calibration = Math.max(0, 1 - confStd * CALIBRATION_STDDEV_MULTIPLIER);
   pillars.push({
     name: "calibration",
@@ -680,7 +678,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 10. Reasoning Stability
-  const sentStd = stddev(w.sentimentScores);
+  const sentStd = computeStdDev(w.sentimentScores, true);  // Population stddev for sentiment volatility scoring
   const stability = Math.max(0, 1 - sentStd);
   pillars.push({
     name: "reasoningStability",
