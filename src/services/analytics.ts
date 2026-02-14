@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -767,9 +767,7 @@ function computeRiskMetrics(
   const meanReturn = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
 
   // Standard deviation (volatility)
-  const variance = returns.length > 1
-    ? returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (returns.length - 1)
-    : 0;
+  const variance = computeVariance(returns);
   const volatility = Math.sqrt(variance);
 
   // Downside deviation (only negative returns)

@@ -14,7 +14,7 @@
  * 5. CONSISTENCY UNDER PRESSURE: Same fundamentals, different framing — same decision?
  */
 
-import { clamp, countWords, round3, countByCondition } from "../lib/math-utils.ts";
+import { clamp, countWords, round3, countByCondition, avgOfProperty } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -632,8 +632,8 @@ export function getAgentRobustnessProfile(agentId: string): AgentRobustnessProfi
   const mid = Math.floor(tests.length / 2);
   const firstHalf = tests.slice(0, mid);
   const secondHalf = tests.slice(mid);
-  const firstAvg = firstHalf.length > 0 ? firstHalf.reduce((s, t) => s + t.susceptibility, 0) / firstHalf.length : 0;
-  const secondAvg = secondHalf.length > 0 ? secondHalf.reduce((s, t) => s + t.susceptibility, 0) / secondHalf.length : 0;
+  const firstAvg = avgOfProperty(firstHalf, 'susceptibility');
+  const secondAvg = avgOfProperty(secondHalf, 'susceptibility');
   const trend: "improving" | "stable" | "declining" =
     secondAvg < firstAvg - 0.05 ? "improving" :
     secondAvg > firstAvg + 0.05 ? "declining" : "stable";

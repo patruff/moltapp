@@ -322,6 +322,57 @@ export function computeSampleVariance<T>(
 }
 
 /**
+ * computeVariance - Calculate variance of an array of numbers.
+ *
+ * Variance measures how spread out values are from their mean.
+ * This helper eliminates 58+ duplicate manual variance calculations across the codebase.
+ *
+ * Formula: Σ(xi - mean)² / n  (population variance)
+ *       or Σ(xi - mean)² / (n-1)  (sample variance, Bessel's correction)
+ *
+ * @param values - Array of numeric values
+ * @param sampleVariance - If true, use n-1 denominator (Bessel's correction). Default: true
+ * @returns Variance, or 0 if fewer than 2 values
+ *
+ * @example
+ * // Calculate sample variance (default, uses n-1)
+ * const returns = [0.02, -0.01, 0.03, 0.01];
+ * const variance = computeVariance(returns); // Sample variance
+ *
+ * // Calculate population variance (uses n)
+ * const populationVar = computeVariance(returns, false);
+ *
+ * // Get standard deviation from variance
+ * const volatility = Math.sqrt(computeVariance(returns));
+ *
+ * // Safe handling of edge cases
+ * computeVariance([]) // 0 (empty array)
+ * computeVariance([5]) // 0 (single value, no variance)
+ * computeVariance([1, 2, 3]) // 1 (sample variance)
+ */
+export function computeVariance(
+  values: number[],
+  sampleVariance = true,
+): number {
+  // Need at least 2 values for meaningful variance calculation
+  if (values.length < 2) return 0;
+
+  // Calculate mean
+  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+
+  // Calculate sum of squared differences from mean
+  const sumSquaredDiffs = values.reduce((sum, val) => {
+    const diff = val - mean;
+    return sum + (diff * diff);
+  }, 0);
+
+  // Sample variance uses n-1 denominator (Bessel's correction)
+  // Population variance uses n denominator
+  const denominator = sampleVariance ? values.length - 1 : values.length;
+  return sumSquaredDiffs / denominator;
+}
+
+/**
  * round2 - Round a number to 2 decimal places.
  *
  * @param n - Number to round

@@ -18,7 +18,7 @@
  * different LLM providers in a quantitative, reproducible way.
  */
 
-import { clamp, cosineSimilarity, countWords, weightedSum, countByCondition } from "../lib/math-utils.ts";
+import { clamp, cosineSimilarity, countWords, weightedSum, countByCondition, avgOfProperty } from "../lib/math-utils.ts";
 import { GENOME_WEIGHTS_ARRAY, GENE_SCORING_WEIGHTS } from "../lib/scoring-weights.ts";
 
 // ---------------------------------------------------------------------------
