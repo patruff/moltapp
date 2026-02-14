@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { averageByKey, countByCondition, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
+import { averageByKey, computeVariance, countByCondition, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -465,10 +465,7 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
   const avgReturn = mean(returns);
 
   // Volatility (standard deviation)
-  const variance =
-    returns.length > 1
-      ? returns.reduce((s, r) => s + Math.pow(r - avgReturn, 2), 0) / (returns.length - 1)
-      : 0;
+  const variance = computeVariance(returns); // sample variance (default)
   const volatility = Math.sqrt(variance);
 
   // Sharpe ratio (annualized)
@@ -551,10 +548,7 @@ function computeStyleProfile(
   // Consistency: inverse of confidence standard deviation
   const confidences = allDecisions.map((d) => d.confidence);
   const avgConf = mean(confidences);
-  const confVariance =
-    confidences.length > 1
-      ? confidences.reduce((s, c) => s + Math.pow(c - avgConf, 2), 0) / confidences.length
-      : 0;
+  const confVariance = computeVariance(confidences, true); // population variance
   const confStdDev = Math.sqrt(confVariance);
   const consistencyScore = Math.max(MIN_CONSISTENCY_SCORE, 100 - confStdDev * CONFIDENCE_STDDEV_MULTIPLIER);
 

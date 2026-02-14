@@ -362,14 +362,14 @@ function analyzeConsistency(entries: ReasoningEntry[]): ConsistencyProfile {
   // Structural consistency: how similar are reasoning lengths?
   const lengths = entries.map((e) => e.reasoning.length);
   const meanLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-  const lengthVariance = lengths.reduce((s, l) => s + Math.pow(l - meanLength, 2), 0) / lengths.length;
+  const lengthVariance = computeVariance(lengths, true); // population variance
   const coeffOfVariation = meanLength > 0 ? Math.sqrt(lengthVariance) / meanLength : 0;
   const structuralConsistency = Math.round(Math.max(0, 1 - coeffOfVariation) * 100) / 100;
 
   // Confidence variance
   const confidences = entries.map((e) => e.confidence > 1 ? e.confidence / 100 : e.confidence);
   const meanConf = confidences.reduce((a, b) => a + b, 0) / confidences.length;
-  const confVariance = confidences.reduce((s, c) => s + Math.pow(c - meanConf, 2), 0) / confidences.length;
+  const confVariance = computeVariance(confidences, true); // population variance
 
   // Intent stability: fraction of times the most common intent is used
   const intentCounts = new Map<string, number>();
