@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, computeStdDev } from "../lib/math-utils.js";
+import { countByCondition, computeStdDev, computeVariance } from "../lib/math-utils.js";
 
 // ---------------------------------------------------------------------------
 // Types for the 26 dimensions
@@ -896,9 +896,7 @@ export function scoreAgent(input: {
   const uniqueActions = new Set(actions);
   const strategyConsistency = uniqueActions.size === 1 ? 90 : uniqueActions.size === 2 ? 70 : 50;
   const confidences = t.map((x) => x.confidence);
-  const confStdDev = Math.sqrt(
-    confidences.reduce((sum, c) => sum + Math.pow(c - avg(confidences), 2), 0) / confidences.length,
-  );
+  const confStdDev = Math.sqrt(computeVariance(confidences, true));
   const adaptability = Math.max(0, Math.min(100, 50 + confStdDev * 200));
   const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - 0.6) * 200)));
   const crossRoundLearning = Math.min(100, 40 + t.length * 5);
