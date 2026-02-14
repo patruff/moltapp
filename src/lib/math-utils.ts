@@ -868,6 +868,46 @@ export function computeVariance(values: number[], usePopulation = false): number
 }
 
 /**
+ * computeDownsideVariance - Compute variance for downside risk metrics (Sortino ratio)
+ *
+ * Downside variance calculates variance using only negative returns (losses), providing
+ * a more accurate measure of downside risk than standard variance which includes upside volatility.
+ * This is critical for Sortino ratio calculations and asymmetric risk analysis.
+ *
+ * Key differences from computeVariance():
+ * - Filters to negative values only (r < 0)
+ * - Uses mean = 0 (deviation from zero, not sample mean) for downside deviation
+ * - Common in risk-adjusted performance metrics
+ *
+ * @param values - Array of return values (typically daily returns)
+ * @param usePopulation - If true, divide by n; if false (default), divide by n-1 for sample variance
+ * @returns Downside variance, or 0 if fewer than 2 negative values
+ *
+ * @example
+ * // Mixed returns: [5%, -3%, 2%, -1%, -2%]
+ * computeDownsideVariance([0.05, -0.03, 0.02, -0.01, -0.02])
+ * // Only negative: [-3%, -1%, -2%] → variance of squared values
+ * // Result: ((0.03)^2 + (0.01)^2 + (0.02)^2) / 3 = 0.00046667
+ *
+ * Common use cases:
+ * - Sortino ratio: (return - risk_free) / sqrt(downside_variance)
+ * - Downside deviation: sqrt(downside_variance)
+ * - Semi-variance: asymmetric risk measurement
+ * - Value at Risk (VaR): tail risk analysis
+ */
+export function computeDownsideVariance(values: number[], usePopulation = false): number {
+  const negativeValues = values.filter(v => v < 0);
+
+  if (negativeValues.length < 2) return 0;
+
+  // Downside variance uses squared deviations from zero (not from mean)
+  const sumSquared = negativeValues.reduce((sum, v) => sum + v ** 2, 0);
+  const denominator = usePopulation ? negativeValues.length : negativeValues.length - 1;
+
+  return sumSquared / denominator;
+}
+
+/**
  * computeStdDev - Compute standard deviation (square root of variance)
  *
  * Standard deviation is the most common measure of statistical dispersion, representing

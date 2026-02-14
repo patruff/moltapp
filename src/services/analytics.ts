@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, lte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, filterMap } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, computeDownsideVariance, filterMap } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -771,10 +771,7 @@ function computeRiskMetrics(
   const volatility = Math.sqrt(variance);
 
   // Downside deviation (only negative returns)
-  const negativeReturns = returns.filter((r) => r < 0);
-  const downsideVariance = negativeReturns.length > 1
-    ? negativeReturns.reduce((s, r) => s + r ** 2, 0) / negativeReturns.length
-    : 0;
+  const downsideVariance = computeDownsideVariance(returns, true);
   const downsideDeviation = Math.sqrt(downsideVariance);
 
   // Sharpe ratio (annualized, assuming daily trading)

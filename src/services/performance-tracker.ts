@@ -24,7 +24,7 @@ import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition, computeVariance, mean } from "../lib/math-utils.ts";
+import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition, computeVariance, computeDownsideVariance, mean } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
@@ -428,14 +428,11 @@ function computeRiskMetrics(
     : null;
 
   // Sortino ratio (only count downside volatility)
-  const downsideReturns = dailyReturns.filter((r) => r < 0);
+  const downsideVariance = computeDownsideVariance(dailyReturns, true);
   let sortinoRatio: number | null = null;
-  if (downsideReturns.length > 1) {
-    const downsideVariance = downsideReturns.reduce((s, r) => s + r ** 2, 0) / downsideReturns.length;
+  if (downsideVariance > 0) {
     const downsideVol = Math.sqrt(downsideVariance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
-    sortinoRatio = downsideVol > 0
-      ? (annualizedReturn - RISK_FREE_RATE) / downsideVol
-      : null;
+    sortinoRatio = (annualizedReturn - RISK_FREE_RATE) / downsideVol;
   }
 
   // Max drawdown
