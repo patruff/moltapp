@@ -17,6 +17,8 @@
  * Data also persisted in the trades table's jupiterRouteInfo JSONB field.
  */
 
+import { sumByKey } from "../lib/math-utils.ts";
+
 // ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
@@ -206,11 +208,11 @@ export function getAgentTransactionCosts(agentId: string): AgentTransactionCostS
     };
   }
 
-  const totalCostUsdc = agentRecords.reduce((sum, r) => sum + r.totalCostUsdc, 0);
-  const totalSlippageCostUsdc = agentRecords.reduce((sum, r) => sum + r.slippageCostUsdc, 0);
-  const totalSwapFeeUsdc = agentRecords.reduce((sum, r) => sum + r.estimatedSwapFeeUsdc, 0);
-  const totalNetworkFeeUsdc = agentRecords.reduce((sum, r) => sum + r.networkFeeUsdc, 0);
-  const totalVolumeUsdc = agentRecords.reduce((sum, r) => sum + r.usdcAmount, 0);
+  const totalCostUsdc = sumByKey(agentRecords, 'totalCostUsdc');
+  const totalSlippageCostUsdc = sumByKey(agentRecords, 'slippageCostUsdc');
+  const totalSwapFeeUsdc = sumByKey(agentRecords, 'estimatedSwapFeeUsdc');
+  const totalNetworkFeeUsdc = sumByKey(agentRecords, 'networkFeeUsdc');
+  const totalVolumeUsdc = sumByKey(agentRecords, 'usdcAmount');
 
   // Volume-weighted average slippage
   const weightedSlippageSum = agentRecords.reduce(
