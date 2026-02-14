@@ -791,3 +791,17 @@ export function absMax(values: number[]): number {
  * Round to 1 decimal place (alias for backward compatibility)
  */
 export const round1 = round;
+
+/**
+ * Calculate average of a single property extracted from array of objects
+ * Combines map + reduce operations into single efficient pass
+ * @param items - Array of objects
+ * @param key - Property key to average (must be numeric)
+ * @returns Average of all property values, or 0 if array empty
+ * @example avgOfProperty([{conf: 75}, {conf: 85}], 'conf') → 80
+ * @example avgOfProperty(trades, 'confidence') - clearer than trades.map(t => t.confidence).reduce(...) / length
+ */
+export function avgOfProperty<T>(items: readonly T[], key: keyof T): number {
+  if (items.length === 0) return 0;
+  return items.reduce((sum, item) => sum + Number(item[key]), 0) / items.length;
+}
