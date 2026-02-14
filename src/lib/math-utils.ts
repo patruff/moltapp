@@ -579,8 +579,35 @@ export function colorizeScore(score: number, thresholds = { good: 0.8, ok: 0.6 }
   return `🔴 ${(score * 100).toFixed(1)}%`;
 }
 
-export function getFilteredWords(text: string, commonWords: Set<string>): string[] {
-  return text.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !commonWords.has(w));
+/**
+ * Default common English words to filter out from text analysis
+ * Includes articles, prepositions, conjunctions, pronouns, and other high-frequency words
+ */
+const DEFAULT_COMMON_WORDS = new Set([
+  'the', 'and', 'for', 'that', 'this', 'with', 'from', 'have', 'has', 'are', 'was', 'were',
+  'been', 'will', 'would', 'could', 'should', 'can', 'may', 'might', 'must', 'shall',
+  'not', 'but', 'or', 'as', 'if', 'when', 'than', 'then', 'there', 'their', 'they',
+  'we', 'you', 'he', 'she', 'it', 'his', 'her', 'its', 'our', 'your', 'my',
+  'at', 'by', 'in', 'on', 'to', 'of', 'up', 'out', 'off', 'over', 'under',
+  'about', 'above', 'after', 'before', 'between', 'through', 'during', 'into',
+  'some', 'any', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other',
+  'such', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just'
+]);
+
+/**
+ * Filter words from text, removing short words and common English words
+ * @param text - Text to extract filtered words from
+ * @param minLength - Minimum word length (default: 3), or Set of common words to exclude
+ * @returns Array of filtered words (lowercase, length > minLength, not common words)
+ * @example getFilteredWords("The stock price is rising") → ["stock", "price", "rising"]
+ * @example getFilteredWords("AI stocks", 2) → ["stocks"] (words >2 chars)
+ */
+export function getFilteredWords(text: string, minLength?: number | Set<string>): string[] {
+  // Handle both signatures: number for min length, Set for custom common words
+  const minLen = typeof minLength === 'number' ? minLength : 3;
+  const commonWords = minLength instanceof Set ? minLength : DEFAULT_COMMON_WORDS;
+
+  return text.toLowerCase().split(/\s+/).filter(w => w.length > minLen && !commonWords.has(w));
 }
 
 /**
@@ -601,15 +628,24 @@ export function weightedSum(values: number[], weights: number[]): number {
  * Calculate weighted sum of object property values using corresponding weights
  * @param items - Array of objects
  * @param key - Property key to extract values
- * @param weights - Array of weights (same length as items)
+ * @param weights - Array of weights (same length as items) OR property name containing weights
  * @returns Weighted sum of property values
  * @example weightedSumByKey([{score: 10}, {score: 20}], 'score', [0.7, 0.3]) → 13 (10*0.7 + 20*0.3)
+ * @example weightedSumByKey([{score: 10, w: 0.7}, {score: 20, w: 0.3}], 'score', 'w') → 13
  */
-export function weightedSumByKey<T>(items: readonly T[], key: keyof T, weights: number[]): number {
-  if (items.length !== weights.length) {
-    throw new Error(`weightedSumByKey: items length (${items.length}) must match weights length (${weights.length})`);
+export function weightedSumByKey<T>(items: readonly T[], key: keyof T, weights: number[] | keyof T): number {
+  // Handle property name as weights
+  if (typeof weights === 'string' || typeof weights === 'symbol' || typeof weights === 'number') {
+    const weightProp = weights as keyof T;
+    return items.reduce((sum, item) => sum + (Number(item[key]) || 0) * (Number(item[weightProp]) || 0), 0);
   }
-  return items.reduce((sum, item, i) => sum + (Number(item[key]) || 0) * weights[i], 0);
+
+  // Handle array of weights
+  const weightArray = weights as number[];
+  if (items.length !== weightArray.length) {
+    throw new Error(`weightedSumByKey: items length (${items.length}) must match weights length (${weightArray.length})`);
+  }
+  return items.reduce((sum, item, i) => sum + (Number(item[key]) || 0) * weightArray[i], 0);
 }
 
 /**
