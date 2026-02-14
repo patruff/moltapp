@@ -46,7 +46,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { averageByKey, countByCondition, countWords, getTopKey, round, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, computeStdDev, countByCondition, countWords, getTopKey, round, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices, getTradeableSymbols } from "../services/market-aggregator.ts";
 
@@ -2553,7 +2553,7 @@ async function executeTradingRound(
     const scoreValues = Object.values(agentScores);
     const scoreMean = scoreValues.length > 0 ? scoreValues.reduce((s, v) => s + v, 0) / scoreValues.length : 0;
     const scoreSpread = scoreValues.length > 1
-      ? Math.sqrt(scoreValues.reduce((s, v) => s + (v - scoreMean) ** 2, 0) / scoreValues.length)
+      ? computeStdDev(scoreValues)
       : 0;
 
     recordBenchmarkHealthSnapshot({
