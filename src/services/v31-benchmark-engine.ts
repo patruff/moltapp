@@ -13,7 +13,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, findMax, findMin } from "../lib/math-utils.ts";
+import { countByCondition, findMax, findMin, computeVariance } from "../lib/math-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -777,8 +777,7 @@ export function recordRoundSummary(input: {
 function calculateConsensus(scores: V31AgentScore[]): number {
   if (scores.length < 2) return 1;
   const composites = scores.map((s) => s.compositeScore);
-  const mean = composites.reduce((a, b) => a + b, 0) / composites.length;
-  const variance = composites.reduce((s, c) => s + (c - mean) ** 2, 0) / composites.length;
+  const variance = computeVariance(composites, true);
   return r(Math.max(0, 1 - Math.sqrt(variance) / 50));
 }
 

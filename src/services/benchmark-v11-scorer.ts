@@ -15,7 +15,7 @@
  * 7. Forensic Quality (Structure, Originality, Clarity, Cross-trade integrity)
  */
 
-import { mean, round2, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { mean, round2, weightedSum, weightedSumByKey, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -560,8 +560,7 @@ function computeAdaptability(coherence: number[], pnl: number[]): number {
   if (coherence.length < 10) return 0.5;
 
   // Variance of coherence: lower variance = more consistent = higher adaptability
-  const avg = mean(coherence);
-  const variance = coherence.reduce((s, v) => s + (v - avg) ** 2, 0) / coherence.length;
+  const variance = computeVariance(coherence, true);
   const sd = Math.sqrt(variance);
 
   // Consistency score: 1 - normalized std dev

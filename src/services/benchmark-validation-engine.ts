@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { clamp, round3, splitSentences, weightedSum, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
+import { clamp, round3, splitSentences, weightedSum, weightedSumByKey, countByCondition, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -268,7 +268,7 @@ function getConfidenceStats(agentId: string): { mean: number; stdDev: number; co
     return { mean: 0.5, stdDev: 0.2, count: history.length };
   }
   const mean = history.reduce((s, v) => s + v, 0) / history.length;
-  const variance = history.reduce((s, v) => s + (v - mean) ** 2, 0) / history.length;
+  const variance = computeVariance(history, true);
   return { mean, stdDev: Math.sqrt(variance), count: history.length };
 }
 
