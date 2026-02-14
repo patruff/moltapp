@@ -14,7 +14,7 @@
  * 6. CONSISTENCY: Does the agent reason similarly across similar situations?
  */
 
-import { splitSentences, round3, countByCondition, findMax } from "../lib/math-utils.ts";
+import { splitSentences, round3, countByCondition, findMax, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
