@@ -26,7 +26,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countWords, mean, round2, round3, countByCondition } from "../lib/math-utils.ts";
+import { countWords, mean, round2, round3, countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -291,7 +291,7 @@ export function buildAgentProfile(agentId: string): AgentBenchmarkProfile {
   // Reasoning metrics
   const coherenceScores = evidence.map((e) => e.coherence.score);
   const avgCoherence = mean(coherenceScores);
-  const coherenceStdDev = stddev(coherenceScores);
+  const coherenceStdDev = computeStdDev(coherenceScores);
   const avgConfidence = mean(evidence.map((e) => e.confidence));
   const reasoningLengthAvg = mean(evidence.map((e) => countWords(e.reasoning)));
 
@@ -489,17 +489,11 @@ function createEmptyProfile(agentId: string): AgentBenchmarkProfile {
   };
 }
 
-function stddev(values: number[]): number {
-  if (values.length < STDDEV_MIN_VALUES) return 0;
-  const m = mean(values);
-  const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / (values.length - 1);
-  return round3(Math.sqrt(variance));
-}
 
 function computeSharpe(returns: number[]): number {
   if (returns.length < 2) return 0;
   const m = mean(returns);
-  const std = stddev(returns);
+  const std = computeStdDev(returns);
   if (std === 0) return 0;
   return round3(m / std);
 }
