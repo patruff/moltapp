@@ -777,6 +777,10 @@ function computeRiskMetrics(
   // Sortino ratio (annualized, using risk-free rate as target)
   const sortinoRatio = computeSortino(returns, riskFreeRate, true, TRADING_DAYS_PER_YEAR);
 
+  // Downside deviation (for risk metrics reporting)
+  const downsideVariance = computeDownsideVariance(returns);
+  const downsideDeviation = Math.sqrt(downsideVariance);
+
   // Max drawdown from confidence series
   let peak = 0;
   let maxDrawdown = 0;
