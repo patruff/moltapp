@@ -17,7 +17,7 @@
  */
 
 import { createHash } from "crypto";
-import { countByCondition, computeStdDev, computeVariance } from "../lib/math-utils.ts";
+import { countByCondition, computeStdDev, computeVariance, clamp } from "../lib/math-utils.ts";
 
 // Re-export inherited scoring functions from v34
 export {
@@ -377,7 +377,7 @@ export function scoreInformationAsymmetry(
     exclusiveScore -= 5;
   }
 
-  score += Math.max(0, Math.min(15, exclusiveScore));
+  score += clamp(exclusiveScore, 0, 15);
 
   // 5. First-Mover Reasoning (0-15)
   // Agent's reasoning suggests acting before the crowd
@@ -444,7 +444,7 @@ export function scoreTemporalReasoningQuality(
     horizonScore -= 5;
   }
 
-  score += Math.max(0, Math.min(25, horizonScore));
+  score += clamp(horizonScore, 0, 25);
 
   // 2. Catalyst Timing (0-25)
   // Does the agent identify specific upcoming events/catalysts?
@@ -466,7 +466,7 @@ export function scoreTemporalReasoningQuality(
     catalystScore -= 5;
   }
 
-  score += Math.max(0, Math.min(25, catalystScore));
+  score += clamp(catalystScore, 0, 25);
 
   // 3. Decay Awareness (0-20)
   // Does the agent understand that some signals have time-limited value?
@@ -537,7 +537,7 @@ export function scoreTemporalReasoningQuality(
   const temporalRationaleMatches = fullText.match(temporalRationalePatterns) ?? [];
   consistencyScore += Math.min(5, temporalRationaleMatches.length * 3);
 
-  score += Math.max(0, Math.min(15, consistencyScore));
+  score += clamp(consistencyScore, 0, 15);
 
   return Math.round(Math.min(maxScore, Math.max(0, score)));
 }
@@ -720,9 +720,9 @@ export function scoreAgent(input: {
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
   // Financial (normalized to 0-100)
-  const pnlScore = Math.max(0, Math.min(100, 50 + input.pnlPercent * 2));
-  const sharpeScore = Math.max(0, Math.min(100, 50 + input.sharpeRatio * 20));
-  const drawdownScore = Math.max(0, Math.min(100, 100 - Math.abs(input.maxDrawdown) * 2));
+  const pnlScore = clamp(50 + input.pnlPercent * 2, 0, 100);
+  const sharpeScore = clamp(50 + input.sharpeRatio * 20, 0, 100);
+  const drawdownScore = clamp(100 - Math.abs(input.maxDrawdown) * 2, 0, 100);
 
   // Reasoning Quality (13 dims)
   const coherence = avg(t.map((x) => x.coherenceScore * 100));
@@ -754,7 +754,7 @@ export function scoreAgent(input: {
   const strategyConsistency = uniqueActions.size === 1 ? 90 : uniqueActions.size === 2 ? 70 : 50;
   const confidences = t.map((x) => x.confidence);
   const confStdDev = Math.sqrt(computeVariance(confidences, true));
-  const adaptability = Math.max(0, Math.min(100, 50 + confStdDev * 200));
+  const adaptability = clamp(50 + confStdDev * 200, 0, 100);
   const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - 0.6) * 200)));
   const crossRoundLearning = Math.min(100, 40 + t.length * 5);
 
