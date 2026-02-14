@@ -457,7 +457,7 @@ function computeRiskMetrics(
 
   // Value at Risk (95% confidence, parametric)
   const valueAtRisk95 = dailyReturns.length >= 5
-    ? -(mean - 1.645 * dailyVol) * INITIAL_CAPITAL
+    ? -(avgDailyReturn - 1.645 * dailyVol) * INITIAL_CAPITAL
     : null;
 
   return {
