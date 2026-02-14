@@ -617,7 +617,7 @@ export function getFilteredWords(text: string, minLength?: number | Set<string>)
  * @returns Weighted sum (values[i] * weights[i] summed)
  * @example weightedSum([10, 20, 30], [0.5, 0.3, 0.2]) → 16 (10*0.5 + 20*0.3 + 30*0.2)
  */
-export function weightedSum(values: number[], weights: number[]): number {
+export function weightedSum(values: readonly number[], weights: readonly number[]): number {
   if (values.length !== weights.length) {
     throw new Error(`weightedSum: values length (${values.length}) must match weights length (${weights.length})`);
   }
