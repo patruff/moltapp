@@ -18,7 +18,7 @@
  * No database access is required — feed trade data via recordHistoricalTrade().
  */
 
-import { round2, countByCondition, computeStdDev } from "../lib/math-utils.ts";
+import { round2, countByCondition, computeStdDev, computeVariance, calculateAverage } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -461,11 +461,8 @@ function runSingleSimulation(
 function computeSharpeRatio(dailyReturns: number[]): number {
   if (dailyReturns.length < 2) return 0;
 
-  const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-  const variance = dailyReturns.reduce(
-    (s, r) => s + (r - mean) ** 2,
-    0,
-  ) / (dailyReturns.length - 1);
+  const mean = calculateAverage(dailyReturns);
+  const variance = computeVariance(dailyReturns, false);
   const stdDev = Math.sqrt(variance);
 
   if (stdDev === 0) return 0;

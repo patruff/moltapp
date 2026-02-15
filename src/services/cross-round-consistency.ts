@@ -14,7 +14,7 @@
  * trade exists in a vacuum.
  */
 
-import { clamp, round2, countWords } from "../lib/math-utils.ts";
+import { clamp, round2, countWords, computeVariance, calculateAverage } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -423,8 +423,8 @@ function analyzeConvictionStability(
   const confidences = history.map((e) => e.confidence);
 
   // Calculate standard deviation of confidence
-  const mean = confidences.reduce((s, v) => s + v, 0) / confidences.length;
-  const variance = confidences.reduce((s, v) => s + (v - mean) ** 2, 0) / confidences.length;
+  const mean = calculateAverage(confidences);
+  const variance = computeVariance(confidences, true);
   const stdDev = Math.sqrt(variance);
 
   // Check for sudden confidence spikes
