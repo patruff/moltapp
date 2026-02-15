@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { round3 } from "../lib/math-utils.ts";
+import { round3, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -345,8 +345,8 @@ export function welchTTest(
   const meanA = samplesA.reduce((s, v) => s + v, 0) / nA;
   const meanB = samplesB.reduce((s, v) => s + v, 0) / nB;
 
-  const varA = samplesA.reduce((s, v) => s + (v - meanA) ** 2, 0) / (nA - 1);
-  const varB = samplesB.reduce((s, v) => s + (v - meanB) ** 2, 0) / (nB - 1);
+  const varA = computeVariance(samplesA);
+  const varB = computeVariance(samplesB);
 
   const seA = varA / nA;
   const seB = varB / nB;
