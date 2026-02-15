@@ -19,7 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, sql, and } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { countByCondition, clamp, averageByKey } from "../lib/math-utils.ts";
+import { countByCondition, clamp, averageByKey, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1108,9 +1108,7 @@ function calculateConsistency(
   const confidences = decisions.map((d) => d.confidence);
   const avgConf =
     confidences.reduce((s, c) => s + c, 0) / confidences.length;
-  const confVariance =
-    confidences.reduce((s, c) => s + (c - avgConf) ** 2, 0) /
-    confidences.length;
+  const confVariance = computeVariance(confidences, true); // population variance
   const confStdDev = Math.sqrt(confVariance);
   const decisionConsistency = Math.max(0, 100 - confStdDev * 2);
 
@@ -1169,8 +1167,7 @@ function calculateConsistency(
   let timeConsistency = 50;
   if (gaps.length > MAX_TIME_GAPS_FOR_CONSISTENCY) {
     const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
-    const gapVariance =
-      gaps.reduce((s, g) => s + (g - avgGap) ** 2, 0) / gaps.length;
+    const gapVariance = computeVariance(gaps, true); // population variance
     const gapCV = Math.sqrt(gapVariance) / (avgGap || 1); // coefficient of variation
     timeConsistency = Math.max(0, 100 - gapCV * 50);
   }

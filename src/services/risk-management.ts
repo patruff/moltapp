@@ -27,7 +27,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
-import { round2, round3, sumByKey, averageByKey, mean } from "../lib/math-utils.ts";
+import { round2, round3, sumByKey, averageByKey, mean, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -652,16 +652,15 @@ export function calculateRiskAdjustedMetrics(
   const riskFreeRate = RISK_FREE_RATE_ANNUAL / VAR_LOOKBACK_DAYS; // Daily risk-free rate
 
   // Standard deviation
-  const variance =
-    returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / returns.length;
+  const variance = computeVariance(returns, true); // population variance
   const stdDev = Math.sqrt(variance);
 
   // Downside deviation (for Sortino)
   const downsideReturns = returns.filter((r) => r < riskFreeRate);
+  // Downside variance uses mean-adjusted deviations from risk-free rate
   const downsideVariance =
     downsideReturns.length > 0
-      ? downsideReturns.reduce((s, r) => s + (r - riskFreeRate) ** 2, 0) /
-        downsideReturns.length
+      ? downsideReturns.reduce((s, r) => s + (r - riskFreeRate) ** 2, 0) / downsideReturns.length
       : variance;
   const downsideDeviation = Math.sqrt(downsideVariance);
 
@@ -707,9 +706,7 @@ export function calculateRiskAdjustedMetrics(
   // Information ratio
   const excessReturns = returns.map((r, i) => r - marketReturns[i]);
   const meanExcess = mean(excessReturns);
-  const trackingErrorVar =
-    excessReturns.reduce((s, r) => s + (r - meanExcess) ** 2, 0) /
-    excessReturns.length;
+  const trackingErrorVar = computeVariance(excessReturns, true); // population variance
   const trackingError = Math.sqrt(trackingErrorVar) * Math.sqrt(252);
   const informationRatio =
     trackingError > 0 ? (meanExcess * 252) / trackingError : 0;

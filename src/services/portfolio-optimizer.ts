@@ -913,7 +913,7 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
 
   // Risk parity score: 100 = perfect parity, lower = more concentrated risk
   const avgRisk = totalRisk / allocations.length;
-  const riskVariance = riskContribs.reduce((s, r) => s + (r - avgRisk) ** 2, 0) / allocations.length;
+  const riskVariance = computeVariance(riskContribs, true); // population variance
   const riskParityScore = Math.max(0, Math.min(100, Math.round(100 - riskVariance * 50000)));
 
   return {

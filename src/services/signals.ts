@@ -15,7 +15,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2, round3 } from "../lib/math-utils.ts";
+import { round2, round3, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -758,9 +758,7 @@ function calculateBollingerBands(
   const recentPrices = prices.slice(-period);
   const middle = recentPrices.reduce((s, p) => s + p, 0) / recentPrices.length;
 
-  const variance =
-    recentPrices.reduce((s, p) => s + (p - middle) ** 2, 0) /
-    recentPrices.length;
+  const variance = computeVariance(recentPrices, true); // population variance
   const stdDev = Math.sqrt(variance);
 
   const upper = middle + stdDevMultiplier * stdDev;

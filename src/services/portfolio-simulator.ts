@@ -556,7 +556,7 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   }
 
   const meanReturn = returns.reduce((s, r) => s + r, 0) / returns.length;
-  const variance = returns.reduce((s, r) => s + (r - meanReturn) ** 2, 0) / (returns.length - 1);
+  const variance = computeVariance(returns); // sample variance (n-1)
   const vol = Math.sqrt(variance);
 
   // Annualized (assuming 252 trading days)
@@ -570,7 +570,7 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   // Sortino
   const negReturns = returns.filter((r) => r < 0);
   const downsideVar = negReturns.length > 1
-    ? negReturns.reduce((s, r) => s + r ** 2, 0) / negReturns.length
+    ? negReturns.reduce((s, r) => s + r ** 2, 0) / negReturns.length // target return = 0, so no mean adjustment
     : 0;
   const downsideDev = Math.sqrt(downsideVar);
   const sortino = downsideDev > 0 ? ((meanReturn - riskFreeRate) / downsideDev) * Math.sqrt(252) : 0;
