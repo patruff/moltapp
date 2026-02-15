@@ -491,7 +491,7 @@ function createEmptyProfile(agentId: string): AgentBenchmarkProfile {
 
 
 function computeSharpe(returns: number[]): number {
-  if (returns.length < 2) return 0;
+  if (returns.length < SHARPE_MIN_RETURNS) return 0;
   const m = mean(returns);
   const std = computeStdDev(returns);
   if (std === 0) return 0;
@@ -516,16 +516,16 @@ function computeMaxDrawdown(returns: number[]): number {
 
 function computeCalibration(evidence: TradeEvidence[]): number {
   const withOutcomes = evidence.filter((e) => e.outcomeCorrect !== undefined);
-  if (withOutcomes.length < 5) return 0.5; // Not enough data
+  if (withOutcomes.length < CALIBRATION_MIN_TRADES) return CALIBRATION_DEFAULT_SCORE;
 
   // Bucket by confidence deciles
   const buckets: { totalConf: number; totalCorrect: number; count: number }[] = [];
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < CALIBRATION_BUCKET_COUNT; i++) {
     buckets.push({ totalConf: 0, totalCorrect: 0, count: 0 });
   }
 
   for (const e of withOutcomes) {
-    const bucketIdx = Math.min(4, Math.floor(e.confidence * 5));
+    const bucketIdx = Math.min(CALIBRATION_BUCKET_COUNT - 1, Math.floor(e.confidence * CALIBRATION_BUCKET_COUNT));
     buckets[bucketIdx].totalConf += e.confidence;
     buckets[bucketIdx].totalCorrect += e.outcomeCorrect ? 1 : 0;
     buckets[bucketIdx].count++;
