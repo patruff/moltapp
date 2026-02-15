@@ -571,31 +571,31 @@ function computeTrend(
   coherence: number[],
   forensic: number[],
 ): "improving" | "degrading" | "stable" {
-  const combined = coherence.map((c, i) => c * 0.5 + (forensic[i] ?? c) * 0.5);
-  if (combined.length < 10) return "stable";
+  const combined = coherence.map((c, i) => c * TREND_COHERENCE_WEIGHT + (forensic[i] ?? c) * TREND_FORENSIC_WEIGHT);
+  if (combined.length < TREND_MIN_SAMPLES) return "stable";
 
   const mid = Math.floor(combined.length / 2);
   const recentAvg = mean(combined.slice(0, mid));
   const olderAvg = mean(combined.slice(mid));
   const delta = recentAvg - olderAvg;
 
-  if (delta > 0.05) return "improving";
-  if (delta < -0.05) return "degrading";
+  if (delta > TREND_IMPROVING_THRESHOLD) return "improving";
+  if (delta < TREND_DEGRADING_THRESHOLD) return "degrading";
   return "stable";
 }
 
 function scoreToGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
