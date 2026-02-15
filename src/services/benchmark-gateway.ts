@@ -31,7 +31,7 @@ import {
   type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { round2, countByCondition, findMin } from "../lib/math-utils.ts";
+import { round2, countByCondition, findMin, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -435,7 +435,7 @@ function detectAdversarialPatterns(
   // Check 1: Confidence manipulation — always very high or very low confidence
   if (patterns.confidences.length >= ADVERSARIAL_CONFIDENCE_MIN_SUBMISSIONS) {
     const avgConf = patterns.confidences.reduce((s, c) => s + c, 0) / patterns.confidences.length;
-    const confVariance = patterns.confidences.reduce((s, c) => s + (c - avgConf) ** 2, 0) / patterns.confidences.length;
+    const confVariance = computeVariance(patterns.confidences, true); // population variance
     if (confVariance < ADVERSARIAL_CONFIDENCE_VARIANCE_THRESHOLD && avgConf > ADVERSARIAL_CONFIDENCE_HIGH_AVG_THRESHOLD) {
       flags.push({
         type: "confidence_manipulation",
