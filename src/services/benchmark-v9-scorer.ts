@@ -15,7 +15,7 @@
  * - Exportable snapshots for HuggingFace dataset
  */
 
-import { round3, countByCondition, computeVariance } from "../lib/math-utils.ts";
+import { round3, countByCondition, computeVariance, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -366,7 +366,7 @@ function getRegimeWeights(regime: MarketRegime): {
 
 function scoreFinancial(pnl: number, window: TradeRecord[]): number {
   // Sharpe-like: mean return / std of returns (or 0.5 if no variance)
-  if (window.length < 2) return Math.max(0, Math.min(1, 0.5 + pnl / 100));
+  if (window.length < 2) return clamp(0.5 + pnl / 100, 0, 1);
 
   const returns = window.map((r) => r.pnl);
   const mean = returns.reduce((s, r) => s + r, 0) / returns.length;
