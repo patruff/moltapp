@@ -155,6 +155,8 @@ const GROUNDING_QUANTITATIVE_PER_MATCH = 4;
 
 /** Maximum plausibility bonus for price references */
 const GROUNDING_PRICE_PLAUSIBILITY_MAX = 25;
+/** Price plausibility threshold (±50% tolerance from real market price) */
+const GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD = 0.5;
 /** Fallback bonus when no price references found */
 const GROUNDING_PRICE_FALLBACK = 5;
 
@@ -623,7 +625,7 @@ export function scoreGrounding(
   for (const ref of priceRefs) {
     const val = parseFloat(ref.replace(/[$,]/g, ""));
     const isPlausible = Object.values(marketPrices).some(
-      (realPrice) => Math.abs(val - realPrice) / realPrice < 0.5,
+      (realPrice) => Math.abs(val - realPrice) / realPrice < GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD,
     );
     if (isPlausible) plausibleCount++;
   }
