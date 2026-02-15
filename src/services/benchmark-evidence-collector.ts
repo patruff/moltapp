@@ -555,8 +555,8 @@ function computeConfidenceBias(evidence: TradeEvidence[]): {
   let underconfident = 0;
 
   for (const e of withOutcomes) {
-    if (e.confidence > 0.7 && !e.outcomeCorrect) overconfident++;
-    if (e.confidence < 0.3 && e.outcomeCorrect) underconfident++;
+    if (e.confidence > CONFIDENCE_HIGH_THRESHOLD && !e.outcomeCorrect) overconfident++;
+    if (e.confidence < CONFIDENCE_LOW_THRESHOLD && e.outcomeCorrect) underconfident++;
   }
 
   return {
