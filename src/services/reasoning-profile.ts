@@ -101,6 +101,89 @@ export interface AgentReasoningProfile {
 const reasoningEntries: ReasoningEntry[] = [];
 const MAX_ENTRIES = 3000;
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Quality Trend Detection Parameters
+ *
+ * These control how we classify agent reasoning quality trends over time.
+ */
+
+/**
+ * Trend lookback window divisor.
+ *
+ * We compare the first 1/5 of entries (recent) vs last 1/5 (older).
+ * Example: 100 entries → compare first 20 vs last 20.
+ *
+ * Lower divisor = larger comparison windows (more stable, less sensitive).
+ * Higher divisor = smaller windows (more sensitive to recent changes).
+ */
+const TREND_LOOKBACK_DIVISOR = 5;
+
+/**
+ * Minimum entries required for meaningful trend detection.
+ *
+ * Below this threshold, we classify as "stable" because sample size is too small
+ * for statistical significance.
+ */
+const TREND_MIN_ENTRIES = 10;
+
+/**
+ * Coherence improvement threshold for "improving" trend.
+ *
+ * If recent coherence > older coherence + 0.05, classify as "improving".
+ * Represents 5% coherence increase = meaningful quality improvement.
+ */
+const TREND_IMPROVING_THRESHOLD = 0.05;
+
+/**
+ * Coherence decline threshold for "declining" trend.
+ *
+ * If recent coherence < older coherence - 0.05, classify as "declining".
+ * Represents 5% coherence decrease = meaningful quality degradation.
+ */
+const TREND_DECLINING_THRESHOLD = 0.05;
+
+/**
+ * Consistency Fallback Defaults
+ *
+ * These are used when we have < 5 reasoning entries (insufficient data for analysis).
+ */
+
+/**
+ * Default decision consistency score (neutral).
+ *
+ * Used when < 5 entries prevent calculating actual consistency.
+ * 0.5 = neutral (agent is neither consistent nor inconsistent).
+ */
+const CONSISTENCY_FALLBACK_DECISION = 0.5;
+
+/**
+ * Default structural consistency score (neutral).
+ *
+ * Used when < 5 entries prevent variance analysis of reasoning lengths.
+ * 0.5 = neutral assumption.
+ */
+const CONSISTENCY_FALLBACK_STRUCTURAL = 0.5;
+
+/**
+ * Default confidence variance (zero).
+ *
+ * Used when < 5 entries prevent calculating actual variance.
+ * 0 = assume stable confidence until proven otherwise.
+ */
+const CONSISTENCY_FALLBACK_VARIANCE = 0;
+
+/**
+ * Default intent stability score (neutral).
+ *
+ * Used when < 5 entries prevent calculating dominant intent.
+ * 0.5 = neutral assumption.
+ */
+const CONSISTENCY_FALLBACK_INTENT = 0.5;
+
 // Stop words for vocabulary analysis
 const STOP_WORDS = new Set([
   "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
@@ -183,7 +266,7 @@ export function buildReasoningProfile(agentId: string): AgentReasoningProfile {
   ) / 100;
 
   // Quality trend: compare last 20% vs first 20%
-  const fifthSize = Math.max(3, Math.floor(entries.length / 5));
+  const fifthSize = Math.max(3, Math.floor(entries.length / TREND_LOOKBACK_DIVISOR));
   const recentEntries = entries.slice(0, fifthSize);
   const olderEntries = entries.slice(-fifthSize);
 
@@ -191,9 +274,9 @@ export function buildReasoningProfile(agentId: string): AgentReasoningProfile {
   const olderCoherence = olderEntries.reduce((s, e) => s + e.coherenceScore, 0) / olderEntries.length;
 
   let qualityTrend: "improving" | "declining" | "stable" = "stable";
-  if (entries.length >= 10) {
-    if (recentCoherence > olderCoherence + 0.05) qualityTrend = "improving";
-    else if (recentCoherence < olderCoherence - 0.05) qualityTrend = "declining";
+  if (entries.length >= TREND_MIN_ENTRIES) {
+    if (recentCoherence > olderCoherence + TREND_IMPROVING_THRESHOLD) qualityTrend = "improving";
+    else if (recentCoherence < olderCoherence - TREND_DECLINING_THRESHOLD) qualityTrend = "declining";
   }
 
   return {
@@ -331,10 +414,10 @@ function analyzeTone(entries: ReasoningEntry[]): ToneProfile {
 function analyzeConsistency(entries: ReasoningEntry[]): ConsistencyProfile {
   if (entries.length < 5) {
     return {
-      decisionConsistency: 0.5,
-      structuralConsistency: 0.5,
-      confidenceVariance: 0,
-      intentStability: 0.5,
+      decisionConsistency: CONSISTENCY_FALLBACK_DECISION,
+      structuralConsistency: CONSISTENCY_FALLBACK_STRUCTURAL,
+      confidenceVariance: CONSISTENCY_FALLBACK_VARIANCE,
+      intentStability: CONSISTENCY_FALLBACK_INTENT,
     };
   }
 
@@ -407,10 +490,10 @@ function emptyProfile(agentId: string): AgentReasoningProfile {
       signaturePhrases: [],
     },
     consistency: {
-      decisionConsistency: 0.5,
-      structuralConsistency: 0.5,
-      confidenceVariance: 0,
-      intentStability: 0.5,
+      decisionConsistency: CONSISTENCY_FALLBACK_DECISION,
+      structuralConsistency: CONSISTENCY_FALLBACK_STRUCTURAL,
+      confidenceVariance: CONSISTENCY_FALLBACK_VARIANCE,
+      intentStability: CONSISTENCY_FALLBACK_INTENT,
     },
     actionDistribution: { buy: 0, sell: 0, hold: 0 },
     intentDistribution: {},
