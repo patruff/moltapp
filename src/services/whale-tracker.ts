@@ -19,7 +19,7 @@ import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { getTopKey } from "../lib/math-utils.ts";
+import { getTopKey, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -860,8 +860,8 @@ export async function getSmartMoneyFlow(hours = SMART_MONEY_FLOW_DEFAULT_HOURS):
 
   const flows = Object.entries(symbolFlows).map(([symbol, data]) => {
     const market = marketData.find((m) => m.symbol.toLowerCase() === symbol.toLowerCase());
-    const buyVolume = data.buys.reduce((s, b) => s + b.confidence * (b.quantity || 1), 0);
-    const sellVolume = data.sells.reduce((s, s2) => s + s2.confidence * (s2.quantity || 1), 0);
+    const buyVolume = weightedSumByKey(data.buys, 'confidence', 'quantity');
+    const sellVolume = weightedSumByKey(data.sells, 'confidence', 'quantity');
     const netFlow = buyVolume - sellVolume;
 
     const agentBreakdown = [
