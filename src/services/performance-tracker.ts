@@ -848,9 +848,9 @@ function computeRollingReturns(
   };
 
   return {
-    day1: computeWindowPnl(24 * 60 * 60 * 1000),
-    day7: computeWindowPnl(7 * 24 * 60 * 60 * 1000),
-    day30: computeWindowPnl(30 * 24 * 60 * 60 * 1000),
+    day1: computeWindowPnl(ROLLING_WINDOW_1_DAY_MS),
+    day7: computeWindowPnl(ROLLING_WINDOW_7_DAY_MS),
+    day30: computeWindowPnl(ROLLING_WINDOW_30_DAY_MS),
     allTime: round2(totalPnlAllTime),
   };
 }
@@ -867,7 +867,7 @@ function analyzeDecisions(
 ): AgentPerformance["decisions"] {
   const now = Date.now();
   const last24h = decisionRows.filter(
-    (d) => now - d.createdAt.getTime() < 24 * 60 * 60 * 1000,
+    (d) => now - d.createdAt.getTime() < RECENT_DECISION_WINDOW_MS,
   );
 
   const actionDist = { buy: 0, sell: 0, hold: 0 };
