@@ -16,7 +16,7 @@
  */
 
 import { recordBenchmarkReturn } from "./risk-adjusted-leaderboard.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -366,10 +366,7 @@ function calculateTrackingError(
   if (matched.length < 3) return 0;
 
   const diffs = matched.map((m) => m.agentReturn - m.benchmarkReturn);
-  const meanDiff = diffs.reduce((a, b) => a + b, 0) / diffs.length;
-  const variance =
-    diffs.reduce((sum, d) => sum + Math.pow(d - meanDiff, 2), 0) /
-    (diffs.length - 1);
+  const variance = computeVariance(diffs);
 
   return Math.sqrt(variance) * Math.sqrt(252); // Annualized
 }

@@ -16,7 +16,7 @@
  * ranks higher than one returning 25% with 40% drawdown.
  */
 
-import { round2, sumByKey, averageByKey } from "../lib/math-utils.ts";
+import { round2, sumByKey, averageByKey, computeVariance, computeDownsideVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -319,18 +319,11 @@ function calculateRiskMetrics(
 
   // Basic stats
   const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-  const variance =
-    returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) /
-    (returns.length - 1);
+  const variance = computeVariance(returns);
   const stdDev = Math.sqrt(variance);
 
   // Downside deviation (only negative returns)
-  const negativeReturns = returns.filter((r) => r < 0);
-  const downsideVariance =
-    negativeReturns.length > 0
-      ? negativeReturns.reduce((sum, r) => sum + Math.pow(r, 2), 0) /
-        negativeReturns.length
-      : 0;
+  const downsideVariance = computeDownsideVariance(returns, true); // usePopulation=true matches original logic
   const downsideDeviation = Math.sqrt(downsideVariance);
 
   // Annualize

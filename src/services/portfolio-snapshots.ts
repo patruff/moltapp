@@ -22,7 +22,7 @@ import {
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte, type InferSelectModel } from "drizzle-orm";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, computeVariance } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 type PortfolioSnapshotRow = InferSelectModel<typeof portfolioSnapshots>;
@@ -562,9 +562,7 @@ function computeSummary(
   // Volatility (standard deviation of returns)
   let volatility = 0;
   if (returns.length > 1) {
-    const variance =
-      returns.reduce((sum, r) => sum + Math.pow(r - avgDailyReturn, 2), 0) /
-      (returns.length - 1);
+    const variance = computeVariance(returns);
     volatility = Math.sqrt(variance);
   }
 
