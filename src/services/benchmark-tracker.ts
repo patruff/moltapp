@@ -16,7 +16,7 @@
  */
 
 import { recordBenchmarkReturn } from "./risk-adjusted-leaderboard.ts";
-import { round2, computeVariance } from "../lib/math-utils.ts";
+import { round2, computeVariance, sumByKey, averageByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -271,10 +271,7 @@ function computeAgentComparison(
   const agentName = agentNameMap.get(agentId) ?? agentId;
 
   // Total agent return
-  const agentCumulativeReturn = agentReturns.reduce(
-    (sum, r) => sum + r.returnPercent,
-    0,
-  );
+  const agentCumulativeReturn = sumByKey(agentReturns, "returnPercent");
 
   // Get matching benchmark returns
   const benchmarkDates = new Set(benchmarkHistory.map((s) => s.date));
@@ -295,10 +292,7 @@ function computeAgentComparison(
   const benchmarkSlice = benchmarkHistory.filter((s) =>
     agentDates.includes(s.date),
   );
-  const spyCumulativeReturn = benchmarkSlice.reduce(
-    (sum, s) => sum + s.spyReturn,
-    0,
-  );
+  const spyCumulativeReturn = sumByKey(benchmarkSlice, "spyReturn");
 
   // Alpha
   const alpha =
@@ -340,10 +334,8 @@ function calculateBeta(
 ): number {
   if (matched.length < 3) return 1;
 
-  const meanAgent =
-    matched.reduce((sum, m) => sum + m.agentReturn, 0) / matched.length;
-  const meanBenchmark =
-    matched.reduce((sum, m) => sum + m.benchmarkReturn, 0) / matched.length;
+  const meanAgent = averageByKey(matched, "agentReturn");
+  const meanBenchmark = averageByKey(matched, "benchmarkReturn");
 
   let covariance = 0;
   let benchmarkVariance = 0;
@@ -387,11 +379,8 @@ function calculateRollingComparisons(
     const recentAgent = agentReturns.slice(-period.days);
     const recentBenchmark = benchmarkSnapshots.slice(-period.days);
 
-    const agentReturn = recentAgent.reduce(
-      (sum, r) => sum + r.returnPercent,
-      0,
-    );
-    const spyReturn = recentBenchmark.reduce((sum, s) => sum + s.spyReturn, 0);
+    const agentReturn = sumByKey(recentAgent, "returnPercent");
+    const spyReturn = sumByKey(recentBenchmark, "spyReturn");
 
     results.push({
       period: period.label,
