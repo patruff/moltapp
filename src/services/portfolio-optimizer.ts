@@ -20,7 +20,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, sumByKey, filterByMapKey, findMax, findMin, computeVariance } from "../lib/math-utils.ts";
+import { round2, round4, sumByKey, filterByMapKey, findMax, findMin, computeVariance, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -573,7 +573,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   const weights = recommendedAllocation.map((a) => a.weight);
   const hhi = weights.reduce((s, w) => s + w * w, 0);
   const diversificationRatio = weights.length > 0
-    ? recommendedAllocation.reduce((s, a) => s + a.weight * a.volatility, 0) / (portVol || 1)
+    ? weightedSumByKey(recommendedAllocation, 'volatility', 'weight') / (portVol || 1)
     : 1;
 
   return {
