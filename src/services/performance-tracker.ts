@@ -914,7 +914,6 @@ function analyzeDecisions(
 
 /** Cache for current prices (30-second TTL) */
 let priceCache: { prices: Map<string, number>; fetchedAt: number } | null = null;
-const PRICE_CACHE_TTL = 30_000;
 
 /**
  * Fetch current prices for all xStocks.
