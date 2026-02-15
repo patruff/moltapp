@@ -369,13 +369,13 @@ export function gradeTrade(
     (predictedOutcome ? GRADE_PREDICTED_OUTCOME_BONUS : 0) * GRADE_WEIGHT_PREDICTED_OUTCOME;
 
   let grade: V30TradeGrade['overallGrade'];
-  if (score >= 0.95) grade = 'A+';
-  else if (score >= 0.85) grade = 'A';
-  else if (score >= 0.75) grade = 'B+';
-  else if (score >= 0.65) grade = 'B';
-  else if (score >= 0.55) grade = 'C+';
-  else if (score >= 0.45) grade = 'C';
-  else if (score >= 0.30) grade = 'D';
+  if (score >= GRADE_THRESHOLD_A_PLUS) grade = 'A+';
+  else if (score >= GRADE_THRESHOLD_A) grade = 'A';
+  else if (score >= GRADE_THRESHOLD_B_PLUS) grade = 'B+';
+  else if (score >= GRADE_THRESHOLD_B) grade = 'B';
+  else if (score >= GRADE_THRESHOLD_C_PLUS) grade = 'C+';
+  else if (score >= GRADE_THRESHOLD_C) grade = 'C';
+  else if (score >= GRADE_THRESHOLD_D) grade = 'D';
   else grade = 'F';
 
   const tradeGrade: V30TradeGrade = {
