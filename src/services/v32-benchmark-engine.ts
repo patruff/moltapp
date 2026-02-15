@@ -28,6 +28,219 @@ import { createHash } from "crypto";
 import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Grounding Scoring Thresholds
+ *
+ * Controls how well reasoning is grounded in real market data vs speculation.
+ */
+
+/** Maximum score for data citation density (number of quantitative references) */
+const GROUNDING_DATA_CITATION_MAX = 20;
+/** Points awarded per numeric reference ($50.30, 2.5%, etc.) */
+const GROUNDING_DATA_CITATION_PER_MATCH = 4;
+
+/** Maximum score for price reference plausibility */
+const GROUNDING_PRICE_PLAUSIBILITY_MAX = 25;
+/** Small baseline when no price claims made (not heavily penalized) */
+const GROUNDING_PRICE_PLAUSIBILITY_BASELINE = 5;
+/** Price plausibility threshold: ±50% of real market price */
+const GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD = 0.5;
+
+/** Maximum score for quantitative vs qualitative ratio */
+const GROUNDING_QUANT_RATIO_MAX = 20;
+
+/** Maximum score for temporal grounding (references to current/recent data) */
+const GROUNDING_TEMPORAL_MAX = 15;
+/** Points per temporal marker ("today", "current", "24h", etc.) */
+const GROUNDING_TEMPORAL_PER_MATCH = 3;
+
+/** Maximum score for ticker specificity */
+const GROUNDING_TICKER_SPECIFICITY_MAX = 10;
+/** Points per named ticker (NVDAx, TSLAx, etc.) */
+const GROUNDING_TICKER_SPECIFICITY_PER_MATCH = 2;
+
+/** Maximum score for threshold/level references */
+const GROUNDING_THRESHOLD_MAX = 10;
+/** Points per threshold reference (support at $150, target of $200, etc.) */
+const GROUNDING_THRESHOLD_PER_MATCH = 5;
+
+/**
+ * Consensus Quality Scoring Thresholds
+ *
+ * Measures quality of agreement/divergence with peer agents.
+ */
+
+/** Baseline consensus quality score (neutral) */
+const CONSENSUS_BASELINE_SCORE = 50;
+
+/** Coherence threshold for "strong reasoning" in divergence scenarios */
+const CONSENSUS_STRONG_REASONING_THRESHOLD = 0.7;
+/** Bonus when diverging with strong reasoning (justified contrarian) */
+const CONSENSUS_DIVERGENCE_STRONG_BONUS = 25;
+
+/** Coherence threshold for "moderate reasoning" in divergence */
+const CONSENSUS_MODERATE_REASONING_THRESHOLD = 0.5;
+/** Bonus when diverging with moderate reasoning */
+const CONSENSUS_DIVERGENCE_MODERATE_BONUS = 10;
+
+/** Penalty for diverging with weak reasoning (reckless contrarian) */
+const CONSENSUS_DIVERGENCE_WEAK_PENALTY = 15;
+
+/** Minimum word count to avoid blind herding penalty */
+const CONSENSUS_MIN_WORDS_INDEPENDENT = 30;
+/** Penalty for full agreement with short reasoning (likely herding) */
+const CONSENSUS_HERDING_PENALTY = 15;
+
+/** Maximum bonus for independence markers */
+const CONSENSUS_INDEPENDENCE_MAX = 20;
+/** Points per independence marker ("however", "I disagree", etc.) */
+const CONSENSUS_INDEPENDENCE_PER_MATCH = 7;
+
+/** Bonus for unique information contribution */
+const CONSENSUS_UNIQUE_INFO_BONUS = 10;
+
+/**
+ * Transparency Scoring Thresholds
+ *
+ * Measures clarity of reasoning process and uncertainty acknowledgment.
+ */
+
+/** Maximum score for step-by-step reasoning structure */
+const TRANSPARENCY_STEPS_MAX = 25;
+/** Points per step marker ("first", "then", "1.", etc.) */
+const TRANSPARENCY_STEPS_PER_MATCH = 5;
+
+/** Maximum score for source citations */
+const TRANSPARENCY_SOURCES_MAX = 20;
+/** Points per source cited */
+const TRANSPARENCY_SOURCES_PER_MATCH = 5;
+
+/** Maximum score for uncertainty acknowledgment */
+const TRANSPARENCY_UNCERTAINTY_MAX = 15;
+/** Points per uncertainty marker ("may", "uncertain", "risk", etc.) */
+const TRANSPARENCY_UNCERTAINTY_PER_MATCH = 3;
+
+/** Maximum score for causal reasoning connectors */
+const TRANSPARENCY_CAUSAL_MAX = 20;
+/** Points per causal connector ("because", "therefore", "thus", etc.) */
+const TRANSPARENCY_CAUSAL_PER_MATCH = 4;
+
+/** Maximum score for quantitative reasoning */
+const TRANSPARENCY_QUANT_MAX = 20;
+/** Points per quantitative marker */
+const TRANSPARENCY_QUANT_PER_MATCH = 3;
+
+/**
+ * Accountability Scoring Thresholds
+ *
+ * Measures willingness to reference past decisions and acknowledge errors.
+ */
+
+/** Specificity divisor for accountability score normalization */
+const ACCOUNTABILITY_SPECIFICITY_DIVISOR = 10;
+/** Maximum bonus for specificity */
+const ACCOUNTABILITY_SPECIFICITY_MAX = 15;
+
+/** Maximum score for past decision references */
+const ACCOUNTABILITY_PAST_REFS_MAX = 25;
+/** Points per past decision reference */
+const ACCOUNTABILITY_PAST_REFS_PER_MATCH = 8;
+
+/** Maximum score for error acknowledgments */
+const ACCOUNTABILITY_ERROR_ACK_MAX = 25;
+/** Points per error acknowledgment */
+const ACCOUNTABILITY_ERROR_ACK_PER_MATCH = 8;
+
+/**
+ * Reasoning Depth Scoring Parameters
+ *
+ * Measures analysis detail through word count and clause complexity.
+ */
+
+/** Maximum score from word count (50% of depth score) */
+const DEPTH_WORD_COUNT_MAX = 50;
+/** Word count divisor for scoring (wordCount / 2 = score contribution) */
+const DEPTH_WORD_COUNT_DIVISOR = 2;
+
+/** Maximum score from clause count (50% of depth score) */
+const DEPTH_CLAUSE_COUNT_MAX = 50;
+/** Points per independent clause */
+const DEPTH_CLAUSE_COUNT_MULTIPLIER = 8;
+
+/**
+ * Source Quality Scoring Parameters
+ */
+
+/** Base score for having any sources */
+const SOURCE_QUALITY_BASE = 10;
+/** Points per source cited */
+const SOURCE_QUALITY_PER_SOURCE = 15;
+
+/**
+ * Financial Scoring Parameters
+ *
+ * Converts P&L, Sharpe, and drawdown metrics to 0-100 scores.
+ */
+
+/** P&L scoring: baseline score (50 = breakeven) */
+const FINANCIAL_PNL_BASELINE = 50;
+/** P&L scoring: multiplier (converts percent to score points) */
+const FINANCIAL_PNL_MULTIPLIER = 2;
+
+/** Sharpe scoring: baseline score (50 = neutral) */
+const FINANCIAL_SHARPE_BASELINE = 50;
+/** Sharpe scoring: multiplier (converts ratio to score points) */
+const FINANCIAL_SHARPE_MULTIPLIER = 20;
+
+/** Drawdown scoring: perfect score (no drawdown) */
+const FINANCIAL_DRAWDOWN_PERFECT = 100;
+/** Drawdown scoring: multiplier (converts percent to penalty) */
+const FINANCIAL_DRAWDOWN_MULTIPLIER = 2;
+
+/**
+ * Hallucination Penalty Parameters
+ */
+
+/** Penalty per hallucination flag (25% reduction per flag) */
+const HALLUCINATION_PENALTY_PER_FLAG = 0.25;
+
+/** Alternative hallucination penalty for dimension scoring (25 points per flag) */
+const HALLUCINATION_PENALTY_POINTS = 25;
+
+/**
+ * Behavioral Intelligence Scoring Parameters
+ */
+
+/** Adaptability: baseline score */
+const ADAPTABILITY_BASELINE = 50;
+/** Adaptability: confidence stddev multiplier (higher variance = more adaptive) */
+const ADAPTABILITY_STDDEV_MULTIPLIER = 200;
+
+/** Calibration: target confidence level (60% optimal) */
+const CALIBRATION_TARGET_CONFIDENCE = 0.6;
+/** Calibration: penalty multiplier for deviation from target */
+const CALIBRATION_DEVIATION_MULTIPLIER = 200;
+
+/** Learning: baseline score */
+const LEARNING_BASELINE = 40;
+/** Learning: points per trade (cumulative experience) */
+const LEARNING_PER_TRADE = 5;
+
+/**
+ * Outcome Accuracy Scoring Parameters
+ */
+
+/** Baseline score when coherence > 60% */
+const OUTCOME_ACCURACY_BASELINE = 40;
+/** Success rate multiplier (percentage of high-coherence trades correct) */
+const OUTCOME_ACCURACY_SUCCESS_MULTIPLIER = 60;
+/** Coherence threshold for outcome tracking (60%) */
+const OUTCOME_COHERENCE_THRESHOLD = 0.6;
+
+// ---------------------------------------------------------------------------
 // Types for the 24 dimensions
 // ---------------------------------------------------------------------------
 
@@ -227,7 +440,7 @@ export function scoreGrounding(
 
   // 1. Data citation density (0-20)
   const numberMatches = reasoning.match(/\$[\d,.]+|[\d.]+%|\d+\.\d{2,}/g) ?? [];
-  score += Math.min(20, numberMatches.length * 4);
+  score += Math.min(GROUNDING_DATA_CITATION_MAX, numberMatches.length * GROUNDING_DATA_CITATION_PER_MATCH);
 
   // 2. Price reference plausibility (0-25)
   const priceRefs = reasoning.match(/\$(\d+(?:,\d{3})*(?:\.\d+)?)/g) ?? [];
@@ -236,37 +449,37 @@ export function scoreGrounding(
     const val = parseFloat(ref.replace(/[$,]/g, ""));
     // Check if any known stock has a price within 50% of this claim
     const isPlausible = Object.values(marketPrices).some(
-      (realPrice) => Math.abs(val - realPrice) / realPrice < 0.5,
+      (realPrice) => Math.abs(val - realPrice) / realPrice < GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD,
     );
     if (isPlausible) plausibleCount++;
   }
   if (priceRefs.length > 0) {
-    score += Math.round((plausibleCount / priceRefs.length) * 25);
+    score += Math.round((plausibleCount / priceRefs.length) * GROUNDING_PRICE_PLAUSIBILITY_MAX);
   } else {
-    score += 5; // Small baseline if no price claims (not penalized heavily)
+    score += GROUNDING_PRICE_PLAUSIBILITY_BASELINE; // Small baseline if no price claims (not penalized heavily)
   }
 
   // 3. Quantitative vs qualitative ratio (0-20)
   const quantWords = reasoning.match(/\d+|percent|ratio|increase|decrease|higher|lower|above|below/gi) ?? [];
   const qualWords = reasoning.match(/\bfeel|think|believe|seems?|maybe|perhaps|possibly|probably\b/gi) ?? [];
   const quantRatio = quantWords.length / Math.max(1, quantWords.length + qualWords.length);
-  score += Math.round(quantRatio * 20);
+  score += Math.round(quantRatio * GROUNDING_QUANT_RATIO_MAX);
 
   // 4. Temporal grounding (0-15)
   const temporalPatterns = /\b(today|24h|this week|current|recent|now|latest|real-?time)\b/gi;
   const temporalMatches = reasoning.match(temporalPatterns) ?? [];
-  score += Math.min(15, temporalMatches.length * 3);
+  score += Math.min(GROUNDING_TEMPORAL_MAX, temporalMatches.length * GROUNDING_TEMPORAL_PER_MATCH);
 
   // 5. Specificity — named tickers, concrete thresholds (0-20)
   const tickerMatches = reasoning.match(/\b[A-Z]{2,5}x?\b/g) ?? [];
   const specificTickers = tickerMatches.filter(
     (t) => !["THE", "AND", "FOR", "BUT", "NOT", "MAY", "CAN", "HAS", "ITS", "ALL", "LOW", "BUY", "SELL", "HOLD", "RISK", "RSI", "ETF"].includes(t),
   );
-  score += Math.min(10, specificTickers.length * 2);
+  score += Math.min(GROUNDING_TICKER_SPECIFICITY_MAX, specificTickers.length * GROUNDING_TICKER_SPECIFICITY_PER_MATCH);
   // Bonus for referencing specific levels/thresholds
   const thresholdPatterns = /(?:support|resistance|target|stop.?loss|entry|exit)\s+(?:at|of|near)\s+\$?[\d,.]+/gi;
   const thresholdMatches = reasoning.match(thresholdPatterns) ?? [];
-  score += Math.min(10, thresholdMatches.length * 5);
+  score += Math.min(GROUNDING_THRESHOLD_MAX, thresholdMatches.length * GROUNDING_THRESHOLD_PER_MATCH);
 
   return Math.round(Math.min(maxScore, score));
 }
@@ -292,9 +505,9 @@ export function scoreConsensusQuality(
   peerActions: Array<{ agentId: string; action: string; symbol: string }>,
   coherenceScore: number,
 ): number {
-  let score = 50; // Baseline
+  let score = CONSENSUS_BASELINE_SCORE; // Baseline
 
-  if (peerActions.length === 0) return 50; // No peers to compare
+  if (peerActions.length === 0) return CONSENSUS_BASELINE_SCORE; // No peers to compare
 
   // Count agreement/disagreement
   const sameAction = countByCondition(peerActions, (p) => p.action === action);
@@ -304,14 +517,14 @@ export function scoreConsensusQuality(
   // 1. Justified divergence (0-30 bonus)
   if (agreementRate < 0.5) {
     // Agent is diverging from majority
-    if (coherenceScore >= 0.7) {
+    if (coherenceScore >= CONSENSUS_STRONG_REASONING_THRESHOLD) {
       // Strong reasoning supports the divergence
-      score += 25;
-    } else if (coherenceScore >= 0.5) {
-      score += 10;
+      score += CONSENSUS_DIVERGENCE_STRONG_BONUS;
+    } else if (coherenceScore >= CONSENSUS_MODERATE_REASONING_THRESHOLD) {
+      score += CONSENSUS_DIVERGENCE_MODERATE_BONUS;
     } else {
       // Weak reasoning + divergence = reckless
-      score -= 15;
+      score -= CONSENSUS_DIVERGENCE_WEAK_PENALTY;
     }
   }
 
@@ -319,8 +532,8 @@ export function scoreConsensusQuality(
   if (agreementRate === 1.0) {
     // Everyone agrees — check if reasoning is independent
     const wordCount = reasoning.split(/\s+/).length;
-    if (wordCount < 30) {
-      score -= 15; // Short reasoning + full agreement = likely herding
+    if (wordCount < CONSENSUS_MIN_WORDS_INDEPENDENT) {
+      score -= CONSENSUS_HERDING_PENALTY; // Short reasoning + full agreement = likely herding
     }
     // No penalty for long, well-reasoned agreement
   }
@@ -328,11 +541,11 @@ export function scoreConsensusQuality(
   // 3. Reasoning independence markers (0-20 bonus)
   const independencePatterns = /(?:however|unlike|my analysis|I disagree|independently|my own|contrary to|different from)/gi;
   const independenceMatches = reasoning.match(independencePatterns) ?? [];
-  score += Math.min(20, independenceMatches.length * 7);
+  score += Math.min(CONSENSUS_INDEPENDENCE_MAX, independenceMatches.length * CONSENSUS_INDEPENDENCE_PER_MATCH);
 
   // 4. Unique information contribution (0-10 bonus)
   const hasUniqueData = /(?:noticed|discovered|spotted|found|identified|overlooked)/gi.test(reasoning);
-  if (hasUniqueData) score += 10;
+  if (hasUniqueData) score += CONSENSUS_UNIQUE_INFO_BONUS;
 
   return Math.max(0, Math.min(100, Math.round(score)));
 }
