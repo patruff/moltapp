@@ -103,6 +103,59 @@ export interface ExecutionStats {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Solana token precision (9 decimals).
+ * All Solana SPL tokens use 9 decimal places for quantity representation.
+ * Example: 1.234567890 tokens = 1234567890 lamports
+ */
+const SOLANA_TOKEN_PRECISION = 9;
+
+/**
+ * USD/USDC precision (6 decimals).
+ * USDC uses 6 decimal places, standard for USD stablecoins.
+ * Example: $100.123456 USDC = 100123456 micro-USDC
+ */
+const USDC_PRECISION = 6;
+
+/**
+ * Dust threshold for position cleanup (1 nano-token).
+ * Positions below this quantity are considered dust and deleted.
+ * Value: 0.000000001 = 1 lamport (smallest Solana token unit)
+ */
+const POSITION_DUST_THRESHOLD = 0.000000001;
+
+/**
+ * Price cache TTL in milliseconds (5 seconds).
+ * Jupiter price API responses cached for 5s to reduce API calls.
+ * Balance: Fresh prices for execution vs API rate limiting
+ */
+const PRICE_CACHE_TTL_MS = 5_000;
+
+/**
+ * Jupiter API timeout in milliseconds (5 seconds).
+ * Abort price fetch if Jupiter doesn't respond within 5s.
+ * Falls back to mock pricing on timeout.
+ */
+const JUPITER_API_TIMEOUT_MS = 5_000;
+
+/**
+ * Maximum recent executions retained in memory (100 records).
+ * Circular buffer for getExecutionStats() display.
+ * Balance: UI responsiveness vs memory usage
+ */
+const MAX_RECENT_EXECUTIONS = 100;
+
+/**
+ * Maximum execution durations tracked for averaging (500 samples).
+ * Rolling window for average execution time calculation.
+ * Balance: Statistical significance vs memory usage
+ */
+const MAX_EXECUTION_DURATIONS = 500;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -118,9 +171,6 @@ let lastExecutionAt: string | null = null;
 const executionsByAgent: Record<string, { total: number; success: number; failed: number }> = {};
 const executionsBySymbol: Record<string, { buys: number; sells: number; volumeUSDC: number }> = {};
 const recentExecutions: ExecutionResult[] = [];
-
-const MAX_RECENT = 100;
-const MAX_DURATIONS = 500;
 
 /** Paper trade counter for generating unique IDs */
 let paperTradeCounter = 0;
@@ -491,9 +541,9 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
       side: "buy",
       stockMintAddress: stock.mintAddress,
       stockSymbol: stock.symbol,
-      stockQuantity: stockQuantity.toFixed(9),
-      usdcAmount: usdcAmount.toFixed(6),
-      pricePerToken: currentPrice.toFixed(6),
+      stockQuantity: stockQuantity.toFixed(SOLANA_TOKEN_PRECISION),
+      usdcAmount: usdcAmount.toFixed(USDC_PRECISION),
+      pricePerToken: currentPrice.toFixed(USDC_PRECISION),
       txSignature: paperTradeId,
       jupiterRouteInfo: {
         mode: "paper",
@@ -516,10 +566,10 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
       .onConflictDoUpdate({
         target: [positions.agentId, positions.mintAddress],
         set: {
-          quantity: sql`(${positions.quantity}::numeric + ${stockQuantity.toFixed(9)}::numeric)::numeric(20,9)`,
+          quantity: sql`(${positions.quantity}::numeric + ${stockQuantity.toFixed(SOLANA_TOKEN_PRECISION)}::numeric)::numeric(20,9)`,
           averageCostBasis: sql`(
-            (${positions.quantity}::numeric * ${positions.averageCostBasis}::numeric + ${stockQuantity.toFixed(9)}::numeric * ${currentPrice.toFixed(6)}::numeric)
-            / NULLIF(${positions.quantity}::numeric + ${stockQuantity.toFixed(9)}::numeric, 0)
+            (${positions.quantity}::numeric * ${positions.averageCostBasis}::numeric + ${stockQuantity.toFixed(SOLANA_TOKEN_PRECISION)}::numeric * ${currentPrice.toFixed(USDC_PRECISION)}::numeric)
+            / NULLIF(${positions.quantity}::numeric + ${stockQuantity.toFixed(SOLANA_TOKEN_PRECISION)}::numeric, 0)
           )::numeric(20,6)`,
           updatedAt: new Date(),
         },
@@ -558,9 +608,9 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
       side: "sell",
       stockMintAddress: stock.mintAddress,
       stockSymbol: stock.symbol,
-      stockQuantity: stockQuantity.toFixed(9),
-      usdcAmount: usdcAmount.toFixed(6),
-      pricePerToken: currentPrice.toFixed(6),
+      stockQuantity: stockQuantity.toFixed(SOLANA_TOKEN_PRECISION),
+      usdcAmount: usdcAmount.toFixed(USDC_PRECISION),
+      pricePerToken: currentPrice.toFixed(USDC_PRECISION),
       txSignature: paperTradeId,
       jupiterRouteInfo: {
         mode: "paper",
@@ -572,7 +622,7 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
 
     // Update position
     const newQty = existingQty - stockQuantity;
-    if (newQty <= 0.000000001) {
+    if (newQty <= POSITION_DUST_THRESHOLD) {
       await db
         .delete(positions)
         .where(eq(positions.id, existingPositions[0].id));
@@ -580,7 +630,7 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
       await db
         .update(positions)
         .set({
-          quantity: newQty.toFixed(9),
+          quantity: newQty.toFixed(SOLANA_TOKEN_PRECISION),
           updatedAt: new Date(),
         })
         .where(eq(positions.id, existingPositions[0].id));
@@ -601,9 +651,8 @@ async function executePaperTrade(req: ExecutionRequest): Promise<PaperTradeResul
 // Price Fetching
 // ---------------------------------------------------------------------------
 
-/** Cache for current prices (5-second TTL) */
+/** Cache for current prices */
 const priceCache = new Map<string, { price: number; fetchedAt: number }>();
-const PRICE_CACHE_TTL_MS = 5_000;
 
 /**
  * Fetch the current USD price for a token from Jupiter.
@@ -625,7 +674,7 @@ async function fetchCurrentPrice(mintAddress: string, symbol: string): Promise<n
 
     const resp = await fetch(
       `https://api.jup.ag/price/v3?ids=${mintAddress}`,
-      { headers, signal: AbortSignal.timeout(5000) },
+      { headers, signal: AbortSignal.timeout(JUPITER_API_TIMEOUT_MS) },
     );
 
     if (resp.ok) {
@@ -776,14 +825,14 @@ function trackExecution(result: ExecutionResult): void {
 
   // Track duration
   executionDurations.push(result.durationMs);
-  if (executionDurations.length > MAX_DURATIONS) {
-    executionDurations = executionDurations.slice(-MAX_DURATIONS);
+  if (executionDurations.length > MAX_EXECUTION_DURATIONS) {
+    executionDurations = executionDurations.slice(-MAX_EXECUTION_DURATIONS);
   }
 
   // Track recent executions
   recentExecutions.unshift(result);
-  if (recentExecutions.length > MAX_RECENT) {
-    recentExecutions.length = MAX_RECENT;
+  if (recentExecutions.length > MAX_RECENT_EXECUTIONS) {
+    recentExecutions.length = MAX_RECENT_EXECUTIONS;
   }
 
   lastExecutionAt = new Date().toISOString();
