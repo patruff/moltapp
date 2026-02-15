@@ -15,7 +15,7 @@
  * This is the data science backbone of MoltApp's benchmark.
  */
 
-import { countByCondition, mean, round4 } from "../lib/math-utils.ts";
+import { computeVariance, countByCondition, mean, round4 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -430,7 +430,7 @@ function computeDistributionStats(values: number[]): DistributionStats {
 
   const sorted = [...values].sort((a, b) => a - b);
   const m = mean(values);
-  const variance = values.reduce((s, v) => s + (v - m) ** 2, 0) / values.length;
+  const variance = computeVariance(values, true); // usePopulation=true for population variance
 
   return {
     mean: round4(m),

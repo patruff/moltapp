@@ -81,9 +81,7 @@ export function recordComparisonEntry(entry: ComparisonEntry): void {
 
 /** Sample variance (Bessel-corrected, n-1 denominator). */
 function variance(values: number[]): number {
-  if (values.length < 2) return 0;
-  const m = mean(values);
-  return values.reduce((s, v) => s + (v - m) ** 2, 0) / (values.length - 1);
+  return computeVariance(values); // Uses centralized helper from math-utils.ts
 }
 
 /**

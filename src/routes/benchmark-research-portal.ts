@@ -16,7 +16,7 @@
  */
 
 import { Hono } from "hono";
-import { countByCondition, mean, round4, stdDev } from "../lib/math-utils.ts";
+import { computeVariance, countByCondition, mean, round4, stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
@@ -467,8 +467,8 @@ function cohensD(a: number[], b: number[]): number {
   if (a.length < 2 || b.length < 2) return 0;
   const meanA = mean(a);
   const meanB = mean(b);
-  const varA = a.reduce((s, v) => s + (v - meanA) ** 2, 0) / (a.length - 1);
-  const varB = b.reduce((s, v) => s + (v - meanB) ** 2, 0) / (b.length - 1);
+  const varA = computeVariance(a);
+  const varB = computeVariance(b);
   const pooledStd = Math.sqrt(((a.length - 1) * varA + (b.length - 1) * varB) / (a.length + b.length - 2));
   return pooledStd > 0 ? (meanA - meanB) / pooledStd : 0;
 }
