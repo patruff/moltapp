@@ -228,6 +228,76 @@ const CONSENSUS_HERDING_WORD_COUNT_MIN = 30;
 const EDGE_CONSISTENCY_COHERENCE_THRESHOLD = 0.6;
 
 // ---------------------------------------------------------------------------
+// Grounding Scoring Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Price plausibility threshold for price reference accuracy check
+ * - Compares claimed prices against known market prices
+ * - Math.abs(claimed - real) / real < 0.5 = price within 50% tolerance
+ * - Example: If real price is $100, claimed price of $60-$150 is plausible
+ */
+const GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD = 0.5;
+
+/**
+ * Weight per temporal reference for grounding score calculation
+ * - Each temporal marker (today, 24h, current, recent) adds 3 points
+ * - Max 15 points (5 temporal refs) for temporal grounding dimension
+ */
+const GROUNDING_TEMPORAL_WEIGHT_PER_MATCH = 3;
+
+/**
+ * Weight per specific ticker for grounding score calculation
+ * - Each named ticker (NVDAx, TSLAx, AAPLx) adds 2 points
+ * - Max 10 points (5 tickers) for specificity dimension
+ */
+const GROUNDING_SPECIFICITY_WEIGHT_PER_TICKER = 2;
+
+/**
+ * Weight per threshold/level reference for grounding score calculation
+ * - Each support/resistance/target level adds 5 points
+ * - Max 10 points (2 levels) for specificity dimension
+ */
+const GROUNDING_THRESHOLD_WEIGHT_PER_MATCH = 5;
+
+// ---------------------------------------------------------------------------
+// Consensus Quality Scoring Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Weight per independence marker for consensus quality score calculation
+ * - Each independence phrase (however, unlike, I disagree) adds 7 points
+ * - Max 20 points (3 markers) for reasoning independence dimension
+ */
+const CONSENSUS_INDEPENDENCE_WEIGHT_PER_MATCH = 7;
+
+// ---------------------------------------------------------------------------
+// Causal Reasoning Scoring Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum analytical factors required for multi-factor analysis bonus
+ * - Count distinct factors mentioned: price action, volume, momentum, etc.
+ * - factorsFound >= 3 triggers multi-factor analysis bonus scoring
+ * - Rewards breadth of analysis across multiple dimensions
+ */
+const CAUSAL_REASONING_FACTORS_MIN = 3;
+
+/**
+ * Minimum sources required for source quality bonus in causal reasoning
+ * - sources.length >= 2 = multiple data sources backing reasoning
+ * - Used in conjunction with evidence match minimum for source-backed bonus
+ */
+const CAUSAL_REASONING_SOURCE_MIN = 2;
+
+/**
+ * Minimum evidence matches required for source quality bonus
+ * - evidenceMatches.length >= 2 = multiple because/therefore links
+ * - Combined with source minimum to reward well-supported causal chains
+ */
+const CAUSAL_REASONING_EVIDENCE_MIN = 2;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -281,9 +351,9 @@ export function scoreGrounding(
   let plausibleCount = 0;
   for (const ref of priceRefs) {
     const val = parseFloat(ref.replace(/[$,]/g, ""));
-    // Check if any known stock has a price within 50% of this claim
+    // Check if any known stock has a price within threshold tolerance
     const isPlausible = Object.values(marketPrices).some(
-      (realPrice) => Math.abs(val - realPrice) / realPrice < 0.5,
+      (realPrice) => Math.abs(val - realPrice) / realPrice < GROUNDING_PRICE_PLAUSIBILITY_THRESHOLD,
     );
     if (isPlausible) plausibleCount++;
   }
@@ -302,18 +372,18 @@ export function scoreGrounding(
   // 4. Temporal grounding (0-15)
   const temporalPatterns = /\b(today|24h|this week|current|recent|now|latest|real-?time)\b/gi;
   const temporalMatches = reasoning.match(temporalPatterns) ?? [];
-  score += Math.min(15, temporalMatches.length * 3);
+  score += Math.min(15, temporalMatches.length * GROUNDING_TEMPORAL_WEIGHT_PER_MATCH);
 
   // 5. Specificity — named tickers, concrete thresholds (0-20)
   const tickerMatches = reasoning.match(/\b[A-Z]{2,5}x?\b/g) ?? [];
   const specificTickers = tickerMatches.filter(
     (t) => !["THE", "AND", "FOR", "BUT", "NOT", "MAY", "CAN", "HAS", "ITS", "ALL", "LOW", "BUY", "SELL", "HOLD", "RISK", "RSI", "ETF"].includes(t),
   );
-  score += Math.min(10, specificTickers.length * 2);
+  score += Math.min(10, specificTickers.length * GROUNDING_SPECIFICITY_WEIGHT_PER_TICKER);
   // Bonus for referencing specific levels/thresholds
   const thresholdPatterns = /(?:support|resistance|target|stop.?loss|entry|exit)\s+(?:at|of|near)\s+\$?[\d,.]+/gi;
   const thresholdMatches = reasoning.match(thresholdPatterns) ?? [];
-  score += Math.min(10, thresholdMatches.length * 5);
+  score += Math.min(10, thresholdMatches.length * GROUNDING_THRESHOLD_WEIGHT_PER_MATCH);
 
   return Math.round(Math.min(maxScore, score));
 }
@@ -375,7 +445,7 @@ export function scoreConsensusQuality(
   // 3. Reasoning independence markers (0-20 bonus)
   const independencePatterns = /(?:however|unlike|my analysis|I disagree|independently|my own|contrary to|different from)/gi;
   const independenceMatches = reasoning.match(independencePatterns) ?? [];
-  score += Math.min(20, independenceMatches.length * 7);
+  score += Math.min(20, independenceMatches.length * CONSENSUS_INDEPENDENCE_WEIGHT_PER_MATCH);
 
   // 4. Unique information contribution (0-10 bonus)
   const hasUniqueData = /(?:noticed|discovered|spotted|found|identified|overlooked)/gi.test(reasoning);
@@ -538,12 +608,12 @@ export function scoreCausalReasoning(
     /\bcorrelation\b/i, /\brotation\b/i, /\bon-?chain\b/i,
   ];
   const factorsFound = countByCondition(factorKeywords, (p: RegExp) => p.test(reasoning));
-  if (factorsFound >= 3) {
+  if (factorsFound >= CAUSAL_REASONING_FACTORS_MIN) {
     multiFactorScore += Math.min(5, (factorsFound - 2) * 2);
   }
 
   // Bonus for source-backed reasoning
-  if (sources.length >= 2 && evidenceMatches.length >= 2) {
+  if (sources.length >= CAUSAL_REASONING_SOURCE_MIN && evidenceMatches.length >= CAUSAL_REASONING_EVIDENCE_MIN) {
     multiFactorScore += 3;
   }
 
