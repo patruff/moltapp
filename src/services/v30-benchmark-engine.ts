@@ -211,6 +211,26 @@ const COMPOSITE_SCALE_MULTIPLIER = 10000;              // Multiplier for roundin
  */
 const SCORE_ROUNDING_PRECISION = 100;                  // Round to 2 decimal places (multiply by 100, round, divide by 100)
 
+/**
+ * Query and display limits for API endpoints
+ * Controls default result set sizes when limit parameter not specified
+ */
+const QUERY_LIMIT_TRADE_GRADES_DEFAULT = 50;           // Default trades returned by getV30TradeGrades()
+const QUERY_LIMIT_ROUND_SUMMARIES_DEFAULT = 20;        // Default round summaries returned by getV30RoundSummaries()
+const QUERY_LIMIT_EXPORT_TRADES = 100;                 // Trade count in HuggingFace dataset export
+
+/**
+ * Storage retention limits for round summaries
+ * Complements STORAGE_LIMIT_ROUNDS for in-memory circular buffer management
+ */
+const STORAGE_LIMIT_ROUND_SUMMARIES_FALLBACK = 200;    // Fallback limit for recordV30RoundSummary() (same as trade limit)
+
+/**
+ * Metadata constants
+ * Fixed values for benchmark version identification
+ */
+const METADATA_DIMENSION_COUNT = 20;                   // Total dimensions in v30 benchmark (20-dimension framework)
+
 // ============================================================================
 // In-memory storage for benchmark data
 // ============================================================================
@@ -291,7 +311,7 @@ export function analyzeReasoningDepthV30(reasoning: string): number {
   if (wordCount > DEPTH_WORD_COUNT_THRESHOLD_LOW) score += DEPTH_WORD_COUNT_BONUS_LOW;
   if (wordCount > DEPTH_WORD_COUNT_THRESHOLD_HIGH) score += DEPTH_WORD_COUNT_BONUS_HIGH;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, Math.round(score * SCORE_ROUNDING_PRECISION) / SCORE_ROUNDING_PRECISION);
 }
 
 // Analyze source quality (0-1)
@@ -314,7 +334,7 @@ export function analyzeSourceQualityV30(sources: string[]): number {
     else score += SOURCE_QUALITY_LOW_BONUS;
   }
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.min(1, Math.round(score * SCORE_ROUNDING_PRECISION) / SCORE_ROUNDING_PRECISION);
 }
 
 // Analyze logical consistency (0-1): check if reasoning doesn't contradict itself
@@ -458,7 +478,7 @@ export function updateAgentScore(
 // Record a round summary
 export function recordV30RoundSummary(summary: V30RoundSummary): void {
   roundSummaries.unshift(summary);
-  if (roundSummaries.length > 200) roundSummaries.length = 200;
+  if (roundSummaries.length > STORAGE_LIMIT_ROUND_SUMMARIES_FALLBACK) roundSummaries.length = STORAGE_LIMIT_ROUND_SUMMARIES_FALLBACK;
 }
 
 // Get current leaderboard
@@ -468,7 +488,7 @@ export function getV30Leaderboard(): V30AgentScore[] {
 }
 
 // Get all trade grades
-export function getV30TradeGrades(limit = 50, agentId?: string): V30TradeGrade[] {
+export function getV30TradeGrades(limit = QUERY_LIMIT_TRADE_GRADES_DEFAULT, agentId?: string): V30TradeGrade[] {
   let filtered = tradeGrades;
   if (agentId) {
     filtered = tradeGrades.filter(t => t.agentId === agentId);
@@ -477,7 +497,7 @@ export function getV30TradeGrades(limit = 50, agentId?: string): V30TradeGrade[]
 }
 
 // Get round summaries
-export function getV30RoundSummaries(limit = 20): V30RoundSummary[] {
+export function getV30RoundSummaries(limit = QUERY_LIMIT_ROUND_SUMMARIES_DEFAULT): V30RoundSummary[] {
   return roundSummaries.slice(0, limit);
 }
 
