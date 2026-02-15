@@ -1024,9 +1024,8 @@ function computeSentimentProfile(
 
   // Sentiment consistency: how clustered are confidence values
   const avgConf = actionDecisions.length > 0 ? averageByKey(actionDecisions, 'confidence') : 50;
-  const confVariance = actionDecisions.length > 1
-    ? actionDecisions.reduce((s, d) => s + (d.confidence - avgConf) ** 2, 0) / actionDecisions.length
-    : 0;
+  const confidenceValues = actionDecisions.map(d => d.confidence);
+  const confVariance = actionDecisions.length > 1 ? computeVariance(confidenceValues) : 0;
   const sentimentConsistency = 100 - Math.min(100, Math.sqrt(confVariance));
 
   // Contrarianism: buying when market is down, selling when up

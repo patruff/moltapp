@@ -236,7 +236,7 @@ export function detectMarketRegime(
 
   const avgChange = calculateAverage(changes);
   const maxChange = absMax(changes);
-  const variance = changes.reduce((s, c) => s + (c - avgChange) ** 2, 0) / changes.length;
+  const variance = computeVariance(changes);
   const changeStdDev = Math.sqrt(variance);
   const stocksUp = countByCondition(changes, (c) => c > 0);
   const stocksDown = countByCondition(changes, (c) => c < 0);
