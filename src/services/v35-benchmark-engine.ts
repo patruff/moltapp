@@ -76,6 +76,132 @@ const INFO_ASYMMETRY_DIVERGENT_SOURCES_HIGH_THRESHOLD = 3; // 3+ sources = high 
 const INFO_ASYMMETRY_DIVERGENT_SOURCES_MODERATE_THRESHOLD = 2; // 2 sources = moderate bonus
 
 // ---------------------------------------------------------------------------
+// Information Asymmetry Scoring Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Insight Density Scoring Parameters (0-25 max)
+ * Measures how well agent identifies unique insights others missed.
+ */
+const INSIGHT_PATTERN_MAX = 15; // Max points from insight language patterns
+const INSIGHT_PATTERN_POINTS_PER_MATCH = 5; // Points per insight pattern match
+const INSIGHT_UNIQUE_RATIO_MAX = 10; // Max points from unique keyword ratio
+const INSIGHT_UNIQUE_RATIO_MULTIPLIER = 15; // Multiplier for unique ratio score
+const INSIGHT_NO_PEERS_PARTIAL_CREDIT = 5; // Partial credit when no peers to compare
+const INSIGHT_SCORE_MAX = 25; // Overall max for insight density scoring
+
+/**
+ * Non-Obvious Connection Scoring Parameters (0-25 max)
+ * Rewards agents that connect seemingly unrelated factors.
+ */
+const CONNECTION_PATTERN_MAX = 15; // Max points from connection language patterns
+const CONNECTION_PATTERN_POINTS_PER_MATCH = 5; // Points per connection pattern match
+const CONNECTION_BRIDGE_MAX = 10; // Max points from "X and Y" bridge patterns
+const CONNECTION_BRIDGE_POINTS_PER_MATCH = 5; // Points per bridge pattern match
+const CONNECTION_SCORE_MAX = 25; // Overall max for connection scoring
+
+/**
+ * Divergent Data Usage Scoring Parameters (0-20 max)
+ * Rewards agents using uncommon data sources (on-chain, supply chain, etc.).
+ */
+const DIVERGENT_SOURCES_MAX = 14; // Max points from divergent source types
+const DIVERGENT_SOURCES_POINTS_PER_TYPE = 4; // Points per divergent source type
+const DIVERGENT_HIGH_BONUS = 6; // Bonus for 3+ divergent sources
+const DIVERGENT_MODERATE_BONUS = 3; // Bonus for 2 divergent sources
+const DIVERGENT_SCORE_MAX = 20; // Overall max for divergent data scoring
+
+/**
+ * Exclusive Source Utilization Scoring Parameters (0-15 max)
+ * Rewards specific, non-generic data mentions (company names, dates, events).
+ */
+const EXCLUSIVE_COMPANY_MAX = 5; // Max points from company name mentions
+const EXCLUSIVE_COMPANY_POINTS_PER_MATCH = 2; // Points per company name
+const EXCLUSIVE_DATE_MAX = 5; // Max points from specific dates
+const EXCLUSIVE_DATE_POINTS_PER_MATCH = 2; // Points per date mention
+const EXCLUSIVE_EVENT_MAX = 5; // Max points from concrete events
+const EXCLUSIVE_EVENT_POINTS_PER_MATCH = 2; // Points per event mention
+const EXCLUSIVE_GENERIC_THRESHOLD = 2; // >2 generic phrases triggers penalty
+const EXCLUSIVE_GENERIC_PENALTY = 5; // Penalty for excessive generic language
+const EXCLUSIVE_SCORE_MIN = 0; // Minimum exclusive score
+const EXCLUSIVE_SCORE_MAX = 15; // Maximum exclusive score
+
+/**
+ * First-Mover Reasoning Scoring Parameters (0-15 max)
+ * Rewards agents suggesting they're acting before the crowd.
+ */
+const FIRST_MOVER_PATTERN_MAX = 10; // Max points from first-mover patterns
+const FIRST_MOVER_PATTERN_POINTS_PER_MATCH = 4; // Points per first-mover pattern
+const FIRST_MOVER_ALPHA_MAX = 5; // Max points from alpha/positioning patterns
+const FIRST_MOVER_ALPHA_POINTS_PER_MATCH = 3; // Points per alpha pattern
+const FIRST_MOVER_SCORE_MAX = 15; // Overall max for first-mover scoring
+
+// ---------------------------------------------------------------------------
+// Temporal Reasoning Quality Scoring Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Temporal Horizon Clarity Scoring Parameters (0-25 max)
+ * Measures whether agent specifies WHEN events should happen.
+ */
+const HORIZON_SPECIFIC_TIME_MAX = 15; // Max points from specific timeframes
+const HORIZON_SPECIFIC_TIME_POINTS_PER_MATCH = 5; // Points per specific time reference
+const HORIZON_MODERATE_TIME_MAX_WITH_SPECIFIC = 5; // Max moderate points when specific exists
+const HORIZON_MODERATE_TIME_POINTS_WITH_SPECIFIC = 2; // Points per moderate (with specific)
+const HORIZON_MODERATE_TIME_MAX_NO_SPECIFIC = 8; // Max moderate points when no specific
+const HORIZON_MODERATE_TIME_POINTS_NO_SPECIFIC = 3; // Points per moderate (no specific)
+const HORIZON_NO_TIME_PENALTY = 5; // Penalty for complete absence of time references
+const HORIZON_SCORE_MIN = 0; // Minimum horizon score
+const HORIZON_SCORE_MAX = 25; // Maximum horizon score
+
+/**
+ * Catalyst Timing Scoring Parameters (0-25 max)
+ * Measures whether agent identifies specific upcoming events.
+ */
+const CATALYST_PATTERN_MAX = 15; // Max points from catalyst patterns
+const CATALYST_PATTERN_POINTS_PER_MATCH = 5; // Points per catalyst pattern
+const CATALYST_DATED_EVENT_MAX = 10; // Max points from dated event references
+const CATALYST_DATED_EVENT_POINTS_PER_MATCH = 4; // Points per dated event
+const CATALYST_VAGUE_PENALTY = 5; // Penalty for vague catalysts without specifics
+const CATALYST_SCORE_MIN = 0; // Minimum catalyst score
+const CATALYST_SCORE_MAX = 25; // Maximum catalyst score
+
+/**
+ * Decay Awareness Scoring Parameters (0-20 max)
+ * Measures whether agent understands time-limited signal value.
+ */
+const DECAY_PATTERN_MAX = 12; // Max points from decay language patterns
+const DECAY_PATTERN_POINTS_PER_MATCH = 4; // Points per decay pattern match
+const DECAY_FRESHNESS_MAX = 8; // Max points from signal freshness awareness
+const DECAY_FRESHNESS_POINTS_PER_MATCH = 4; // Points per freshness pattern
+const DECAY_SCORE_MAX = 20; // Overall max for decay awareness scoring
+
+/**
+ * Sequence Reasoning Scoring Parameters (0-15 max)
+ * Measures whether agent reasons about ORDER of events.
+ */
+const SEQUENCE_PATTERN_MAX = 10; // Max points from sequence language patterns
+const SEQUENCE_PATTERN_POINTS_PER_MATCH = 4; // Points per sequence pattern
+const SEQUENCE_ORDER_MAX = 5; // Max points from temporal ordering language
+const SEQUENCE_ORDER_POINTS_PER_MATCH = 3; // Points per order pattern
+const SEQUENCE_SCORE_MAX = 15; // Overall max for sequence reasoning scoring
+
+/**
+ * Temporal Consistency Scoring Parameters (0-15 max)
+ * Measures whether timeframe is consistent with action.
+ */
+const CONSISTENCY_BUY_SHORT_BULLISH_BONUS = 10; // Buy + short-term bullish = consistent
+const CONSISTENCY_BUY_SHORT_BEARISH_PENALTY = 5; // Buy + short bearish = inconsistent
+const CONSISTENCY_BUY_DIP_BONUS = 8; // Buy + short bearish + long bullish = buying dip
+const CONSISTENCY_SELL_SHORT_BEARISH_BONUS = 10; // Sell + short-term bearish = consistent
+const CONSISTENCY_SELL_PROFIT_TAKING_BONUS = 8; // Sell + taking profits = consistent
+const CONSISTENCY_SELL_SHORT_BULLISH_PENALTY = 5; // Sell + short bullish = inconsistent
+const CONSISTENCY_HOLD_BONUS = 5; // Hold is somewhat consistent
+const CONSISTENCY_TEMPORAL_RATIONALE_MAX = 5; // Max points from explicit timing rationale
+const CONSISTENCY_TEMPORAL_RATIONALE_POINTS = 3; // Points per temporal rationale pattern
+const CONSISTENCY_SCORE_MIN = 0; // Minimum consistency score
+const CONSISTENCY_SCORE_MAX = 15; // Maximum consistency score
+
+// ---------------------------------------------------------------------------
 // Types for the 30 dimensions
 // ---------------------------------------------------------------------------
 
@@ -284,7 +410,7 @@ export function scoreInformationAsymmetry(
 
   const insightPatterns = /\b(?:I noticed|what others may have missed|a less obvious signal|uniquely positioned|overlooked factor|hidden pattern|under[- ]the[- ]radar|underappreciated|non[- ]consensus view|contrarian insight)\b/gi;
   const insightMatches = reasoning.match(insightPatterns) ?? [];
-  insightScore += Math.min(15, insightMatches.length * 5);
+  insightScore += Math.min(INSIGHT_PATTERN_MAX, insightMatches.length * INSIGHT_PATTERN_POINTS_PER_MATCH);
 
   // Check if agent's key terms appear in peer reasonings (penalize overlap)
   if (peerReasonings.length > 0) {
@@ -297,13 +423,13 @@ export function scoreInformationAsymmetry(
     const uniqueRatio = agentKeywords.length > 0
       ? uniqueKeywords.length / agentKeywords.length
       : 0;
-    insightScore += Math.min(10, Math.round(uniqueRatio * 15));
+    insightScore += Math.min(INSIGHT_UNIQUE_RATIO_MAX, Math.round(uniqueRatio * INSIGHT_UNIQUE_RATIO_MULTIPLIER));
   } else {
     // No peers to compare — partial credit for insight language
-    insightScore += 5;
+    insightScore += INSIGHT_NO_PEERS_PARTIAL_CREDIT;
   }
 
-  score += Math.min(25, insightScore);
+  score += Math.min(INSIGHT_SCORE_MAX, insightScore);
 
   // 2. Non-Obvious Connection (0-25)
   // Agent connects dots between seemingly unrelated factors
@@ -311,14 +437,14 @@ export function scoreInformationAsymmetry(
 
   const connectionPatterns = /\b(?:correlates with|interconnected|cross[- ]sector impact|ripple effect|second[- ]order effect|downstream|upstream|knock[- ]on|spillover|chain reaction)\b/gi;
   const connectionMatches = reasoning.match(connectionPatterns) ?? [];
-  connectionScore += Math.min(15, connectionMatches.length * 5);
+  connectionScore += Math.min(CONNECTION_PATTERN_MAX, connectionMatches.length * CONNECTION_PATTERN_POINTS_PER_MATCH);
 
   // "the connection between X and Y" style patterns
   const bridgePatterns = /\b(?:the connection between .{3,30} and|link between .{3,30} and|relationship between .{3,30} and|ties .{3,30} to|connects .{3,30} with|implications for .{3,30} beyond)\b/gi;
   const bridgeMatches = reasoning.match(bridgePatterns) ?? [];
-  connectionScore += Math.min(10, bridgeMatches.length * 5);
+  connectionScore += Math.min(CONNECTION_BRIDGE_MAX, bridgeMatches.length * CONNECTION_BRIDGE_POINTS_PER_MATCH);
 
-  score += Math.min(25, connectionScore);
+  score += Math.min(CONNECTION_SCORE_MAX, connectionScore);
 
   // 3. Divergent Data Usage (0-20)
   // Agent uses data sources not commonly cited
@@ -340,16 +466,16 @@ export function scoreInformationAsymmetry(
       foundDivergentSources.add(label);
     }
   }
-  divergentScore += Math.min(14, foundDivergentSources.size * 4);
+  divergentScore += Math.min(DIVERGENT_SOURCES_MAX, foundDivergentSources.size * DIVERGENT_SOURCES_POINTS_PER_TYPE);
 
   // Bonus for using multiple divergent data types together
   if (foundDivergentSources.size >= INFO_ASYMMETRY_DIVERGENT_SOURCES_HIGH_THRESHOLD) {
-    divergentScore += 6;
+    divergentScore += DIVERGENT_HIGH_BONUS;
   } else if (foundDivergentSources.size >= INFO_ASYMMETRY_DIVERGENT_SOURCES_MODERATE_THRESHOLD) {
-    divergentScore += 3;
+    divergentScore += DIVERGENT_MODERATE_BONUS;
   }
 
-  score += Math.min(20, divergentScore);
+  score += Math.min(DIVERGENT_SCORE_MAX, divergentScore);
 
   // 4. Exclusive Source Utilization (0-15)
   // Agent mentions specific, non-generic data
@@ -358,26 +484,26 @@ export function scoreInformationAsymmetry(
   // Reward specific company names (more than just tickers)
   const companyNamePatterns = /\b(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc|Corp|Ltd|Co|Group|Holdings|Technologies|Therapeutics|Pharmaceuticals|Labs?))\b/g;
   const companyMatches = reasoning.match(companyNamePatterns) ?? [];
-  exclusiveScore += Math.min(5, companyMatches.length * 2);
+  exclusiveScore += Math.min(EXCLUSIVE_COMPANY_MAX, companyMatches.length * EXCLUSIVE_COMPANY_POINTS_PER_MATCH);
 
   // Reward exact dates
   const datePatterns = /\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:,?\s+\d{4})?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?|\d{4}-\d{2}-\d{2}/gi;
   const dateMatches = reasoning.match(datePatterns) ?? [];
-  exclusiveScore += Math.min(5, dateMatches.length * 2);
+  exclusiveScore += Math.min(EXCLUSIVE_DATE_MAX, dateMatches.length * EXCLUSIVE_DATE_POINTS_PER_MATCH);
 
   // Reward concrete events vs penalize generic language
   const concreteEventPatterns = /\b(?:announced|released|filed|reported|launched|acquired|merged|partnered|settled|approved|rejected|defaulted)\b/gi;
   const concreteEvents = reasoning.match(concreteEventPatterns) ?? [];
-  exclusiveScore += Math.min(5, concreteEvents.length * 2);
+  exclusiveScore += Math.min(EXCLUSIVE_EVENT_MAX, concreteEvents.length * EXCLUSIVE_EVENT_POINTS_PER_MATCH);
 
   // Penalize generic language
   const genericPatterns = /\b(?:market conditions|macro factors|general sentiment|overall market|broad market|market environment|market dynamics)\b/gi;
   const genericMatches = reasoning.match(genericPatterns) ?? [];
-  if (genericMatches.length > 2 && concreteEvents.length === 0) {
-    exclusiveScore -= 5;
+  if (genericMatches.length > EXCLUSIVE_GENERIC_THRESHOLD && concreteEvents.length === 0) {
+    exclusiveScore -= EXCLUSIVE_GENERIC_PENALTY;
   }
 
-  score += clamp(exclusiveScore, 0, 15);
+  score += clamp(exclusiveScore, EXCLUSIVE_SCORE_MIN, EXCLUSIVE_SCORE_MAX);
 
   // 5. First-Mover Reasoning (0-15)
   // Agent's reasoning suggests acting before the crowd
@@ -385,14 +511,14 @@ export function scoreInformationAsymmetry(
 
   const firstMoverPatterns = /\b(?:before the market realizes|ahead of|early signal|leading indicator|not yet priced in|market hasn't caught up|emerging trend|early innings)\b/gi;
   const firstMoverMatches = reasoning.match(firstMoverPatterns) ?? [];
-  firstMoverScore += Math.min(10, firstMoverMatches.length * 4);
+  firstMoverScore += Math.min(FIRST_MOVER_PATTERN_MAX, firstMoverMatches.length * FIRST_MOVER_PATTERN_POINTS_PER_MATCH);
 
   // Additional forward-looking alpha patterns
   const alphaPatterns = /\b(?:positioning ahead|front[- ]running the narrative|before (?:consensus|the crowd|mainstream)|anticipating a shift|early mover|asymmetric opportunity|mispriced|market is sleeping on|underestimated catalyst)\b/gi;
   const alphaMatches = reasoning.match(alphaPatterns) ?? [];
-  firstMoverScore += Math.min(5, alphaMatches.length * 3);
+  firstMoverScore += Math.min(FIRST_MOVER_ALPHA_MAX, alphaMatches.length * FIRST_MOVER_ALPHA_POINTS_PER_MATCH);
 
-  score += Math.min(15, firstMoverScore);
+  score += Math.min(FIRST_MOVER_SCORE_MAX, firstMoverScore);
 
   return Math.round(clamp(score, 0, maxScore));
 }
@@ -428,23 +554,23 @@ export function scoreTemporalReasoningQuality(
   // Specific timeframes
   const specificTimePatterns = /\b(?:within\s+\d+\s*(?:hours?|h|days?|d|weeks?|minutes?|min)|by\s+(?:end of|close of|tomorrow|next week|EOD|EOW)|in the next\s+\d+\s*(?:hours?|days?|weeks?)|over\s+\d+\s*(?:hours?|days?)|\d+h\b|\d+d\b|within 24h|by end of week|over the next 3 days)\b/gi;
   const specificTimeMatches = fullText.match(specificTimePatterns) ?? [];
-  horizonScore += Math.min(15, specificTimeMatches.length * 5);
+  horizonScore += Math.min(HORIZON_SPECIFIC_TIME_MAX, specificTimeMatches.length * HORIZON_SPECIFIC_TIME_POINTS_PER_MATCH);
 
   // Moderate timeframes
   const moderateTimePatterns = /\b(?:short[- ]term|medium[- ]term|long[- ]term|near[- ]term|intraday|this session|today|tonight|this week|this month|next quarter)\b/gi;
   const moderateTimeMatches = fullText.match(moderateTimePatterns) ?? [];
   if (specificTimeMatches.length > 0) {
-    horizonScore += Math.min(5, moderateTimeMatches.length * 2);
+    horizonScore += Math.min(HORIZON_MODERATE_TIME_MAX_WITH_SPECIFIC, moderateTimeMatches.length * HORIZON_MODERATE_TIME_POINTS_WITH_SPECIFIC);
   } else {
-    horizonScore += Math.min(8, moderateTimeMatches.length * 3);
+    horizonScore += Math.min(HORIZON_MODERATE_TIME_MAX_NO_SPECIFIC, moderateTimeMatches.length * HORIZON_MODERATE_TIME_POINTS_NO_SPECIFIC);
   }
 
   // Penalize complete absence of time references
   if (specificTimeMatches.length === 0 && moderateTimeMatches.length === 0) {
-    horizonScore -= 5;
+    horizonScore -= HORIZON_NO_TIME_PENALTY;
   }
 
-  score += clamp(horizonScore, 0, 25);
+  score += clamp(horizonScore, HORIZON_SCORE_MIN, HORIZON_SCORE_MAX);
 
   // 2. Catalyst Timing (0-25)
   // Does the agent identify specific upcoming events/catalysts?
