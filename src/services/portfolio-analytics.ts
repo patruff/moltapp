@@ -23,7 +23,7 @@ import { trades } from "../db/schema/trades.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
-import { sumByKey, countByCondition, findMax, findMin, computeSampleVariance, computeVariance } from "../lib/math-utils.ts";
+import { sumByKey, countByCondition, findMax, findMin, computeSampleVariance, computeVariance, computeDownsideVariance } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;
@@ -550,11 +550,9 @@ function calculateSortinoRatio(dailyReturns: number[]): number | null {
   const mean = excessReturns.reduce((s, r) => s + r, 0) / excessReturns.length;
 
   // Only count negative deviations
-  const negativeReturns = excessReturns.filter((r) => r < 0);
-  if (negativeReturns.length === 0) return null;
+  const downsideVariance = computeDownsideVariance(excessReturns, true);
+  if (downsideVariance === 0) return null;
 
-  const downsideVariance =
-    negativeReturns.reduce((s, r) => s + r ** 2, 0) / negativeReturns.length;
   const downsideDev = Math.sqrt(downsideVariance);
 
   if (downsideDev === 0) return null;
@@ -579,11 +577,8 @@ function calculateVolatility(dailyReturns: number[]): number {
 function calculateDownsideDeviation(dailyReturns: number[]): number {
   if (dailyReturns.length < 2) return 0;
 
-  const negativeReturns = dailyReturns.filter((r) => r < 0);
-  if (negativeReturns.length === 0) return 0;
-
-  const downsideVariance =
-    negativeReturns.reduce((s, r) => s + r ** 2, 0) / negativeReturns.length;
+  const downsideVariance = computeDownsideVariance(dailyReturns, true);
+  if (downsideVariance === 0) return 0;
 
   return Math.sqrt(downsideVariance * TRADING_DAYS_PER_YEAR);
 }
