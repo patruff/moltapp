@@ -20,7 +20,7 @@
  *  5. Safety: Who had fewer hallucinations/discipline violations?
  */
 
-import { round3, weightedSumByKey } from "../lib/math-utils.ts";
+import { round3, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

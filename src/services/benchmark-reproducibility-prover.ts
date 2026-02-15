@@ -12,6 +12,7 @@
  * by researchers — a requirement for any serious ML benchmark.
  */
 import * as crypto from 'crypto';
+import { countByCondition } from '../lib/math-utils.ts';
 
 export interface ReproducibilityProof {
   proofId: string;
@@ -92,8 +93,8 @@ export function generateReproducibilityProof(
   const combinedHash = sha256(inHash + cfgHash + outHash);
 
   const prior = runs.filter((r) => r.inputHash === inHash && r.configHash === cfgHash);
-  const matches = prior.filter((r) => r.outputHash === outHash).length;
-  const mismatches = prior.filter((r) => r.outputHash !== outHash).length;
+  const matches = countByCondition(prior, (r) => r.outputHash === outHash);
+  const mismatches = countByCondition(prior, (r) => r.outputHash !== outHash);
 
   return {
     proofId: 'proof-' + crypto.randomBytes(12).toString('hex'),

@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { round3, computeVariance } from "../lib/math-utils.ts";
+import { round3, computeVariance, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -697,7 +697,7 @@ export function assessBenchmarkStability(): BenchmarkStability {
     };
   });
 
-  const stableCount = agentStability.filter((a) => a.isStable).length;
+  const stableCount = countByCondition(agentStability, (a) => a.isStable);
   const overallStability = agentIds.length > 0
     ? Math.round((stableCount / agentIds.length) * 100) / 100
     : 0;
