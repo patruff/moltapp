@@ -534,25 +534,25 @@ function validateSources(decision: TradingDecision, issues: ValidationIssue[], s
   if (sources.length === 0) {
     issues.push({ severity: "warning", dimension: "source_verification", message: "No data sources cited" });
     suggestions.push("Cite specific data sources used in analysis (e.g., 'market_price_feed', 'news_feed', 'technical_indicators')");
-    return 0.2; // Minimal score — reasoning text might still reference data
+    return SOURCE_MINIMAL_SCORE;
   }
 
-  let score = 0.4; // Base score for having sources
+  let score = SOURCE_BASE_SCORE;
 
   // Check if sources are recognized
   const recognizedCount = sources.filter((s) =>
     VALID_SOURCE_PATTERNS.some((p) => s.toLowerCase().includes(p.toLowerCase()) || p.toLowerCase().includes(s.toLowerCase()))
   ).length;
 
-  score += Math.min(0.3, (recognizedCount / Math.max(1, sources.length)) * 0.3);
+  score += Math.min(SOURCE_RECOGNITION_BONUS_MAX, (recognizedCount / Math.max(1, sources.length)) * SOURCE_RECOGNITION_BONUS_MAX);
 
   // Bonus for multiple distinct sources
-  if (sources.length >= 3) score += 0.2;
-  else if (sources.length >= 2) score += 0.1;
+  if (sources.length >= SOURCE_MULTIPLE_THRESHOLD_MANY) score += SOURCE_MULTIPLE_BONUS_MANY;
+  else if (sources.length >= SOURCE_MULTIPLE_THRESHOLD_SOME) score += SOURCE_MULTIPLE_BONUS_SOME;
 
   // Check for source fabrication (very long or unusual source names)
   for (const src of sources) {
-    if (src.length > 60) {
+    if (src.length > SOURCE_FABRICATION_LENGTH_THRESHOLD) {
       issues.push({ severity: "info", dimension: "source_verification", message: `Unusually long source name: ${src.slice(0, 40)}...` });
     }
   }
@@ -569,9 +569,9 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
   }
 
   // If no market data, give benefit of the doubt
-  if (marketData.length === 0) return 0.6;
+  if (marketData.length === 0) return PRICE_NO_MARKET_DATA_SCORE;
 
-  let score = 0.7; // Start with a good score and deduct for errors
+  let score = PRICE_BASE_SCORE;
 
   // Check price claims
   const pricePattern = /(\w+x?)\s+(?:is\s+)?(?:at|priced?\s+at|trading\s+at|currently)\s+\$?([\d,]+\.?\d*)/gi;
@@ -587,9 +587,9 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
     claimCount++;
     if (real !== undefined && claimed > 0) {
       const deviation = Math.abs(claimed - real) / real;
-      if (deviation <= 0.05) {
+      if (deviation <= PRICE_DEVIATION_ACCURATE) {
         accurateCount++;
-      } else if (deviation <= 0.20) {
+      } else if (deviation <= PRICE_DEVIATION_ACCEPTABLE) {
         accurateCount += 0.5;
       } else {
         issues.push({
@@ -598,35 +598,34 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
           message: `Price claim for ${symbol.toUpperCase()} ($${claimed.toFixed(2)}) deviates ${(deviation * 100).toFixed(0)}% from actual ($${real.toFixed(2)})`,
           evidence: match[0],
         });
-        score -= 0.15;
+        score -= PRICE_INACCURATE_PENALTY;
       }
     }
   }
 
   // Bonus for making accurate price claims
-  if (claimCount > 0 && accurateCount / claimCount >= 0.8) {
-    score += 0.2;
+  if (claimCount > 0 && accurateCount / claimCount >= PRICE_ACCURACY_BONUS_THRESHOLD) {
+    score += PRICE_ACCURACY_BONUS;
   }
 
   // If reasoning mentions specific prices without errors, that's good
   if (claimCount === 0) {
-    // No price claims — neutral, slightly lower score
-    score = 0.6;
+    score = PRICE_NO_CLAIMS_SCORE;
   }
 
   return clamp(score, 0, 1);
 }
 
 function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[]): number {
-  let score = 0.5; // Base score
+  let score = TEMPORAL_BASE_SCORE;
 
   // Check for temporal references
   const temporalPatterns = [
-    { pattern: /\bcurrent(ly)?\b|\bright\s+now\b|\btoday\b/i, weight: 0.15 },
-    { pattern: /\brecent(ly)?\b|\blast\s+(week|month|day|session)\b/i, weight: 0.1 },
-    { pattern: /\b24h\b|\b24-?hour\b|\bintraday\b/i, weight: 0.1 },
-    { pattern: /\btrending\b|\bmoving\b|\bshifting\b/i, weight: 0.05 },
-    { pattern: /\bsince\s+(yesterday|last|the)\b/i, weight: 0.1 },
+    { pattern: /\bcurrent(ly)?\b|\bright\s+now\b|\btoday\b/i, weight: TEMPORAL_CURRENT_WEIGHT },
+    { pattern: /\brecent(ly)?\b|\blast\s+(week|month|day|session)\b/i, weight: TEMPORAL_RECENT_WEIGHT },
+    { pattern: /\b24h\b|\b24-?hour\b|\bintraday\b/i, weight: TEMPORAL_24H_WEIGHT },
+    { pattern: /\btrending\b|\bmoving\b|\bshifting\b/i, weight: TEMPORAL_TRENDING_WEIGHT },
+    { pattern: /\bsince\s+(yesterday|last|the)\b/i, weight: TEMPORAL_SINCE_WEIGHT },
   ];
 
   for (const { pattern, weight } of temporalPatterns) {
@@ -638,7 +637,7 @@ function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[
   // Red flag: reasoning that sounds generic / not grounded in current conditions
   if (!/\d/.test(reasoning)) {
     issues.push({ severity: "info", dimension: "temporal_consistency", message: "Reasoning contains no numbers — may not be grounded in current data" });
-    score -= 0.1;
+    score -= TEMPORAL_NO_NUMBERS_PENALTY;
   }
 
   return clamp(score, 0, 1);
@@ -771,18 +770,18 @@ function validateRiskAwareness(reasoning: string, action: string, issues: Valida
 // ---------------------------------------------------------------------------
 
 function assignGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_A_MINUS) return "A-";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_B_MINUS) return "B-";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_C_MINUS) return "C-";
+  if (score >= GRADE_THRESHOLD_D_PLUS) return "D+";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  if (score >= GRADE_THRESHOLD_D_MINUS) return "D-";
   return "F";
 }
 
