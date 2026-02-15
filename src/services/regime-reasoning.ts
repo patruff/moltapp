@@ -16,7 +16,7 @@
  * 5. ADAPTATION SPEED: How quickly do agents adjust to regime changes?
  */
 
-import { countByCondition, clamp, round2, calculateAverage, averageByKey, absMax } from "../lib/math-utils.ts";
+import { countByCondition, clamp, round2, calculateAverage, averageByKey, absMax, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -422,7 +422,7 @@ export function getAgentRegimeProfile(agentId: string): AgentRegimeProfile {
   let robustnessScore = ROBUSTNESS_DEFAULT;
   if (regimeScores.length >= 2) {
     const mean = calculateAverage(regimeScores);
-    const variance = regimeScores.reduce((s, v) => s + (v - mean) ** 2, 0) / regimeScores.length;
+    const variance = computeVariance(regimeScores, true);
     const cv = mean > 0 ? Math.sqrt(variance) / mean : 1;
     robustnessScore = Math.round(clamp(1 - cv, 0, 1) * 100) / 100;
   }
