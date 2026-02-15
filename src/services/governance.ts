@@ -18,7 +18,7 @@
  */
 
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { countByCondition } from "../lib/math-utils.ts";
+import { countByCondition, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -549,7 +549,7 @@ export function castVote(params: {
   const voter = configs.find((c) => c.agentId === params.agentId);
 
   // Voting power based on number of agents (equal weight for now)
-  const votingPower = Math.round(100 / Math.max(1, configs.length));
+  const votingPower = Math.round(100 / clamp(configs.length, 1, Infinity));
 
   const vote: Vote = {
     agentId: params.agentId,
