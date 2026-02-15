@@ -564,10 +564,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
   }
 
   // Portfolio metrics
-  const portReturn = recommendedAllocation.reduce(
-    (s, a) => s + a.weight * a.expectedReturn,
-    0,
-  );
+  const portReturn = weightedSumByKey(recommendedAllocation, 'expectedReturn', 'weight');
   const portVol = calculatePortfolioVolatility(recommendedAllocation);
   const portSharpe = portVol > 0 ? (portReturn - riskFreeRate) / portVol : 0;
   const weights = recommendedAllocation.map((a) => a.weight);
@@ -843,7 +840,7 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
 
   positions.sort((a, b) => b.kellyFraction - a.kellyFraction);
 
-  const totalKelly = positions.reduce((s, p) => s + p.kellyFraction, 0);
+  const totalKelly = sumByKey(positions, 'kellyFraction');
   const overallLeverage = totalKelly;
 
   let interpretation: string;
@@ -888,7 +885,7 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
     invVol: 1 / (BASE_VOLATILITIES[sym] ?? DEFAULT_VOLATILITY),
   }));
 
-  const totalInvVol = invVols.reduce((s, v) => s + v.invVol, 0);
+  const totalInvVol = sumByKey(invVols, 'invVol');
 
   const allocations = invVols.map((stock) => {
     const weight = stock.invVol / totalInvVol;
@@ -982,7 +979,7 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
       };
     });
 
-  const estimatedTurnover = trades.reduce((s, t) => s + t.estimatedCost, 0);
+  const estimatedTurnover = sumByKey(trades, 'estimatedCost');
   const estimatedTransactionCosts = estimatedTurnover * TRANSACTION_COST_ESTIMATE;
 
   const beforeVol = optimal.currentAllocation.length > 0
