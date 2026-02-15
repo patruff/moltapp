@@ -102,10 +102,80 @@ export interface InflectionPoint {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Window Sizing Parameters
+ *
+ * Controls how reasoning snapshots are grouped into windows for trend analysis.
+ */
+
+/**
+ * Window count divisor for trajectory analysis.
+ *
+ * Total entries are divided by this value to determine window count.
+ * Example: 100 entries / 10 = 10 windows for trend detection.
+ *
+ * HIGHER values = MORE windows = FINER granularity (but may be noisier)
+ * LOWER values = FEWER windows = SMOOTHER trends (but may miss short-term changes)
+ *
+ * Current: 10 windows provides good balance between trend detection and noise reduction.
+ */
+const WINDOW_COUNT_DIVISOR = 10;
+
+/**
+ * Minimum window size (entries per window).
+ *
+ * Prevents windows from becoming too small when total entries is low.
+ * Example: 15 total entries / 10 = 1.5 → rounds up to MIN_WINDOW_SIZE (3).
+ *
+ * Current: 3 ensures each window has at least 3 data points for statistical reliability.
+ */
+const MIN_WINDOW_SIZE = 3;
+
+/**
+ * Trend Detection Thresholds
+ *
+ * Controls when trajectory changes are classified as "increasing"/"decreasing" vs "stable".
+ */
+
+/**
+ * Minimum change to classify trend as "increasing" or "improving".
+ *
+ * Applied to confidence and coherence trajectory comparisons.
+ * Example: confidence 0.60 → 0.66 = +0.06 change → "increasing" (> 0.05)
+ * Example: confidence 0.60 → 0.63 = +0.03 change → "stable" (<= 0.05)
+ *
+ * Current: 0.05 (5 percentage points) filters out normal variation noise.
+ */
+const TREND_IMPROVEMENT_THRESHOLD = 0.05;
+
+/**
+ * Minimum change to classify trend as "decreasing" or "declining".
+ *
+ * Applied to confidence and coherence trajectory comparisons.
+ * Example: coherence 0.70 → 0.64 = -0.06 change → "declining" (< -0.05)
+ * Example: coherence 0.70 → 0.68 = -0.02 change → "stable" (>= -0.05)
+ *
+ * Current: -0.05 (negative 5 percentage points) detects significant degradation.
+ */
+const TREND_DECLINE_THRESHOLD = -0.05;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const snapshots: ReasoningSnapshot[] = [];
+
+/**
+ * Maximum reasoning snapshots retained in memory per agent.
+ *
+ * Prevents unbounded memory growth from long-running benchmarks.
+ * When exceeded, oldest snapshots are removed (circular buffer).
+ *
+ * Current: 5000 snapshots = ~500 trading rounds of history (assuming 10 agents × 1 snapshot/agent/round).
+ */
 const MAX_SNAPSHOTS = 5000;
 
 // ---------------------------------------------------------------------------
@@ -153,7 +223,7 @@ export function buildAgentTimeline(agentId: string): AgentTimeline {
   }
 
   // Window size: every 5 entries or by time
-  const windowSize = Math.max(3, Math.floor(totalEntries / 10));
+  const windowSize = Math.max(MIN_WINDOW_SIZE, Math.floor(totalEntries / WINDOW_COUNT_DIVISOR));
 
   const confidenceTrajectory = buildTrajectory(agentSnapshots, windowSize, (s) => s.confidence);
   const coherenceTrajectory = buildTrajectory(agentSnapshots, windowSize, (s) => s.coherenceScore);
@@ -175,8 +245,8 @@ export function buildAgentTimeline(agentId: string): AgentTimeline {
 
   const summary = [
     `${agentId}: ${totalEntries} decisions analyzed.`,
-    `Avg confidence: ${(avgConf * 100).toFixed(0)}% (${confTrend > 0.05 ? "increasing" : confTrend < -0.05 ? "decreasing" : "stable"}).`,
-    `Avg coherence: ${avgCoherence.toFixed(2)} (${cohTrend > 0.05 ? "improving" : cohTrend < -0.05 ? "declining" : "stable"}).`,
+    `Avg confidence: ${(avgConf * 100).toFixed(0)}% (${confTrend > TREND_IMPROVEMENT_THRESHOLD ? "increasing" : confTrend < TREND_DECLINE_THRESHOLD ? "decreasing" : "stable"}).`,
+    `Avg coherence: ${avgCoherence.toFixed(2)} (${cohTrend > TREND_IMPROVEMENT_THRESHOLD ? "improving" : cohTrend < TREND_DECLINE_THRESHOLD ? "declining" : "stable"}).`,
     `Adaptation: ${(adaptationScore * 100).toFixed(0)}%. Consistency: ${(consistencyScore * 100).toFixed(0)}%.`,
     `${inflectionPoints.length} behavioral inflection point(s) detected.`,
   ].join(" ");
