@@ -17,7 +17,7 @@
  * All computations are done in-memory from round history. No DB required.
  */
 
-import { averageByKey, computeVariance, countByCondition, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
+import { averageByKey, computeDownsideVariance, computeVariance, countByCondition, findMax, findMin, getTopKey, mean, round2, sumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -475,11 +475,7 @@ function computeRiskMetrics(trades: TradeRecord[]): RiskMetrics {
   const sharpeRatio = annualizedVol > 0 ? annualizedReturn / annualizedVol : 0;
 
   // Sortino ratio (uses only downside deviation)
-  const downsideReturns = returns.filter((r) => r < 0);
-  const downsideVariance =
-    downsideReturns.length > 1
-      ? downsideReturns.reduce((s, r) => s + Math.pow(r, 2), 0) / downsideReturns.length
-      : 0;
+  const downsideVariance = computeDownsideVariance(returns, true); // true = population variance
   const downsideDeviation = Math.sqrt(downsideVariance);
   const annualizedDownsideDev = downsideDeviation * Math.sqrt(roundsPerYear);
   const sortinoRatio =
