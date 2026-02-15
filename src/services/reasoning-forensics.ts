@@ -25,7 +25,7 @@
  *    concrete recommendations for agent improvement.
  */
 
-import { round3, findMax } from "../lib/math-utils.ts";
+import { round3, findMax, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -313,7 +313,7 @@ export function recordForensicEntry(entry: ForensicEntry): void {
  * Return the current entry count for a given agent (useful for dashboards).
  */
 export function getForensicEntryCount(agentId: string): number {
-  return forensicEntries.filter((e) => e.agentId === agentId).length;
+  return countByCondition(forensicEntries, (e) => e.agentId === agentId);
 }
 
 // ---------------------------------------------------------------------------
