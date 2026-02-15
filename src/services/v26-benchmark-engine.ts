@@ -108,6 +108,53 @@ const DISCIPLINE_ROUNDING_PRECISION = 100; // Round to 2 decimal places (0.78)
  */
 const RISK_REWARD_ROUNDING_PRECISION = 100; // Round to 2 decimal places (2.50)
 
+/**
+ * STRATEGY DETECTION SCORING POINTS
+ * Points awarded when reasoning text contains strategy-specific keywords.
+ * Higher points = stronger signal for that strategy type.
+ */
+// Value strategy scoring points
+const STRATEGY_VALUE_STRONG_SIGNAL_POINTS = 3; // Undervalued, intrinsic value, margin of safety, cheap, P/E ratio
+const STRATEGY_VALUE_MODERATE_SIGNAL_POINTS = 2; // Fundamentals, book value, dividend, moat, long-term
+const STRATEGY_VALUE_WEAK_SIGNAL_POINTS = 1; // Buffett, Graham, quality investing references
+
+// Momentum strategy scoring points
+const STRATEGY_MOMENTUM_STRONG_SIGNAL_POINTS = 3; // Momentum, trend, breakout, rally, surge, continuation
+const STRATEGY_MOMENTUM_MODERATE_SIGNAL_POINTS = 2; // Moving average, RSI, MACD, volume spike, technical analysis
+const STRATEGY_MOMENTUM_WEAK_SIGNAL_POINTS = 1; // Riding trends, accelerating, strong move
+
+// Contrarian strategy scoring points
+const STRATEGY_CONTRARIAN_STRONG_SIGNAL_POINTS = 3; // Contrarian, against the crowd, overreaction, panic, fear
+const STRATEGY_CONTRARIAN_MODERATE_SIGNAL_POINTS = 2; // Oversold, sentiment extreme, capitulation, blood in streets
+const STRATEGY_CONTRARIAN_WEAK_SIGNAL_POINTS = 1; // Disagreement, unpopular view, contrarian play
+
+// Hedge strategy scoring points
+const STRATEGY_HEDGE_STRONG_SIGNAL_POINTS = 3; // Hedge, protect, downside protection, defensive, risk reduction
+const STRATEGY_HEDGE_MODERATE_SIGNAL_POINTS = 2; // Insurance, tail risk, correlation, beta neutral
+
+// Arbitrage strategy scoring points
+const STRATEGY_ARBITRAGE_STRONG_SIGNAL_POINTS = 3; // Arbitrage, mispricing, spread, price difference, convergence
+const STRATEGY_ARBITRAGE_MODERATE_SIGNAL_POINTS = 2; // Dislocation, inefficiency, pair trade
+
+// Mean reversion strategy scoring points
+const STRATEGY_MEAN_REVERSION_STRONG_SIGNAL_POINTS = 3; // Mean reversion, revert, oversold, overbought, pullback, bounce
+const STRATEGY_MEAN_REVERSION_MODERATE_SIGNAL_POINTS = 2; // Support level, historical average, z-score, standard deviation
+const STRATEGY_MEAN_REVERSION_WEAK_SIGNAL_POINTS = 1; // Correction, extreme, normalize
+
+/**
+ * COMPOSITE SCORE GRADE BOUNDARIES
+ * Thresholds for assigning letter grades based on v26 composite benchmark score (0-100).
+ * S tier = elite (top 5%), A+ = excellent, A = strong, B+ = good, B = above average,
+ * C = average, D = below average, F = poor (<40).
+ */
+const GRADE_BOUNDARY_S = 95; // >= 95 = S tier (elite performance)
+const GRADE_BOUNDARY_A_PLUS = 90; // >= 90 = A+ (excellent)
+const GRADE_BOUNDARY_A = 80; // >= 80 = A (strong)
+const GRADE_BOUNDARY_B_PLUS = 70; // >= 70 = B+ (good)
+const GRADE_BOUNDARY_B = 60; // >= 60 = B (above average)
+const GRADE_BOUNDARY_C = 50; // >= 50 = C (average)
+const GRADE_BOUNDARY_D = 40; // >= 40 = D (below average), < 40 = F (poor)
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -283,32 +330,32 @@ function detectStrategyFromReasoning(reasoning: string): string {
   };
 
   // Value signals
-  if (/undervalued|intrinsic|margin\s+of\s+safety|fair\s+price|cheap|p\/e\s+ratio|earnings/i.test(lower)) scores.value += 3;
-  if (/fundamentals?|book\s+value|dividend|moat|long.term/i.test(lower)) scores.value += 2;
-  if (/buffett|graham|quality\s+at/i.test(lower)) scores.value += 1;
+  if (/undervalued|intrinsic|margin\s+of\s+safety|fair\s+price|cheap|p\/e\s+ratio|earnings/i.test(lower)) scores.value += STRATEGY_VALUE_STRONG_SIGNAL_POINTS;
+  if (/fundamentals?|book\s+value|dividend|moat|long.term/i.test(lower)) scores.value += STRATEGY_VALUE_MODERATE_SIGNAL_POINTS;
+  if (/buffett|graham|quality\s+at/i.test(lower)) scores.value += STRATEGY_VALUE_WEAK_SIGNAL_POINTS;
 
   // Momentum signals
-  if (/momentum|trend|breakout|rally|surge|continuation/i.test(lower)) scores.momentum += 3;
-  if (/moving\s+average|rsi|macd|volume\s+spike|technical/i.test(lower)) scores.momentum += 2;
-  if (/riding|accelerat|strong\s+move/i.test(lower)) scores.momentum += 1;
+  if (/momentum|trend|breakout|rally|surge|continuation/i.test(lower)) scores.momentum += STRATEGY_MOMENTUM_STRONG_SIGNAL_POINTS;
+  if (/moving\s+average|rsi|macd|volume\s+spike|technical/i.test(lower)) scores.momentum += STRATEGY_MOMENTUM_MODERATE_SIGNAL_POINTS;
+  if (/riding|accelerat|strong\s+move/i.test(lower)) scores.momentum += STRATEGY_MOMENTUM_WEAK_SIGNAL_POINTS;
 
   // Contrarian signals
-  if (/contrarian|against\s+the\s+crowd|overreaction|panic|fear/i.test(lower)) scores.contrarian += 3;
-  if (/oversold|sentiment\s+extreme|capitulation|blood\s+in/i.test(lower)) scores.contrarian += 2;
-  if (/disagreement|unpopular|contrari/i.test(lower)) scores.contrarian += 1;
+  if (/contrarian|against\s+the\s+crowd|overreaction|panic|fear/i.test(lower)) scores.contrarian += STRATEGY_CONTRARIAN_STRONG_SIGNAL_POINTS;
+  if (/oversold|sentiment\s+extreme|capitulation|blood\s+in/i.test(lower)) scores.contrarian += STRATEGY_CONTRARIAN_MODERATE_SIGNAL_POINTS;
+  if (/disagreement|unpopular|contrari/i.test(lower)) scores.contrarian += STRATEGY_CONTRARIAN_WEAK_SIGNAL_POINTS;
 
   // Hedge signals
-  if (/hedge|protect|downside\s+protection|defensive|risk\s+reduction/i.test(lower)) scores.hedge += 3;
-  if (/insurance|tail\s+risk|correlation|beta\s+neutral/i.test(lower)) scores.hedge += 2;
+  if (/hedge|protect|downside\s+protection|defensive|risk\s+reduction/i.test(lower)) scores.hedge += STRATEGY_HEDGE_STRONG_SIGNAL_POINTS;
+  if (/insurance|tail\s+risk|correlation|beta\s+neutral/i.test(lower)) scores.hedge += STRATEGY_HEDGE_MODERATE_SIGNAL_POINTS;
 
   // Arbitrage signals
-  if (/arbitrage|mispricing|spread|price\s+difference|convergence/i.test(lower)) scores.arbitrage += 3;
-  if (/dislocation|inefficiency|pair\s+trade/i.test(lower)) scores.arbitrage += 2;
+  if (/arbitrage|mispricing|spread|price\s+difference|convergence/i.test(lower)) scores.arbitrage += STRATEGY_ARBITRAGE_STRONG_SIGNAL_POINTS;
+  if (/dislocation|inefficiency|pair\s+trade/i.test(lower)) scores.arbitrage += STRATEGY_ARBITRAGE_MODERATE_SIGNAL_POINTS;
 
   // Mean reversion signals
-  if (/mean\s+reversion|revert|oversold|overbought|pullback|bounce/i.test(lower)) scores.mean_reversion += 3;
-  if (/support\s+level|historical\s+average|z.score|standard\s+deviation/i.test(lower)) scores.mean_reversion += 2;
-  if (/correction|extreme|normalize/i.test(lower)) scores.mean_reversion += 1;
+  if (/mean\s+reversion|revert|oversold|overbought|pullback|bounce/i.test(lower)) scores.mean_reversion += STRATEGY_MEAN_REVERSION_STRONG_SIGNAL_POINTS;
+  if (/support\s+level|historical\s+average|z.score|standard\s+deviation/i.test(lower)) scores.mean_reversion += STRATEGY_MEAN_REVERSION_MODERATE_SIGNAL_POINTS;
+  if (/correction|extreme|normalize/i.test(lower)) scores.mean_reversion += STRATEGY_MEAN_REVERSION_WEAK_SIGNAL_POINTS;
 
   // Find the top strategy
   let maxScore = 0;
@@ -664,13 +711,13 @@ export function calculateV26Composite(scores: V26DimensionScores): number {
  * Assign a letter grade based on composite score.
  */
 export function assignGrade(compositeScore: number): string {
-  if (compositeScore >= 95) return "S";
-  if (compositeScore >= 90) return "A+";
-  if (compositeScore >= 80) return "A";
-  if (compositeScore >= 70) return "B+";
-  if (compositeScore >= 60) return "B";
-  if (compositeScore >= 50) return "C";
-  if (compositeScore >= 40) return "D";
+  if (compositeScore >= GRADE_BOUNDARY_S) return "S";
+  if (compositeScore >= GRADE_BOUNDARY_A_PLUS) return "A+";
+  if (compositeScore >= GRADE_BOUNDARY_A) return "A";
+  if (compositeScore >= GRADE_BOUNDARY_B_PLUS) return "B+";
+  if (compositeScore >= GRADE_BOUNDARY_B) return "B";
+  if (compositeScore >= GRADE_BOUNDARY_C) return "C";
+  if (compositeScore >= GRADE_BOUNDARY_D) return "D";
   return "F";
 }
 
