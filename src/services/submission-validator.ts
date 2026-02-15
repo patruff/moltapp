@@ -27,6 +27,47 @@ import type { MarketData } from "../agents/base-agent.ts";
 import { countWords, round2 } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Reasoning validation parameters for benchmark submissions.
+ */
+
+/** Minimum reasoning length (characters) required by Zod schema validation */
+const REASONING_MIN_LENGTH = 50;
+
+/** Minimum word count for substantive analysis pre-check (prevents trivial submissions) */
+const REASONING_WORD_COUNT_MIN = 10;
+
+/**
+ * Rate limiting and storage parameters for submission processing.
+ */
+
+/** Maximum submissions allowed per agent per hour (prevents spam) */
+const MAX_SUBMISSIONS_PER_HOUR = 60;
+
+/** Maximum submission store size (circular buffer, oldest entries evicted) */
+const MAX_STORE_SIZE = 5000;
+
+/** Milliseconds per hour for rate limit window calculation */
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * Default agent configuration values for submission evaluation.
+ * Used when external agents don't provide their own configuration.
+ */
+
+/** Default maximum position size (% of portfolio per symbol) */
+const DEFAULT_MAX_POSITION_SIZE = 25;
+
+/** Default maximum portfolio allocation (% in equities vs cash) */
+const DEFAULT_MAX_PORTFOLIO_ALLOCATION = 80;
+
+/** Default initial capital assumption for portfolio simulation (USDC) */
+const DEFAULT_INITIAL_CAPITAL = 10000;
+
+// ---------------------------------------------------------------------------
 // Submission Schema
 // ---------------------------------------------------------------------------
 
@@ -55,7 +96,7 @@ export const externalSubmissionSchema = z.object({
     action: z.enum(["buy", "sell", "hold"]),
     symbol: z.string().min(1).max(10),
     quantity: z.number().min(0),
-    reasoning: z.string().min(50, "Reasoning must be at least 50 characters for benchmark validity"),
+    reasoning: z.string().min(REASONING_MIN_LENGTH, "Reasoning must be at least 50 characters for benchmark validity"),
     confidence: z.number().min(0).max(1),
     sources: z.array(z.string()).min(1, "Must cite at least one data source"),
     intent: tradingIntentEnum,
@@ -89,8 +130,6 @@ interface StoredSubmission {
 
 const submissionStore = new Map<string, StoredSubmission>();
 const agentRateLimits = new Map<string, { count: number; windowStart: number }>();
-const MAX_SUBMISSIONS_PER_HOUR = 60;
-const MAX_STORE_SIZE = 5000;
 
 // Valid API keys for external submissions (in production, this would be in a DB)
 const validApiKeys = new Set<string>([
@@ -181,7 +220,7 @@ export function validateAndScoreSubmission(
 
   // Step 7: Reasoning quality pre-check
   const reasoningWords = countWords(submission.trade.reasoning);
-  if (reasoningWords < 10) {
+  if (reasoningWords < REASONING_WORD_COUNT_MIN) {
     return {
       ok: false,
       submissionId: submission.submissionId,
@@ -205,13 +244,13 @@ export function validateAndScoreSubmission(
     },
     marketData,
     agentConfig: {
-      maxPositionSize: 25,
-      maxPortfolioAllocation: 80,
+      maxPositionSize: DEFAULT_MAX_POSITION_SIZE,
+      maxPortfolioAllocation: DEFAULT_MAX_PORTFOLIO_ALLOCATION,
       riskTolerance: "moderate",
     },
     portfolio: {
-      cashBalance: 10000,
-      totalValue: 10000,
+      cashBalance: DEFAULT_INITIAL_CAPITAL,
+      totalValue: DEFAULT_INITIAL_CAPITAL,
       positions: [],
     },
   });

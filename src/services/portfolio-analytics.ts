@@ -138,8 +138,37 @@ export interface EquityCurvePoint {
 // ---------------------------------------------------------------------------
 
 const INITIAL_CAPITAL = 10_000;
-const RISK_FREE_RATE = 0.05; // 5% annual (T-bills)
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Annual risk-free rate for Sharpe/Sortino calculations.
+ * Based on U.S. Treasury bills (5% standard assumption).
+ */
+const RISK_FREE_RATE = 0.05;
+
+/**
+ * Trading days per year for annualization calculations.
+ * Standard assumption: 252 trading days (365 days - weekends - holidays).
+ */
 const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * Minimum daily returns required for ratio calculations.
+ * Need at least 2 data points to compute meaningful variance/volatility.
+ *
+ * Used in: Sharpe, Sortino, volatility, downside deviation calculations.
+ */
+const MIN_RETURNS_FOR_RATIO_CALCULATION = 2;
+
+/**
+ * Zero volatility threshold for ratio validity checks.
+ * If standard deviation is exactly 0, ratios are undefined (division by zero).
+ *
+ * Used in: Sharpe ratio, Sortino ratio denominator checks.
+ */
+const ZERO_VOLATILITY_THRESHOLD = 0;
 
 /**
  * Minimum Tradeable Quantity Threshold
@@ -524,7 +553,7 @@ function calculateDailyReturns(
  * Calculate annualized Sharpe Ratio.
  */
 function calculateSharpeRatio(dailyReturns: number[]): number | null {
-  if (dailyReturns.length < 2) return null;
+  if (dailyReturns.length < MIN_RETURNS_FOR_RATIO_CALCULATION) return null;
 
   const dailyRfRate = RISK_FREE_RATE / TRADING_DAYS_PER_YEAR;
   const excessReturns = dailyReturns.map((r) => r - dailyRfRate);
@@ -533,7 +562,7 @@ function calculateSharpeRatio(dailyReturns: number[]): number | null {
   const variance = computeVariance(excessReturns);
   const stdDev = Math.sqrt(variance);
 
-  if (stdDev === 0) return null;
+  if (stdDev === ZERO_VOLATILITY_THRESHOLD) return null;
 
   return (mean / stdDev) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
@@ -542,7 +571,7 @@ function calculateSharpeRatio(dailyReturns: number[]): number | null {
  * Calculate Sortino Ratio (penalizes downside volatility only).
  */
 function calculateSortinoRatio(dailyReturns: number[]): number | null {
-  if (dailyReturns.length < 2) return null;
+  if (dailyReturns.length < MIN_RETURNS_FOR_RATIO_CALCULATION) return null;
 
   const dailyRfRate = RISK_FREE_RATE / TRADING_DAYS_PER_YEAR;
   const excessReturns = dailyReturns.map((r) => r - dailyRfRate);
@@ -551,11 +580,11 @@ function calculateSortinoRatio(dailyReturns: number[]): number | null {
 
   // Only count negative deviations
   const downsideVariance = computeDownsideVariance(excessReturns, true);
-  if (downsideVariance === 0) return null;
+  if (downsideVariance === ZERO_VOLATILITY_THRESHOLD) return null;
 
   const downsideDev = Math.sqrt(downsideVariance);
 
-  if (downsideDev === 0) return null;
+  if (downsideDev === ZERO_VOLATILITY_THRESHOLD) return null;
 
   return (mean / downsideDev) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
