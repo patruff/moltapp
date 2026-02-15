@@ -20,7 +20,7 @@ import { eq, desc, sql } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, round4, sumByKey, filterByMapKey, findMax, findMin } from "../lib/math-utils.ts";
+import { round2, round4, sumByKey, filterByMapKey, findMax, findMin, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
