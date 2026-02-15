@@ -143,6 +143,91 @@ const INITIAL_CAPITAL = 10_000; // $10k starting capital per agent
 const RISK_FREE_RATE = 0.05;   // 5% annualized risk-free rate
 const TRADING_DAYS_PER_YEAR = 252;
 
+/**
+ * Dust Quantity Threshold
+ *
+ * Minimum position quantity for FIFO matching. Positions smaller than this are
+ * considered fully closed to prevent floating-point accumulation errors.
+ *
+ * Example: After matching sells against buys, if remaining qty is 0.0000000001,
+ * treat as 0 and remove from queue.
+ */
+const DUST_QUANTITY_THRESHOLD = 0.000000001;
+
+/**
+ * VaR Calculation Parameters
+ *
+ * Parametric Value at Risk (VaR) calculation thresholds for 95% confidence level.
+ */
+
+/**
+ * Minimum daily returns required for VaR calculation.
+ *
+ * Need at least 5 observations to compute meaningful volatility estimate for
+ * parametric VaR. With fewer returns, variance estimate is unreliable.
+ */
+const VAR_MIN_DAILY_RETURNS = 5;
+
+/**
+ * Z-score for 95% confidence level (parametric VaR).
+ *
+ * 1.645 standard deviations = 95th percentile of normal distribution.
+ * Used in formula: VaR95 = -(μ - 1.645σ) × capital
+ *
+ * Interpretation: 95% confidence that daily loss won't exceed this amount.
+ */
+const VAR_Z_SCORE_95_PERCENTILE = 1.645;
+
+/**
+ * Time Window Calculations
+ *
+ * Millisecond constants for time-based metrics and rolling windows.
+ */
+
+/**
+ * Milliseconds per hour for hold time calculations.
+ *
+ * Used to convert trade timestamp differences to hours.
+ * Example: (sellTime - buyTime) / MS_PER_HOUR = hold time in hours
+ */
+const MS_PER_HOUR = 3_600_000;
+
+/**
+ * Rolling return window: 1 day (24 hours).
+ *
+ * Used for short-term performance tracking in leaderboard.
+ */
+const ROLLING_WINDOW_1_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Rolling return window: 7 days (1 week).
+ *
+ * Used for weekly performance comparison across agents.
+ */
+const ROLLING_WINDOW_7_DAY_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Rolling return window: 30 days (1 month).
+ *
+ * Used for monthly performance metrics and agent profile display.
+ */
+const ROLLING_WINDOW_30_DAY_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Recent decision activity window: 24 hours.
+ *
+ * Used to classify agent as active/inactive based on recent decision count.
+ */
+const RECENT_DECISION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Price Cache TTL
+ *
+ * Time-to-live for Jupiter price cache to avoid excessive API calls.
+ * 30 seconds balances freshness vs API rate limits.
+ */
+const PRICE_CACHE_TTL = 30_000;
+
 // ---------------------------------------------------------------------------
 // Core Performance Computation
 // ---------------------------------------------------------------------------
