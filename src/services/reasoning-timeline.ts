@@ -14,7 +14,7 @@
  * 6. ADAPTATION: Does the agent learn from bad outcomes?
  */
 
-import { round3 } from "../lib/math-utils.ts";
+import { round3, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -390,8 +390,7 @@ function computeConsistencyScore(entries: ReasoningSnapshot[]): number {
   const variances: number[] = [];
   for (const [, scores] of bySymbol) {
     if (scores.length < 2) continue;
-    const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-    const variance = scores.reduce((s, v) => s + (v - mean) ** 2, 0) / scores.length;
+    const variance = computeVariance(scores, true); // population variance for symbol-specific coherence
     variances.push(variance);
   }
 
