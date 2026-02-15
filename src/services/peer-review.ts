@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { clamp, countWords, mean, splitSentences, round2 } from "../lib/math-utils.ts";
+import { clamp, countWords, mean, splitSentences, round2, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -816,8 +816,7 @@ function buildAgentSummary(agentId: string, reviews: PeerReview[]): PeerReviewSu
 
   // Review consistency: stddev of scores (lower = more consistent)
   const scores = reviews.map((r) => r.overallScore);
-  const m = avgPeerScore;
-  const variance = scores.reduce((s, v) => s + (v - m) ** 2, 0) / scores.length;
+  const variance = computeVariance(scores, true); // true = population variance
   const stddev = Math.sqrt(variance);
   const reviewConsistency = round2(Math.max(0, 1 - stddev * 2));
 

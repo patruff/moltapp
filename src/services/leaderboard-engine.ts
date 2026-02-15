@@ -18,7 +18,7 @@
  * Rankings are updated in real-time as trades are scored.
  */
 
-import { mean, round2, round3 } from "../lib/math-utils.ts";
+import { mean, round2, round3, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -724,7 +724,7 @@ export function getAgentLeaderboardDetail(agentId: string): {
 function sharpeRatio(returns: number[]): number {
   if (returns.length < 3) return 0;
   const m = mean(returns);
-  const variance = returns.reduce((s, r) => s + (r - m) ** 2, 0) / returns.length;
+  const variance = computeVariance(returns, true); // true = population variance
   const stdDev = Math.sqrt(variance);
   if (stdDev === 0) return 0;
   return m / stdDev;
