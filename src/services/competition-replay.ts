@@ -156,6 +156,210 @@ const DEFAULT_KEY_MOMENTS = 5;
 const CRITICAL_DECISION_COUNT = 3;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Headline Generation Parameters
+ *
+ * Control how competition headlines are generated based on standings and volatility.
+ */
+
+/** When standings margin < 1.0% between top 2 agents, classify as "close" competition. */
+const HEADLINE_CLOSE_STANDINGS_MARGIN = 1.0;
+
+/**
+ * Chapter Construction Parameters
+ *
+ * Determine how event streams are grouped into narrative chapters.
+ */
+
+/** Number of rounds batched into each chapter (default: 3 rounds per chapter). */
+const ROUNDS_PER_CHAPTER = 3;
+
+/**
+ * Chapter Significance Scoring Weights
+ *
+ * Point values assigned when calculating chapter importance (0-100 scale).
+ * Higher significance = more dramatic/impactful chapter.
+ */
+
+/** Base significance score for all chapters before event-based bonuses. */
+const SIGNIFICANCE_BASE_SCORE = 20;
+
+/** Points added per lead change in the chapter (major volatility indicator). */
+const SIGNIFICANCE_LEAD_CHANGE_POINTS = 25;
+
+/** Points added per circuit breaker activation (market stress indicator). */
+const SIGNIFICANCE_CIRCUIT_BREAKER_POINTS = 15;
+
+/** Points added per milestone event (achievement/turning point indicator). */
+const SIGNIFICANCE_MILESTONE_POINTS = 10;
+
+/** Max points from event density (caps at 20 to prevent long chapters from dominating). */
+const SIGNIFICANCE_EVENT_DENSITY_MAX = 20;
+
+/** Points per event for density bonus (2 points × event count, capped at max). */
+const SIGNIFICANCE_EVENT_DENSITY_MULTIPLIER = 2;
+
+/**
+ * Chapter Title Classification Thresholds
+ *
+ * Determine which narrative title template is selected for each chapter.
+ */
+
+/** Threshold for "Pendulum Swings" title (≥2 lead changes = high volatility). */
+const CHAPTER_TITLE_PENDULUM_THRESHOLD = 2;
+
+/** Threshold for "Turbulent Waters" title (≥2 failed trades = execution challenges). */
+const CHAPTER_TITLE_TURBULENT_THRESHOLD = 2;
+
+/**
+ * Key Moments Impact Scoring
+ *
+ * Point values for scoring which events are most impactful in the competition.
+ * Used to select top N key moments shown in competition narrative.
+ */
+
+/** Base score for lead change events (always highly significant). */
+const KEY_MOMENT_LEAD_CHANGE_BASE = 50;
+
+/** Max additional points for lead change margin (margin × 10, capped at 30). */
+const KEY_MOMENT_LEAD_CHANGE_MARGIN_MAX = 30;
+
+/** Margin multiplier for lead change bonus (each 1% margin = 10 points). */
+const KEY_MOMENT_LEAD_CHANGE_MARGIN_MULTIPLIER = 10;
+
+/** Base score for circuit breaker events (market stress). */
+const KEY_MOMENT_CIRCUIT_BREAKER = 40;
+
+/** Base score for milestone events (achievements/turning points). */
+const KEY_MOMENT_MILESTONE = 35;
+
+/** Base score for failed trade events (execution problems). */
+const KEY_MOMENT_TRADE_FAILED = 20;
+
+/** Base score for executed trade events. */
+const KEY_MOMENT_TRADE_EXECUTED_BASE = 10;
+
+/** Max additional points for trade P&L impact (|pnlDelta| × 5, capped at 20). */
+const KEY_MOMENT_TRADE_EXECUTED_PNL_MAX = 20;
+
+/** P&L multiplier for trade execution bonus (each 1% P&L = 5 points). */
+const KEY_MOMENT_TRADE_EXECUTED_PNL_MULTIPLIER = 5;
+
+/** Base score for decision events (reasoning recorded). */
+const KEY_MOMENT_DECISION_BASE = 5;
+
+/** Max additional points for decision confidence (confidence / 5, capped at 15). */
+const KEY_MOMENT_DECISION_CONFIDENCE_MAX = 15;
+
+/** Confidence divisor for decision bonus (each 5 confidence points = 1 impact point). */
+const KEY_MOMENT_DECISION_CONFIDENCE_DIVISOR = 5;
+
+/** Base score for round start/end events (bookkeeping only). */
+const KEY_MOMENT_ROUND_MARKER = 2;
+
+/** Max additional points for large P&L deltas across all event types (|pnlDelta| × 8, capped at 25). */
+const KEY_MOMENT_PNL_DELTA_MAX = 25;
+
+/** P&L delta multiplier for impact boost (each 1% delta = 8 points). */
+const KEY_MOMENT_PNL_DELTA_MULTIPLIER = 8;
+
+/**
+ * Turning Point Detection Thresholds
+ *
+ * Criteria for classifying events as "turning points" (competition-altering moments).
+ */
+
+/** Minimum lead change margin to qualify as a turning point (≥0.5% margin). */
+const TURNING_POINT_LEAD_MARGIN_MIN = 0.5;
+
+/** Minimum single-trade P&L impact to qualify as a turning point (≥2.0% absolute). */
+const TURNING_POINT_TRADE_PNL_MIN = 2.0;
+
+/**
+ * Agent Trait Classification Thresholds
+ *
+ * Behavioral pattern thresholds for inferring agent personality traits.
+ */
+
+/** Success rate threshold for "reliable-executor" trait (≥90% success rate). */
+const TRAIT_RELIABLE_EXECUTOR_THRESHOLD = 0.9;
+
+/** Success rate threshold for "error-prone" trait (<50% success rate). */
+const TRAIT_ERROR_PRONE_THRESHOLD = 0.5;
+
+/** Hold ratio threshold for "cautious" trait (>60% of decisions are holds). */
+const TRAIT_CAUTIOUS_HOLD_RATIO = 0.6;
+
+/** Hold ratio threshold for "aggressive" trait (<20% of decisions are holds). */
+const TRAIT_AGGRESSIVE_HOLD_RATIO = 0.2;
+
+/** Average confidence threshold for "high-conviction" trait (>75% avg confidence). */
+const TRAIT_HIGH_CONVICTION_THRESHOLD = 75;
+
+/** Average confidence threshold for "uncertain" trait (<40% avg confidence). */
+const TRAIT_UNCERTAIN_THRESHOLD = 40;
+
+/** Circuit breaker count threshold for "volatility-trigger" trait (≥2 activations). */
+const TRAIT_VOLATILITY_TRIGGER_COUNT = 2;
+
+/** Lead change involvement threshold for "competitive" trait (≥3 lead changes). */
+const TRAIT_COMPETITIVE_CHANGES = 3;
+
+/** P&L variance threshold for "consistent" trait (stddev < 0.5%). */
+const TRAIT_CONSISTENT_VARIANCE = 0.5;
+
+/** P&L variance threshold for "volatile-returns" trait (stddev > 2.0%). */
+const TRAIT_VOLATILE_VARIANCE = 2.0;
+
+/** Minimum P&L samples required for variance-based trait detection. */
+const TRAIT_MIN_PNL_SAMPLES = 3;
+
+/**
+ * Defining Moments Selection Parameters
+ *
+ * Control how many significant events are highlighted in agent narrative arcs.
+ */
+
+/** Default number of defining moments shown per agent arc. */
+const DEFINING_MOMENTS_DEFAULT_LIMIT = 5;
+
+/** If defining moments < 3, add high-impact trades to fill narrative. */
+const DEFINING_MOMENTS_MIN_COUNT = 3;
+
+/** Minimum P&L delta for a trade to qualify as high-impact (>0.5% absolute). */
+const DEFINING_MOMENTS_MIN_PNL_DELTA = 0.5;
+
+/**
+ * Outcome Classification Thresholds
+ *
+ * P&L delta thresholds for categorizing decision outcomes.
+ */
+
+/** P&L delta threshold for "profit" outcome (>0.1% gain). */
+const OUTCOME_PROFIT_THRESHOLD = 0.1;
+
+/** P&L delta threshold for "loss" outcome (<-0.1% loss). */
+const OUTCOME_LOSS_THRESHOLD = -0.1;
+
+/**
+ * Time Duration Formatting Thresholds
+ *
+ * Unit conversion thresholds for human-readable duration strings.
+ */
+
+/** Seconds per minute for duration formatting. */
+const DURATION_SECONDS_PER_MINUTE = 60;
+
+/** Minutes per hour for duration formatting. */
+const DURATION_MINUTES_PER_HOUR = 60;
+
+/** Hours per day for duration formatting. */
+const DURATION_HOURS_PER_DAY = 24;
+
+// ---------------------------------------------------------------------------
 // Module-Level State
 // ---------------------------------------------------------------------------
 

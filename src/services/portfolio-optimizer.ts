@@ -604,9 +604,9 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
  * highest expected return for each level of risk.
  */
 export async function getEfficientFrontier(): Promise<EfficientFrontier> {
-  const symbols = XSTOCKS_CATALOG.map((s) => s.symbol).filter(
-    (s) => BASE_RETURNS[s] !== undefined,
-  );
+  const symbols = XSTOCKS_CATALOG.filter(
+    (s) => BASE_RETURNS[s.symbol] !== undefined,
+  ).map((s) => s.symbol);
   const riskFreeRate = RISK_FREE_RATE;
 
   // Generate points along the efficient frontier
@@ -697,9 +697,9 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
  * Generate correlation matrix between all tracked stocks.
  */
 export async function getCorrelationMatrix(): Promise<CorrelationMatrix> {
-  const symbols = XSTOCKS_CATALOG.map((s) => s.symbol).filter(
-    (s) => BASE_RETURNS[s] !== undefined,
-  );
+  const symbols = XSTOCKS_CATALOG.filter(
+    (s) => BASE_RETURNS[s.symbol] !== undefined,
+  ).map((s) => s.symbol);
 
   // Build NxN correlation matrix
   const matrix: number[][] = [];
@@ -876,9 +876,9 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
  * to total portfolio risk.
  */
 export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
-  const symbols = XSTOCKS_CATALOG.map((s) => s.symbol).filter(
-    (s) => BASE_VOLATILITIES[s] !== undefined,
-  );
+  const symbols = XSTOCKS_CATALOG.filter(
+    (s) => BASE_VOLATILITIES[s.symbol] !== undefined,
+  ).map((s) => s.symbol);
 
   // Risk parity: weight inversely proportional to volatility
   const invVols = symbols.map((sym) => ({
