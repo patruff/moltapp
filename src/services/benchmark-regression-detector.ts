@@ -692,22 +692,22 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
   // Status
   const highAlerts = activeAlerts.filter((a) => a.severity === "high" || a.severity === "critical").length;
   const status: "healthy" | "warning" | "degraded" | "critical" =
-    highAlerts >= 3 ? "critical" :
-    highAlerts >= 1 ? "degraded" :
-    activeAlerts.length > 3 ? "warning" : "healthy";
+    highAlerts >= STATUS_CRITICAL_ALERT_THRESHOLD ? "critical" :
+    highAlerts >= STATUS_DEGRADED_ALERT_THRESHOLD ? "degraded" :
+    activeAlerts.length > STATUS_WARNING_ALERT_THRESHOLD ? "warning" : "healthy";
 
   // Recommendations
   const recommendations: string[] = [];
-  if (dimensions.agentDiversity < 0.3) {
+  if (dimensions.agentDiversity < RECOMMENDATION_AGENT_DIVERSITY_LOW) {
     recommendations.push("Agent scores are too similar — consider adding more differentiating metrics");
   }
-  if (dimensions.scoringStability < 0.5) {
+  if (dimensions.scoringStability < RECOMMENDATION_SCORING_STABILITY_LOW) {
     recommendations.push("Scoring is unstable — review recent methodology changes");
   }
-  if (dimensions.dataFreshness < 0.5) {
+  if (dimensions.dataFreshness < RECOMMENDATION_DATA_FRESHNESS_LOW) {
     recommendations.push("Reasoning quality declining — review agent prompt engineering");
   }
-  if (dimensions.calibrationQuality < 0.4) {
+  if (dimensions.calibrationQuality < RECOMMENDATION_CALIBRATION_QUALITY_LOW) {
     recommendations.push("Confidence calibration is poor — agents need calibration feedback");
   }
   if (recommendations.length === 0) {
@@ -721,13 +721,13 @@ export function getBenchmarkHealthReport(): BenchmarkHealthReport {
   const firstCoherence = computeAvgMetric(firstHalf, (s) => s.coherenceAvg);
   const secondCoherence = computeAvgMetric(secondHalf, (s) => s.coherenceAvg);
   const trend: "improving" | "stable" | "declining" =
-    secondCoherence > firstCoherence + 0.05 ? "improving" :
-    secondCoherence < firstCoherence - 0.05 ? "declining" : "stable";
+    secondCoherence > firstCoherence + HEALTH_TREND_THRESHOLD ? "improving" :
+    secondCoherence < firstCoherence - HEALTH_TREND_THRESHOLD ? "declining" : "stable";
 
   return {
     overallHealth,
     status,
-    activeAlerts: activeAlerts.slice(-20),
+    activeAlerts: activeAlerts.slice(-HEALTH_REPORT_ALERTS_DISPLAY_LIMIT),
     snapshotCount: healthSnapshots.length,
     dimensions,
     recommendations,
@@ -749,12 +749,12 @@ export function getBenchmarkHealthPillarScore(): number {
  * Get all active regression alerts.
  */
 export function getActiveAlerts(): RegressionAlert[] {
-  return activeAlerts.slice(-50);
+  return activeAlerts.slice(-ACTIVE_ALERTS_QUERY_LIMIT);
 }
 
 /**
  * Get snapshot history for trend analysis.
  */
 export function getHealthSnapshotHistory(): BenchmarkHealthSnapshot[] {
-  return healthSnapshots.slice(-100);
+  return healthSnapshots.slice(-SNAPSHOT_HISTORY_QUERY_LIMIT);
 }
