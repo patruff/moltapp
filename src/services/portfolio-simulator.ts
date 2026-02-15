@@ -20,7 +20,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, lte, and, InferSelectModel } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, computeVariance } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type AgentDecision = InferSelectModel<typeof agentDecisions>;

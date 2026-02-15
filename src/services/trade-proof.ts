@@ -22,7 +22,7 @@
  */
 
 import { createHash } from "crypto";
-import { round2 } from "../lib/math-utils.ts";
+import { round2, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -357,12 +357,8 @@ export function generatePerformanceProof(params: {
   const returns = params.trades.map((t) => t.pnlPercent);
   const avgReturn =
     returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 0;
-  const stdDev =
-    returns.length > 1
-      ? Math.sqrt(
-          returns.reduce((s, r) => s + (r - avgReturn) ** 2, 0) / (returns.length - 1),
-        )
-      : 1;
+  const variance = computeVariance(returns);
+  const stdDev = returns.length > 1 ? Math.sqrt(variance) : 1;
   const sharpeApprox = stdDev > 0 ? avgReturn / stdDev : 0;
 
   const txSignatures = params.trades.map((t) => t.txSignature);
