@@ -228,6 +228,28 @@ const SUMMARY_CONFIDENCE_LOW_THRESHOLD = 40;
  */
 const TOP_STOCKS_COMPARISON_LIMIT = 3;
 
+/**
+ * Correlation matrix computation parameters.
+ */
+
+/**
+ * Decision lookback window for correlation matrix computation.
+ * Fetches last 100 decisions per agent to compute pairwise correlations.
+ */
+const CORRELATION_MATRIX_LOOKBACK = 100;
+
+/**
+ * Strong correlation threshold for highlighting agent pairs.
+ * Absolute correlation >0.5 indicates strong positive/negative relationship.
+ */
+const STRONG_CORRELATION_THRESHOLD = 0.5;
+
+/**
+ * Minimum sample size required for valid Pearson correlation.
+ * Below 3 data points, correlation computation is unreliable and returns 0.
+ */
+const MIN_PEARSON_CORRELATION_SAMPLES = 3;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -701,7 +723,7 @@ export async function buildCorrelationMatrix(
       .from(agentDecisions)
       .where(eq(agentDecisions.agentId, agentId))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(100);
+      .limit(CORRELATION_MATRIX_LOOKBACK);
 
     // Convert to numeric sequence: buy=1, sell=-1, hold=0
     const sequence = decisions.map((d: typeof agentDecisions.$inferSelect) => {
@@ -732,7 +754,7 @@ export async function buildCorrelationMatrix(
       matrix[i][j] = round3(corr);
 
       // Track strong correlations
-      if (i < j && Math.abs(corr) > 0.5) {
+      if (i < j && Math.abs(corr) > STRONG_CORRELATION_THRESHOLD) {
         strongCorrelations.push({
           agentA: agentIds[i],
           agentB: agentIds[j],
@@ -752,7 +774,7 @@ export async function buildCorrelationMatrix(
 
 function pearsonCorrelation(x: number[], y: number[]): number {
   const n = Math.min(x.length, y.length);
-  if (n < 3) return 0;
+  if (n < MIN_PEARSON_CORRELATION_SAMPLES) return 0;
 
   let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
   for (let i = 0; i < n; i++) {
