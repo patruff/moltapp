@@ -77,6 +77,54 @@ export interface TradingSessionCheck {
 // Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Trading Session Time Boundaries (in minutes from midnight ET)
+ *
+ * These constants define the standard US stock market trading hours:
+ * - Pre-market: 4:00 AM - 9:30 AM ET
+ * - Regular: 9:30 AM - 4:00 PM ET
+ * - After-hours: 4:00 PM - 8:00 PM ET
+ * - Closed: 8:00 PM - 4:00 AM ET
+ *
+ * Early close days (e.g., day before Thanksgiving) use EARLY_CLOSE_MINUTES (1:00 PM).
+ */
+
+/**
+ * Pre-market trading session start time.
+ * 4:00 AM ET = 240 minutes from midnight
+ */
+const PRE_MARKET_START_MINUTES = 4 * 60;
+
+/**
+ * Regular market hours start time.
+ * 9:30 AM ET = 570 minutes from midnight
+ */
+const REGULAR_START_MINUTES = 9 * 60 + 30;
+
+/**
+ * Regular market hours close time.
+ * 4:00 PM ET = 960 minutes from midnight
+ */
+const REGULAR_CLOSE_MINUTES = 16 * 60;
+
+/**
+ * Early close time (e.g., day before Thanksgiving, Christmas Eve).
+ * 1:00 PM ET = 780 minutes from midnight
+ */
+const EARLY_CLOSE_MINUTES = 13 * 60;
+
+/**
+ * After-hours trading session end time.
+ * 8:00 PM ET = 1200 minutes from midnight
+ */
+const AFTER_HOURS_END_MINUTES = 20 * 60;
+
+/**
+ * Total minutes in a 24-hour day.
+ * Used for next-day session calculations.
+ */
+const MINUTES_PER_DAY = 24 * 60;
+
 /** US market holidays for 2025 and 2026. Dates in MM-DD format. */
 const US_MARKET_HOLIDAYS: Record<string, string> = {
   // 2025
@@ -112,13 +160,16 @@ const EARLY_CLOSE_DATES: Set<string> = new Set([
   "2026-12-24",    // Christmas Eve
 ]);
 
-/** Session time boundaries in Eastern Time (minutes from midnight). */
+/**
+ * Session time boundaries in Eastern Time (minutes from midnight).
+ * Uses named constants for all time boundaries to enable systematic tuning.
+ */
 const SESSION_BOUNDARIES = {
-  PRE_MARKET_START: 4 * 60,         // 4:00 AM
-  REGULAR_START: 9 * 60 + 30,       // 9:30 AM
-  REGULAR_CLOSE: 16 * 60,           // 4:00 PM
-  EARLY_CLOSE: 13 * 60,             // 1:00 PM
-  AFTER_HOURS_END: 20 * 60,         // 8:00 PM
+  PRE_MARKET_START: PRE_MARKET_START_MINUTES,
+  REGULAR_START: REGULAR_START_MINUTES,
+  REGULAR_CLOSE: REGULAR_CLOSE_MINUTES,
+  EARLY_CLOSE: EARLY_CLOSE_MINUTES,
+  AFTER_HOURS_END: AFTER_HOURS_END_MINUTES,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -275,7 +326,7 @@ function buildSessionInfo(
         minutesUntilChange = SESSION_BOUNDARIES.PRE_MARKET_START - mins;
       } else {
         // After 8 PM, next change is pre-market at 4 AM (next day)
-        minutesUntilChange = 24 * 60 - mins + SESSION_BOUNDARIES.PRE_MARKET_START;
+        minutesUntilChange = MINUTES_PER_DAY - mins + SESSION_BOUNDARIES.PRE_MARKET_START;
       }
       break;
     case "pre_market":
@@ -291,7 +342,7 @@ function buildSessionInfo(
       // Days until Monday
       const daysUntilMonday = et.dayOfWeek === 6 ? 2 : 1;
       minutesUntilChange =
-        daysUntilMonday * 24 * 60 -
+        daysUntilMonday * MINUTES_PER_DAY -
         mins +
         SESSION_BOUNDARIES.PRE_MARKET_START;
       break;
@@ -299,7 +350,7 @@ function buildSessionInfo(
     case "holiday":
       // Next business day
       minutesUntilChange =
-        24 * 60 - mins + SESSION_BOUNDARIES.PRE_MARKET_START;
+        MINUTES_PER_DAY - mins + SESSION_BOUNDARIES.PRE_MARKET_START;
       break;
     default:
       minutesUntilChange = 0;
@@ -620,7 +671,7 @@ export function getUpcomingHolidays(
     .map(([date, name]) => {
       const holidayDate = new Date(date + "T12:00:00");
       const daysAway = Math.ceil(
-        (holidayDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000),
+        (holidayDate.getTime() - today.getTime()) / (MINUTES_PER_DAY * 60 * 1000),
       );
       return { date, name, daysAway };
     });
