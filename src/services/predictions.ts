@@ -1288,10 +1288,10 @@ export async function getPredictionLeaderboard(): Promise<
     const stats = await getAgentPredictionStats(agentId as string);
 
     // Composite score for ranking
-    const winRateScore = stats.winRate * 40;
-    const calibrationBonus = (stats.calibrationScore / 100) * 30;
-    const volumeScore = Math.min(20, Math.log10(stats.totalPoolVolume + 1) * 5);
-    const consistencyScore = Math.min(10, stats.totalPredictions * 0.5);
+    const winRateScore = stats.winRate * LEADERBOARD_WEIGHT_WIN_RATE;
+    const calibrationBonus = (stats.calibrationScore / 100) * LEADERBOARD_WEIGHT_CALIBRATION;
+    const volumeScore = Math.min(LEADERBOARD_WEIGHT_VOLUME, Math.log10(stats.totalPoolVolume + 1) * LEADERBOARD_VOLUME_LOG_MULTIPLIER);
+    const consistencyScore = Math.min(LEADERBOARD_WEIGHT_CONSISTENCY, stats.totalPredictions * LEADERBOARD_CONSISTENCY_PER_PREDICTION);
     const profitability =
       winRateScore + calibrationBonus + volumeScore + consistencyScore;
 
