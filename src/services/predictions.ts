@@ -1388,7 +1388,7 @@ export async function getHotPredictions() {
     .orderBy(desc(predictionMarkets.totalPool));
 
   const hotPredictions = await Promise.all(
-    markets.slice(0, 20).map(async (market: typeof predictionMarkets.$inferSelect) => {
+    markets.slice(0, HOT_PREDICTIONS_DISPLAY_LIMIT).map(async (market: typeof predictionMarkets.$inferSelect) => {
       const [pred] = await db
         .select()
         .from(predictions)
