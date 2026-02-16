@@ -102,12 +102,76 @@ export interface AlertStats {
 // Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Subscription Management Limits
+ */
+
+/** Maximum webhook subscriptions allowed system-wide: 100 */
 const MAX_SUBSCRIPTIONS = 100;
+
+/** Maximum delivery retry attempts before dead letter: 3 */
 const MAX_RETRIES = 3;
+
+/** Maximum webhook deliveries per subscriber per minute: 60 */
 const RATE_LIMIT_PER_MINUTE = 60;
+
+/** HTTP timeout for webhook delivery requests: 10 seconds */
 const WEBHOOK_TIMEOUT_MS = 10_000;
+
+/** Maximum recent events retained in memory: 200 */
 const MAX_RECENT_EVENTS = 200;
+
+/** Maximum dead letter queue entries: 500 */
 const MAX_DEAD_LETTER = 500;
+
+/**
+ * Retry Policy Parameters
+ */
+
+/**
+ * Exponential backoff base multiplier: 2.
+ * Formula: delay = 2^attempt × BASE_DELAY_MS + random jitter
+ * Example: attempt 1 → 2s, attempt 2 → 4s, attempt 3 → 8s
+ */
+const RETRY_BACKOFF_BASE = 2;
+
+/**
+ * Base delay for retry backoff calculation: 1000ms (1 second).
+ * Combined with RETRY_BACKOFF_BASE for exponential backoff.
+ */
+const RETRY_BASE_DELAY_MS = 1000;
+
+/**
+ * Maximum random jitter added to retry delay: 1000ms (0-1 second).
+ * Prevents thundering herd when multiple deliveries fail simultaneously.
+ */
+const RETRY_JITTER_MAX_MS = 1000;
+
+/**
+ * Auto-deactivation threshold for consecutive webhook failures: 10.
+ * Subscription is deactivated after 10 consecutive failed deliveries.
+ */
+const AUTO_DEACTIVATE_FAILURE_THRESHOLD = 10;
+
+/**
+ * Time Window Constants
+ */
+
+/**
+ * Rate limit time window in milliseconds: 60,000ms (1 minute).
+ * Used to enforce RATE_LIMIT_PER_MINUTE deliveries per subscriber.
+ */
+const RATE_LIMIT_WINDOW_MS = 60_000;
+
+/**
+ * Display Formatting Constants
+ */
+
+/**
+ * Recent events display limit for stats API: 20.
+ * Number of most recent events shown in getAlertStats() response.
+ */
+const RECENT_EVENTS_STATS_LIMIT = 20;
 
 // ---------------------------------------------------------------------------
 // State
@@ -466,7 +530,7 @@ async function deliverWebhook(
 
     // Retry with exponential backoff
     if (attempt < MAX_RETRIES) {
-      const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+      const delay = Math.pow(RETRY_BACKOFF_BASE, attempt) * RETRY_BASE_DELAY_MS + Math.random() * RETRY_JITTER_MAX_MS;
       console.warn(
         `[AlertWebhooks] Delivery failed for ${sub.id}, retrying in ${Math.round(delay)}ms (attempt ${attempt}/${MAX_RETRIES}): ${errorMsg}`,
       );
@@ -484,8 +548,8 @@ async function deliverWebhook(
     sub.failureCount++;
     sub.lastFailureAt = new Date().toISOString();
 
-    // Auto-deactivate after 10 consecutive failures
-    if (sub.failureCount >= 10) {
+    // Auto-deactivate after consecutive failures threshold
+    if (sub.failureCount >= AUTO_DEACTIVATE_FAILURE_THRESHOLD) {
       sub.active = false;
       console.error(
         `[AlertWebhooks] Auto-deactivated subscription ${sub.id} after ${sub.failureCount} failures`,
@@ -551,10 +615,10 @@ function inferSeverity(type: AlertEventType): "info" | "warning" | "critical" {
  */
 function checkRateLimit(subscriberId: string): boolean {
   const now = Date.now();
-  const oneMinuteAgo = now - 60_000;
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
 
   let timestamps = deliveryTimestamps.get(subscriberId) ?? [];
-  timestamps = timestamps.filter((t) => t > oneMinuteAgo);
+  timestamps = timestamps.filter((t) => t > windowStart);
   deliveryTimestamps.set(subscriberId, timestamps);
 
   return timestamps.length < RATE_LIMIT_PER_MINUTE;
@@ -604,7 +668,7 @@ export function getAlertStats(): AlertStats {
     failedDeliveries,
     deadLetterCount: deadLetterQueue.length,
     eventCounts: typedCounts,
-    recentEvents: recentEvents.slice(0, 20),
+    recentEvents: recentEvents.slice(0, RECENT_EVENTS_STATS_LIMIT),
   };
 }
 
