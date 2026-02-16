@@ -261,50 +261,6 @@ const DIRECTION_MIN_MOVE_PCT = 0.1;
 const DIRECTION_NEUTRAL_TOLERANCE_PCT = 0.5;
 
 /**
- * High volatility threshold for volatility predictions (percentage).
- *
- * For "bullish" volatility predictions (expecting high vol), the absolute price
- * change must exceed 2.0% to count as correct. Defines "high volatility" moves.
- *
- * @example Bullish vol: ±2.5% move → CORRECT (exceeds 2.0% threshold)
- * @example Bullish vol: ±1.8% move → INCORRECT (below 2.0% threshold)
- */
-const VOLATILITY_HIGH_THRESHOLD_PCT = 2.0;
-
-/**
- * Low volatility threshold for volatility predictions (percentage).
- *
- * For "bearish" volatility predictions (expecting low vol), the absolute price
- * change must be below 1.0% to count as correct. Defines "low volatility" range.
- *
- * @example Bearish vol: ±0.8% move → CORRECT (below 1.0% threshold)
- * @example Bearish vol: ±1.2% move → INCORRECT (exceeds 1.0% threshold)
- */
-const VOLATILITY_LOW_THRESHOLD_PCT = 1.0;
-
-/**
- * Moderate volatility lower bound (percentage).
- *
- * For "neutral" volatility predictions (moderate vol), the absolute price change
- * must be at least 0.5% to count as correct. Defines lower bound of moderate range.
- *
- * @example Neutral vol: ±0.7% move → CORRECT (≥0.5%, within moderate range)
- * @example Neutral vol: ±0.3% move → INCORRECT (below 0.5% lower bound)
- */
-const VOLATILITY_MODERATE_MIN_PCT = 0.5;
-
-/**
- * Outperform neutral tolerance (percentage).
- *
- * For "neutral" outperform predictions, the price must stay within ±1.0% to count
- * as correct. Defines acceptable range for "matched benchmark" predictions.
- *
- * @example Neutral outperform: +0.8% vs benchmark → CORRECT (within ±1.0%)
- * @example Neutral outperform: +1.5% vs benchmark → INCORRECT (exceeds ±1.0%)
- */
-const OUTPERFORM_NEUTRAL_TOLERANCE_PCT = 1.0;
-
-/**
  * Calibration Analysis Parameters
  *
  * Control how agent confidence calibration is measured against actual accuracy.
