@@ -322,6 +322,46 @@ const CONSENSUS_HIGH_CONF_LOOKBACK_MS = 2 * 60 * 60 * 1000;
  * Agent consensus recent decisions limit (per agent)
  * Fetch last N decisions per agent
  */
+
+// ===== Display Formatting Precision Constants =====
+
+/**
+ * Technical indicator display decimal precision
+ *
+ * Controls how many decimal places are shown in signal descriptions
+ * for technical indicators (RSI, volume ratios, momentum percentages).
+ *
+ * Example formatting:
+ * - RSI: 28.3 (not 28.34567)
+ * - Volume ratio: 2.5x (not 2.48932x)
+ * - Momentum: 4.7% (not 4.683%)
+ *
+ * Used in:
+ * - RSI oversold/overbought signal descriptions
+ * - Volume spike signal descriptions
+ * - Price breakout/momentum signal descriptions
+ */
+const INDICATOR_DISPLAY_PRECISION = 1;
+
+/**
+ * Percentage conversion multiplier (ratio to percentage)
+ *
+ * Converts decimal ratios (0.0-1.0) to percentage values (0-100%).
+ * Also used in Bollinger bandwidth calculations and momentum conversions.
+ *
+ * Formula: percentage = ratio * PERCENTAGE_CONVERSION_MULTIPLIER
+ *
+ * Examples:
+ * - Bollinger bandwidth: (bandWidth / middle) * 100 → 4.5%
+ * - Bollinger breakout strength: |percentB - 0.5| * 100 → 0-50 scale
+ * - Momentum percentage: (priceChange / oldPrice) * 100 → 3.2%
+ *
+ * Used in:
+ * - Bollinger Bands bandwidth calculation (line 774)
+ * - Bollinger breakout strength calculation (line 967)
+ * - Momentum threshold price calculation (line 1042)
+ */
+const PERCENTAGE_CONVERSION_MULTIPLIER = 100;
 const CONSENSUS_RECENT_DECISIONS_LIMIT = 10;
 
 /**
@@ -771,7 +811,7 @@ function calculateBollingerBands(
 
   const upper = middle + stdDevMultiplier * stdDev;
   const lower = middle - stdDevMultiplier * stdDev;
-  const bandwidth = ((upper - lower) / middle) * 100;
+  const bandwidth = ((upper - lower) / middle) * PERCENTAGE_CONVERSION_MULTIPLIER;
 
   const currentPrice = prices[prices.length - 1];
   const percentB =
@@ -869,7 +909,7 @@ function generateStockSignals(
       indicator: "RSI",
       value: indicators.rsi,
       threshold: 30,
-      description: `${symbol} RSI at ${indicators.rsi.toFixed(1)} — oversold territory. Potential bounce opportunity.`,
+      description: `${symbol} RSI at ${indicators.rsi.toFixed(INDICATOR_DISPLAY_PRECISION)} — oversold territory. Potential bounce opportunity.`,
       timeframe: "1d",
       generatedAt: now.toISOString(),
       expiresAt: expiry.toISOString(),
@@ -884,7 +924,7 @@ function generateStockSignals(
       indicator: "RSI",
       value: indicators.rsi,
       threshold: 70,
-      description: `${symbol} RSI at ${indicators.rsi.toFixed(1)} — overbought territory. Potential pullback ahead.`,
+      description: `${symbol} RSI at ${indicators.rsi.toFixed(INDICATOR_DISPLAY_PRECISION)} — overbought territory. Potential pullback ahead.`,
       timeframe: "1d",
       generatedAt: now.toISOString(),
       expiresAt: expiry.toISOString(),
@@ -964,7 +1004,7 @@ function generateStockSignals(
       strength: Math.min(
         100,
         Math.round(
-          Math.abs(indicators.bollingerBands.percentB - 0.5) * 100,
+          Math.abs(indicators.bollingerBands.percentB - 0.5) * PERCENTAGE_CONVERSION_MULTIPLIER,
         ),
       ),
       indicator: "Bollinger Bands",
@@ -995,7 +1035,7 @@ function generateStockSignals(
       indicator: "Volume",
       value: indicators.volumeProfile.current,
       threshold: indicators.volumeProfile.average * 2,
-      description: `${symbol} volume spike: ${indicators.volumeProfile.ratio.toFixed(1)}x average — increased activity.`,
+      description: `${symbol} volume spike: ${indicators.volumeProfile.ratio.toFixed(INDICATOR_DISPLAY_PRECISION)}x average — increased activity.`,
       timeframe: "1h",
       generatedAt: now.toISOString(),
       expiresAt: expiry.toISOString(),
@@ -1039,8 +1079,8 @@ function generateStockSignals(
       ),
       indicator: "Price Action",
       value: price,
-      threshold: price * (1 - indicators.momentum.shortTerm / 100),
-      description: `${symbol} ${indicators.momentum.shortTerm > 0 ? "surging" : "plunging"} ${Math.abs(indicators.momentum.shortTerm).toFixed(1)}% — strong directional move.`,
+      threshold: price * (1 - indicators.momentum.shortTerm / PERCENTAGE_CONVERSION_MULTIPLIER),
+      description: `${symbol} ${indicators.momentum.shortTerm > 0 ? "surging" : "plunging"} ${Math.abs(indicators.momentum.shortTerm).toFixed(INDICATOR_DISPLAY_PRECISION)}% — strong directional move.`,
       timeframe: "1h",
       generatedAt: now.toISOString(),
       expiresAt: expiry.toISOString(),
