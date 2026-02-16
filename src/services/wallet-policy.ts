@@ -25,6 +25,66 @@ export interface WalletPolicy {
 }
 
 // ---------------------------------------------------------------------------
+// Default Policy Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum USDC amount allowed per single trade.
+ *
+ * Controls the per-trade ceiling enforced by enforcePolicy(). Any trade exceeding
+ * this amount is rejected with "Trade size X USDC exceeds max Y USDC" error.
+ *
+ * Formula: amount <= DEFAULT_MAX_TRADE_SIZE_USDC
+ *
+ * Example: 5 USDC limit allows buying/selling up to 5 USDC worth per trade
+ *
+ * @default 5 - Conservative limit to prevent runaway losses on single trades
+ */
+const DEFAULT_MAX_TRADE_SIZE_USDC = 5;
+
+/**
+ * Maximum USDC trading volume allowed in a rolling 24-hour window.
+ *
+ * Controls the daily volume ceiling enforced by enforcePolicy(). Tracks all trades
+ * in the last 24 hours and rejects new trades if total volume would exceed this limit.
+ *
+ * Formula: sum(trades_last_24h) + current_trade <= DEFAULT_DAILY_VOLUME_LIMIT_USDC
+ *
+ * Example: 20 USDC limit allows 4 max-size trades (4 × 5 USDC) per day
+ *
+ * @default 20 - 4x maxTradeSize to allow multiple trades while preventing excessive activity
+ */
+const DEFAULT_DAILY_VOLUME_LIMIT_USDC = 20;
+
+/**
+ * Maximum USDC amount allowed per trading session/round.
+ *
+ * Controls the per-session ceiling (currently not enforced in enforcePolicy, but
+ * available for future session-based validation logic).
+ *
+ * Formula: session_volume <= DEFAULT_SESSION_LIMIT_USDC
+ *
+ * Example: 10 USDC limit allows 2 max-size trades (2 × 5 USDC) per session
+ *
+ * @default 10 - 2x maxTradeSize to allow some flexibility within a single round
+ */
+const DEFAULT_SESSION_LIMIT_USDC = 10;
+
+/**
+ * Maximum number of trades allowed in a rolling 1-hour window.
+ *
+ * Controls the hourly rate limit enforced by enforcePolicy(). Tracks trade count
+ * (not volume) in the last hour and rejects new trades if count reaches this limit.
+ *
+ * Formula: count(trades_last_hour) < DEFAULT_MAX_TRADES_PER_HOUR
+ *
+ * Example: 2 trades/hour prevents high-frequency trading and rate limit abuse
+ *
+ * @default 2 - Conservative rate limit to prevent thundering herd on Jupiter API
+ */
+const DEFAULT_MAX_TRADES_PER_HOUR = 2;
+
+// ---------------------------------------------------------------------------
 // Default Policy
 // ---------------------------------------------------------------------------
 
@@ -34,11 +94,11 @@ const DEFAULT_ALLOWED_MINTS: string[] = [
 ];
 
 export const DEFAULT_POLICY: WalletPolicy = {
-  maxTradeSize: 5,
-  dailyVolumeLimit: 20,
-  sessionLimit: 10,
+  maxTradeSize: DEFAULT_MAX_TRADE_SIZE_USDC,
+  dailyVolumeLimit: DEFAULT_DAILY_VOLUME_LIMIT_USDC,
+  sessionLimit: DEFAULT_SESSION_LIMIT_USDC,
   allowedMints: DEFAULT_ALLOWED_MINTS,
-  maxTradesPerHour: 2,
+  maxTradesPerHour: DEFAULT_MAX_TRADES_PER_HOUR,
   requireQuoteFirst: true,
   enabled: true,
 };
