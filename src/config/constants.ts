@@ -183,3 +183,52 @@ export function getStockCategory(symbol: string): StockCategory | undefined {
 export function getStockDescription(symbol: string): string | undefined {
   return STOCK_BY_SYMBOL.get(symbol)?.description;
 }
+
+// ---------------------------------------------------------------------------
+// ID Generation Constants (Shared across all services)
+// ---------------------------------------------------------------------------
+
+/**
+ * Start index for extracting random suffix from Math.random().toString(36).
+ *
+ * Math.random().toString(36) produces format "0.xxxxx", so we skip the "0."
+ * prefix by starting at index 2.
+ *
+ * @example
+ * Math.random().toString(36) → "0.a3f9z2k8m"
+ * .slice(ID_RANDOM_START, ...) → "a3f9z2k8m"
+ */
+export const ID_RANDOM_START = 2;
+
+/**
+ * Short random suffix length for ID generation (4 characters).
+ * Provides 1.7M combinations (36^4 = 1,679,616).
+ * Use for high-frequency, short-lived IDs with timestamp uniqueness.
+ *
+ * @example
+ * Format: "prefix_timestamp_xxxx"
+ * Example: "adv_1738540800000_a3f9"
+ */
+export const ID_RANDOM_LENGTH_SHORT = 4;
+
+/**
+ * Standard random suffix length for ID generation (6 characters).
+ * Provides 2.2B combinations (36^6 = 2,176,782,336).
+ * Most common length - good balance of uniqueness and compactness.
+ *
+ * @example
+ * Format: "prefix_timestamp_xxxxxx"
+ * Example: "analyst_1738540800000_a3f9z2"
+ */
+export const ID_RANDOM_LENGTH_STANDARD = 6;
+
+/**
+ * Long random suffix length for ID generation (8 characters).
+ * Provides 2.8T combinations (36^8 = 2,821,109,907,456).
+ * Use for low-frequency, long-lived IDs requiring maximum uniqueness.
+ *
+ * @example
+ * Format: "prefix_timestamp_xxxxxxxx"
+ * Example: "prov_1738540800000_a3f9z2k8"
+ */
+export const ID_RANDOM_LENGTH_LONG = 8;

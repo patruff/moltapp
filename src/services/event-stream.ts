@@ -24,6 +24,8 @@
  *   data: {"agentId":"...","symbol":"AAPL",...}\n\n
  */
 
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+
 // ---------------------------------------------------------------------------
 // Event Channel Types
 // ---------------------------------------------------------------------------

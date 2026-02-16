@@ -15,6 +15,7 @@
  */
 
 import { db } from "../db/index.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import {
   outcomeResolutions,

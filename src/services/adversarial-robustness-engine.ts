@@ -15,6 +15,7 @@
  */
 
 import { clamp, countWords, round3, countByCondition, avgOfProperty } from "../lib/math-utils.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

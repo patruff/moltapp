@@ -21,6 +21,7 @@
  * This is what separates MoltApp from toy benchmarks — we prove our results.
  */
 
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import {
   analyzeCoherence,
   detectHallucinations,

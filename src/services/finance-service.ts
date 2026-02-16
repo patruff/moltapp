@@ -17,6 +17,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import OpenAI from "openai";
 import { estimateCost, recordLlmUsage } from "./llm-cost-tracker.ts";
 import { getWalletPortfolio } from "./onchain-portfolio.ts";
@@ -109,20 +110,6 @@ const PERCENT_DECIMAL_PRECISION = 1;
  * - "analyst_1738540800000_a3f9z2"
  * - "client_1738540800123_k7m2w5"
  */
-
-/**
- * Start position for extracting random alphanumeric suffix.
- * Math.random().toString(36) produces "0.xxxxx" format, so we skip
- * the "0." prefix by starting at index 2.
- */
-const ID_RANDOM_START = 2;
-
-/**
- * Length of random alphanumeric suffix for ID generation.
- * A 6-character suffix provides ~2.2 billion combinations (36^6),
- * which is sufficient for uniqueness when combined with timestamp.
- */
-const ID_RANDOM_LENGTH = 6;
 
 /**
  * Wallet address display truncation length for console logging.
@@ -308,7 +295,7 @@ export function registerAnalyst(config: {
     throw new Error("Analyst name required");
   }
 
-  const analystId = `analyst_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH)}`;
+  const analystId = `analyst_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   const profile: AnalystProfile = {
     analystId,
@@ -348,7 +335,7 @@ export function registerClient(walletAddress: string): ClientProfile {
     }
   }
 
-  const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH)}`;
+  const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   const profile: ClientProfile = {
     clientId,
