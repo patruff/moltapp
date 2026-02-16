@@ -96,6 +96,19 @@ const UNDERCONFIDENCE_HIGH_THRESHOLD = 0.6;
 const EMPTY_ANALYSIS_DEFAULT_SCORE = 0.5;
 
 /**
+ * Calibration metric rounding precision multiplier.
+ * Rounds ECE and Brier Score to 4 decimal places (0.0001 precision).
+ * Formula: Math.round(value * 10000) / 10000
+ *
+ * Examples:
+ * - ECE 0.123456 → 0.1235 (well-calibrated, 12.35% error)
+ * - Brier Score 0.089123 → 0.0891 (low prediction error)
+ *
+ * @constant 10000 = 4 decimal places (0.0001 precision)
+ */
+const CALIBRATION_METRIC_ROUNDING_PRECISION = 10000;
+
+/**
  * Confidence gap threshold for overconfidence classification.
  * Bucket considered overconfident if avgConfidence > actualWinRate + 5%.
  */
@@ -266,7 +279,7 @@ function computeECE(buckets: CalibrationBucket[], totalSamples: number): number 
     ece += weight * bucket.gap;
   }
 
-  return Math.round(ece * 10000) / 10000;
+  return Math.round(ece * CALIBRATION_METRIC_ROUNDING_PRECISION) / CALIBRATION_METRIC_ROUNDING_PRECISION;
 }
 
 /**
@@ -283,7 +296,7 @@ function computeBrierScore(samples: CalibrationSample[]): number {
     sum += (s.confidence - outcome) ** 2;
   }
 
-  return Math.round((sum / samples.length) * 10000) / 10000;
+  return Math.round((sum / samples.length) * CALIBRATION_METRIC_ROUNDING_PRECISION) / CALIBRATION_METRIC_ROUNDING_PRECISION;
 }
 
 /**
@@ -438,8 +451,8 @@ export function getCalibrationSummary(): {
   return {
     agentCount: reports.length,
     totalSamples,
-    avgECE: Math.round(avgECE * 10000) / 10000,
-    avgBrierScore: Math.round(avgBrierScore * 10000) / 10000,
+    avgECE: Math.round(avgECE * CALIBRATION_METRIC_ROUNDING_PRECISION) / CALIBRATION_METRIC_ROUNDING_PRECISION,
+    avgBrierScore: Math.round(avgBrierScore * CALIBRATION_METRIC_ROUNDING_PRECISION) / CALIBRATION_METRIC_ROUNDING_PRECISION,
     bestCalibrated,
     worstCalibrated,
   };
