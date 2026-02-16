@@ -218,6 +218,19 @@ const ACTIVITY_ELEVATED_MAX = 10;
  */
 const FLOW_STRENGTH_MULTIPLIER = 1.2;
 
+/**
+ * Time Conversion Constants
+ *
+ * Standardized time unit conversions for timestamp calculations.
+ */
+
+/**
+ * Milliseconds per hour for time window calculations.
+ * Formula: hours × MS_PER_HOUR = milliseconds
+ * Example: 24 hours × 3,600,000 = 86,400,000ms (1 day)
+ */
+const MS_PER_HOUR = 60 * 60 * 1000; // 3,600,000 milliseconds
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -363,7 +376,7 @@ const SECTOR_MAP: Record<string, string> = {
  * Scan recent agent decisions for whale-level moves and generate alerts.
  */
 export async function getWhaleAlerts(hours = WHALE_ALERTS_DEFAULT_HOURS): Promise<WhaleActivity> {
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const since = new Date(Date.now() - hours * MS_PER_HOUR);
 
   // Get all recent decisions
   const decisions = await db
@@ -822,7 +835,7 @@ export async function getPositionHeatmap(): Promise<PositionHeatmap> {
  * Analyze net flows of "smart money" (agent capital) into/out of stocks.
  */
 export async function getSmartMoneyFlow(hours = SMART_MONEY_FLOW_DEFAULT_HOURS): Promise<SmartMoneyFlow> {
-  const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+  const since = new Date(Date.now() - hours * MS_PER_HOUR);
 
   const decisions = await db
     .select()
