@@ -123,6 +123,128 @@ const VAR_PERCENTILE_THRESHOLD = 0.05;
 /** Minimum style score for primary style classification: 40 */
 const STYLE_PRIMARY_MIN_SCORE = 40;
 
+/**
+ * Pseudo-Random Number Generator Constants (LCG Algorithm)
+ */
+
+/**
+ * LCG multiplier for seeded PRNG (Linear Congruential Generator).
+ * Standard multiplier from Numerical Recipes: 1664525
+ */
+const LCG_MULTIPLIER = 1664525;
+
+/**
+ * LCG increment for seeded PRNG.
+ * Standard increment from Numerical Recipes: 1013904223
+ */
+const LCG_INCREMENT = 1013904223;
+
+/**
+ * LCG modulus for seeded PRNG.
+ * Uses 2^32 for 32-bit integer wrapping: 4294967296
+ */
+const LCG_MODULUS = 4294967296;
+
+/**
+ * Date String Formatting Constants
+ */
+
+/**
+ * Date slice length for YYYY-MM-DD format: first 10 characters of ISO string.
+ * Example: "2024-01-15T10:30:00.000Z" → "2024-01-15"
+ */
+const DATE_SLICE_DAILY_LENGTH = 10;
+
+/**
+ * Date slice length for YYYY-MM format: first 7 characters of ISO string.
+ * Example: "2024-01-15T10:30:00.000Z" → "2024-01"
+ */
+const DATE_SLICE_MONTHLY_LENGTH = 7;
+
+/**
+ * Numeric Display Formatting Constants
+ */
+
+/**
+ * Basis point display precision multiplier: 10,000 = 100 × 100.
+ * Formula: Math.round(value × 10000) / 100 = percentage with 2 decimals.
+ * Example: 0.1234 → Math.round(0.1234 × 10000) / 100 = 1234 / 100 = 12.34%
+ */
+const BASIS_POINT_PERCENT_MULTIPLIER = 10000;
+
+/**
+ * Basis point precision divisor for percentage conversion: 100.
+ * Used with BASIS_POINT_PERCENT_MULTIPLIER to convert decimals to percentages.
+ */
+const PERCENT_DIVISOR = 100;
+
+/**
+ * Basis point display precision for raw decimal values: 10,000.
+ * Formula: Math.round(value × 10000) / 10000 = 4 decimal places.
+ * Example: 0.12345678 → Math.round(0.12345678 × 10000) / 10000 = 0.1235
+ */
+const BASIS_POINT_RAW_MULTIPLIER = 10000;
+
+/**
+ * Single decimal place precision multiplier: 10.
+ * Formula: Math.round(value × 10) / 10 = 1 decimal place.
+ * Example: 12.456 → Math.round(12.456 × 10) / 10 = 12.5
+ */
+const SINGLE_DECIMAL_MULTIPLIER = 10;
+
+/**
+ * Trading Style Scoring Multipliers
+ */
+
+/**
+ * Contrarian score multiplier: 200.
+ * Formula: (contrarianSignals / totalActions) × 200 = contrarian score (0-100).
+ * Higher multiplier emphasizes contrarian behavior (high-conf sells + low-conf buys).
+ */
+const CONTRARIAN_SCORE_MULTIPLIER = 200;
+
+/**
+ * Momentum score multiplier: 150.
+ * Formula: (highConfBuys / totalActions) × 150 = momentum score (0-100).
+ * Caps at 100 to prevent overshooting for pure momentum chasers.
+ */
+const MOMENTUM_SCORE_MULTIPLIER = 150;
+
+/**
+ * Value score inverse frequency multiplier: 10.
+ * Formula: holdRatio × 100 + (1 / avgDecisionsPerDay) × 10 = value score.
+ * Rewards lower trading frequency (patient value investors).
+ */
+const VALUE_FREQUENCY_MULTIPLIER = 10;
+
+/**
+ * Risk appetite frequency multiplier: 10.
+ * Formula: avgDecisionsPerDay × 10 + ... = risk appetite score.
+ * Higher frequency indicates more aggressive risk-taking.
+ */
+const RISK_FREQUENCY_MULTIPLIER = 10;
+
+/**
+ * Risk appetite quantity multiplier: 0.01.
+ * Formula: ... + avgQuantity × 0.01 + ... = risk appetite score.
+ * Larger position sizes indicate higher risk tolerance.
+ */
+const RISK_QUANTITY_MULTIPLIER = 0.01;
+
+/**
+ * Risk appetite activity multiplier: 50.
+ * Formula: ... + (1 - holdRatio) × 50 = risk appetite score.
+ * More action (fewer holds) indicates higher risk appetite.
+ */
+const RISK_ACTIVITY_MULTIPLIER = 50;
+
+/**
+ * Diversification score multiplier: 100.
+ * Formula: (uniqueSymbols / totalStocks) × 100 = diversification score.
+ * Score of 100 means trading all available symbols (maximum diversification).
+ */
+const DIVERSIFICATION_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -325,8 +447,8 @@ function generateHistoricalPrices(
 
   // Seeded PRNG (simple LCG)
   const nextRandom = (): number => {
-    seed = (seed * 1664525 + 1013904223) | 0;
-    return ((seed >>> 0) / 4294967296);
+    seed = (seed * LCG_MULTIPLIER + LCG_INCREMENT) | 0;
+    return ((seed >>> 0) / LCG_MODULUS);
   };
 
   // Box-Muller transform for normal distribution
@@ -343,7 +465,7 @@ function generateHistoricalPrices(
     // Skip weekends (Saturday=6, Sunday=0)
     const dayOfWeek = current.getDay();
     if (dayOfWeek !== WEEKEND_SUNDAY && dayOfWeek !== WEEKEND_SATURDAY) {
-      const dateKey = current.toISOString().slice(0, 10);
+      const dateKey = current.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
       prices.set(dateKey, round2(currentPrice));
 
       // Geometric Brownian Motion step
@@ -450,7 +572,7 @@ export async function runBacktest(params: {
   // Build a lookup of decisions by date
   const decisionsByDate = new Map<string, typeof decisions>();
   for (const decision of decisions) {
-    const dateKey = decision.createdAt.toISOString().slice(0, 10);
+    const dateKey = decision.createdAt.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
     const existing = decisionsByDate.get(dateKey) ?? [];
     existing.push(decision);
     decisionsByDate.set(dateKey, existing);
@@ -635,8 +757,8 @@ export async function getBacktestComparison(): Promise<BacktestComparison> {
   // Default to last 90 days
   const end = new Date();
   const start = new Date(end.getTime() - DEFAULT_BACKTEST_DAYS * MS_PER_DAY);
-  const startDate = start.toISOString().slice(0, 10);
-  const endDate = end.toISOString().slice(0, 10);
+  const startDate = start.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
+  const endDate = end.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
   const initialCapital = DEFAULT_INITIAL_CAPITAL;
 
   const results: BacktestResult[] = [];
@@ -738,8 +860,8 @@ export async function generateEquityCurve(
   try {
     const result = await runBacktest({
       agentId,
-      startDate: start.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: start.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH),
+      endDate: end.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH),
       initialCapital,
     });
 
@@ -824,7 +946,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   const sectorPreferences = Array.from(sectorCounts.entries())
     .map(([sector, count]) => ({
       sector,
-      weight: Math.round((count / totalActions) * 10000) / 100,
+      weight: Math.round((count / totalActions) * BASIS_POINT_PERCENT_MULTIPLIER) / PERCENT_DIVISOR,
       tradeCount: count,
     }))
     .sort((a, b) => b.tradeCount - a.tradeCount);
@@ -842,7 +964,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
     .map(([hour, data]) => ({
       hour,
       count: data.count,
-      avgConfidence: Math.round((data.totalConf / data.count) * 10) / 10,
+      avgConfidence: Math.round((data.totalConf / data.count) * SINGLE_DECIMAL_MULTIPLIER) / SINGLE_DECIMAL_MULTIPLIER,
     }))
     .sort((a, b) => a.hour - b.hour);
 
@@ -852,29 +974,29 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
   const highConfSells = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "sell" && d.confidence >= STYLE_CONTRARIAN_SELL_THRESHOLD);
   const lowConfBuys = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "buy" && d.confidence < STYLE_CONTRARIAN_BUY_THRESHOLD);
   const contrarianSignals = highConfSells + lowConfBuys;
-  const contrarianScore = Math.min(100, Math.round((contrarianSignals / Math.max(1, actionDecisions.length)) * 200));
+  const contrarianScore = Math.min(100, Math.round((contrarianSignals / Math.max(1, actionDecisions.length)) * CONTRARIAN_SCORE_MULTIPLIER));
 
   // Momentum score: high conviction buys dominating = momentum chasing
   const highConfBuys = countByCondition(decisions, (d: typeof decisions[0]) => d.action === "buy" && d.confidence >= STYLE_MOMENTUM_BUY_THRESHOLD);
-  const momentumScore = Math.min(100, Math.round((highConfBuys / Math.max(1, actionDecisions.length)) * 150));
+  const momentumScore = Math.min(100, Math.round((highConfBuys / Math.max(1, actionDecisions.length)) * MOMENTUM_SCORE_MULTIPLIER));
 
   // Value score: holds + lower frequency + diversification
   const holdRatio = holds / Math.max(1, decisions.length);
-  const valueScore = Math.min(100, Math.round(holdRatio * 100 + (1 / Math.max(0.1, avgDecisionsPerDay)) * 10));
+  const valueScore = Math.min(100, Math.round(holdRatio * DIVERSIFICATION_MULTIPLIER + (1 / Math.max(0.1, avgDecisionsPerDay)) * VALUE_FREQUENCY_MULTIPLIER));
 
   // Risk appetite: large position sizes, concentrated bets, high frequency
   const quantities = actionDecisions.map((d: typeof decisions[0]) => parseFloat(d.quantity) || 0);
   const avgQuantity = calculateAverage(quantities);
   const riskAppetiteScore = Math.min(100, Math.round(
-    avgDecisionsPerDay * 10 +
-    avgQuantity * 0.01 +
-    (1 - holdRatio) * 50,
+    avgDecisionsPerDay * RISK_FREQUENCY_MULTIPLIER +
+    avgQuantity * RISK_QUANTITY_MULTIPLIER +
+    (1 - holdRatio) * RISK_ACTIVITY_MULTIPLIER,
   ));
 
   // Diversification: unique symbols / total action decisions
   const uniqueSymbols = new Set(actionDecisions.map((d: typeof decisions[0]) => d.symbol));
   const diversificationScore = Math.min(100, Math.round(
-    (uniqueSymbols.size / Math.max(1, XSTOCKS_CATALOG.length)) * 100,
+    (uniqueSymbols.size / Math.max(1, XSTOCKS_CATALOG.length)) * DIVERSIFICATION_MULTIPLIER,
   ));
 
   // Determine overall style label
@@ -949,8 +1071,8 @@ export async function getHistoricalPerformance(
       startDate = new Date(now.getTime() - 30 * MS_PER_DAY);
   }
 
-  const startStr = startDate.toISOString().slice(0, 10);
-  const endStr = now.toISOString().slice(0, 10);
+  const startStr = startDate.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
+  const endStr = now.toISOString().slice(0, DATE_SLICE_DAILY_LENGTH);
 
   try {
     const result = await runBacktest({
@@ -1011,7 +1133,7 @@ function computeBacktestMetrics(
 
   // Win rate
   const winRate = realizedTrades.length > 0
-    ? Math.round((winningTrades / realizedTrades.length) * 10000) / 100
+    ? Math.round((winningTrades / realizedTrades.length) * BASIS_POINT_PERCENT_MULTIPLIER) / PERCENT_DIVISOR
     : 0;
 
   // Average win/loss amounts
@@ -1055,7 +1177,7 @@ function computeBacktestMetrics(
     }
   }
   const avgHoldingPeriod = holdingCount > 0
-    ? Math.round((totalHoldingDays / holdingCount) * 10) / 10
+    ? Math.round((totalHoldingDays / holdingCount) * SINGLE_DECIMAL_MULTIPLIER) / SINGLE_DECIMAL_MULTIPLIER
     : 0;
 
   // Daily return statistics
@@ -1093,7 +1215,7 @@ function computeBacktestMetrics(
     const dd = peak - cumulative;
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
-  const maxDrawdownPercent = Math.round(maxDrawdown * 10000) / 100;
+  const maxDrawdownPercent = Math.round(maxDrawdown * BASIS_POINT_PERCENT_MULTIPLIER) / PERCENT_DIVISOR;
 
   // Calmar ratio
   const calmarRatio = maxDrawdownPercent > 0
@@ -1102,9 +1224,9 @@ function computeBacktestMetrics(
 
   // Value at Risk (95th percentile)
   const sortedReturns = [...dailyReturns].sort((a, b) => a - b);
-  const varIndex = Math.floor(dailyReturns.length * 0.05);
+  const varIndex = Math.floor(dailyReturns.length * VAR_PERCENTILE_THRESHOLD);
   const valueAtRisk95 = sortedReturns[varIndex] !== undefined
-    ? Math.round(Math.abs(sortedReturns[varIndex]) * 10000) / 100
+    ? Math.round(Math.abs(sortedReturns[varIndex]) * BASIS_POINT_PERCENT_MULTIPLIER) / PERCENT_DIVISOR
     : 0;
 
   return {
@@ -1140,7 +1262,7 @@ function computeMonthlyReturns(
   const monthMap = new Map<string, { startEquity: number; endEquity: number; trades: number }>();
 
   for (const point of equityCurve) {
-    const monthKey = point.date.slice(0, 7); // YYYY-MM
+    const monthKey = point.date.slice(0, DATE_SLICE_MONTHLY_LENGTH); // YYYY-MM
     const entry = monthMap.get(monthKey);
     if (!entry) {
       monthMap.set(monthKey, { startEquity: point.equity, endEquity: point.equity, trades: 0 });
@@ -1151,7 +1273,7 @@ function computeMonthlyReturns(
 
   // Count trades per month
   for (const trade of tradeLog) {
-    const monthKey = trade.date.slice(0, 7);
+    const monthKey = trade.date.slice(0, DATE_SLICE_MONTHLY_LENGTH);
     const entry = monthMap.get(monthKey);
     if (entry) {
       entry.trades++;
