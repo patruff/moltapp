@@ -82,6 +82,91 @@ export interface LifecycleMetrics {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Database Health Check Parameters
+ *
+ * Controls timeout and latency thresholds for database dependency checks.
+ */
+
+/** Maximum time to wait for database health check before considering it failed (5 seconds) */
+const DB_CHECK_TIMEOUT_MS = 5000;
+
+/**
+ * Database latency threshold for "degraded" status.
+ * Queries slower than this are marked degraded but still functional.
+ * (2 seconds = typical slow query threshold for Neon PostgreSQL)
+ */
+const DB_LATENCY_DEGRADED_THRESHOLD_MS = 2000;
+
+/**
+ * Solana RPC Health Check Parameters
+ *
+ * Controls timeout and latency thresholds for Solana RPC dependency checks.
+ */
+
+/** Maximum time to wait for Solana RPC health check before considering it failed (5 seconds) */
+const SOLANA_RPC_CHECK_TIMEOUT_MS = 5000;
+
+/**
+ * Solana RPC latency threshold for "degraded" status.
+ * RPC calls slower than this are marked degraded but still functional.
+ * (3 seconds = slower than typical 1-2s mainnet-beta RPC response time)
+ */
+const SOLANA_LATENCY_DEGRADED_THRESHOLD_MS = 3000;
+
+/**
+ * Jupiter API Health Check Parameters
+ *
+ * Controls timeout and latency thresholds for Jupiter API dependency checks.
+ */
+
+/** Maximum time to wait for Jupiter API health check before considering it failed (5 seconds) */
+const JUPITER_CHECK_TIMEOUT_MS = 5000;
+
+/**
+ * Jupiter API latency threshold for "degraded" status.
+ * API calls slower than this are marked degraded but still functional.
+ * (3 seconds = slower than typical 1-2s Jupiter price fetch)
+ */
+const JUPITER_LATENCY_DEGRADED_THRESHOLD_MS = 3000;
+
+/**
+ * Graceful Shutdown Parameters
+ *
+ * Controls shutdown timing and coordination.
+ */
+
+/**
+ * Maximum time to wait for in-flight requests to complete during shutdown.
+ * After this timeout, shutdown proceeds even if requests are still pending.
+ * (30 seconds = allows most trading rounds to complete gracefully)
+ */
+const SHUTDOWN_DRAIN_TIMEOUT_MS = 30_000;
+
+/**
+ * Maximum time to wait for each shutdown hook to complete.
+ * Hooks exceeding this timeout are terminated to prevent hung shutdown.
+ * (10 seconds = allows database close, webhook flush, etc.)
+ */
+const SHUTDOWN_HOOK_TIMEOUT_MS = 10_000;
+
+/**
+ * Memory Usage Threshold
+ *
+ * Controls when high memory usage triggers "degraded" health status.
+ */
+
+/**
+ * Heap memory usage percentage threshold for "degraded" status.
+ * When heapUsed/heapTotal exceeds this, system is marked degraded.
+ * (90% = approaching V8 heap limit, GC pressure likely)
+ */
+const MEMORY_USAGE_DEGRADED_THRESHOLD_PERCENT = 90;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -199,7 +284,7 @@ export async function deepHealthCheck(): Promise<DeepHealthResult> {
   // Determine overall status
   const hasUnhealthy = dependencies.some((d) => d.status === "unhealthy");
   const hasDegraded = dependencies.some((d) => d.status === "degraded");
-  const isHighMemory = usagePercent > 90;
+  const isHighMemory = usagePercent > MEMORY_USAGE_DEGRADED_THRESHOLD_PERCENT;
 
   let status: "healthy" | "degraded" | "unhealthy";
   if (hasUnhealthy) {
@@ -277,14 +362,23 @@ async function checkDatabase(): Promise<DependencyHealth> {
     const result = await Promise.race([
       db.execute(sql`SELECT 1 as health_check`),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Database timeout (5s)")), 5000),
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Database timeout (${DB_CHECK_TIMEOUT_MS / 1000}s)`,
+              ),
+            ),
+          DB_CHECK_TIMEOUT_MS,
+        ),
       ),
     ]);
     const latencyMs = Date.now() - start;
 
     return {
       name: "database",
-      status: latencyMs > 2000 ? "degraded" : "healthy",
+      status:
+        latencyMs > DB_LATENCY_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
       latencyMs,
       details: {
         type: "postgresql",
@@ -315,7 +409,7 @@ async function checkSolanaRpc(): Promise<DependencyHealth> {
         id: 1,
         method: "getHealth",
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(SOLANA_RPC_CHECK_TIMEOUT_MS),
     });
 
     const latencyMs = Date.now() - start;
@@ -337,7 +431,10 @@ async function checkSolanaRpc(): Promise<DependencyHealth> {
     if (data.result === "ok") {
       return {
         name: "solana_rpc",
-        status: latencyMs > 3000 ? "degraded" : "healthy",
+        status:
+          latencyMs > SOLANA_LATENCY_DEGRADED_THRESHOLD_MS
+            ? "degraded"
+            : "healthy",
         latencyMs,
         details: {
           endpoint: rpcUrl.replace(/api-key=[^&]+/, "api-key=***"),
@@ -376,7 +473,7 @@ async function checkJupiterApi(): Promise<DependencyHealth> {
       `${JUPITER_API_BASE_URL}/price/v3?ids=So11111111111111111111111111111111111111112`,
       {
         headers,
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(JUPITER_CHECK_TIMEOUT_MS),
       },
     );
 
@@ -393,7 +490,10 @@ async function checkJupiterApi(): Promise<DependencyHealth> {
 
     return {
       name: "jupiter_api",
-      status: latencyMs > 3000 ? "degraded" : "healthy",
+      status:
+        latencyMs > JUPITER_LATENCY_DEGRADED_THRESHOLD_MS
+          ? "degraded"
+          : "healthy",
       latencyMs,
       details: {
         endpoint: JUPITER_API_BASE_URL,
@@ -437,11 +537,13 @@ export async function gracefulShutdown(signal: string): Promise<void> {
     `[Lifecycle] ${inFlightRequests} in-flight requests, ${shutdownHooks.length} hooks to run`,
   );
 
-  // Step 1: Wait for in-flight requests to drain (max 30 seconds)
-  const drainTimeoutMs = 30_000;
+  // Step 1: Wait for in-flight requests to drain
   const drainStart = Date.now();
 
-  while (inFlightRequests > 0 && Date.now() - drainStart < drainTimeoutMs) {
+  while (
+    inFlightRequests > 0 &&
+    Date.now() - drainStart < SHUTDOWN_DRAIN_TIMEOUT_MS
+  ) {
     console.log(
       `[Lifecycle] Waiting for ${inFlightRequests} in-flight requests to complete...`,
     );
@@ -466,8 +568,13 @@ export async function gracefulShutdown(signal: string): Promise<void> {
         hook(),
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Shutdown hook "${name}" timed out (10s)`)),
-            10_000,
+            () =>
+              reject(
+                new Error(
+                  `Shutdown hook "${name}" timed out (${SHUTDOWN_HOOK_TIMEOUT_MS / 1000}s)`,
+                ),
+              ),
+            SHUTDOWN_HOOK_TIMEOUT_MS,
           ),
         ),
       ]);
