@@ -105,6 +105,70 @@ const DEFAULT_SHARPE_RETURN_ESTIMATE = 0.10; // 10% return assumption for pre-re
  */
 const MAX_DRAWDOWN_VOLATILITY_MULTIPLIER = 2.5; // Max drawdown ≈ 2.5× volatility
 
+/**
+ * Display Formatting Precision Constants
+ * Controls decimal precision for portfolio metrics displayed in marketplace UI,
+ * agent dashboards, and optimization reports.
+ */
+
+/**
+ * Decimal precision for Kelly leverage interpretation messages.
+ * Example: "2.45" instead of "2.4523456789"
+ * Used in: getKellyCriterion() interpretation text for aggregate Kelly display
+ */
+const KELLY_INTERPRETATION_DECIMAL_PRECISION = 2;
+
+/**
+ * Decimal precision for rebalancing drift score display.
+ * Example: "15.3%" instead of "15.34567%"
+ * Used in: getRebalanceRecommendations() summary text showing drift percentage
+ */
+const REBALANCE_DRIFT_DISPLAY_PRECISION = 1;
+
+/**
+ * Decimal precision for portfolio weight percentage display.
+ * Example: "12.5%" instead of "12.53%"
+ * Used in: Rebalancing trade reason messages showing current/recommended weights
+ */
+const WEIGHT_PERCENT_DISPLAY_PRECISION = 1;
+
+/**
+ * Decimal precision for transaction cost display.
+ * Example: "$1234.56" instead of "$1234.5632"
+ * Used in: Rebalancing summary showing estimated turnover costs
+ */
+const TRANSACTION_COST_DISPLAY_PRECISION = 2;
+
+/**
+ * Portfolio Calculation Constants
+ * Magic numbers used in portfolio optimization formulas and scoring.
+ */
+
+/**
+ * Inverse-variance scaling factor for efficient frontier calculation.
+ * Scales inverse-variance weight component to balance with return-based weights.
+ * Formula: score = (1 - riskTolerance) * invVar * INVERSE_VARIANCE_SCALE_FACTOR + ...
+ * Used in: getEfficientFrontier() to blend min-variance and max-return strategies
+ */
+const INVERSE_VARIANCE_SCALE_FACTOR = 0.1;
+
+/**
+ * Portfolio value denominator for trade quantity calculations.
+ * Assumes $10,000 portfolio when converting weight deltas to share quantities.
+ * Formula: quantity = abs(delta) * PORTFOLIO_VALUE_DENOMINATOR / price
+ * Used in: getRebalanceRecommendations() to estimate rebalancing trade sizes
+ */
+const PORTFOLIO_VALUE_DENOMINATOR = 10000;
+
+/**
+ * Risk parity score variance scaling factor.
+ * Converts risk contribution variance to 0-100 score scale.
+ * Formula: riskParityScore = 100 - riskVariance * RISK_PARITY_VARIANCE_MULTIPLIER
+ * Higher variance = lower score. 50000 multiplier ensures typical variances (0.0001-0.002) map to 95-0 range.
+ * Used in: getRiskParityPortfolio() to compute risk concentration score
+ */
+const RISK_PARITY_VARIANCE_MULTIPLIER = 50000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -622,7 +686,7 @@ export async function getEfficientFrontier(): Promise<EfficientFrontier> {
       const retScore = ret - riskFreeRate;
 
       // Blend: at riskTolerance=0, pure inverse-variance; at 1, pure return-based
-      const score = (1 - riskTolerance) * invVar * 0.1 + riskTolerance * Math.max(0, retScore);
+      const score = (1 - riskTolerance) * invVar * INVERSE_VARIANCE_SCALE_FACTOR + riskTolerance * Math.max(0, retScore);
       return { symbol: sym, score, ret, vol };
     });
 
@@ -845,13 +909,13 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
 
   let interpretation: string;
   if (overallLeverage > KELLY_LEVERAGE_HIGH_THRESHOLD) {
-    interpretation = `High aggregate Kelly (${overallLeverage.toFixed(2)}) suggests ${config.name} has edge across many symbols. Use half-Kelly for safety.`;
+    interpretation = `High aggregate Kelly (${overallLeverage.toFixed(KELLY_INTERPRETATION_DECIMAL_PRECISION)}) suggests ${config.name} has edge across many symbols. Use half-Kelly for safety.`;
   } else if (overallLeverage > KELLY_LEVERAGE_MODERATE_THRESHOLD) {
-    interpretation = `Moderate aggregate Kelly (${overallLeverage.toFixed(2)}). ${config.name} has positive expectancy. Consider quarter-Kelly for conservative sizing.`;
+    interpretation = `Moderate aggregate Kelly (${overallLeverage.toFixed(KELLY_INTERPRETATION_DECIMAL_PRECISION)}). ${config.name} has positive expectancy. Consider quarter-Kelly for conservative sizing.`;
   } else if (overallLeverage > KELLY_LEVERAGE_MODEST_THRESHOLD) {
-    interpretation = `Modest aggregate Kelly (${overallLeverage.toFixed(2)}). ${config.name} has slim edge. Small position sizes recommended.`;
+    interpretation = `Modest aggregate Kelly (${overallLeverage.toFixed(KELLY_INTERPRETATION_DECIMAL_PRECISION)}). ${config.name} has slim edge. Small position sizes recommended.`;
   } else {
-    interpretation = `Low aggregate Kelly (${overallLeverage.toFixed(2)}). Limited edge detected for ${config.name}. Focus on highest-conviction plays only.`;
+    interpretation = `Low aggregate Kelly (${overallLeverage.toFixed(KELLY_INTERPRETATION_DECIMAL_PRECISION)}). Limited edge detected for ${config.name}. Focus on highest-conviction plays only.`;
   }
 
   return {
@@ -911,7 +975,7 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
   // Risk parity score: 100 = perfect parity, lower = more concentrated risk
   const avgRisk = totalRisk / allocations.length;
   const riskVariance = computeVariance(riskContribs, true); // population variance
-  const riskParityScore = Math.max(0, Math.min(100, Math.round(100 - riskVariance * 50000)));
+  const riskParityScore = Math.max(0, Math.min(100, Math.round(100 - riskVariance * RISK_PARITY_VARIANCE_MULTIPLIER)));
 
   return {
     allocations,
@@ -963,7 +1027,7 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
         (m) => m.symbol.toLowerCase() === d.symbol.toLowerCase(),
       );
       const price = market?.price ?? 100;
-      const quantity = Math.abs(d.delta) * 10000 / price; // Proportional to $10k portfolio
+      const quantity = Math.abs(d.delta) * PORTFOLIO_VALUE_DENOMINATOR / price; // Proportional to $10k portfolio
       const estimatedCost = quantity * price;
 
       return {
@@ -975,7 +1039,7 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
           ? `New position: add ${d.symbol} at ${d.recommendedWeight * 100}% weight`
           : d.action === "exit"
             ? `Exit position: sell all ${d.symbol}`
-            : `Rebalance: ${d.action} ${d.symbol} weight from ${(d.currentWeight * 100).toFixed(1)}% to ${(d.recommendedWeight * 100).toFixed(1)}%`,
+            : `Rebalance: ${d.action} ${d.symbol} weight from ${(d.currentWeight * 100).toFixed(WEIGHT_PERCENT_DISPLAY_PRECISION)}% to ${(d.recommendedWeight * 100).toFixed(WEIGHT_PERCENT_DISPLAY_PRECISION)}%`,
       };
     });
 
@@ -1007,7 +1071,7 @@ export async function getRebalanceRecommendations(agentId: string): Promise<Reba
     },
     summary: urgency === "none"
       ? `${config.name}'s portfolio is well-balanced. No rebalancing needed.`
-      : `${config.name}'s portfolio has drifted ${(driftScore * 100).toFixed(1)}% from optimal. ${trades.length} trade(s) recommended with estimated turnover of $${estimatedTurnover.toFixed(2)}.`,
+      : `${config.name}'s portfolio has drifted ${(driftScore * 100).toFixed(REBALANCE_DRIFT_DISPLAY_PRECISION)}% from optimal. ${trades.length} trade(s) recommended with estimated turnover of $${estimatedTurnover.toFixed(TRANSACTION_COST_DISPLAY_PRECISION)}.`,
   };
 }
 
