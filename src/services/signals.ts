@@ -249,6 +249,14 @@ const SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER = 25;
 const SIGNAL_BOLLINGER_BREAKOUT_DIVISOR = 0.5;
 
 /**
+ * MACD rounding precision (4 decimal places)
+ * Precision multiplier: 10000 = 4 decimal places
+ * Example: Math.round(value * 10000) / 10000 → 0.1234
+ * Used for MACD line, signal line, and histogram display formatting
+ */
+const MACD_ROUNDING_PRECISION = 10000;
+
+/**
  * Volume spike strength multiplier
  * strength = ratio * multiplier
  */
@@ -725,9 +733,9 @@ function calculateMACD(prices: number[]): MACDData {
   }
 
   return {
-    macdLine: Math.round(macdLine * 10000) / 10000,
-    signalLine: Math.round(signalLine * 10000) / 10000,
-    histogram: Math.round(histogram * 10000) / 10000,
+    macdLine: Math.round(macdLine * MACD_ROUNDING_PRECISION) / MACD_ROUNDING_PRECISION,
+    signalLine: Math.round(signalLine * MACD_ROUNDING_PRECISION) / MACD_ROUNDING_PRECISION,
+    histogram: Math.round(histogram * MACD_ROUNDING_PRECISION) / MACD_ROUNDING_PRECISION,
     crossover,
   };
 }
@@ -857,7 +865,7 @@ function generateStockSignals(
       symbol,
       type: "rsi_oversold",
       direction: "bullish",
-      strength: Math.min(100, Math.round((30 - indicators.rsi) * 3)),
+      strength: Math.min(100, Math.round((30 - indicators.rsi) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
       indicator: "RSI",
       value: indicators.rsi,
       threshold: 30,
@@ -872,7 +880,7 @@ function generateStockSignals(
       symbol,
       type: "rsi_overbought",
       direction: "bearish",
-      strength: Math.min(100, Math.round((indicators.rsi - 70) * 3)),
+      strength: Math.min(100, Math.round((indicators.rsi - 70) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
       indicator: "RSI",
       value: indicators.rsi,
       threshold: 70,
@@ -892,7 +900,7 @@ function generateStockSignals(
       direction: "bullish",
       strength: Math.min(
         100,
-        Math.round(Math.abs(indicators.macd.histogram) * 500),
+        Math.round(Math.abs(indicators.macd.histogram) * SIGNAL_MACD_STRENGTH_MULTIPLIER),
       ),
       indicator: "MACD",
       value: indicators.macd.macdLine,
@@ -910,7 +918,7 @@ function generateStockSignals(
       direction: "bearish",
       strength: Math.min(
         100,
-        Math.round(Math.abs(indicators.macd.histogram) * 500),
+        Math.round(Math.abs(indicators.macd.histogram) * SIGNAL_MACD_STRENGTH_MULTIPLIER),
       ),
       indicator: "MACD",
       value: indicators.macd.macdLine,
@@ -931,7 +939,7 @@ function generateStockSignals(
       direction: "neutral",
       strength: Math.min(
         100,
-        Math.round((4 - indicators.bollingerBands.bandwidth) * 25),
+        Math.round((4 - indicators.bollingerBands.bandwidth) * SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER),
       ),
       indicator: "Bollinger Bands",
       value: indicators.bollingerBands.bandwidth,
@@ -982,7 +990,7 @@ function generateStockSignals(
         indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
         100,
-        Math.round(indicators.volumeProfile.ratio * 25),
+        Math.round(indicators.volumeProfile.ratio * SIGNAL_VOLUME_STRENGTH_MULTIPLIER),
       ),
       indicator: "Volume",
       value: indicators.volumeProfile.current,
@@ -1006,7 +1014,7 @@ function generateStockSignals(
       direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
         100,
-        Math.round(Math.abs(indicators.momentum.acceleration) * 10),
+        Math.round(Math.abs(indicators.momentum.acceleration) * SIGNAL_MOMENTUM_STRENGTH_MULTIPLIER),
       ),
       indicator: "Momentum",
       value: indicators.momentum.shortTerm,
@@ -1027,7 +1035,7 @@ function generateStockSignals(
       direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
         100,
-        Math.round(Math.abs(indicators.momentum.shortTerm) * 10),
+        Math.round(Math.abs(indicators.momentum.shortTerm) * SIGNAL_BREAKOUT_STRENGTH_MULTIPLIER),
       ),
       indicator: "Price Action",
       value: price,
