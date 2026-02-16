@@ -47,6 +47,32 @@ const DEFAULT_CONFIG: CircuitBreakerConfig = {
   maxDailyTrades: 6,       // 6 trades per agent per daily session
 };
 
+/**
+ * Activation Log Capacity & Rounding Constants
+ *
+ * Control activation log size limits and position/cash rounding precision.
+ */
+
+/**
+ * Maximum number of activation log entries to keep in memory.
+ * Oldest entries are removed when this limit is exceeded.
+ */
+const MAX_ACTIVATION_LOG_SIZE = 1000;
+
+/**
+ * Minimum cash balance required to allow buy trades ($1 threshold).
+ * Trades are blocked if cash balance <= this amount.
+ * Example: $0.50 balance → trade blocked, $1.50 balance → trade allowed (clamped to available cash)
+ */
+const MIN_CASH_BALANCE_FOR_TRADE = 1;
+
+/**
+ * Multiplier for rounding position quantities and cash amounts to 2 decimal places.
+ * Formula: Math.floor(amount * 100) / 100
+ * Example: $12.3456 → Math.floor(12.3456 * 100) / 100 = $12.34
+ */
+const AMOUNT_ROUNDING_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -141,9 +167,9 @@ function logActivation(activation: CircuitBreakerActivation): void {
     `[CircuitBreaker] ${activation.action.toUpperCase()}: ${activation.breaker} — ${activation.reason} (agent: ${activation.agentId})`,
   );
 
-  // Keep log bounded (last 1000 entries)
-  if (activationLog.length > 1000) {
-    activationLog.splice(0, activationLog.length - 1000);
+  // Keep log bounded (last N entries)
+  if (activationLog.length > MAX_ACTIVATION_LOG_SIZE) {
+    activationLog.splice(0, activationLog.length - MAX_ACTIVATION_LOG_SIZE);
   }
 }
 
@@ -330,7 +356,7 @@ export function checkCircuitBreakers(
 
       // Clamp to max additional
       const originalQuantity = modifiedDecision.quantity;
-      modifiedDecision.quantity = Math.floor(maxAdditional * 100) / 100; // Round down to 2 decimals
+      modifiedDecision.quantity = Math.floor(maxAdditional * AMOUNT_ROUNDING_MULTIPLIER) / AMOUNT_ROUNDING_MULTIPLIER; // Round down to 2 decimals
 
       const activation: CircuitBreakerActivation = {
         breaker: "POSITION_LIMIT",
@@ -349,8 +375,8 @@ export function checkCircuitBreakers(
     decision.action === "buy" &&
     modifiedDecision.quantity > portfolio.cashBalance
   ) {
-    if (portfolio.cashBalance <= 1) {
-      // Less than $1 — can't trade
+    if (portfolio.cashBalance <= MIN_CASH_BALANCE_FOR_TRADE) {
+      // Less than minimum threshold — can't trade
       const activation: CircuitBreakerActivation = {
         breaker: "INSUFFICIENT_FUNDS",
         reason: `Cash balance $${portfolio.cashBalance.toFixed(2)} insufficient for any buy. Trade blocked.`,
@@ -376,7 +402,7 @@ export function checkCircuitBreakers(
     // Clamp to available cash
     const originalQuantity = modifiedDecision.quantity;
     modifiedDecision.quantity =
-      Math.floor(portfolio.cashBalance * 100) / 100;
+      Math.floor(portfolio.cashBalance * AMOUNT_ROUNDING_MULTIPLIER) / AMOUNT_ROUNDING_MULTIPLIER;
 
     const activation: CircuitBreakerActivation = {
       breaker: "INSUFFICIENT_FUNDS",
