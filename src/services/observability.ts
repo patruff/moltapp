@@ -202,6 +202,32 @@ export interface FullMetricsExport {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Percentile thresholds for latency calculations.
+ *
+ * These decimal values determine which percentiles are calculated and exported
+ * in trade execution metrics (p50, p95, p99) for monitoring dashboards.
+ *
+ * Formula: index = Math.floor(sortedArray.length × PERCENTILE_*_DECIMAL)
+ *
+ * Examples:
+ * - PERCENTILE_P50_DECIMAL = 0.5  → 50th percentile (median)
+ * - PERCENTILE_P95_DECIMAL = 0.95 → 95th percentile (high-latency outliers)
+ * - PERCENTILE_P99_DECIMAL = 0.99 → 99th percentile (worst-case latency)
+ *
+ * Impact: These percentiles are exported to Prometheus, CloudWatch, and JSON dashboards.
+ * Changing these values modifies which latency metrics are tracked and alerted on.
+ *
+ * Industry standard: p50 (median), p95 (SLA target), p99 (worst-case monitoring).
+ */
+const PERCENTILE_P50_DECIMAL = 0.5;
+const PERCENTILE_P95_DECIMAL = 0.95;
+const PERCENTILE_P99_DECIMAL = 0.99;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -235,9 +261,9 @@ export function calculatePercentiles(values: number[]): PercentileStats {
     min: sorted[0],
     max: sorted[len - 1],
     avg: Math.round(sorted.reduce((a, b) => a + b, 0) / len),
-    p50: sorted[Math.floor(len * 0.5)],
-    p95: sorted[Math.floor(len * 0.95)],
-    p99: sorted[Math.floor(len * 0.99)],
+    p50: sorted[Math.floor(len * PERCENTILE_P50_DECIMAL)],
+    p95: sorted[Math.floor(len * PERCENTILE_P95_DECIMAL)],
+    p99: sorted[Math.floor(len * PERCENTILE_P99_DECIMAL)],
   };
 }
 
