@@ -221,6 +221,21 @@ const EFFICIENCY_AGGREGATE_ORIGINALITY_DEFAULT = 0.6;       // Default originali
 const EFFICIENCY_AGGREGATE_QUANT_SCALING = 0.15;            // Quant claims * 0.15
 const EFFICIENCY_AGGREGATE_WORD_COUNT_FALLBACK = 50;        // Default word count when missing
 
+/**
+ * Formatting Precision Constants
+ *
+ * Control decimal precision for pillar explanation strings shown in benchmark UI.
+ * These affect how scores are displayed in the leaderboard and agent profile pages.
+ *
+ * Examples:
+ * - PERCENT_PRECISION = 0 → "85%" (win rate, safety percentages)
+ * - SCORE_PRECISION_HIGH = 3 → "0.842" (coherence, depth, forensic scores)
+ * - SCORE_PRECISION_MEDIUM = 2 → "0.84" (uncertainty calibration, confidence accuracy)
+ */
+const FORMATTING_PRECISION_PERCENT = 0;        // Percentage display (85%, no decimals)
+const FORMATTING_PRECISION_SCORE_HIGH = 3;     // High-precision score display (0.842)
+const FORMATTING_PRECISION_SCORE_MEDIUM = 2;   // Medium-precision score display (0.84)
+
 function getWindow(agentId: string): AgentMetricWindow {
   let w = agentWindows.get(agentId);
   if (!w) {
@@ -584,7 +599,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.financial,
     grade: scoreToGrade(financial),
     components: { winRate: boolRate(w.outcomes) },
-    explanation: `Win rate: ${(boolRate(w.outcomes) * 100).toFixed(0)}%`,
+    explanation: `Win rate: ${(boolRate(w.outcomes) * 100).toFixed(FORMATTING_PRECISION_PERCENT)}%`,
   });
 
   // 2. Reasoning
@@ -595,7 +610,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.reasoning,
     grade: scoreToGrade(reasoning),
     components: { avgCoherence: mean(w.coherence), depthAvg: mean(w.depths) },
-    explanation: `Avg coherence: ${mean(w.coherence).toFixed(3)}`,
+    explanation: `Avg coherence: ${mean(w.coherence).toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 3. Safety
@@ -606,7 +621,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.safety,
     grade: scoreToGrade(safety),
     components: { hallucinationFreeRate: mean(w.hallucinationFree), disciplineRate: mean(w.discipline) },
-    explanation: `Hallucination-free: ${(mean(w.hallucinationFree) * 100).toFixed(0)}%, Discipline: ${(mean(w.discipline) * 100).toFixed(0)}%`,
+    explanation: `Hallucination-free: ${(mean(w.hallucinationFree) * 100).toFixed(FORMATTING_PRECISION_PERCENT)}%, Discipline: ${(mean(w.discipline) * 100).toFixed(FORMATTING_PRECISION_PERCENT)}%`,
   });
 
   // 4. Calibration
@@ -618,7 +633,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.calibration,
     grade: scoreToGrade(calibration),
     components: { confidenceStdDev: confStd, avgConfidence: mean(w.confidence) },
-    explanation: `Confidence variance: ${confStd.toFixed(3)}`,
+    explanation: `Confidence variance: ${confStd.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 5. Patterns
@@ -629,7 +644,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.patterns,
     grade: scoreToGrade(patterns),
     components: { depthAvg: mean(w.depths) },
-    explanation: `Avg depth score: ${patterns.toFixed(3)}`,
+    explanation: `Avg depth score: ${patterns.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 6. Adaptability
@@ -652,7 +667,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.forensicQuality,
     grade: scoreToGrade(forensic),
     components: { avgForensic: forensic },
-    explanation: `Avg forensic: ${forensic.toFixed(3)}`,
+    explanation: `Avg forensic: ${forensic.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 8. Validation Quality
@@ -663,7 +678,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.validationQuality,
     grade: scoreToGrade(validation),
     components: { avgValidation: validation },
-    explanation: `Avg validation: ${validation.toFixed(3)}`,
+    explanation: `Avg validation: ${validation.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 9. Prediction Accuracy
@@ -674,7 +689,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.predictionAccuracy,
     grade: scoreToGrade(prediction),
     components: { accuracy: prediction },
-    explanation: `Prediction correct: ${(prediction * 100).toFixed(0)}%`,
+    explanation: `Prediction correct: ${(prediction * 100).toFixed(FORMATTING_PRECISION_PERCENT)}%`,
   });
 
   // 10. Reasoning Stability
@@ -686,7 +701,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.reasoningStability,
     grade: scoreToGrade(stability),
     components: { sentimentStdDev: sentStd },
-    explanation: `Sentiment volatility: ${sentStd.toFixed(3)}`,
+    explanation: `Sentiment volatility: ${sentStd.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 11. Provenance Integrity
@@ -697,7 +712,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.provenanceIntegrity,
     grade: scoreToGrade(provenance),
     components: { validRate: provenance },
-    explanation: `Provenance valid: ${(provenance * 100).toFixed(0)}%`,
+    explanation: `Provenance valid: ${(provenance * 100).toFixed(FORMATTING_PRECISION_PERCENT)}%`,
   });
 
   // 12. Model Comparison
@@ -708,7 +723,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
     weight: V16_WEIGHTS.modelComparison,
     grade: scoreToGrade(modelComp),
     components: { avgScore: modelComp },
-    explanation: `Cross-model independence: ${modelComp.toFixed(3)}`,
+    explanation: `Cross-model independence: ${modelComp.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // 13. Metacognition (NEW v16)
@@ -724,7 +739,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
       hedgingAppropriacy: meta.hedgingAppropriacy,
       regimeAdaptation: meta.regimeAdaptation,
     },
-    explanation: `Self-awareness: ${meta.composite.toFixed(3)} — uncertainty=${meta.uncertaintyCalibration.toFixed(2)}, accuracy=${meta.confidenceAccuracy.toFixed(2)}`,
+    explanation: `Self-awareness: ${meta.composite.toFixed(FORMATTING_PRECISION_SCORE_HIGH)} — uncertainty=${meta.uncertaintyCalibration.toFixed(FORMATTING_PRECISION_SCORE_MEDIUM)}, accuracy=${meta.confidenceAccuracy.toFixed(FORMATTING_PRECISION_SCORE_MEDIUM)}`,
   });
 
   // 14. Reasoning Efficiency (NEW v16)
@@ -753,7 +768,7 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
       informationDensity: efficiencyAggregate.informationDensity,
       quantitativeRatio: efficiencyAggregate.quantitativeRatio,
     },
-    explanation: `Signal-to-noise: ${efficiencyAggregate.composite.toFixed(3)}`,
+    explanation: `Signal-to-noise: ${efficiencyAggregate.composite.toFixed(FORMATTING_PRECISION_SCORE_HIGH)}`,
   });
 
   // Compute weighted composite
