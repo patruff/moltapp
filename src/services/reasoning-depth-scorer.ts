@@ -82,6 +82,19 @@ const DIMENSION_WEIGHTS = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Evidence Collection Display Limits
+ *
+ * Controls how many evidence examples to collect per reasoning dimension.
+ */
+
+/**
+ * Maximum evidence items to display per reasoning dimension.
+ * @constant {number} MAX_DIMENSION_EVIDENCE_ITEMS - Top 5 evidence strings per dimension
+ * @example Causal chain evidence: ["If rates rise, bond yields increase", "Fed policy drives...", ...] (max 5 items)
+ */
+const MAX_DIMENSION_EVIDENCE_ITEMS = 5;
+
+/**
  * Grade Boundaries
  *
  * Maps overall depth scores (0.0-1.0) to letter grades (A+ through F).
@@ -376,7 +389,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const causalChain: DimensionScore = {
     score: causalScore,
     weight: DIMENSION_WEIGHTS.causalChain,
-    evidence: causalEvidence.slice(0, 5),
+    evidence: causalEvidence.slice(0, MAX_DIMENSION_EVIDENCE_ITEMS),
   };
 
   // 4. Risk Awareness
@@ -393,7 +406,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const riskAwareness: DimensionScore = {
     score: riskScore,
     weight: DIMENSION_WEIGHTS.riskAwareness,
-    evidence: riskEvidence.slice(0, 5),
+    evidence: riskEvidence.slice(0, MAX_DIMENSION_EVIDENCE_ITEMS),
   };
 
   // 5. Temporal Reasoning
@@ -410,7 +423,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const temporalReasoning: DimensionScore = {
     score: temporalScore,
     weight: DIMENSION_WEIGHTS.temporalReasoning,
-    evidence: temporalEvidence.slice(0, 5),
+    evidence: temporalEvidence.slice(0, MAX_DIMENSION_EVIDENCE_ITEMS),
   };
 
   // 6. Comparative Analysis
@@ -427,7 +440,7 @@ export function scoreReasoningDepth(reasoning: string): DepthScore {
   const comparativeAnalysis: DimensionScore = {
     score: compScore,
     weight: DIMENSION_WEIGHTS.comparativeAnalysis,
-    evidence: compEvidence.slice(0, 5),
+    evidence: compEvidence.slice(0, MAX_DIMENSION_EVIDENCE_ITEMS),
   };
 
   // 7. Quantitative Rigor

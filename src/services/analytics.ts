@@ -101,6 +101,34 @@ const TRADE_FREQUENCY_HIGH_THRESHOLD = 10;
 const TRADE_FREQUENCY_MEDIUM_THRESHOLD = 3;
 
 /**
+ * Display Limit Constants
+ *
+ * Controls how many items are shown in analytics API response arrays.
+ */
+
+/**
+ * Maximum recent decisions to analyze for patterns/performance metrics.
+ * @constant {number} RECENT_DECISIONS_FOR_ANALYSIS - Last 30 decisions for recent activity
+ * @example Used in arena overview to build recent activity timeline
+ */
+const RECENT_DECISIONS_FOR_ANALYSIS = 30;
+
+/**
+ * Maximum recent activity items to display in arena overview.
+ * @constant {number} RECENT_ACTIVITY_DISPLAY_LIMIT - Top 10 recent rounds
+ * @example API returns 10 most recent trading rounds with agent actions
+ */
+const RECENT_ACTIVITY_DISPLAY_LIMIT = 10;
+
+/**
+ * Maximum divergence events to display in head-to-head comparison.
+ * @constant {number} TOP_DIVERGENCE_EVENTS_LIMIT - Top 10 divergence events
+ * @example API returns 10 biggest agent disagreements (opposite actions on same symbol)
+ */
+const TOP_DIVERGENCE_EVENTS_LIMIT = 10;
+const TRADE_FREQUENCY_MEDIUM_THRESHOLD = 3;
+
+/**
  * Market Sentiment Classification
  *
  * Thresholds for determining overall market sentiment (bullish/bearish/neutral)
@@ -632,7 +660,7 @@ export async function compareAgents(
     agent2: stats2,
     headToHead,
     correlationCoefficient,
-    divergenceEvents: divergenceEvents.slice(0, 10),
+    divergenceEvents: divergenceEvents.slice(0, TOP_DIVERGENCE_EVENTS_LIMIT),
     recommendation,
   };
 }
@@ -714,7 +742,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
   const marketConditions = computeMarketConditions(marketData);
 
   // Recent activity (group by round)
-  const recentActivity = buildRecentActivity(allDecisions.slice(0, 30));
+  const recentActivity = buildRecentActivity(allDecisions.slice(0, RECENT_DECISIONS_FOR_ANALYSIS));
 
   // Agreement rate (how often all 3 agents agree)
   const totalRounds = countTradingRounds(allDecisions);
@@ -737,7 +765,7 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
     totalRounds,
     totalDecisions: allDecisions.length,
     marketConditions,
-    recentActivity: recentActivity.slice(0, 10),
+    recentActivity: recentActivity.slice(0, RECENT_ACTIVITY_DISPLAY_LIMIT),
     agentAgreementRate,
     mostControversialStock,
     nextScheduledRound: nextRound.toISOString(),

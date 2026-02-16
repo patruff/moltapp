@@ -111,6 +111,38 @@ const NARRATIVE_MARGIN_MODEST = 0.25;
 /** Margin threshold for "convincing" victory classification (< 50%) */
 const NARRATIVE_MARGIN_CONVINCING = 0.50;
 
+/**
+ * Display Limit Constants
+ *
+ * Control how many top items are shown in battle narratives and highlights.
+ */
+
+/**
+ * Top Dimensions for Battle Narrative
+ *
+ * Maximum number of battle dimensions (financial, reasoning, conviction, etc.)
+ * to include in narrative text when describing why an agent won.
+ *
+ * Example: "Claude defeats GPT with convincing margin. Key advantages in
+ * reasoning coherence, conviction calibration, safety."
+ *
+ * Tuning impact: Increase to 5 for more detailed narratives, decrease to 2
+ * for more focused highlights.
+ */
+const TOP_DIMENSIONS_FOR_NARRATIVE = 3;
+
+/**
+ * Top Highlights Display Limit
+ *
+ * Maximum number of battle highlights to include when showing "closest battles"
+ * or "biggest blowouts" summaries.
+ *
+ * Example: Show top 3 closest battles and top 3 biggest blowouts for variety.
+ *
+ * Tuning impact: Increase to 5 for more comprehensive highlight reels.
+ */
+const TOP_HIGHLIGHTS_DISPLAY_LIMIT = 3;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -271,7 +303,7 @@ function generateNarrative(
         : "dominant";
 
   const dimensionList = dominantDims.length > 0
-    ? dominantDims.slice(0, 3).join(", ")
+    ? dominantDims.slice(0, TOP_DIMENSIONS_FOR_NARRATIVE).join(", ")
     : "overall composite";
 
   return `${winnerName} defeats ${loserName} with a ${closeness} margin (${(margin * 100).toFixed(1)}%). ` +
@@ -628,7 +660,7 @@ export function getBattleHighlights(limit = 10): BattleHighlight[] {
   const closestBattles = [...battleHistory]
     .filter((b) => b.overallWinner !== null)
     .sort((a, b) => a.marginOfVictory - b.marginOfVictory)
-    .slice(0, 3);
+    .slice(0, TOP_HIGHLIGHTS_DISPLAY_LIMIT);
 
   for (const b of closestBattles) {
     highlights.push({
@@ -642,7 +674,7 @@ export function getBattleHighlights(limit = 10): BattleHighlight[] {
   const blowouts = [...battleHistory]
     .filter((b) => b.overallWinner !== null)
     .sort((a, b) => b.marginOfVictory - a.marginOfVictory)
-    .slice(0, 3);
+    .slice(0, TOP_HIGHLIGHTS_DISPLAY_LIMIT);
 
   for (const b of blowouts) {
     highlights.push({

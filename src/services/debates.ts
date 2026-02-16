@@ -109,6 +109,19 @@ const DEBATE_CLOSE_MARGIN = 5;
 const PRICE_RESOLUTION_THRESHOLD = 1;
 
 /**
+ * Top Picks Display Limit
+ *
+ * Maximum number of top symbol picks to display in market outlook generation.
+ * Used when showing highest-confidence trading opportunities across agents.
+ *
+ * Example: "Top picks: AAPL (buy, 87%), MSFT (buy, 82%), TSLA (sell, 79%)"
+ *
+ * Tuning impact: Increase to 5 for broader market coverage, decrease to 2
+ * for more focused highlights.
+ */
+const TOP_PICKS_DISPLAY_LIMIT = 3;
+
+/**
  * Consensus Agreement Thresholds
  *
  * Control when agent agreement counts as consensus vs disagreement.
@@ -1188,7 +1201,7 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     }
     const topPicks = Array.from(symbolBest.entries())
       .sort(([, a], [, b]) => b.confidence - a.confidence)
-      .slice(0, 3)
+      .slice(0, TOP_PICKS_DISPLAY_LIMIT)
       .map(([sym, data]) => ({ symbol: sym, action: data.action, confidence: data.confidence }));
 
     // Build per-agent symbol->action for consensus

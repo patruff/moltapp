@@ -24,6 +24,24 @@ import { errorMessage } from "../lib/errors.ts";
 import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Top Errors Display Limit
+ *
+ * Maximum number of error messages to include in Discord notification embeds
+ * when round errors occur. Prevents overly long messages while still showing
+ * representative error samples.
+ *
+ * Example: If 10 errors occur, show only the first 3 with "...and 7 more"
+ *
+ * Tuning impact: Increase to 5 for more error visibility, decrease to 2 to
+ * keep Discord messages more concise.
+ */
+const TOP_ERRORS_DISPLAY_LIMIT = 3;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -450,7 +468,7 @@ export async function notifyRoundSummary(
     fields.push({
       name: "Errors",
       value: round.errors
-        .slice(0, 3)
+        .slice(0, TOP_ERRORS_DISPLAY_LIMIT)
         .map((e) => `❌ ${e.slice(0, 100)}`)
         .join("\n"),
       inline: false,

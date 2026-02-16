@@ -94,6 +94,19 @@ const UNANIMOUS_STRENGTH_MULTIPLIER = 1.2;
  */
 const DIVERGENCE_SCORE_DIVISOR = 2;
 
+/**
+ * Display Limit Constants
+ *
+ * Controls how many items are shown in API response arrays for consensus summaries.
+ */
+
+/**
+ * Maximum symbols to display in top consensus/divergence symbol lists.
+ * @constant {number} TOP_CONSENSUS_SYMBOLS_LIMIT - Top 10 symbols with most agreement
+ * @example API returns top 10 symbols where agents agree (consensus) or disagree (divergence)
+ */
+const TOP_CONSENSUS_SYMBOLS_LIMIT = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -810,12 +823,12 @@ export async function analyzeHistoricalConsensus(
 
   const topConsensusSymbols = [...symbolSignalCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, TOP_CONSENSUS_SYMBOLS_LIMIT)
     .map(([symbol, count]) => ({ symbol, count }));
 
   const topDivergenceSymbols = [...symbolDivergenceCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, TOP_CONSENSUS_SYMBOLS_LIMIT)
     .map(([symbol, count]) => ({ symbol, count }));
 
   return {

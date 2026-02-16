@@ -281,6 +281,26 @@ const SIGNAL_BREAKOUT_STRENGTH_MULTIPLIER = 10;
  */
 const SIGNAL_STRONG_THRESHOLD = 70;
 
+/**
+ * Display Limit Constants
+ *
+ * Controls how many items are shown in market signal dashboard API responses.
+ */
+
+/**
+ * Maximum opportunities/risks to display in market dashboard.
+ * @constant {number} TOP_OPPORTUNITIES_LIMIT - Top 5 bullish/bearish signals
+ * @example API returns 5 strongest buy signals, 5 strongest sell signals
+ */
+const TOP_OPPORTUNITIES_LIMIT = 5;
+
+/**
+ * Maximum stocks to analyze for technical summary generation.
+ * @constant {number} TOP_STOCKS_FOR_ANALYSIS - Top 10 stocks by signal activity
+ * @example Generates RSI/MACD/Bollinger summaries for 10 most active stocks
+ */
+const TOP_STOCKS_FOR_ANALYSIS = 10;
+
 // ===== Agent Consensus Parameters =====
 
 /**
@@ -1461,14 +1481,14 @@ export async function getSignalDashboard(): Promise<SignalDashboard> {
   // Top opportunities and risks
   const topOpportunities = allSignals
     .filter((s) => s.direction === "bullish")
-    .slice(0, 5);
+    .slice(0, TOP_OPPORTUNITIES_LIMIT);
   const topRisks = allSignals
     .filter((s) => s.direction === "bearish")
-    .slice(0, 5);
+    .slice(0, TOP_OPPORTUNITIES_LIMIT);
 
   // Technical summaries
   const technicalSummary: TechnicalSummary[] = [];
-  for (const stock of marketData.slice(0, 10)) {
+  for (const stock of marketData.slice(0, TOP_STOCKS_FOR_ANALYSIS)) {
     const indicators = await getStockIndicators(stock.symbol);
     if (!indicators) continue;
 
@@ -1532,7 +1552,7 @@ export async function getSignalDashboard(): Promise<SignalDashboard> {
       momentum: data.momentum,
     }))
     .sort((a, b) => b.signalCount - a.signalCount)
-    .slice(0, 5);
+    .slice(0, TOP_OPPORTUNITIES_LIMIT);
 
   return {
     generatedAt: new Date().toISOString(),

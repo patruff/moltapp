@@ -214,6 +214,20 @@ const STRESS_TEST_TECH_CRASH_OTHER_IMPACT = -0.02;
 /** Rate shock: Non-tech stocks drop by 5% (all equities affected, growth hit harder) */
 const STRESS_TEST_RATE_SHOCK_OTHER_IMPACT = -0.05;
 
+/**
+ * Top Position Display Limit
+ *
+ * Maximum number of top positions to include when calculating top-3 concentration
+ * percentage for risk scoring. Used in HHI (Herfindahl-Hirschman Index) analysis.
+ *
+ * Example: Portfolio with 10 positions - calculate top 3 weight concentration:
+ * Position 1: 30%, Position 2: 25%, Position 3: 15% = 70% top-3 concentration
+ *
+ * Tuning impact: Increase to 5 for "top-5 concentration" analysis, decrease to
+ * 2 for stricter "top-2 concentration" focus.
+ */
+const TOP_POSITIONS_FOR_CONCENTRATION = 3;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -551,7 +565,7 @@ export function calculateConcentrationRisk(portfolio: PortfolioContext): Concent
     largestPositionPercent: round2(weights[0].weight * 100),
     largestPositionSymbol: weights[0].symbol,
     top3Percent: round2(
-      sumByKey(weights.slice(0, 3), 'weight') * 100,
+      sumByKey(weights.slice(0, TOP_POSITIONS_FOR_CONCENTRATION), 'weight') * 100,
     ),
     techExposurePercent: round2(techExposure * 100),
   };

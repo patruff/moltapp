@@ -135,6 +135,12 @@ const AGGREGATE_FLOW_THRESHOLD = 100;
 const ALERTS_DISPLAY_LIMIT = 50;
 
 /**
+ * Maximum number of symbols to display in conviction heatmap.
+ * Shows top symbols by average agent conviction across recent trades.
+ */
+const CONVICTION_SYMBOLS_DISPLAY_LIMIT = 15;
+
+/**
  * Maximum number of decisions to fetch for baseline calculations.
  * Provides statistical significance for agent behavior baselines.
  */
@@ -755,7 +761,7 @@ export async function getConvictionTracker(minConfidence = CONVICTION_HIGH_THRES
   return {
     highConvictionTrades: highConvictionTrades.slice(0, ALERTS_DISPLAY_LIMIT),
     avgConvictionByAgent,
-    convictionBySymbol: convictionBySymbol.slice(0, 15),
+    convictionBySymbol: convictionBySymbol.slice(0, CONVICTION_SYMBOLS_DISPLAY_LIMIT),
     overallConviction,
     interpretation,
   };
