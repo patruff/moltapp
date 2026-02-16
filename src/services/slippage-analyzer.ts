@@ -112,6 +112,38 @@ const PERCENTILE_95 = 95;
  */
 const PERCENTILE_99 = 99;
 
+// 5. Calculation Conversion Constants
+/**
+ * Multiplier to convert decimal fraction to basis points (1% = 100bps).
+ *
+ * Formula: decimal × BPS_MULTIPLIER = basis points
+ * Example: 0.0123 × 10,000 = 123bps (1.23%)
+ *
+ * Used throughout slippage calculations to express precision in basis points
+ * rather than raw decimal fractions.
+ */
+const BPS_MULTIPLIER = 10_000;
+
+/**
+ * Multiplier to convert decimal fraction to percentage (0.5 = 50%).
+ *
+ * Formula: decimal × PERCENT_MULTIPLIER = percentage
+ * Example: 0.75 × 100 = 75%
+ *
+ * Used for displaying favorable trade percentages and other ratio-based metrics.
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Divisor to convert percentile value (0-100) to array fraction (0-1).
+ *
+ * Formula: percentile / PERCENTILE_DIVISOR = array fraction
+ * Example: 95th percentile / 100 = 0.95 array position
+ *
+ * Used in percentile() helper function for statistical calculations.
+ */
+const PERCENTILE_DIVISOR = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -272,7 +304,7 @@ export function recordSlippage(params: {
 
   const slippageBps =
     expectedPrice > 0
-      ? Math.round((Math.abs(slippageUsd) / expectedPrice) * 10_000)
+      ? Math.round((Math.abs(slippageUsd) / expectedPrice) * BPS_MULTIPLIER)
       : 0;
 
   // Positive bps = unfavorable, negative not possible (we use absolute for bps)
@@ -282,7 +314,7 @@ export function recordSlippage(params: {
   // Use signed bps for the record (negative = favorable)
   const signedBps =
     expectedPrice > 0
-      ? Math.round((slippageUsd / expectedPrice) * 10_000)
+      ? Math.round((slippageUsd / expectedPrice) * BPS_MULTIPLIER)
       : 0;
 
   const totalImpactUsd = Math.abs(slippageUsd) * quantity;
@@ -389,7 +421,7 @@ export function getSlippageStats(since?: Date): SlippageStats {
     p99SlippageBps: percentile(bpsValues, PERCENTILE_99),
     totalSlippageCostUsd: round2(totalSlippageCostUsd),
     favorableTradesPercent: Math.round(
-      (favorableCount / filtered.length) * 100,
+      (favorableCount / filtered.length) * PERCENT_MULTIPLIER,
     ),
     avg24hSlippageBps: Math.round(avg24h),
     trendBps,
@@ -442,7 +474,7 @@ export function getAgentSlippageProfiles(): AgentSlippageProfile[] {
       avgSlippageBps: Math.round(avgBps),
       totalSlippageCostUsd: round2(totalCost),
       favorablePercent: Math.round(
-        (favorableCount / agentRecords.length) * 100,
+        (favorableCount / agentRecords.length) * PERCENT_MULTIPLIER,
       ),
       worstSlippage: worstRecord
         ? {
@@ -648,6 +680,6 @@ export function getSlippageAnalyzerConfig(): SlippageAnalyzerConfig {
 
 function percentile(sortedValues: number[], p: number): number {
   if (sortedValues.length === 0) return 0;
-  const idx = Math.ceil((p / 100) * sortedValues.length) - 1;
+  const idx = Math.ceil((p / PERCENTILE_DIVISOR) * sortedValues.length) - 1;
   return sortedValues[Math.max(0, Math.min(idx, sortedValues.length - 1))];
 }
