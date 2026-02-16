@@ -10,8 +10,47 @@ import {
   estimateTransactionCosts,
 } from "./transaction-cost-tracker.ts";
 
-/** Initial capital per agent ($50 USDC) - used for P&L calculation */
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Initial capital per agent ($50 USDC) - used for P&L calculation baseline.
+ * All P&L percentages are calculated relative to this initial capital.
+ */
 const AGENT_INITIAL_CAPITAL = 50;
+
+/**
+ * Default average slippage estimate in basis points (bps).
+ * Used when actual slippage data is unavailable (e.g., after server restart).
+ *
+ * Value: 15 bps = 0.15% average slippage
+ *
+ * This is a conservative estimate based on typical Jupiter DEX swap costs
+ * for mid-sized xStocks trades. Actual slippage varies by:
+ * - Trade size (larger trades → more slippage)
+ * - Token liquidity (less liquid tokens → more slippage)
+ * - Market conditions (volatile periods → more slippage)
+ *
+ * When transaction cost tracker has real data, that takes precedence.
+ */
+const DEFAULT_SLIPPAGE_BPS = 15;
+
+/**
+ * Decimal precision for portfolio value formatting (2 decimal places).
+ * Used for all USDC amounts: portfolio value, P&L, transaction costs, etc.
+ *
+ * Examples: $50.42, $3.17, $-1.23
+ */
+const DECIMAL_PRECISION_CURRENCY = 2;
+
+/**
+ * Decimal precision for slippage formatting (1 decimal place).
+ * Used for basis points display to show tenths of a bp.
+ *
+ * Examples: 15.0 bps, 23.7 bps, 8.2 bps
+ */
+const DECIMAL_PRECISION_SLIPPAGE = 1;
 
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
@@ -319,7 +358,7 @@ async function refreshLeaderboard(): Promise<void> {
       // Fallback: estimate costs from trade count and volume
       // (happens after server restart when in-memory data is lost)
       txCostUsdc = estimateTransactionCosts(tradeCount, totalVolume);
-      avgSlippageBps = 15; // conservative default: 15bps average slippage
+      avgSlippageBps = DEFAULT_SLIPPAGE_BPS;
     }
 
     const txCostDecimal = new Decimal(txCostUsdc);
@@ -333,19 +372,19 @@ async function refreshLeaderboard(): Promise<void> {
       agentId: agent.id,
       agentName: agent.name,
       karma: agent.karma ?? 0,
-      totalPortfolioValue: currentPortfolioValue.toFixed(2),
-      totalPnlPercent: totalPnlPercent.toFixed(2),
-      totalPnlAbsolute: totalPnlAbsolute.toFixed(2),
+      totalPortfolioValue: currentPortfolioValue.toFixed(DECIMAL_PRECISION_CURRENCY),
+      totalPnlPercent: totalPnlPercent.toFixed(DECIMAL_PRECISION_CURRENCY),
+      totalPnlAbsolute: totalPnlAbsolute.toFixed(DECIMAL_PRECISION_CURRENCY),
       tradeCount,
       lastTradeAt,
       topPositions,
       activeThesis,
-      stocksValue: marketValue.toFixed(2),
-      cashBalance: usdcCashBalance.toFixed(2),
-      estimatedTransactionCosts: txCostDecimal.toFixed(2),
-      netPnlAbsolute: netPnlAbsolute.toFixed(2),
-      netPnlPercent: netPnlPercent.toFixed(2),
-      avgSlippageBps: avgSlippageBps.toFixed(1),
+      stocksValue: marketValue.toFixed(DECIMAL_PRECISION_CURRENCY),
+      cashBalance: usdcCashBalance.toFixed(DECIMAL_PRECISION_CURRENCY),
+      estimatedTransactionCosts: txCostDecimal.toFixed(DECIMAL_PRECISION_CURRENCY),
+      netPnlAbsolute: netPnlAbsolute.toFixed(DECIMAL_PRECISION_CURRENCY),
+      netPnlPercent: netPnlPercent.toFixed(DECIMAL_PRECISION_CURRENCY),
+      avgSlippageBps: avgSlippageBps.toFixed(DECIMAL_PRECISION_SLIPPAGE),
     };
   });
 
@@ -367,8 +406,8 @@ async function refreshLeaderboard(): Promise<void> {
   );
   const aggregateStats = {
     totalAgents: allAgents.length,
-    totalVolume: totalVolumeDecimal.toFixed(2),
-    totalEstimatedTransactionCosts: totalEstimatedTxCosts.toFixed(2),
+    totalVolume: totalVolumeDecimal.toFixed(DECIMAL_PRECISION_CURRENCY),
+    totalEstimatedTransactionCosts: totalEstimatedTxCosts.toFixed(DECIMAL_PRECISION_CURRENCY),
   };
 
   // Step 11: Update cache
