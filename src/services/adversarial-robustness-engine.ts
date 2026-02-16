@@ -15,7 +15,7 @@
  */
 
 import { clamp, countWords, round3, countByCondition, avgOfProperty } from "../lib/math-utils.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG, TOP_ANALYSIS_ITEMS_LIMIT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -626,7 +626,7 @@ export function getAgentRobustnessProfile(agentId: string): AgentRobustnessProfi
   }
   const topVulnerabilities = [...vulnCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, TOP_ANALYSIS_ITEMS_LIMIT)
     .map(([v]) => v);
 
   // Trend: compare first half vs second half

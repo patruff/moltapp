@@ -108,6 +108,52 @@ export const SOL_TRANSFER_FEE_LAMPORTS = 5000n;
  */
 export const USDC_ATA_CREATION_FEE_LAMPORTS = 2_044_280n;
 
+// ---------------------------------------------------------------------------
+// Report Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of top analysis items to display in agent intelligence reports.
+ *
+ * Controls how many items appear in "top N" lists across reporting and analytics:
+ * - Top vulnerabilities (adversarial robustness)
+ * - Favorite symbols (intelligence reports)
+ * - Common hallucination types (reasoning forensics)
+ * - Frequent cognitive biases (reasoning taxonomy)
+ * - Top strategic themes (strategy attribution)
+ * - Key decision patterns (competition/decision replay)
+ *
+ * Limiting to 5 items balances:
+ * - Focus: Shows only most significant patterns
+ * - Brevity: Prevents overwhelming API responses
+ * - Performance: Reduces payload size for dashboard rendering
+ *
+ * Example: Agent has 20 cognitive biases detected → show top 5 most frequent
+ *
+ * Tuning: Increase to 8-10 for more comprehensive analysis, decrease to 3 for
+ * executive summary brevity.
+ */
+export const TOP_ANALYSIS_ITEMS_LIMIT = 5;
+
+/**
+ * Maximum number of themes to display in reasoning taxonomy analysis.
+ *
+ * Controls theme list length in cognitive pattern classification reports.
+ * Themes represent recurring topics/concepts in agent reasoning (e.g.,
+ * "momentum investing", "value analysis", "risk management").
+ *
+ * Set higher than TOP_ANALYSIS_ITEMS_LIMIT (8 vs 5) because themes are:
+ * - Higher-level abstractions (less granular than individual patterns)
+ * - More context-rich (users benefit from seeing broader theme coverage)
+ * - Less redundant (themes rarely overlap compared to specific vulnerabilities)
+ *
+ * Example: Agent uses 15 themes → show top 8 most frequent
+ *
+ * Tuning: Increase to 10-12 for deeper thematic analysis, decrease to 5 to
+ * match other top-N limits for consistency.
+ */
+export const TOP_THEMES_DISPLAY_LIMIT = 8;
+
 /** Stock category for classification */
 export type StockCategory =
   | "Mega-Cap Tech"

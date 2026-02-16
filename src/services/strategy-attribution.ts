@@ -15,6 +15,7 @@
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
 import { getTopKey, round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
+import { TOP_ANALYSIS_ITEMS_LIMIT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Types

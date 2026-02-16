@@ -19,6 +19,7 @@
  */
 
 import { averageByKey, countByCondition, countWords, findMax, findMin, round2, round3, stdDev } from "../lib/math-utils.ts";
+import { TOP_ANALYSIS_ITEMS_LIMIT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -617,7 +618,7 @@ function buildMarketBias(entries: ReasoningEntry[]): MarketBiasSection {
       avgConfidence: round2(stats.totalConf / stats.count),
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+    .slice(0, TOP_ANALYSIS_ITEMS_LIMIT);
 
   const intentDistribution: Record<string, number> = {};
   for (const [k, v] of intentCounts) {
