@@ -96,6 +96,67 @@ export interface RetryMetrics {
 }
 
 // ---------------------------------------------------------------------------
+// Retry Policy Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Common HTTP status codes that indicate retryable server errors.
+ *
+ * - 429: Too Many Requests (rate limit)
+ * - 500: Internal Server Error
+ * - 502: Bad Gateway
+ * - 503: Service Unavailable
+ * - 504: Gateway Timeout
+ *
+ * Used by Jupiter, Solana RPC, and Generic HTTP policies.
+ */
+const COMMON_RETRYABLE_HTTP_STATUSES = [429, 500, 502, 503, 504];
+
+/**
+ * LLM API-specific retryable status codes.
+ *
+ * Same as COMMON_RETRYABLE_HTTP_STATUSES but includes 529 (overloaded)
+ * instead of 504, as some LLM providers use 529 for capacity issues.
+ */
+const LLM_RETRYABLE_HTTP_STATUSES = [429, 500, 502, 503, 529];
+
+/**
+ * Jitter factor for Jupiter and Solana RPC retry backoff.
+ *
+ * Value: 0.3 = 30% jitter
+ * Formula: delay = baseDelay * (1 + random() * JITTER_FACTOR)
+ * Example: 1000ms base → 1000-1300ms actual delay
+ *
+ * Moderate jitter (30%) prevents thundering herd while keeping retry timing
+ * reasonably predictable for time-sensitive trade execution.
+ */
+const STANDARD_JITTER_FACTOR = 0.3;
+
+/**
+ * Jitter factor for LLM API retry backoff.
+ *
+ * Value: 0.4 = 40% jitter
+ * Formula: delay = baseDelay * (1 + random() * JITTER_FACTOR)
+ * Example: 2000ms base → 2000-2800ms actual delay
+ *
+ * Higher jitter (40%) helps distribute retries more evenly when multiple
+ * agents hit LLM rate limits simultaneously, reducing retry storms.
+ */
+const LLM_JITTER_FACTOR = 0.4;
+
+/**
+ * Jitter factor for generic HTTP retry backoff.
+ *
+ * Value: 0.25 = 25% jitter
+ * Formula: delay = baseDelay * (1 + random() * JITTER_FACTOR)
+ * Example: 1000ms base → 1000-1250ms actual delay
+ *
+ * Lower jitter (25%) for generic HTTP calls where retry timing is less
+ * critical and we want more predictable backoff behavior.
+ */
+const GENERIC_JITTER_FACTOR = 0.25;
+
+// ---------------------------------------------------------------------------
 // Pre-configured Policies
 // ---------------------------------------------------------------------------
 
@@ -109,10 +170,10 @@ export const JUPITER_POLICY: RetryPolicy = {
   baseDelayMs: 1000,
   maxDelayMs: 15_000,
   backoffMultiplier: 2,
-  jitterFactor: 0.3,
+  jitterFactor: STANDARD_JITTER_FACTOR,
   retryOnTimeout: true,
   retryOnRateLimit: true,
-  retryableStatuses: [429, 500, 502, 503, 504],
+  retryableStatuses: COMMON_RETRYABLE_HTTP_STATUSES,
   retryablePatterns: [
     /timeout/i,
     /ECONNRESET/i,
@@ -144,10 +205,10 @@ export const SOLANA_RPC_POLICY: RetryPolicy = {
   baseDelayMs: 500,
   maxDelayMs: 8_000,
   backoffMultiplier: 2,
-  jitterFactor: 0.3,
+  jitterFactor: STANDARD_JITTER_FACTOR,
   retryOnTimeout: true,
   retryOnRateLimit: true,
-  retryableStatuses: [429, 500, 502, 503, 504],
+  retryableStatuses: COMMON_RETRYABLE_HTTP_STATUSES,
   retryablePatterns: [
     /timeout/i,
     /ECONNRESET/i,
@@ -174,10 +235,10 @@ export const LLM_API_POLICY: RetryPolicy = {
   baseDelayMs: 2000,
   maxDelayMs: 20_000,
   backoffMultiplier: 2.5,
-  jitterFactor: 0.4,
+  jitterFactor: LLM_JITTER_FACTOR,
   retryOnTimeout: true,
   retryOnRateLimit: true,
-  retryableStatuses: [429, 500, 502, 503, 529],
+  retryableStatuses: LLM_RETRYABLE_HTTP_STATUSES,
   retryablePatterns: [
     /timeout/i,
     /rate.?limit/i,
@@ -206,10 +267,10 @@ export const GENERIC_HTTP_POLICY: RetryPolicy = {
   baseDelayMs: 1000,
   maxDelayMs: 10_000,
   backoffMultiplier: 2,
-  jitterFactor: 0.25,
+  jitterFactor: GENERIC_JITTER_FACTOR,
   retryOnTimeout: true,
   retryOnRateLimit: true,
-  retryableStatuses: [429, 500, 502, 503, 504],
+  retryableStatuses: COMMON_RETRYABLE_HTTP_STATUSES,
   retryablePatterns: [
     /timeout/i,
     /ECONNRESET/i,
