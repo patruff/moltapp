@@ -97,6 +97,33 @@ const RECENT_DECISIONS_SENTIMENT_WINDOW = 10;
  */
 
 /**
+ * Percentage Precision Rounding Constants
+ *
+ * Used for 2-decimal percentage display formatting in action distributions
+ * and stock preference weights.
+ */
+
+/**
+ * Multiplier for 2-decimal percentage precision rounding.
+ *
+ * Formula: Math.round(fraction × MULTIPLIER) / DIVISOR
+ * Example: 0.3333 → Math.round(0.3333 × 10000) / 100 → 3333 / 100 → 33.33%
+ *
+ * Used in:
+ * - Action distribution percentages (buy/sell/hold ratios)
+ * - Stock preference weights (relative frequency calculations)
+ */
+const PERCENTAGE_PRECISION_MULTIPLIER = 10000;
+
+/**
+ * Divisor for percentage precision rounding.
+ *
+ * Converts rounded integer back to 2-decimal percentage format.
+ * Works with PERCENTAGE_PRECISION_MULTIPLIER to produce values like: 33.33%, 66.67%, etc.
+ */
+const PERCENTAGE_PRECISION_DIVISOR = 100;
+
+/**
  * Bias volatility threshold for contrarian classification.
  * If >60% of consecutive non-hold decisions flip direction, agent is contrarian.
  */
@@ -437,9 +464,9 @@ function computeActionDistribution(
   const holds = countByCondition(decisions, (d) => d.action === "hold");
 
   return {
-    buyPercent: Math.round((buys / total) * 10000) / 100,
-    sellPercent: Math.round((sells / total) * 10000) / 100,
-    holdPercent: Math.round((holds / total) * 10000) / 100,
+    buyPercent: Math.round((buys / total) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR,
+    sellPercent: Math.round((sells / total) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR,
+    holdPercent: Math.round((holds / total) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR,
     totalDecisions: total,
   };
 }
@@ -474,7 +501,7 @@ function computeStockPreferences(
       buyCount: data.buys,
       sellCount: data.sells,
       avgConfidence: data.total > 0 ? Math.round(data.confidenceSum / data.total) : 0,
-      weight: nonHoldCount > 0 ? Math.round((data.total / nonHoldCount) * 10000) / 100 : 0,
+      weight: nonHoldCount > 0 ? Math.round((data.total / nonHoldCount) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR : 0,
     });
   }
 
