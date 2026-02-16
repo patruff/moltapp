@@ -154,6 +154,49 @@ const SLIPPAGE_EXTREME_MULTIPLIER = 2; // 2× maxSlippagePercent = extreme slipp
  */
 const QUICK_VALIDATE_MIN_CONFIDENCE = 50; // Minimum confidence for quick validation
 
+/**
+ * Formatting Precision Constants
+ *
+ * Control decimal precision for price and deviation display in validation messages.
+ */
+
+/**
+ * Decimal precision for price formatting in validation messages (4 decimals).
+ * Example: $178.5432 displayed as "$178.5432"
+ */
+const PRICE_DECIMAL_PRECISION = 4;
+
+/**
+ * Decimal precision for percentage/deviation formatting (2 decimals).
+ * Example: 1.2345% deviation displayed as "1.23%"
+ */
+const PERCENT_DECIMAL_PRECISION = 2;
+
+/**
+ * Price Rounding & Duration Constants
+ *
+ * Control price rounding precision and time window calculations.
+ */
+
+/**
+ * Multiplier for validated price rounding (4 decimal places).
+ * Formula: Math.round(price * 10000) / 10000 = 4 decimal precision
+ * Example: 178.54321 → 178.5432
+ */
+const PRICE_ROUNDING_MULTIPLIER = 10000;
+
+/**
+ * Duration of 24-hour price range window in milliseconds.
+ * Used to expire stale price ranges and reset high/low bounds.
+ */
+const PRICE_RANGE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Jupiter Price API fetch timeout in milliseconds.
+ * Prevents hanging on slow/unresponsive Jupiter API calls.
+ */
+const JUPITER_API_TIMEOUT_MS = 5000; // 5 seconds
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -284,7 +327,7 @@ export async function validatePrice(
   const maxDeviation = avgPrice > 0 ? ((maxPrice - minPrice) / avgPrice) * 100 : 0;
 
   if (maxDeviation > config.maxSourceDeviationPercent && sourceDetails.length >= 2) {
-    const reason = `Price sources disagree: ${maxDeviation.toFixed(2)}% deviation (max allowed: ${config.maxSourceDeviationPercent}%)`;
+    const reason = `Price sources disagree: ${maxDeviation.toFixed(PERCENT_DECIMAL_PRECISION)}% deviation (max allowed: ${config.maxSourceDeviationPercent}%)`;
     return rejectPrice(request, reason, sourceDetails, config);
   }
 
@@ -302,7 +345,7 @@ export async function validatePrice(
 
     if (proposedDeviation > config.maxSlippagePercent * SLIPPAGE_EXTREME_MULTIPLIER) {
       // Extreme slippage — reject
-      const reason = `Excessive slippage: proposed $${request.proposedPrice.toFixed(4)} vs validated $${validatedPrice.toFixed(4)} (${proposedDeviation.toFixed(2)}% deviation)`;
+      const reason = `Excessive slippage: proposed $${request.proposedPrice.toFixed(PRICE_DECIMAL_PRECISION)} vs validated $${validatedPrice.toFixed(PRICE_DECIMAL_PRECISION)} (${proposedDeviation.toFixed(PERCENT_DECIMAL_PRECISION)}% deviation)`;
       return rejectPrice(request, reason, sourceDetails, config);
     }
   }
@@ -315,7 +358,7 @@ export async function validatePrice(
     const adjustedHigh = range.high * (1 + buffer);
 
     if (validatedPrice < adjustedLow || validatedPrice > adjustedHigh) {
-      const reason = `Price $${validatedPrice.toFixed(4)} outside 24h range [$${adjustedLow.toFixed(4)}, $${adjustedHigh.toFixed(4)}]`;
+      const reason = `Price $${validatedPrice.toFixed(PRICE_DECIMAL_PRECISION)} outside 24h range [$${adjustedLow.toFixed(PRICE_DECIMAL_PRECISION)}, $${adjustedHigh.toFixed(PRICE_DECIMAL_PRECISION)}]`;
       return rejectPrice(request, reason, sourceDetails, config);
     }
   }
@@ -355,7 +398,7 @@ export async function validatePrice(
     valid: true,
     confidence,
     rejectReason: null,
-    validatedPrice: Math.round(validatedPrice * 10000) / 10000,
+    validatedPrice: Math.round(validatedPrice * PRICE_ROUNDING_MULTIPLIER) / PRICE_ROUNDING_MULTIPLIER,
     maxDeviationPercent: config.maxSourceDeviationPercent,
     actualDeviationPercent: round2(proposedDeviation),
     sourcesConfirmed: sourceDetails.length,
@@ -367,7 +410,7 @@ export async function validatePrice(
 
   logTradeEvent(
     "price_validated",
-    `Price validated for ${request.symbol}: $${validatedPrice.toFixed(4)} (${sourceDetails.length} sources, ${confidence}% confidence)`,
+    `Price validated for ${request.symbol}: $${validatedPrice.toFixed(PRICE_DECIMAL_PRECISION)} (${sourceDetails.length} sources, ${confidence}% confidence)`,
     request.agentId,
     undefined,
     {
@@ -578,7 +621,7 @@ async function fetchJupiterPrice(mintAddress: string): Promise<number | null> {
 
     const resp = await fetch(
       `https://api.jup.ag/price/v3?ids=${mintAddress}`,
-      { headers, signal: AbortSignal.timeout(5000) },
+      { headers, signal: AbortSignal.timeout(JUPITER_API_TIMEOUT_MS) },
     );
 
     if (!resp.ok) return null;
@@ -607,7 +650,7 @@ function updatePriceRange(mintAddress: string, price: number): void {
   }
 
   // Reset range if older than 24h
-  if (now - existing.updatedAt > 24 * 60 * 60 * 1000) {
+  if (now - existing.updatedAt > PRICE_RANGE_DURATION_MS) {
     priceRanges.set(mintAddress, { high: price, low: price, updatedAt: now });
     return;
   }
