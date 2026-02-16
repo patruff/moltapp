@@ -148,6 +148,60 @@ const MARKET_BULLISH_THRESHOLD = 1;
 const MARKET_BEARISH_THRESHOLD = -1;
 
 /**
+ * Analytics Calculation Constants
+ *
+ * Core calculation parameters for performance metrics, time conversions,
+ * and precision formatting across all analytics reports.
+ */
+
+/**
+ * Time Conversion Constant
+ *
+ * Milliseconds per day (24 hours × 60 minutes × 60 seconds × 1000 milliseconds).
+ *
+ * Used for converting timestamp differences to calendar days in trend analysis
+ * and frequency calculations.
+ *
+ * Formula: MS_PER_DAY = 24 × 60 × 60 × 1000 = 86,400,000
+ *
+ * Example: 172,800,000 ms / 86,400,000 = 2 days
+ *
+ * Tuning impact: This is a standard constant (shouldn't change).
+ */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Trading Days Per Year (Annualization Constant)
+ *
+ * Number of trading days per year used for annualizing daily returns and
+ * volatility in Sharpe ratio calculations.
+ *
+ * Formula: annualized_volatility = daily_volatility × √TRADING_DAYS_PER_YEAR
+ *
+ * Example: 2% daily vol × √252 = 2% × 15.87 = 31.74% annualized vol
+ *
+ * NYSE standard: 252 trading days (365 calendar days - 104 weekend days - 9 holidays)
+ *
+ * Tuning impact: Change to 365 for crypto/24-7 markets, or 250 for international exchanges.
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * Analytics Rounding Divisor (Display Precision)
+ *
+ * Divisor for rounding all analytics metrics to 1 decimal place.
+ *
+ * Formula: Math.round(value × ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR
+ *
+ * Example: Math.round(75.337 × 10) / 10 = Math.round(753.37) / 10 = 753 / 10 = 75.3
+ *
+ * Current precision: 1 decimal (divisor = 10)
+ *
+ * Tuning impact: Change to 100 for 2-decimal precision (75.34%), or 1 for integer rounding (75%).
+ */
+const ANALYTICS_ROUNDING_DIVISOR = 10;
+
+/**
  * Market Volatility Classification
  *
  * Thresholds for classifying market volatility as high/medium/low based on
@@ -649,8 +703,8 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
       provider: config.provider,
       model: config.model,
       totalDecisions: agentDecisionsList.length,
-      winRate: Math.round(winRate * 10) / 10,
-      avgConfidence: Math.round(avgConf * 10) / 10,
+      winRate: Math.round(winRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+      avgConfidence: Math.round(avgConf * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
       portfolioValue: portfolio.totalValue,
       totalPnl: portfolio.totalPnl,
       totalPnlPercent: portfolio.totalPnlPercent,
@@ -742,10 +796,10 @@ function computePerformance(
     buyCount: buys.length,
     sellCount: sells.length,
     holdCount: holds.length,
-    winRate: Math.round(winRate * 10) / 10,
-    avgConfidence: Math.round(avgConfidence * 10) / 10,
-    avgConfidenceOnWins: Math.round(winsConf * 10) / 10,
-    avgConfidenceOnLosses: Math.round(lossesConf * 10) / 10,
+    winRate: Math.round(winRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    avgConfidence: Math.round(avgConfidence * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    avgConfidenceOnWins: Math.round(winsConf * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    avgConfidenceOnLosses: Math.round(lossesConf * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     bestDecision: best ? { id: best.id, action: best.action, symbol: best.symbol, confidence: best.confidence, reasoning: best.reasoning, timestamp: best.createdAt } : null,
     worstDecision: worst ? { id: worst.id, action: worst.action, symbol: worst.symbol, confidence: worst.confidence, reasoning: worst.reasoning, timestamp: worst.createdAt } : null,
     profitFactor: round2(profitFactor),
@@ -826,7 +880,7 @@ function computeRiskMetrics(
     calmarRatio: round2(calmarRatio),
     valueAtRisk95: Math.round(valueAtRisk95 * 10000) / 10000,
     avgPositionSize: round2(avgPositionSize),
-    maxPositionConcentration: Math.round(maxPositionConcentration * 10) / 10,
+    maxPositionConcentration: Math.round(maxPositionConcentration * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
 }
 
@@ -908,16 +962,16 @@ function computeTradingPatterns(
   const avgHoldDuration = gaps > 0 ? totalGapMs / gaps / (60 * 60 * 1000) : 0;
 
   return {
-    avgDecisionsPerDay: Math.round(avgDecisionsPerDay * 10) / 10,
+    avgDecisionsPerDay: Math.round(avgDecisionsPerDay * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     mostTradedSymbol,
     mostTradedSymbolCount,
     leastTradedSymbol,
     preferredAction,
-    avgHoldDuration: Math.round(avgHoldDuration * 10) / 10,
+    avgHoldDuration: Math.round(avgHoldDuration * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     tradeFrequency,
     confidenceDistribution: { low, medium, high },
-    symbolDiversity: Math.round(symbolDiversity * 10) / 10,
-    reversalRate: Math.round(reversalRate * 10) / 10,
+    symbolDiversity: Math.round(symbolDiversity * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    reversalRate: Math.round(reversalRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
 }
 
@@ -1002,8 +1056,8 @@ function computeStreaks(
     longestWinStreak: findMax(winStreaks, 'length')?.length ?? 0,
     longestLossStreak: findMax(lossStreaks, 'length')?.length ?? 0,
     longestHoldStreak: findMax(holdStreaks, 'length')?.length ?? 0,
-    avgWinStreakLength: Math.round(averageByKey(winStreaks, 'length') * 10) / 10,
-    avgLossStreakLength: Math.round(averageByKey(lossStreaks, 'length') * 10) / 10,
+    avgWinStreakLength: Math.round(averageByKey(winStreaks, 'length') * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    avgLossStreakLength: Math.round(averageByKey(lossStreaks, 'length') * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
 }
 
@@ -1043,10 +1097,10 @@ function computeSentimentProfile(
 
   return {
     overallSentiment,
-    bullishPercentage: Math.round(bullishPct * 10) / 10,
-    bearishPercentage: Math.round(bearishPct * 10) / 10,
-    sentimentConsistency: Math.round(sentimentConsistency * 10) / 10,
-    contrarianism: Math.round(contrarianism * 10) / 10,
+    bullishPercentage: Math.round(bullishPct * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    bearishPercentage: Math.round(bearishPct * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    sentimentConsistency: Math.round(sentimentConsistency * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    contrarianism: Math.round(contrarianism * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
 }
 
@@ -1069,7 +1123,7 @@ function computeHourlyActivity(
       hour,
       decisions: entry?.count ?? 0,
       avgConfidence: entry && entry.count > 0
-        ? Math.round((entry.totalConf / entry.count) * 10) / 10
+        ? Math.round((entry.totalConf / entry.count) * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR
         : 0,
     };
   });
@@ -1130,7 +1184,7 @@ async function computeSocialMetrics(decisionIds: number[]): Promise<SocialMetric
     bearishReactions,
     totalComments,
     avgReactionsPerDecision: round2(avgReactionsPerDecision),
-    communityAgreement: Math.round(communityAgreement * 10) / 10,
+    communityAgreement: Math.round(communityAgreement * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
 }
 
@@ -1224,8 +1278,8 @@ function computeComparisonEntry(
     agentName: config.name,
     provider: config.provider,
     totalDecisions: decisions.length,
-    winRate: Math.round(winRate * 10) / 10,
-    avgConfidence: Math.round(avgConf * 10) / 10,
+    winRate: Math.round(winRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
+    avgConfidence: Math.round(avgConf * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     sharpeRatio: round2(sharpe),
     maxDrawdown: Math.round(maxDD * 10000) / 10000,
     favoriteStock,
@@ -1274,7 +1328,7 @@ function computeHeadToHead(
   return {
     sameDecisionCount,
     oppositeDecisionCount,
-    agreementRate: Math.round(agreementRate * 10) / 10,
+    agreementRate: Math.round(agreementRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     symbolOverlap: overlap,
     agent1WinsCount: agent1Wins,
     agent2WinsCount: agent2Wins,
