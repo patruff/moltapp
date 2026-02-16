@@ -141,6 +141,12 @@ const ALERTS_DISPLAY_LIMIT = 50;
 const CONVICTION_SYMBOLS_DISPLAY_LIMIT = 15;
 
 /**
+ * Maximum number of smart money flows to display in flow analysis results.
+ * Limits API response size while showing the most significant capital flows.
+ */
+const WHALE_FLOWS_DISPLAY_LIMIT = 20;
+
+/**
  * Maximum number of decisions to fetch for baseline calculations.
  * Provides statistical significance for agent behavior baselines.
  */
@@ -938,7 +944,7 @@ export async function getSmartMoneyFlow(hours = SMART_MONEY_FLOW_DEFAULT_HOURS):
 
   return {
     period,
-    flows: flows.slice(0, 20),
+    flows: flows.slice(0, WHALE_FLOWS_DISPLAY_LIMIT),
     sectorFlows,
     aggregateFlow: {
       totalInflow: Math.round(totalInflow),

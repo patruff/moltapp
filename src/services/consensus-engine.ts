@@ -107,6 +107,13 @@ const DIVERGENCE_SCORE_DIVISOR = 2;
  */
 const TOP_CONSENSUS_SYMBOLS_LIMIT = 10;
 
+/**
+ * Maximum recent signals to analyze per sector for consensus classification.
+ * @constant {number} SECTOR_CONSENSUS_RECENT_SIGNALS_LIMIT - Most recent 5 signals per sector
+ * @example For each sector, analyze last 5 agent decisions to determine bullish/bearish/neutral sentiment
+ */
+const SECTOR_CONSENSUS_RECENT_SIGNALS_LIMIT = 5;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -717,7 +724,7 @@ export function getConsensusHistory(limit: number = 20): ConsensusHistory {
   }
 
   for (const [sector, signals] of sectorSignals.entries()) {
-    const recentSignals = signals.slice(0, 5);
+    const recentSignals = signals.slice(0, SECTOR_CONSENSUS_RECENT_SIGNALS_LIMIT);
     const bullish = countByCondition(recentSignals, (s) => s.action === "buy");
     const bearish = countByCondition(recentSignals, (s) => s.action === "sell");
 

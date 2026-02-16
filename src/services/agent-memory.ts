@@ -236,6 +236,29 @@ const MAX_PRICE_LEVELS = 10;
 const MAX_PEER_OBSERVATIONS = 50;
 
 /**
+ * Memory Display Limit Constants
+ *
+ * These constants control how many items are displayed in memory prompt summaries
+ * to prevent overwhelming agents with excessive historical context.
+ */
+
+/**
+ * Maximum active patterns to display in memory prompt.
+ * Only patterns with 2+ occurrences and >50% success rate are shown.
+ * @example
+ * - Agent has 12 active patterns → show top 5 most successful
+ */
+const ACTIVE_PATTERNS_DISPLAY_LIMIT = 5;
+
+/**
+ * Maximum stock profiles to display in memory prompt.
+ * Profiles for stocks with 2+ trades, sorted by trade count (most traded first).
+ * @example
+ * - Agent has traded 15 different stocks → show 8 most frequently traded
+ */
+const RELEVANT_STOCK_PROFILES_DISPLAY_LIMIT = 8;
+
+/**
  * Minimum Occurrence Thresholds
  *
  * These thresholds control when data becomes statistically significant enough
@@ -1169,7 +1192,7 @@ export function generateMemoryPrompt(agentId: string): string {
   // Section 3: Active patterns
   const activePatterns = memory.patterns
     .filter((p) => p.occurrences >= 2 && p.successRate > 50)
-    .slice(0, 5);
+    .slice(0, ACTIVE_PATTERNS_DISPLAY_LIMIT);
   if (activePatterns.length > 0) {
     sections.push(
       `ACTIVE PATTERNS:\n${activePatterns.map((p) => `• ${p.name}: ${p.description}`).join("\n")}`,
@@ -1180,7 +1203,7 @@ export function generateMemoryPrompt(agentId: string): string {
   const relevantProfiles = [...memory.stockProfiles.values()]
     .filter((p) => p.tradeCount >= 2)
     .sort((a, b) => b.tradeCount - a.tradeCount)
-    .slice(0, 8);
+    .slice(0, RELEVANT_STOCK_PROFILES_DISPLAY_LIMIT);
 
   if (relevantProfiles.length > 0) {
     const profileLines = relevantProfiles.map((p) => {
