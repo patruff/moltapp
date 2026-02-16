@@ -75,11 +75,66 @@ export interface BenchmarkSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum benchmark history retention (days)
+ *
+ * Controls how many days of SPY/equal-weight benchmark data to keep in memory.
+ *
+ * Example: 365 days = 1 year of daily price snapshots for benchmark comparison.
+ */
+const MAX_HISTORY = 365;
+
+/**
+ * Initial portfolio value for benchmark initialization ($USD)
+ *
+ * Starting capital for both equal-weight benchmark and agent equity curve comparison.
+ *
+ * Example: $10,000 = typical brokerage account minimum for retail trading.
+ */
+const BENCHMARK_INITIAL_PORTFOLIO_VALUE = 10000;
+
+/**
+ * Equal-weight return dispersion multiplier range
+ *
+ * Simulates stock-level volatility by applying 0.9-1.1× multiplier to SPY return.
+ *
+ * Formula: equalWeightReturn = spyReturn × (DISPERSION_MIN + random() × DISPERSION_RANGE)
+ *
+ * Example: SPY +2% → equal-weight portfolio +1.8% to +2.2% (90-110% of SPY return)
+ */
+const EQUAL_WEIGHT_RETURN_DISPERSION_MIN = 0.9;
+const EQUAL_WEIGHT_RETURN_DISPERSION_RANGE = 0.2;
+
+/**
+ * Tracking error display precision (decimal places)
+ *
+ * Controls rounding precision for tracking error in API responses.
+ *
+ * Formula: Math.round(trackingError × PRECISION) / PRECISION = 4-decimal precision
+ *
+ * Example: 0.123456 → 0.1235 (4-decimal places for institutional quality metrics)
+ */
+const TRACKING_ERROR_PRECISION_MULTIPLIER = 10000;
+
+/**
+ * Trading days per year for annualization
+ *
+ * Standard NYSE trading calendar (365 - 104 weekend - 9 holidays = 252 days).
+ *
+ * Formula: annualizedTrackingError = dailyStdDev × √TRADING_DAYS_PER_YEAR
+ *
+ * Used in: Information Ratio calculation (alpha / annualized tracking error)
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const benchmarkHistory: BenchmarkSnapshot[] = [];
-const MAX_HISTORY = 365;
 
 /** Per-agent daily returns for correlation analysis */
 const agentDailyReturns = new Map<
@@ -118,7 +173,7 @@ export function recordBenchmarkData(
   // Equal-weight: average price change of all stocks
   if (initialEqualWeightValue === null && allStockPrices.size > 0) {
     // Store initial prices for equal-weight calculation
-    initialEqualWeightValue = 10000; // Start at $10k
+    initialEqualWeightValue = BENCHMARK_INITIAL_PORTFOLIO_VALUE;
   }
 
   // Calculate SPY return
@@ -138,7 +193,7 @@ export function recordBenchmarkData(
   if (prevSnapshot && allStockPrices.size > 0) {
     // We don't track individual stock prices in benchmark, so estimate
     // based on SPY return with some dispersion
-    equalWeightReturn = spyDailyReturn * (0.9 + Math.random() * 0.2);
+    equalWeightReturn = spyDailyReturn * (EQUAL_WEIGHT_RETURN_DISPERSION_MIN + Math.random() * EQUAL_WEIGHT_RETURN_DISPERSION_RANGE);
   }
 
   const equalWeightCumulativeReturn =
@@ -322,7 +377,7 @@ function computeAgentComparison(
     alpha,
     beta: round2(beta),
     informationRatio,
-    trackingError: Math.round(trackingError * 10000) / 10000,
+    trackingError: Math.round(trackingError * TRACKING_ERROR_PRECISION_MULTIPLIER) / TRACKING_ERROR_PRECISION_MULTIPLIER,
     outperforming: agentCumulativeReturn > spyCumulativeReturn,
     rolling,
     equityCurve,
@@ -360,7 +415,7 @@ function calculateTrackingError(
   const diffs = matched.map((m) => m.agentReturn - m.benchmarkReturn);
   const variance = computeVariance(diffs);
 
-  return Math.sqrt(variance) * Math.sqrt(252); // Annualized
+  return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR); // Annualized
 }
 
 function calculateRollingComparisons(
@@ -404,7 +459,7 @@ function buildEquityCurve(
 
   // Start benchmark at same initial value as agent
   const initialAgentValue =
-    agentReturns.length > 0 ? agentReturns[0].portfolioValue : 10000;
+    agentReturns.length > 0 ? agentReturns[0].portfolioValue : BENCHMARK_INITIAL_PORTFOLIO_VALUE;
   let benchmarkValue = initialAgentValue;
 
   for (const ar of agentReturns) {
