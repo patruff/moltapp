@@ -292,6 +292,115 @@ const FORMATTING_PRECISION = {
   VOLUME_PERCENT_DIVISOR: 100_000_000,
 } as const;
 
+/**
+ * Time Window & Decay Constants
+ *
+ * Controls temporal analysis parameters for sentiment lookback periods, news timestamp
+ * distribution, and historical sentiment decay simulation. These constants affect:
+ * - Sentiment heatmap lookback windows (7d/14d/30d timeframes)
+ * - News headline timestamp distribution (simulated article age)
+ * - Point-in-time sentiment timeline decay curves
+ * - Agent decision aggregation time windows
+ * - Recency weighting for sentiment scoring
+ *
+ * Adjusting these values changes how far back sentiment analysis looks and how
+ * historical sentiment is reconstructed from current state.
+ */
+const TIME_WINDOW_DECAY = {
+  /**
+   * Sentiment lookback: 7 days (milliseconds)
+   * Used for: Agent decision aggregation, 7-day sentiment heatmap cells, recency decay
+   * Value: 7 * 24 * 60 * 60 * 1000 = 604,800,000 ms
+   */
+  SENTIMENT_LOOKBACK_7D_MS: 7 * 24 * 60 * 60 * 1000,
+
+  /**
+   * Sentiment lookback: 14 days (milliseconds)
+   * Used for: Agent sentiment profiles, correlation matrix analysis
+   * Value: 14 * 24 * 60 * 60 * 1000 = 1,209,600,000 ms
+   */
+  SENTIMENT_LOOKBACK_14D_MS: 14 * 24 * 60 * 60 * 1000,
+
+  /**
+   * Sentiment lookback: 30 days (milliseconds)
+   * Used for: Long-term sentiment trend analysis, sector sentiment aggregation
+   * Value: 30 * 24 * 60 * 60 * 1000 = 2,592,000,000 ms
+   */
+  SENTIMENT_LOOKBACK_30D_MS: 30 * 24 * 60 * 60 * 1000,
+
+  /**
+   * Sentiment lookback: 24 hours (milliseconds)
+   * Used for: Recent sentiment shifts, intraday mood analysis
+   * Value: 24 * 60 * 60 * 1000 = 86,400,000 ms
+   */
+  SENTIMENT_LOOKBACK_24H_MS: 24 * 60 * 60 * 1000,
+
+  /**
+   * News timestamp window: 3 hours (milliseconds)
+   * Used for: Simulated news headline age distribution (recent articles)
+   * Value: 3 * 60 * 60 * 1000 = 10,800,000 ms
+   */
+  NEWS_TIMESPAN_3H_MS: 3 * 60 * 60 * 1000,
+
+  /**
+   * News timestamp window: 4 hours (milliseconds)
+   * Used for: Simulated news headline age distribution (recent articles)
+   * Value: 4 * 60 * 60 * 1000 = 14,400,000 ms
+   */
+  NEWS_TIMESPAN_4H_MS: 4 * 60 * 60 * 1000,
+
+  /**
+   * News timestamp window: 6 hours (milliseconds)
+   * Used for: Simulated news headline age distribution (morning/afternoon articles)
+   * Value: 6 * 60 * 60 * 1000 = 21,600,000 ms
+   */
+  NEWS_TIMESPAN_6H_MS: 6 * 60 * 60 * 1000,
+
+  /**
+   * News timestamp window: 8 hours (milliseconds)
+   * Used for: Simulated news headline age distribution (full trading day)
+   * Value: 8 * 60 * 60 * 1000 = 28,800,000 ms
+   */
+  NEWS_TIMESPAN_8H_MS: 8 * 60 * 60 * 1000,
+
+  /**
+   * Decision aggregation window: 5 minutes (milliseconds)
+   * Used for: Grouping agent decisions into 5-minute buckets for consensus calculation
+   * Value: 5 * 60 * 1000 = 300,000 ms
+   */
+  DECISION_AGGREGATION_WINDOW_MS: 5 * 60 * 1000,
+
+  /**
+   * Recency weight floor (minimum weight for old decisions)
+   * Used for: Agent sentiment calculation recency decay (prevents zero weight for 7-day-old decisions)
+   * Value: 0.1 (10% minimum weight)
+   * Formula: recencyWeight = Math.max(0.1, 1 - ageHours / (7 * 24))
+   */
+  RECENCY_WEIGHT_FLOOR: 0.1,
+
+  /**
+   * Timeline decay factor (sentiment divergence from current state)
+   * Used for: Point-in-time sentiment timeline simulation (how much historical sentiment deviates)
+   * Value: 0.4 (40% maximum deviation)
+   * Formula: decay = 1 - (i / steps) * 0.4 (older timestamps diverge more from current)
+   */
+  TIMELINE_DECAY_FACTOR: 0.4,
+
+  /**
+   * Volume ratio: High conviction threshold
+   * Used for: Volume sentiment driver description ("High conviction move")
+   * Value: 1.5 (volume 50% above average)
+   */
+  VOLUME_RATIO_HIGH_THRESHOLD: 1.5,
+
+  /**
+   * Volume ratio: Low conviction threshold
+   * Used for: Volume sentiment driver description ("Low conviction - signal weakened")
+   * Value: 0.5 (volume 50% below average)
+   */
+  VOLUME_RATIO_LOW_THRESHOLD: 0.5,
+} as const;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -372,7 +481,7 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
   let totalWeight = 0;
 
   try {
-    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // last 7 days
+    const cutoff = new Date(Date.now() - TIME_WINDOW_DECAY.SENTIMENT_LOOKBACK_7D_MS); // last 7 days
     const decisions = await db
       .select()
       .from(agentDecisions)
@@ -396,7 +505,7 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
       const confidence = d.confidence / 100;
       // More recent decisions get higher weight (recency decay)
       const ageHours = (Date.now() - new Date(d.createdAt).getTime()) / (1000 * 60 * 60);
-      const recencyWeight = Math.max(0.1, 1 - ageHours / (7 * 24));
+      const recencyWeight = Math.max(TIME_WINDOW_DECAY.RECENCY_WEIGHT_FLOOR, 1 - ageHours / (7 * 24));
 
       const w = confidence * recencyWeight;
       weightedSum += actionScore * w;
@@ -494,7 +603,7 @@ function computeVolumeSentiment(marketData: MarketData): { score: number; driver
     driver: {
       source: "volume_analysis",
       impact: Math.round(score),
-      description: `Volume ${volLabel} (${volFormatted}, ${volumeRatio.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}x avg). ${volumeRatio > 1.5 ? "High conviction move." : volumeRatio < 0.5 ? "Low conviction - signal weakened." : "Normal activity."}`,
+      description: `Volume ${volLabel} (${volFormatted}, ${volumeRatio.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}x avg). ${volumeRatio > TIME_WINDOW_DECAY.VOLUME_RATIO_HIGH_THRESHOLD ? "High conviction move." : volumeRatio < TIME_WINDOW_DECAY.VOLUME_RATIO_LOW_THRESHOLD ? "Low conviction - signal weakened." : "Normal activity."}`,
       weight: SENTIMENT_WEIGHTS.volumeSentiment,
     },
   };
@@ -857,7 +966,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
     const config = agentConfigs.find((a) => a.agentId === agentId);
     if (!config) return null;
 
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days
+    const cutoff = new Date(Date.now() - TIME_WINDOW_DECAY.SENTIMENT_LOOKBACK_30D_MS); // 30 days
     const decisions = await db
       .select()
       .from(agentDecisions)
@@ -974,7 +1083,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
     // Group by round (decisions within 5 minutes of each other on the same symbol)
     const roundGroups: Record<string, typeof allDecisions> = {};
     for (const d of allDecisions) {
-      const roundKey = `${d.symbol}-${Math.floor(new Date(d.createdAt).getTime() / (5 * 60 * 1000))}`;
+      const roundKey = `${d.symbol}-${Math.floor(new Date(d.createdAt).getTime() / TIME_WINDOW_DECAY.DECISION_AGGREGATION_WINDOW_MS)}`;
       if (!roundGroups[roundKey]) roundGroups[roundKey] = [];
       roundGroups[roundKey].push(d);
     }
@@ -1040,7 +1149,7 @@ export async function getSentimentCorrelation(): Promise<SentimentCorrelation> {
   const agentIds = agentConfigs.map((a) => a.agentId);
 
   try {
-    const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000); // 14 days
+    const cutoff = new Date(Date.now() - TIME_WINDOW_DECAY.SENTIMENT_LOOKBACK_14D_MS); // 14 days
     const allDecisions = await db
       .select()
       .from(agentDecisions)
@@ -1051,7 +1160,7 @@ export async function getSentimentCorrelation(): Promise<SentimentCorrelation> {
     // Group by round (decisions within 5 min on same symbol)
     const roundGroups: Record<string, typeof allDecisions> = {};
     for (const d of allDecisions) {
-      const roundKey = `${d.symbol}-${Math.floor(new Date(d.createdAt).getTime() / (5 * 60 * 1000))}`;
+      const roundKey = `${d.symbol}-${Math.floor(new Date(d.createdAt).getTime() / TIME_WINDOW_DECAY.DECISION_AGGREGATION_WINDOW_MS)}`;
       if (!roundGroups[roundKey]) roundGroups[roundKey] = [];
       roundGroups[roundKey].push(d);
     }
@@ -1219,7 +1328,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
 
     if (targets.length === 0) return [];
 
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const cutoff = new Date(Date.now() - TIME_WINDOW_DECAY.SENTIMENT_LOOKBACK_24H_MS);
     const recentDecisions = await db
       .select()
       .from(agentDecisions)
@@ -1248,7 +1357,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
         sentiment: clamp(change / 5, -1, 1),
         symbols: [stock.symbol],
         category: "market",
-        publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t1") % (4 * 60 * 60 * 1000)).toISOString(),
+        publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t1") % TIME_WINDOW_DECAY.NEWS_TIMESPAN_4H_MS).toISOString(),
       });
 
       // Headline 2: Agent decision based (if decisions exist)
@@ -1260,7 +1369,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
           sentiment: agentHeadline.sentiment,
           symbols: [stock.symbol],
           category: "analyst",
-          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t2") % (6 * 60 * 60 * 1000)).toISOString(),
+          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t2") % TIME_WINDOW_DECAY.NEWS_TIMESPAN_6H_MS).toISOString(),
         });
       }
 
@@ -1272,7 +1381,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
           sentiment: change > 0 ? 0.5 : -0.3,
           symbols: [stock.symbol],
           category: "market",
-          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t3") % (3 * 60 * 60 * 1000)).toISOString(),
+          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t3") % TIME_WINDOW_DECAY.NEWS_TIMESPAN_3H_MS).toISOString(),
         });
       }
 
@@ -1288,7 +1397,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
           sentiment: round2(sectorSentiment),
           symbols: [stock.symbol],
           category,
-          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t4") % (8 * 60 * 60 * 1000)).toISOString(),
+          publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t4") % TIME_WINDOW_DECAY.NEWS_TIMESPAN_8H_MS).toISOString(),
         });
       }
     }
@@ -1480,7 +1589,7 @@ export async function getSentimentTimeline(
     const timeKey = timestamp.slice(0, 13);
 
     // Simulate historical sentiment by adding time-decayed noise
-    const decay = 1 - (i / steps) * 0.4; // older = more different from current
+    const decay = 1 - (i / steps) * TIME_WINDOW_DECAY.TIMELINE_DECAY_FACTOR; // older = more different from current
     const noise = seededRandom(`timeline-${symbol}-${timeKey}`, -25, 25);
     const historicalSentiment = clamp(
       Math.round(currentSentiment.overall * decay + noise),
