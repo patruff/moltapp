@@ -68,6 +68,152 @@ const MAX_ITEMS_PER_PROVIDER = 15;
 /** Request timeout in ms */
 const REQUEST_TIMEOUT_MS = 15_000;
 
+/**
+ * News Content Limits & Truncation Constants
+ *
+ * These control how much content is queried, processed, and stored
+ * from news APIs to optimize API costs, LLM token usage, and memory.
+ */
+
+/**
+ * Maximum number of stock symbols to query per news API request.
+ *
+ * Purpose: Limits API call complexity and response size
+ * - Perplexity API cost scales with query complexity
+ * - More symbols = longer prompts = higher token costs
+ * - 10 symbols typically provides sufficient market coverage
+ *
+ * Impact: Used in fetchPerplexityNews() to limit query scope
+ * Formula: cleanSymbols = symbols.slice(0, MAX_SYMBOLS_PER_NEWS_QUERY)
+ */
+const MAX_SYMBOLS_PER_NEWS_QUERY = 10;
+
+/**
+ * Maximum length for news item summaries/descriptions in characters.
+ *
+ * Purpose: Prevents excessive memory usage and improves LLM context efficiency
+ * - 500 characters typically captures the full lede + key details
+ * - Longer summaries consume more tokens in agent prompts
+ * - Truncation happens after API response parsing
+ *
+ * Impact: Used to trim summary fields before storage
+ * Example: "Apple announces new iPhone with..." (500 chars, ~100 tokens)
+ */
+const NEWS_SUMMARY_MAX_LENGTH = 500;
+
+/**
+ * Maximum length for API error messages in logs.
+ *
+ * Purpose: Prevents log spam from verbose API error responses
+ * - Some APIs return full HTML error pages (>10KB)
+ * - 200 characters sufficient to capture error code + first line
+ *
+ * Impact: Used in Perplexity error handling
+ * Example: "Perplexity API error 429: Rate limit exceeded, retry after 60s"
+ */
+const API_ERROR_TEXT_MAX_LENGTH = 200;
+
+/**
+ * Maximum number of stock symbols to attribute to a single news item.
+ *
+ * Purpose: Limits relevantSymbols array size for generic/fallback news
+ * - Most news items are relevant to 1-3 stocks maximum
+ * - Larger arrays waste memory and dilute relevance signals
+ * - 2 symbols is optimal for sector-level news attribution
+ *
+ * Impact: Used as fallback when API doesn't provide ticker mapping
+ * Example: Fed rate decision → [xSPYx, xQQQx] (broad market impact)
+ */
+const RELEVANT_SYMBOLS_MAX_COUNT = 2;
+
+/**
+ * Number of top symbols to include in fallback news items.
+ *
+ * Purpose: When API fails, create fallback item for top N queried symbols
+ * - 5 symbols provides useful coverage without overwhelming the item
+ * - Matches typical "top holdings" or "top movers" list size
+ *
+ * Impact: Used in Perplexity error fallback path
+ * Example: If query fails for [AAPLx, MSFTx, GOOGx, ...], attribute to first 5
+ */
+const FALLBACK_NEWS_SYMBOLS_COUNT = 5;
+
+/**
+ * Number of symbols to query in Alpha Vantage API requests.
+ *
+ * Purpose: Limits query complexity for AV News Sentiment API
+ * - Alpha Vantage free tier: 25 requests/day
+ * - More symbols per request = better rate limit efficiency
+ * - 5 symbols is optimal (balance between coverage and response time)
+ *
+ * Impact: Used in fetchAlphaVantageNews() ticker list
+ * Note: This is separate from MAX_SYMBOLS_PER_NEWS_QUERY because AV has
+ *       different API constraints than Perplexity
+ */
+const ALPHA_VANTAGE_SYMBOLS_PER_REQUEST = 5;
+
+/**
+ * Deduplication Constants
+ *
+ * Control how news items are deduplicated across multiple providers.
+ */
+
+/**
+ * Character length for title similarity matching in deduplication.
+ *
+ * Purpose: Detect duplicate news items with similar headlines
+ * - Compare first 30 characters of each title (case-insensitive)
+ * - 30 chars typically captures the core subject of the headline
+ * - Shorter = more aggressive deduplication (may merge distinct stories)
+ * - Longer = less deduplication (may keep near-duplicates)
+ *
+ * Impact: Used in deduplication logic to identify similar titles
+ * Example: "Apple Announces iPhone 16 with..." vs "Apple Announces iPhone 16 Pro..."
+ *          First 30 chars: "Apple Announces iPhone 16 wit" (match = deduplicate)
+ *
+ * Formula: title1.slice(0, 30) compared with title2.slice(0, 30)
+ */
+const TITLE_DEDUP_MATCH_LENGTH = 30;
+
+/**
+ * Date Parsing Constants
+ *
+ * Alpha Vantage time format: YYYYMMDDTHHMMSS (e.g., "20240215T143000")
+ */
+
+/** Character position where year ends in AV timestamp (YYYY) */
+const AV_TIMESTAMP_YEAR_END = 4;
+
+/** Character position where month ends in AV timestamp (YYYYMM) */
+const AV_TIMESTAMP_MONTH_END = 6;
+
+/** Character position where day ends in AV timestamp (YYYYMMDD) */
+const AV_TIMESTAMP_DAY_END = 8;
+
+/** Character position where hour starts in AV timestamp (YYYYMMDDTHH) */
+const AV_TIMESTAMP_HOUR_START = 9;
+
+/** Character position where hour ends in AV timestamp */
+const AV_TIMESTAMP_HOUR_END = 11;
+
+/** Character position where minute ends in AV timestamp */
+const AV_TIMESTAMP_MIN_END = 13;
+
+/** Character position where second ends in AV timestamp */
+const AV_TIMESTAMP_SEC_END = 15;
+
+/**
+ * JSON Markdown Cleanup Constants
+ *
+ * Perplexity sometimes wraps JSON responses in markdown code blocks.
+ */
+
+/** Length of "```json" prefix (7 characters) */
+const JSON_MARKDOWN_PREFIX_TYPED = 7;
+
+/** Length of "```" prefix (3 characters) */
+const JSON_MARKDOWN_PREFIX_GENERIC = 3;
+
 // ---------------------------------------------------------------------------
 // Perplexity Provider
 // ---------------------------------------------------------------------------
@@ -84,7 +230,7 @@ async function fetchPerplexityNews(symbols: string[]): Promise<NewsItem[]> {
     throw new Error("PERPLEXITY_API_KEY not configured");
   }
 
-  const cleanSymbols = symbols.slice(0, 10).map((s) => s.replace(/x$/i, ""));
+  const cleanSymbols = symbols.slice(0, MAX_SYMBOLS_PER_NEWS_QUERY).map((s) => s.replace(/x$/i, ""));
   const symbolList = cleanSymbols.join(", ");
 
   const messages: PerplexityMessage[] = [
@@ -125,7 +271,7 @@ Return 5-10 items covering the most important recent developments.`,
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     throw new Error(
-      `Perplexity API error ${resp.status}: ${text.slice(0, 200)}`,
+      `Perplexity API error ${resp.status}: ${text.slice(0, API_ERROR_TEXT_MAX_LENGTH)}`,
     );
   }
 
@@ -158,9 +304,9 @@ function parsePerplexityResponse(
     // Try to extract JSON array from response
     let cleaned = content.trim();
     if (cleaned.startsWith("```json")) {
-      cleaned = cleaned.slice(7);
+      cleaned = cleaned.slice(JSON_MARKDOWN_PREFIX_TYPED);
     } else if (cleaned.startsWith("```")) {
-      cleaned = cleaned.slice(3);
+      cleaned = cleaned.slice(JSON_MARKDOWN_PREFIX_GENERIC);
     }
     if (cleaned.endsWith("```")) {
       cleaned = cleaned.slice(0, -3);
@@ -224,7 +370,7 @@ function parsePerplexityResponse(
         relevantSymbols:
           relevantSymbols.length > 0
             ? relevantSymbols
-            : requestedSymbols.slice(0, 2),
+            : requestedSymbols.slice(0, RELEVANT_SYMBOLS_MAX_COUNT),
       });
     }
   } catch (err) {
@@ -236,12 +382,12 @@ function parsePerplexityResponse(
     if (content.length > 20) {
       items.push({
         title: "Market Intelligence Summary",
-        summary: content.slice(0, 500),
+        summary: content.slice(0, NEWS_SUMMARY_MAX_LENGTH),
         source: "Perplexity AI",
         url: "https://perplexity.ai",
         publishedAt: new Date().toISOString(),
         sentiment: "neutral",
-        relevantSymbols: requestedSymbols.slice(0, 5),
+        relevantSymbols: requestedSymbols.slice(0, FALLBACK_NEWS_SYMBOLS_COUNT),
       });
     }
   }
@@ -267,7 +413,7 @@ async function fetchAlphaVantageNews(
 
   // Alpha Vantage uses regular tickers, not xStock symbols
   const tickers = symbols
-    .slice(0, 5)
+    .slice(0, ALPHA_VANTAGE_SYMBOLS_PER_REQUEST)
     .map((s) => s.replace(/x$/i, ""))
     .join(",");
 
@@ -317,12 +463,12 @@ async function fetchAlphaVantageNews(
       let publishedAt: string;
       try {
         const raw = item.time_published;
-        const year = raw.slice(0, 4);
-        const month = raw.slice(4, 6);
-        const day = raw.slice(6, 8);
-        const hour = raw.slice(9, 11);
-        const min = raw.slice(11, 13);
-        const sec = raw.slice(13, 15);
+        const year = raw.slice(0, AV_TIMESTAMP_YEAR_END);
+        const month = raw.slice(AV_TIMESTAMP_YEAR_END, AV_TIMESTAMP_MONTH_END);
+        const day = raw.slice(AV_TIMESTAMP_MONTH_END, AV_TIMESTAMP_DAY_END);
+        const hour = raw.slice(AV_TIMESTAMP_HOUR_START, AV_TIMESTAMP_HOUR_END);
+        const min = raw.slice(AV_TIMESTAMP_HOUR_END, AV_TIMESTAMP_MIN_END);
+        const sec = raw.slice(AV_TIMESTAMP_MIN_END, AV_TIMESTAMP_SEC_END);
         publishedAt = new Date(
           `${year}-${month}-${day}T${hour}:${min}:${sec}Z`,
         ).toISOString();
@@ -332,7 +478,7 @@ async function fetchAlphaVantageNews(
 
       return {
         title: item.title,
-        summary: item.summary.slice(0, 500),
+        summary: item.summary.slice(0, NEWS_SUMMARY_MAX_LENGTH),
         source: item.source,
         url: item.url,
         publishedAt,
@@ -340,7 +486,7 @@ async function fetchAlphaVantageNews(
         relevantSymbols:
           relevantSymbols.length > 0
             ? relevantSymbols
-            : symbols.slice(0, 2),
+            : symbols.slice(0, RELEVANT_SYMBOLS_MAX_COUNT),
       };
     });
 
