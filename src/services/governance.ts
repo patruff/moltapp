@@ -474,7 +474,7 @@ export function createProposal(params: {
   const proposer = configs.find((c) => c.agentId === params.proposerAgentId);
 
   const now = new Date();
-  const votingDuration = (params.votingDurationHours ?? 72) * 60 * 60 * 1000;
+  const votingDuration = (params.votingDurationHours ?? VOTING_DURATION_HOURS_DEFAULT) * 60 * 60 * 1000;
 
   // Determine risk level based on type
   let riskLevel: "low" | "medium" | "high" = "medium";
@@ -503,8 +503,8 @@ export function createProposal(params: {
       totalAgainst: 0,
       totalAbstain: 0,
       quorumReached: false,
-      quorumThreshold: 67,
-      passingThreshold: params.type === "emergency_action" ? 75 : 50,
+      quorumThreshold: QUORUM_THRESHOLD_STANDARD,
+      passingThreshold: params.type === "emergency_action" ? PASSING_THRESHOLD_EMERGENCY : PASSING_THRESHOLD_STANDARD,
     },
     createdAt: now.toISOString(),
     votingStartsAt: now.toISOString(),
@@ -777,7 +777,7 @@ export function getGovernanceStats(): GovernanceStats {
     averageParticipation,
     mostActiveVoter,
     mostSuccessfulProposer,
-    averageVotingDuration: 72,
+    averageVotingDuration: VOTING_DURATION_HOURS_DEFAULT,
     quorumSuccessRate,
   };
 }
