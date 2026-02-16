@@ -200,6 +200,50 @@ const CONVICTION_ACCUMULATOR_THRESHOLD = 60;
 const CONVICTION_TRADER_THRESHOLD = 40;
 
 /**
+ * Token Amount Rounding Precision
+ *
+ * Controls decimal precision for token amount calculations in conviction
+ * analysis and agent profile reports.
+ */
+
+/**
+ * Rounding multiplier for token amount precision (4 decimal places).
+ * Used to round token amounts to 4 decimals (e.g., 123.4567 tokens).
+ * Formula: Math.round(amount * 10000) / 10000
+ *
+ * @example
+ * // Round 123.456789 to 4 decimals
+ * Math.round(123.456789 * TOKEN_AMOUNT_ROUNDING_PRECISION) / TOKEN_AMOUNT_ROUNDING_PRECISION
+ * // Result: 123.4568
+ */
+const TOKEN_AMOUNT_ROUNDING_PRECISION = 10000;
+
+/**
+ * Percentage conversion multiplier (0-100 scale).
+ * Used to convert ratios (0.0-1.0) to percentages (0-100).
+ * Formula: ratio * PERCENTAGE_CONVERSION_MULTIPLIER
+ *
+ * @example
+ * // Convert 0.75 ratio to 75%
+ * 0.75 * PERCENTAGE_CONVERSION_MULTIPLIER
+ * // Result: 75
+ */
+const PERCENTAGE_CONVERSION_MULTIPLIER = 100;
+
+/**
+ * Minimum portfolio value ratio for turnover calculation (10% of total bought).
+ * Used as a floor for average portfolio value to prevent division by zero and
+ * ensure turnover rate calculations remain reasonable when net position is very small.
+ * Formula: avgPortfolioValue = Math.max(Math.abs(totalBought - totalSold) / 2, totalBought * PORTFOLIO_VALUE_MIN_RATIO)
+ *
+ * @example
+ * // Agent bought $1000, sold $950 (net position $50)
+ * // Without floor: avgPortfolio = 50/2 = $25 (too small)
+ * // With floor: avgPortfolio = max(25, 1000 * 0.1) = $100 (reasonable)
+ */
+const PORTFOLIO_VALUE_MIN_RATIO = 0.1;
+
+/**
  * Conviction Scoring Weights
  *
  * Conviction score is composed of three components, each contributing points
@@ -479,8 +523,8 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
   const totalVolume = totalBought + totalSold;
 
   // Turnover rate: total volume / average portfolio value
-  // Average portfolio value approximated as (totalBought - totalSold) / 2, floored at totalBought * 0.1
-  const avgPortfolioValue = Math.max(Math.abs(totalBought - totalSold) / 2, totalBought * 0.1);
+  // Average portfolio value approximated as (totalBought - totalSold) / 2, floored at totalBought * PORTFOLIO_VALUE_MIN_RATIO
+  const avgPortfolioValue = Math.max(Math.abs(totalBought - totalSold) / 2, totalBought * PORTFOLIO_VALUE_MIN_RATIO);
   const turnoverRate = avgPortfolioValue > 0
     ? round2(totalVolume / avgPortfolioValue)
     : 0;
@@ -501,7 +545,7 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
     .map(([symbol, vol]) => ({
       symbol,
       percentOfFlow: totalVolume > 0
-        ? round2((vol / totalVolume) * 100)
+        ? round2((vol / totalVolume) * PERCENTAGE_CONVERSION_MULTIPLIER)
         : 0,
     }))
     .sort((a, b) => b.percentOfFlow - a.percentOfFlow);
@@ -806,9 +850,9 @@ export function getTokenConviction(): TokenConviction[] {
       agentId,
       symbol,
       convictionScore,
-      totalBought: Math.round(bought * 10000) / 10000,
-      totalSold: Math.round(sold * 10000) / 10000,
-      netPosition: Math.round(netPosition * 10000) / 10000,
+      totalBought: Math.round(bought * TOKEN_AMOUNT_ROUNDING_PRECISION) / TOKEN_AMOUNT_ROUNDING_PRECISION,
+      totalSold: Math.round(sold * TOKEN_AMOUNT_ROUNDING_PRECISION) / TOKEN_AMOUNT_ROUNDING_PRECISION,
+      netPosition: Math.round(netPosition * TOKEN_AMOUNT_ROUNDING_PRECISION) / TOKEN_AMOUNT_ROUNDING_PRECISION,
       style,
     });
   }
