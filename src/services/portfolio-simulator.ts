@@ -620,9 +620,9 @@ export async function quickSimulation(
     estimatedReturnPercent: round2((estimatedReturn / startingCapital) * 100),
     totalDecisions: decisions.length,
     decisionsFollowed: actionDecisions.length,
-    avgConfidence: Math.round(avgConfidence * 10) / 10,
+    avgConfidence: Math.round(avgConfidence * CONFIDENCE_DISPLAY_PRECISION_MULTIPLIER) / CONFIDENCE_DISPLAY_PRECISION_DIVISOR,
     winRate: actionDecisions.length > 0
-      ? Math.round((highConfidence.length / actionDecisions.length) * 1000) / 10
+      ? Math.round((highConfidence.length / actionDecisions.length) * WIN_RATE_PRECISION_MULTIPLIER) / WIN_RATE_PRECISION_DIVISOR
       : 0,
   };
 }
