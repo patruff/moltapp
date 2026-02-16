@@ -255,6 +255,88 @@ const DAY_MEAN_REVERSION_ABS_AVG_MIN = 2;
 /** Maximum absolute average change for mean reversion day (conflicting signals) */
 const DAY_MEAN_REVERSION_ABS_AVG_MAX = 0.5;
 
+/**
+ * REGIME DISPLAY FORMATTING PRECISION CONSTANTS
+ *
+ * Control decimal precision for regime interpretation display in marketplace UI.
+ * These constants define how many decimal places are shown for various market
+ * indicators in human-readable regime descriptions, sector rotation analysis,
+ * and breadth interpretations.
+ */
+
+/**
+ * Decimal precision for trend strength percentage display (0 decimals).
+ * Used in regime interpretations for trendStrength indicator.
+ *
+ * Example: 65% (not 65.3%)
+ * Locations: generateInterpretation() bull_run, bear_market, sideways, momentum
+ */
+const TREND_STRENGTH_DECIMALS = 0;
+
+/**
+ * Decimal precision for momentum score percentage display (1 decimal).
+ * Used in regime interpretations for momentumScore indicator.
+ *
+ * Example: 2.3% (not 2%)
+ * Locations: generateInterpretation() bull_run, bear_market, sector_rotation, momentum, mean_reversion
+ */
+const MOMENTUM_SCORE_DECIMALS = 1;
+
+/**
+ * Decimal precision for breadth score percentage display (0 decimals).
+ * Used in regime interpretations for breadthScore indicator.
+ *
+ * Example: 72% (not 72.4%)
+ * Locations: generateInterpretation() bull_run, bear_market, momentum
+ */
+const BREADTH_SCORE_DECIMALS = 0;
+
+/**
+ * Decimal precision for volatility level percentage display (1 decimal).
+ * Used in regime interpretations for volatilityLevel indicator (annualized).
+ *
+ * Example: 24.5% (not 24% or 24.53%)
+ * Locations: generateInterpretation() sideways, high_volatility, low_volatility, mean_reversion
+ */
+const VOLATILITY_LEVEL_DECIMALS = 1;
+
+/**
+ * Decimal precision for sector dispersion percentage display (1 decimal).
+ * Used in regime interpretations and rotation analysis for sectorDispersion.
+ *
+ * Example: 3.8% (not 3% or 3.82%)
+ * Locations: generateInterpretation() high_volatility, sector_rotation, mean_reversion
+ *            generateRotationRecommendation() mid_cycle_rotation, synchronized
+ */
+const SECTOR_DISPERSION_DECIMALS = 1;
+
+/**
+ * Decimal precision for advance/decline ratio display (1 decimal).
+ * Used in breadth interpretations for A/D ratio (except edge cases).
+ *
+ * Example: 2.3:1 (not 2:1 or 2.34:1)
+ * Locations: generateBreadthInterpretation() for strong/healthy/neutral breadth
+ */
+const AD_RATIO_DECIMALS = 1;
+
+/**
+ * Decimal precision for advance/decline ratio edge case display (2 decimals).
+ * Used in breadth interpretations when A/D ratio is very weak (< 0.5).
+ *
+ * Example: 0.42:1 (not 0.4:1, to show distinction between 0.42 and 0.48)
+ * Locations: generateBreadthInterpretation() for weak breadth condition
+ */
+const AD_RATIO_WEAK_DECIMALS = 2;
+
+/**
+ * Decimal precision for moving average participation percentage (0 decimals).
+ * Used in breadth interpretations for pctAbove20 and pctAbove50 indicators.
+ *
+ * Example: 68% (not 68.4%)
+ * Locations: generateBreadthInterpretation() for SMA participation display
+ */
+const MA_PARTICIPATION_DECIMALS = 0;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -1494,21 +1576,21 @@ function generateInterpretation(
   indicators: MarketRegime["indicators"],
 ): string {
   const interpretations: Record<RegimeType, string> = {
-    bull_run: `Markets are in a confirmed bull run. Trend strength at ${indicators.trendStrength.toFixed(0)}% with positive momentum (${indicators.momentumScore.toFixed(1)}%) and healthy breadth (${indicators.breadthScore.toFixed(0)}%). This environment favors trend-following and growth-oriented strategies. Most stocks are participating in the advance, reducing concentration risk.`,
+    bull_run: `Markets are in a confirmed bull run. Trend strength at ${indicators.trendStrength.toFixed(TREND_STRENGTH_DECIMALS)}% with positive momentum (${indicators.momentumScore.toFixed(MOMENTUM_SCORE_DECIMALS)}%) and healthy breadth (${indicators.breadthScore.toFixed(BREADTH_SCORE_DECIMALS)}%). This environment favors trend-following and growth-oriented strategies. Most stocks are participating in the advance, reducing concentration risk.`,
 
-    bear_market: `Markets are in a bear regime with trend strength at ${indicators.trendStrength.toFixed(0)}% and negative momentum (${indicators.momentumScore.toFixed(1)}%). Breadth is weak at ${indicators.breadthScore.toFixed(0)}%, indicating broad-based selling. Defensive positioning and capital preservation strategies are recommended. Look for relative strength pockets in quality names.`,
+    bear_market: `Markets are in a bear regime with trend strength at ${indicators.trendStrength.toFixed(TREND_STRENGTH_DECIMALS)}% and negative momentum (${indicators.momentumScore.toFixed(MOMENTUM_SCORE_DECIMALS)}%). Breadth is weak at ${indicators.breadthScore.toFixed(BREADTH_SCORE_DECIMALS)}%, indicating broad-based selling. Defensive positioning and capital preservation strategies are recommended. Look for relative strength pockets in quality names.`,
 
-    sideways: `Markets are range-bound with no clear directional trend (strength: ${indicators.trendStrength.toFixed(0)}%). Volatility is ${indicators.volatilityLevel < 20 ? "subdued" : "moderate"} at ${indicators.volatilityLevel.toFixed(1)}%. This environment typically favors mean-reversion strategies and punishes directional bets. Patience and selective trading are key.`,
+    sideways: `Markets are range-bound with no clear directional trend (strength: ${indicators.trendStrength.toFixed(TREND_STRENGTH_DECIMALS)}%). Volatility is ${indicators.volatilityLevel < 20 ? "subdued" : "moderate"} at ${indicators.volatilityLevel.toFixed(VOLATILITY_LEVEL_DECIMALS)}%. This environment typically favors mean-reversion strategies and punishes directional bets. Patience and selective trading are key.`,
 
-    high_volatility: `Markets are experiencing elevated volatility at ${indicators.volatilityLevel.toFixed(1)}% annualized. Large swings in both directions create opportunities for active traders but increase drawdown risk. Sector dispersion of ${indicators.sectorDispersion.toFixed(1)}% suggests differentiated moves across the market. Position sizing discipline is critical.`,
+    high_volatility: `Markets are experiencing elevated volatility at ${indicators.volatilityLevel.toFixed(VOLATILITY_LEVEL_DECIMALS)}% annualized. Large swings in both directions create opportunities for active traders but increase drawdown risk. Sector dispersion of ${indicators.sectorDispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}% suggests differentiated moves across the market. Position sizing discipline is critical.`,
 
-    low_volatility: `Markets are in a compressed volatility regime at ${indicators.volatilityLevel.toFixed(1)}% annualized. Low vol environments often precede larger moves — the Bollinger Squeeze phenomenon. Current breadth is ${Math.abs(indicators.breadthScore) < 20 ? "neutral" : indicators.breadthScore > 0 ? "leaning positive" : "leaning negative"}. Watch for catalysts that could trigger a volatility expansion.`,
+    low_volatility: `Markets are in a compressed volatility regime at ${indicators.volatilityLevel.toFixed(VOLATILITY_LEVEL_DECIMALS)}% annualized. Low vol environments often precede larger moves — the Bollinger Squeeze phenomenon. Current breadth is ${Math.abs(indicators.breadthScore) < 20 ? "neutral" : indicators.breadthScore > 0 ? "leaning positive" : "leaning negative"}. Watch for catalysts that could trigger a volatility expansion.`,
 
-    sector_rotation: `Active sector rotation detected with dispersion at ${indicators.sectorDispersion.toFixed(1)}%. Capital is flowing between sectors, creating opportunities for agents that can identify the rotation leaders early. Overall market momentum is ${Math.abs(indicators.momentumScore) < 0.5 ? "flat" : indicators.momentumScore > 0 ? "slightly positive" : "slightly negative"}, but sector-level moves are pronounced.`,
+    sector_rotation: `Active sector rotation detected with dispersion at ${indicators.sectorDispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}%. Capital is flowing between sectors, creating opportunities for agents that can identify the rotation leaders early. Overall market momentum is ${Math.abs(indicators.momentumScore) < 0.5 ? "flat" : indicators.momentumScore > 0 ? "slightly positive" : "slightly negative"}, but sector-level moves are pronounced.`,
 
-    momentum: `Strong momentum regime detected with directional moves across the market. Momentum score of ${indicators.momentumScore.toFixed(1)}% with trend strength at ${indicators.trendStrength.toFixed(0)}% signals continuation potential. Trend-following agents have a significant edge. Breadth of ${indicators.breadthScore.toFixed(0)}% confirms ${indicators.breadthScore > 0 ? "widespread participation" : "concentrated selling"}.`,
+    momentum: `Strong momentum regime detected with directional moves across the market. Momentum score of ${indicators.momentumScore.toFixed(MOMENTUM_SCORE_DECIMALS)}% with trend strength at ${indicators.trendStrength.toFixed(TREND_STRENGTH_DECIMALS)}% signals continuation potential. Trend-following agents have a significant edge. Breadth of ${indicators.breadthScore.toFixed(BREADTH_SCORE_DECIMALS)}% confirms ${indicators.breadthScore > 0 ? "widespread participation" : "concentrated selling"}.`,
 
-    mean_reversion: `Markets are showing mean-reversion characteristics — extended moves are snapping back. Volatility at ${indicators.volatilityLevel.toFixed(1)}% with sector dispersion of ${indicators.sectorDispersion.toFixed(1)}% suggests overshooting in individual names. Contrarian strategies that buy dips and sell rips should outperform. Watch for RSI extremes as entry signals.`,
+    mean_reversion: `Markets are showing mean-reversion characteristics — extended moves are snapping back. Volatility at ${indicators.volatilityLevel.toFixed(VOLATILITY_LEVEL_DECIMALS)}% with sector dispersion of ${indicators.sectorDispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}% suggests overshooting in individual names. Contrarian strategies that buy dips and sell rips should outperform. Watch for RSI extremes as entry signals.`,
   };
 
   return interpretations[regime] ?? "Regime classification in progress. Insufficient data for detailed interpretation.";
@@ -1638,12 +1720,12 @@ function generateRotationRecommendation(
 
     early_cycle_recovery: `Broad-based recovery underway with most sectors advancing. This is the optimal environment for aggressive agents. ${leadingSector} leads, but participation is widening.`,
 
-    mid_cycle_rotation: `Active rotation between sectors with ${dispersion.toFixed(1)}% dispersion. ${leadingSector} is currently leading while ${laggingSector} lags. Agents with good sector timing will outperform.`,
+    mid_cycle_rotation: `Active rotation between sectors with ${dispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}% dispersion. ${leadingSector} is currently leading while ${laggingSector} lags. Agents with good sector timing will outperform.`,
 
-    synchronized: `All sectors are moving together with low dispersion (${dispersion.toFixed(1)}%). Macro factors are dominating stock-level moves. Focus on market direction rather than sector selection.`,
+    synchronized: `All sectors are moving together with low dispersion (${dispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}%). Macro factors are dominating stock-level moves. Focus on market direction rather than sector selection.`,
   };
 
-  return phaseRecs[phase] ?? `Sector rotation is active. ${leadingSector} leads, ${laggingSector} lags. Dispersion: ${dispersion.toFixed(1)}%.`;
+  return phaseRecs[phase] ?? `Sector rotation is active. ${leadingSector} leads, ${laggingSector} lags. Dispersion: ${dispersion.toFixed(SECTOR_DISPERSION_DECIMALS)}%.`;
 }
 
 /** Generate human-readable interpretation of breadth indicators */
@@ -1661,18 +1743,18 @@ function generateBreadthInterpretation(
 
   // A/D ratio
   if (adRatio > 2) {
-    parts.push(`Strong advancing breadth with a ${adRatio.toFixed(1)}:1 advance/decline ratio.`);
+    parts.push(`Strong advancing breadth with a ${adRatio.toFixed(AD_RATIO_DECIMALS)}:1 advance/decline ratio.`);
   } else if (adRatio > 1.2) {
-    parts.push(`Healthy market breadth with a ${adRatio.toFixed(1)}:1 advance/decline ratio.`);
+    parts.push(`Healthy market breadth with a ${adRatio.toFixed(AD_RATIO_DECIMALS)}:1 advance/decline ratio.`);
   } else if (adRatio < 0.5) {
-    parts.push(`Weak breadth: only ${adRatio.toFixed(2)}:1 advance/decline ratio. Broad-based selling pressure.`);
+    parts.push(`Weak breadth: only ${adRatio.toFixed(AD_RATIO_WEAK_DECIMALS)}:1 advance/decline ratio. Broad-based selling pressure.`);
   } else {
-    parts.push(`Neutral breadth with a ${adRatio.toFixed(1)}:1 advance/decline ratio.`);
+    parts.push(`Neutral breadth with a ${adRatio.toFixed(AD_RATIO_DECIMALS)}:1 advance/decline ratio.`);
   }
 
   // Moving average participation
   parts.push(
-    `${pctAbove20.toFixed(0)}% of stocks above their 20-period SMA and ${pctAbove50.toFixed(0)}% above their 50-period SMA.`,
+    `${pctAbove20.toFixed(MA_PARTICIPATION_DECIMALS)}% of stocks above their 20-period SMA and ${pctAbove50.toFixed(MA_PARTICIPATION_DECIMALS)}% above their 50-period SMA.`,
   );
 
   // New highs vs new lows
