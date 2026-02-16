@@ -116,11 +116,40 @@ interface TradeRecord {
 const agentTradeHistory = new Map<string, TradeRecord[]>();
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Time Window Constants
 // ---------------------------------------------------------------------------
 
-const ONE_HOUR_MS = 60 * 60 * 1000;
-const ONE_DAY_MS = 24 * ONE_HOUR_MS;
+/**
+ * Milliseconds in one hour (60 minutes × 60 seconds × 1000 milliseconds).
+ *
+ * Used for calculating rolling 1-hour time windows in trade rate limiting.
+ * The maxTradesPerHour policy counts trades within [now - ONE_HOUR_MS, now].
+ *
+ * Formula: 60 minutes × 60 seconds × 1000 ms = 3,600,000 milliseconds
+ *
+ * Example: If now is 3:00 PM, the rolling hour window starts at 2:00 PM
+ *
+ * @default 3600000 - Standard 1-hour duration for rate limiting
+ */
+const ONE_HOUR_MS = 3_600_000;
+
+/**
+ * Milliseconds in one day (24 hours × 3,600,000 ms/hour).
+ *
+ * Used for calculating rolling 24-hour time windows in daily volume limiting.
+ * The dailyVolumeLimit policy sums trade amounts within [now - ONE_DAY_MS, now].
+ *
+ * Formula: 24 hours × 3,600,000 ms/hour = 86,400,000 milliseconds
+ *
+ * Example: If now is Monday 3:00 PM, the rolling day window starts at Sunday 3:00 PM
+ *
+ * @default 86400000 - Standard 24-hour duration for daily volume tracking
+ */
+const ONE_DAY_MS = 86_400_000;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function getHistory(agentId: string): TradeRecord[] {
   let history = agentTradeHistory.get(agentId);
