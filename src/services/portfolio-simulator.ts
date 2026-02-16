@@ -179,6 +179,60 @@ const POSITION_SIZE_PER_TRADE_MULTIPLIER = 0.1;
  */
 const CASH_RESERVE_RATIO = 0.95;
 
+/**
+ * Annualization & Risk Calculation Constants
+ *
+ * Used for converting daily returns/volatility to annualized metrics in risk calculations.
+ */
+
+/**
+ * Trading days per year for annualization calculations
+ *
+ * Formula: daily_return × TRADING_DAYS_PER_YEAR = annualized_return
+ *          daily_volatility × √TRADING_DAYS_PER_YEAR = annualized_volatility
+ *
+ * 252 = NYSE standard (365 calendar days - 104 weekend days - 9 holidays)
+ *
+ * Impact: Change to 365 for 24/7 crypto markets or 250 for international exchanges
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * Annual risk-free rate for Sharpe/Sortino ratio calculations
+ *
+ * Formula: daily_risk_free = ANNUAL_RISK_FREE_RATE / TRADING_DAYS_PER_YEAR
+ *          excess_return = portfolio_return - daily_risk_free
+ *
+ * 0.05 = 5% annual Treasury yield (typical baseline for U.S. risk-free rate)
+ *
+ * Impact: Sharpe/Sortino ratios decrease if risk-free rate increases
+ *         (higher bar for risk-adjusted returns)
+ */
+const ANNUAL_RISK_FREE_RATE = 0.05;
+
+/**
+ * VaR percentile threshold for downside risk calculation
+ *
+ * Formula: VaR_95 = 5th percentile of daily returns distribution
+ *          (5% worst-case daily loss threshold)
+ *
+ * 0.05 = 95% confidence interval (5% tail risk)
+ *
+ * Impact: Lower values (0.01) = 99% VaR, more extreme tail risk
+ *         Higher values (0.10) = 90% VaR, less extreme tail risk
+ */
+const VAR_PERCENTILE_THRESHOLD = 0.05;
+
+/**
+ * Percentage conversion multiplier for display formatting
+ *
+ * Formula: decimal_value × PERCENTAGE_CONVERSION_MULTIPLIER = percentage_value
+ *          Example: 0.152 × 100 = 15.2%
+ *
+ * Used for: annualized returns, volatility, VaR, max drawdown display
+ */
+const PERCENTAGE_CONVERSION_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Simulation Engine
 // ---------------------------------------------------------------------------
@@ -470,7 +524,7 @@ export async function quickSimulation(
   let estimatedReturn = 0;
   for (const d of actionDecisions) {
     const confFactor = (d.confidence - 50) / 100; // -0.5 to +0.5
-    const tradeSize = startingCapital * 0.1 * confFactor;
+    const tradeSize = startingCapital * POSITION_SIZE_PER_TRADE_MULTIPLIER * confFactor;
     estimatedReturn += tradeSize;
   }
 
@@ -559,13 +613,13 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   const variance = computeVariance(returns); // sample variance (n-1)
   const vol = Math.sqrt(variance);
 
-  // Annualized (assuming 252 trading days)
-  const annualizedReturn = meanReturn * 252;
-  const annualizedVol = vol * Math.sqrt(252);
+  // Annualized
+  const annualizedReturn = meanReturn * TRADING_DAYS_PER_YEAR;
+  const annualizedVol = vol * Math.sqrt(TRADING_DAYS_PER_YEAR);
 
   // Sharpe
-  const riskFreeRate = 0.05 / 252;
-  const sharpe = vol > 0 ? ((meanReturn - riskFreeRate) / vol) * Math.sqrt(252) : 0;
+  const riskFreeRate = ANNUAL_RISK_FREE_RATE / TRADING_DAYS_PER_YEAR;
+  const sharpe = vol > 0 ? ((meanReturn - riskFreeRate) / vol) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
   // Sortino
   const negReturns = returns.filter((r) => r < 0);
@@ -573,7 +627,7 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
     ? negReturns.reduce((s, r) => s + r ** 2, 0) / negReturns.length // target return = 0, so no mean adjustment
     : 0;
   const downsideDev = Math.sqrt(downsideVar);
-  const sortino = downsideDev > 0 ? ((meanReturn - riskFreeRate) / downsideDev) * Math.sqrt(252) : 0;
+  const sortino = downsideDev > 0 ? ((meanReturn - riskFreeRate) / downsideDev) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
   // Max drawdown
   let peak = startingCapital;
@@ -601,23 +655,23 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   }
 
   // Calmar
-  const calmar = maxDDPercent > 0 ? (annualizedReturn * 100) / maxDDPercent : 0;
+  const calmar = maxDDPercent > 0 ? (annualizedReturn * PERCENTAGE_CONVERSION_MULTIPLIER) / maxDDPercent : 0;
 
   // VaR 95%
   const sortedReturns = [...returns].sort((a, b) => a - b);
-  const varIdx = Math.floor(returns.length * 0.05);
+  const varIdx = Math.floor(returns.length * VAR_PERCENTILE_THRESHOLD);
   const var95 = sortedReturns[varIdx] ?? 0;
 
   return {
-    annualizedReturn: round2(annualizedReturn * 100),
-    annualizedVolatility: round2(annualizedVol * 100),
+    annualizedReturn: round2(annualizedReturn * PERCENTAGE_CONVERSION_MULTIPLIER),
+    annualizedVolatility: round2(annualizedVol * PERCENTAGE_CONVERSION_MULTIPLIER),
     sharpeRatio: round2(sharpe),
     sortinoRatio: round2(sortino),
     maxDrawdown: round2(maxDD),
     maxDrawdownPercent: round2(maxDDPercent),
     maxDrawdownDuration: maxDDDuration,
     calmarRatio: round2(calmar),
-    valueAtRisk95: round2(var95 * 100),
+    valueAtRisk95: round2(var95 * PERCENTAGE_CONVERSION_MULTIPLIER),
     beta: 1, // Placeholder — would need SPYx correlation data
   };
 }
