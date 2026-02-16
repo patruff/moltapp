@@ -184,6 +184,45 @@ const CONSISTENCY_FALLBACK_VARIANCE = 0;
  */
 const CONSISTENCY_FALLBACK_INTENT = 0.5;
 
+/**
+ * Display Limit Constants
+ *
+ * These control how many top items are returned in profile analysis results.
+ */
+
+/**
+ * Maximum number of top symbols to display in agent profile.
+ *
+ * Shows the most frequently analyzed symbols across all reasoning entries.
+ * Example: Agent analyzes 50 symbols → show top 10 most analyzed.
+ *
+ * Lower value = more focused symbol profile (e.g., 5 for core holdings only).
+ * Higher value = broader coverage (e.g., 15 for full watchlist).
+ */
+const TOP_SYMBOLS_DISPLAY_LIMIT = 10;
+
+/**
+ * Maximum number of top vocabulary words to display.
+ *
+ * Shows the most frequently used words (excluding stop words) in agent reasoning.
+ * Example: Agent uses 500 unique words → show top 20 most frequent.
+ *
+ * Lower value = highlight core vocabulary only (e.g., 10 words).
+ * Higher value = more comprehensive vocabulary analysis (e.g., 30 words).
+ */
+const TOP_WORDS_DISPLAY_LIMIT = 20;
+
+/**
+ * Maximum number of signature phrases to display in tone profile.
+ *
+ * Shows the most frequently used trading/strategy phrases from a predefined list.
+ * Example: Agent uses 8 signature phrases → show top 5 most common.
+ *
+ * Lower value = highlight dominant phrases only (e.g., 3 phrases).
+ * Higher value = broader phrase analysis (e.g., 7 phrases).
+ */
+const SIGNATURE_PHRASES_DISPLAY_LIMIT = 5;
+
 // Stop words for vocabulary analysis
 const STOP_WORDS = new Set([
   "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
@@ -254,7 +293,7 @@ export function buildReasoningProfile(agentId: string): AgentReasoningProfile {
   }
   const topSymbols = [...symbolCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, TOP_SYMBOLS_DISPLAY_LIMIT)
     .map(([symbol, count]) => ({ symbol, count }));
 
   // Averages
@@ -327,7 +366,7 @@ function analyzeVocabulary(entries: ReasoningEntry[]): VocabularyProfile {
 
   const sortedWords = [...wordCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 20)
+    .slice(0, TOP_WORDS_DISPLAY_LIMIT)
     .map(([word, count]) => ({
       word,
       count,
@@ -399,7 +438,7 @@ function analyzeTone(entries: ReasoningEntry[]): ToneProfile {
   const n = Math.max(1, entries.length);
   const signaturePhrases = [...phraseCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, SIGNATURE_PHRASES_DISPLAY_LIMIT)
     .map(([phrase]) => phrase);
 
   return {
