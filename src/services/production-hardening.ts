@@ -92,10 +92,63 @@ const DEFAULT_TIMEOUT_CONFIG: AgentTimeoutConfig = {
   roundTimeoutMs: 240_000,
 };
 
-const MAX_MARKET_DATA_AGE_SECONDS = 120; // 2 minutes
-const MIN_REAL_PRICE_PERCENT = 30; // At least 30% of prices must be real
-const MAX_CONSECUTIVE_FAILURES = 5; // Auto-halt after 5 consecutive failures
-const JUPITER_FAILURE_THRESHOLD = 3; // Halt after 3 consecutive Jupiter failures
+// ---------------------------------------------------------------------------
+// Safety Threshold Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum market data age in seconds before data is considered stale.
+ *
+ * When market price data age exceeds this threshold, trading is rejected until
+ * fresh data is available. This prevents agents from trading on outdated prices
+ * that could lead to unexpected slippage or losses.
+ *
+ * Value: 120 seconds (2 minutes)
+ * Impact: Safety-critical - controls whether trading proceeds or is blocked
+ * Tuning: Decrease for stricter freshness (e.g., 60s), increase for tolerance (180s)
+ */
+const MAX_MARKET_DATA_AGE_SECONDS = 120;
+
+/**
+ * Minimum percentage of stocks with real (non-mock) prices required for trading.
+ *
+ * When the percentage of stocks with real price data falls below this threshold,
+ * trading is blocked. This prevents trading when too much data is simulated/mocked,
+ * which could produce unrealistic portfolio results.
+ *
+ * Value: 30% (at least 30% must have real prices)
+ * Impact: Safety-critical - blocks trading when data quality is poor
+ * Tuning: Increase for stricter quality requirements (50%), decrease for more tolerance (20%)
+ */
+const MIN_REAL_PRICE_PERCENT = 30;
+
+/**
+ * Maximum consecutive round failures before automatic emergency halt.
+ *
+ * When consecutive trading rounds fail this many times in a row, the system
+ * automatically triggers an emergency halt to prevent runaway losses or cascading
+ * failures. This is the ultimate circuit breaker for systemic issues.
+ *
+ * Value: 5 consecutive failures
+ * Impact: Safety-critical - triggers emergency trading halt
+ * Tuning: Decrease for faster halt on failures (3), increase for more tolerance (7)
+ * Related: HEALTH_CONSECUTIVE_FAILURES_WARN_THRESHOLD (3) warns before halt
+ */
+const MAX_CONSECUTIVE_FAILURES = 5;
+
+/**
+ * Jupiter API consecutive failure threshold before emergency halt.
+ *
+ * When Jupiter API (swap execution provider) fails this many times in a row,
+ * the system automatically halts trading. This prevents agents from attempting
+ * trades when the execution layer is unavailable.
+ *
+ * Value: 3 consecutive failures
+ * Impact: Safety-critical - triggers emergency halt when swaps unavailable
+ * Tuning: Decrease for faster response (2), increase for more tolerance (5)
+ * Related: HEALTH_JUPITER_FAILURES_WARN_THRESHOLD (2) warns before halt
+ */
+const JUPITER_FAILURE_THRESHOLD = 3;
 
 /**
  * Health Check Thresholds
