@@ -225,6 +225,98 @@ const VOL_REGIME_LOW_MIN = 0.5;
 // Below VOL_REGIME_LOW_MIN = "suppressed"
 
 /**
+ * FEAR & GREED INDEX CLASSIFICATION THRESHOLDS
+ *
+ * Control when fear/greed gauge transitions between emotional states.
+ * Used in getFearGreedGauge() to classify market sentiment.
+ */
+
+/** Maximum fear/greed value for "Extreme Fear" classification */
+const FEAR_GREED_EXTREME_FEAR_MAX = 20;
+/** Maximum fear/greed value for "Fear" classification */
+const FEAR_GREED_FEAR_MAX = 40;
+/** Maximum fear/greed value for "Neutral" classification */
+const FEAR_GREED_NEUTRAL_MAX = 60;
+/** Maximum fear/greed value for "Greed" classification */
+const FEAR_GREED_GREED_MAX = 80;
+// Above FEAR_GREED_GREED_MAX = "Extreme Greed"
+
+/**
+ * VOLATILITY CLUSTERING DETECTION PARAMETERS
+ *
+ * Control when consecutive high-volatility days trigger clustering alerts.
+ * Used in getFearGreedGauge() to detect volatility regime shifts.
+ */
+
+/**
+ * Minimum ratio of return to average return for high-volatility classification.
+ * Returns exceeding avgAbsReturn * 1.5 are considered high-volatility days.
+ */
+const VOL_CLUSTERING_HIGH_VOL_MULTIPLIER = 1.5;
+/**
+ * Minimum fraction of returns that must be high-volatility to trigger clustering.
+ * Clustering detected when high-vol returns > 30% of all returns.
+ */
+const VOL_CLUSTERING_DETECTION_THRESHOLD = 0.3;
+/**
+ * Cluster start lookback period in days (simulated cluster duration).
+ * When clustering detected, assume it started 3 days ago.
+ */
+const VOL_CLUSTERING_CLUSTER_DURATION_DAYS = 3;
+
+/**
+ * BREADTH THRUST DETECTION THRESHOLDS
+ *
+ * Control when advance/decline breadth triggers "thrust" momentum signals.
+ * Used in getMarketBreadth() to identify sudden breadth expansions/contractions.
+ */
+
+/**
+ * Minimum advancing percentage for bullish breadth thrust detection.
+ * Thrust occurs when >61.5% of stocks are advancing (strong broad rally).
+ */
+const BREADTH_THRUST_BULLISH_MIN = 61.5;
+/**
+ * Maximum advancing percentage for bearish breadth thrust detection.
+ * Thrust occurs when <38.5% of stocks are advancing (broad decline).
+ */
+const BREADTH_THRUST_BEARISH_MAX = 38.5;
+/**
+ * Neutral breadth baseline (50% advancing = balanced market).
+ * Used to calculate thrust strength as distance from neutral.
+ */
+const BREADTH_THRUST_NEUTRAL_BASELINE = 50;
+/**
+ * Thrust strength multiplier (converts distance from neutral to 0-100 scale).
+ * Strength = abs(advancingPct - 50) * 2 (max strength = 100 at 0% or 100% advancing).
+ */
+const BREADTH_THRUST_STRENGTH_MULTIPLIER = 2;
+
+/**
+ * BREADTH SIGNAL CLASSIFICATION THRESHOLDS
+ *
+ * Control when advance/decline ratio and MA participation trigger bullish/bearish signals.
+ * Used in getMarketBreadth() to classify overall breadth conditions.
+ */
+
+/** Minimum A/D ratio for strong bullish breadth (2:1 advancing stocks) */
+const BREADTH_STRONG_BULLISH_AD_MIN = 2;
+/** Minimum % above SMA20 for strong bullish breadth confirmation */
+const BREADTH_STRONG_BULLISH_SMA20_MIN = 70;
+/** Minimum A/D ratio for moderate bullish breadth */
+const BREADTH_BULLISH_AD_MIN = 1.3;
+/** Minimum % above SMA20 for moderate bullish breadth confirmation */
+const BREADTH_BULLISH_SMA20_MIN = 55;
+/** Maximum A/D ratio for strong bearish breadth (1:2 declining stocks) */
+const BREADTH_STRONG_BEARISH_AD_MAX = 0.5;
+/** Maximum % above SMA20 for strong bearish breadth confirmation */
+const BREADTH_STRONG_BEARISH_SMA20_MAX = 30;
+/** Maximum A/D ratio for moderate bearish breadth */
+const BREADTH_BEARISH_AD_MAX = 0.8;
+/** Maximum % above SMA20 for moderate bearish breadth confirmation */
+const BREADTH_BEARISH_SMA20_MAX = 45;
+
+/**
  * DAY REGIME CLASSIFICATION THRESHOLDS
  *
  * Used by classifyDayRegime() to classify individual trading days.
@@ -1089,20 +1181,20 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
   const fearGreedValue = round2((volComponent * FEAR_GREED_VOL_WEIGHT + changeComponent * FEAR_GREED_CHANGE_WEIGHT + breadthComponent * FEAR_GREED_BREADTH_WEIGHT));
 
   const fearGreedLabel =
-    fearGreedValue < 20 ? "Extreme Fear"
-      : fearGreedValue < 40 ? "Fear"
-        : fearGreedValue < 60 ? "Neutral"
-          : fearGreedValue < 80 ? "Greed"
+    fearGreedValue < FEAR_GREED_EXTREME_FEAR_MAX ? "Extreme Fear"
+      : fearGreedValue < FEAR_GREED_FEAR_MAX ? "Fear"
+        : fearGreedValue < FEAR_GREED_NEUTRAL_MAX ? "Neutral"
+          : fearGreedValue < FEAR_GREED_GREED_MAX ? "Greed"
             : "Extreme Greed";
 
   const fearGreedInterpretation =
-    fearGreedValue < 20
+    fearGreedValue < FEAR_GREED_EXTREME_FEAR_MAX
       ? "Markets are in panic mode. Historically, extreme fear can signal buying opportunities for contrarian strategies."
-      : fearGreedValue < 40
+      : fearGreedValue < FEAR_GREED_FEAR_MAX
         ? "Elevated caution in the market. Agents with conservative risk profiles may outperform."
-        : fearGreedValue < 60
+        : fearGreedValue < FEAR_GREED_NEUTRAL_MAX
           ? "Markets are balanced with no strong directional bias. All agent strategies have roughly equal footing."
-          : fearGreedValue < 80
+          : fearGreedValue < FEAR_GREED_GREED_MAX
             ? "Optimism is running high. Momentum agents tend to thrive, but watch for overextension."
             : "Euphoria in the market. Historical precedent suggests elevated reversal risk.";
 
@@ -1115,7 +1207,7 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
             : "suppressed";
 
   // Volatility clustering detection
-  // Look for consecutive high-vol days (returns > 1.5x average)
+  // Look for consecutive high-vol days (returns > VOL_CLUSTERING_HIGH_VOL_MULTIPLIER * average)
   const allReturnsFlat: number[] = [];
   for (const stock of XSTOCKS_CATALOG) {
     const prices = await reconstructPriceHistory(stock.symbol, 10);
@@ -1126,8 +1218,8 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
   const avgAbsReturn = allReturnsFlat.length > 0
     ? allReturnsFlat.reduce((s, v) => s + v, 0) / allReturnsFlat.length
     : 0;
-  const highVolReturns = allReturnsFlat.filter((r) => r > avgAbsReturn * 1.5);
-  const clusteringDetected = highVolReturns.length > allReturnsFlat.length * 0.3;
+  const highVolReturns = allReturnsFlat.filter((r) => r > avgAbsReturn * VOL_CLUSTERING_HIGH_VOL_MULTIPLIER);
+  const clusteringDetected = highVolReturns.length > allReturnsFlat.length * VOL_CLUSTERING_DETECTION_THRESHOLD;
   const clusterIntensity = allReturnsFlat.length > 0
     ? round2((highVolReturns.length / allReturnsFlat.length) * 100)
     : 0;
@@ -1150,7 +1242,7 @@ export async function getVolatilityAnalysis(): Promise<VolatilityAnalysis> {
     perStock,
     volatilityClustering: {
       detected: clusteringDetected,
-      clusterStart: clusteringDetected ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() : null,
+      clusterStart: clusteringDetected ? new Date(Date.now() - VOL_CLUSTERING_CLUSTER_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString() : null,
       intensity: clusterIntensity,
     },
     historicalComparison: {
@@ -1237,14 +1329,14 @@ export async function getMarketBreadth(): Promise<MarketBreadth> {
     : 50;
 
   // Breadth thrust detection
-  // A thrust occurs when breadth moves from <40% advancing to >61.5% in a short window
+  // A thrust occurs when breadth exceeds BREADTH_THRUST_BULLISH_MIN or falls below BREADTH_THRUST_BEARISH_MAX
   const advancingPct = marketData.length > 0
     ? (advancingStocks / marketData.length) * 100
-    : 50;
-  const thrustDetected = advancingPct > 61.5 || advancingPct < 38.5;
-  const thrustDirection = advancingPct > 61.5 ? "bullish" : advancingPct < 38.5 ? "bearish" : "none";
+    : BREADTH_THRUST_NEUTRAL_BASELINE;
+  const thrustDetected = advancingPct > BREADTH_THRUST_BULLISH_MIN || advancingPct < BREADTH_THRUST_BEARISH_MAX;
+  const thrustDirection = advancingPct > BREADTH_THRUST_BULLISH_MIN ? "bullish" : advancingPct < BREADTH_THRUST_BEARISH_MAX ? "bearish" : "none";
   const thrustStrength = thrustDetected
-    ? round2(Math.abs(advancingPct - 50) * 2)
+    ? round2(Math.abs(advancingPct - BREADTH_THRUST_NEUTRAL_BASELINE) * BREADTH_THRUST_STRENGTH_MULTIPLIER)
     : 0;
 
   // McClellan Oscillator approximation
@@ -1262,13 +1354,13 @@ export async function getMarketBreadth(): Promise<MarketBreadth> {
 
   // Overall breadth signal
   let overallBreadthSignal: string;
-  if (advanceDeclineRatio > 2 && percentAboveSMA20 > 70) {
+  if (advanceDeclineRatio > BREADTH_STRONG_BULLISH_AD_MIN && percentAboveSMA20 > BREADTH_STRONG_BULLISH_SMA20_MIN) {
     overallBreadthSignal = "strong_bullish";
-  } else if (advanceDeclineRatio > 1.3 && percentAboveSMA20 > 55) {
+  } else if (advanceDeclineRatio > BREADTH_BULLISH_AD_MIN && percentAboveSMA20 > BREADTH_BULLISH_SMA20_MIN) {
     overallBreadthSignal = "bullish";
-  } else if (advanceDeclineRatio < 0.5 && percentAboveSMA20 < 30) {
+  } else if (advanceDeclineRatio < BREADTH_STRONG_BEARISH_AD_MAX && percentAboveSMA20 < BREADTH_STRONG_BEARISH_SMA20_MAX) {
     overallBreadthSignal = "strong_bearish";
-  } else if (advanceDeclineRatio < 0.8 && percentAboveSMA20 < 45) {
+  } else if (advanceDeclineRatio < BREADTH_BEARISH_AD_MAX && percentAboveSMA20 < BREADTH_BEARISH_SMA20_MAX) {
     overallBreadthSignal = "bearish";
   } else {
     overallBreadthSignal = "neutral";
