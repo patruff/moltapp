@@ -126,7 +126,6 @@ const RECENT_ACTIVITY_DISPLAY_LIMIT = 10;
  * @example API returns 10 biggest agent disagreements (opposite actions on same symbol)
  */
 const TOP_DIVERGENCE_EVENTS_LIMIT = 10;
-const TRADE_FREQUENCY_MEDIUM_THRESHOLD = 3;
 
 /**
  * Market Sentiment Classification
