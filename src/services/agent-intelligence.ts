@@ -269,6 +269,174 @@ const MOMENTUM_VERY_BEARISH_THRESHOLD = -60;
  */
 const MOMENTUM_SHIFT_THRESHOLD = 50;
 
+/**
+ * Sample Consensus Generation Parameters
+ *
+ * These constants control simulated consensus signal generation when no real
+ * trading data exists. Used to provide realistic baseline intelligence reports
+ * during bootstrap/testing phases.
+ */
+
+/**
+ * Baseline confidence (%) for simulated consensus signals.
+ * Set to 40% as lower bound for agent confidence in sample data.
+ * Formula: confidence = SAMPLE_CONSENSUS_CONFIDENCE_BASE + random(0, RANGE)
+ * Example: 40 + random(0, 50) = [40%, 90%] confidence range
+ */
+const SAMPLE_CONSENSUS_CONFIDENCE_BASE = 40;
+
+/**
+ * Variance range (%) for simulated consensus confidence.
+ * Adds realistic spread: 40 + [0, 50] = [40%, 90%] confidence range.
+ * Wider range than other simulations to model high-variance consensus scenarios.
+ */
+const SAMPLE_CONSENSUS_CONFIDENCE_RANGE = 50;
+
+/**
+ * Simulated Accuracy & Agreement Parameters
+ *
+ * These constants control accuracy simulation for agreement matrix and
+ * joint decision analysis when insufficient real data exists.
+ */
+
+/**
+ * Threshold (fraction) for determining simulated joint accuracy success.
+ * Set to 0.4 so random() > 0.4 = 60% chance of joint decision being correct.
+ * When agents agree, this models how often their shared prediction succeeds.
+ * Example: If 10 agreements, ~6 will be marked correct (60% joint accuracy).
+ */
+const SIMULATED_JOINT_ACCURACY_THRESHOLD = 0.4;
+
+/**
+ * Probability (fraction) for simulated agent pair current agreement status.
+ * Set to 0.5 for 50% chance pair is currently agreeing vs disagreeing.
+ * Used when no recent real comparison data exists for agent pairs.
+ */
+const SIMULATED_AGREEMENT_PROBABILITY = 0.5;
+
+/**
+ * Number of sample stocks available for simulated current topic selection.
+ * Set to 4 for ["NVDAx", "TSLAx", "AAPLx", "SPYx"] stock array.
+ * IMPORTANT: If sample stock array changes, this constant must be updated.
+ */
+const SIMULATED_STOCK_SAMPLES_COUNT = 4;
+
+/**
+ * Simulated Symbol Momentum Distribution Parameters
+ *
+ * These constants control how many bullish/bearish/neutral agents are
+ * simulated per symbol when no real decision data exists. Used to generate
+ * realistic symbol-level momentum indicators during bootstrap phase.
+ */
+
+/**
+ * Maximum random bullish agents per symbol in simulated momentum.
+ * Set to 3 so random(0, 3) = [0-2] bullish agents per symbol.
+ * Formula: Math.floor(Math.random() * 3) produces 0, 1, or 2 bullish agents.
+ */
+const SIMULATED_BULLISH_AGENTS_MAX = 3;
+
+/**
+ * Maximum random bearish agents per symbol in simulated momentum.
+ * Set to 3 so random(0, 3) = [0-2] bearish agents per symbol.
+ * Matches bullish distribution for balanced momentum simulation.
+ */
+const SIMULATED_BEARISH_AGENTS_MAX = 3;
+
+/**
+ * Maximum random neutral agents per symbol in simulated momentum.
+ * Set to 2 so random(0, 2) = [0-1] neutral agents per symbol.
+ * Lower than bullish/bearish to model typical bias toward directional opinions.
+ */
+const SIMULATED_NEUTRAL_AGENTS_MAX = 2;
+
+/**
+ * Swarm Prediction Parameters
+ *
+ * These constants control probability bounds and expected move calculations
+ * for swarm intelligence predictions. Used to prevent unrealistic extreme
+ * confidence levels and model reasonable price movement expectations.
+ */
+
+/**
+ * Minimum probability (%) for swarm predictions.
+ * Set to 20% to prevent overly pessimistic "near-zero confidence" predictions.
+ * Formula: Math.max(20, probability) ensures floor at 20%.
+ * Rationale: Swarm aggregation should provide at least modest confidence.
+ */
+const SWARM_PREDICTION_PROBABILITY_MIN = 20;
+
+/**
+ * Maximum probability (%) for swarm predictions.
+ * Set to 95% to prevent unrealistic "100% certain" predictions.
+ * Formula: Math.min(95, probability) ensures ceiling at 95%.
+ * Rationale: Even unanimous consensus should retain 5% uncertainty margin.
+ */
+const SWARM_PREDICTION_PROBABILITY_MAX = 95;
+
+/**
+ * Base expected move magnitude (%) for swarm predictions.
+ * Set to 1% as minimum expected price movement when prediction is made.
+ * Formula: expectedMove = 1 + random(0, RANGE) = [1%, 5%] move range.
+ */
+const SWARM_PREDICTION_EXPECTED_MOVE_BASE = 1;
+
+/**
+ * Variance range (%) for expected move magnitude.
+ * Adds realistic spread: 1 + [0, 4] = [1%, 5%] expected move range.
+ * Models typical daily-to-weekly stock volatility for prediction timeframe.
+ */
+const SWARM_PREDICTION_EXPECTED_MOVE_RANGE = 4;
+
+/**
+ * Baseline historical accuracy (%) for swarm predictions.
+ * Set to 45% as conservative estimate for swarm prediction track record.
+ * Formula: accuracy = 45 + random(0, 25) = [45%, 70%] accuracy range.
+ */
+const SWARM_PREDICTION_ACCURACY_BASE = 45;
+
+/**
+ * Variance range (%) for simulated swarm prediction accuracy.
+ * Adds realistic spread: 45 + [0, 25] = [45%, 70%] accuracy range.
+ * Models swarm performance variability across different symbols.
+ */
+const SWARM_PREDICTION_ACCURACY_RANGE = 25;
+
+/**
+ * Minimum prediction count for swarm prediction maturity tracking.
+ * Set to 5 as baseline for "how many times swarm predicted this symbol".
+ * Formula: count = 5 + random(0, 20) = [5, 25] prediction history.
+ */
+const SWARM_PREDICTION_COUNT_BASE = 5;
+
+/**
+ * Variance range for simulated prediction count.
+ * Adds realistic spread: 5 + [0, 20] = [5, 25] prediction count range.
+ * Models varying prediction maturity across different symbols.
+ */
+const SWARM_PREDICTION_COUNT_RANGE = 20;
+
+/**
+ * Simulated Agent Win Rate Parameters
+ *
+ * These constants control win rate simulation for "best agent" tracking
+ * when insufficient real performance data exists.
+ */
+
+/**
+ * Baseline win rate (%) for simulated agent performance.
+ * Set to 40% as conservative estimate for agent trading success.
+ * Formula: winRate = 40 + random(0, 30) = [40%, 70%] win rate range.
+ */
+const SIMULATED_AGENT_WIN_RATE_BASE = 40;
+
+/**
+ * Variance range (%) for simulated agent win rates.
+ * Adds realistic spread: 40 + [0, 30] = [40%, 70%] performance range.
+ * Models agent skill variability from mediocre to skilled performance.
+ */
+const SIMULATED_AGENT_WIN_RATE_RANGE = 30;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -615,7 +783,7 @@ function generateSampleConsensus(
         agentId: config.agentId,
         agentName: config.name,
         action,
-        confidence: 40 + Math.floor(Math.random() * 50),
+        confidence: SAMPLE_CONSENSUS_CONFIDENCE_BASE + Math.floor(Math.random() * SAMPLE_CONSENSUS_CONFIDENCE_RANGE),
         reasoning: `${config.name} analysis of ${symbol} based on ${config.tradingStyle} methodology`,
         symbolAccuracy: (DEFAULT_SYMBOL_ACCURACY_BASE - 5) + Math.floor(Math.random() * DEFAULT_SYMBOL_ACCURACY_RANGE),
         overallWinRate: DEFAULT_OVERALL_WIN_RATE_BASE + Math.floor(Math.random() * DEFAULT_OVERALL_WIN_RATE_RANGE),
@@ -754,7 +922,7 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
 
         if (sameDirection) {
           agreements++;
-          jointCorrect += Math.random() > 0.4 ? 1 : 0; // Simulated accuracy
+          jointCorrect += Math.random() > SIMULATED_JOINT_ACCURACY_THRESHOLD ? 1 : 0; // Simulated accuracy
         }
       }
 
@@ -763,9 +931,9 @@ export async function calculateAgreementMatrix(): Promise<AgentAgreementPair[]> 
         comparisons = SIMULATED_COMPARISON_MIN + Math.floor(Math.random() * SIMULATED_COMPARISON_RANGE);
         agreements = Math.floor(comparisons * (SIMULATED_AGREEMENT_BASE + Math.random() * SIMULATED_AGREEMENT_RANGE));
         jointCorrect = Math.floor(agreements * (SIMULATED_JOINT_ACCURACY_BASE + Math.random() * SIMULATED_JOINT_ACCURACY_RANGE));
-        currentAgreeing = Math.random() > 0.5;
+        currentAgreeing = Math.random() > SIMULATED_AGREEMENT_PROBABILITY;
         currentTopic = ["NVDAx", "TSLAx", "AAPLx", "SPYx"][
-          Math.floor(Math.random() * 4)
+          Math.floor(Math.random() * SIMULATED_STOCK_SAMPLES_COUNT)
         ];
       } else {
         // Check most recent common symbol
@@ -889,9 +1057,9 @@ export async function calculateCollectiveMomentum(): Promise<CollectiveMomentum>
       });
     } else {
       symbolMap.set(symbol, {
-        bullish: Math.floor(Math.random() * 3),
-        bearish: Math.floor(Math.random() * 3),
-        neutral: Math.floor(Math.random() * 2),
+        bullish: Math.floor(Math.random() * SIMULATED_BULLISH_AGENTS_MAX),
+        bearish: Math.floor(Math.random() * SIMULATED_BEARISH_AGENTS_MAX),
+        neutral: Math.floor(Math.random() * SIMULATED_NEUTRAL_AGENTS_MAX),
       });
     }
   }
@@ -1012,12 +1180,12 @@ export async function generateSwarmPredictions(): Promise<SwarmPrediction[]> {
     predictions.push({
       symbol,
       prediction,
-      probability: Math.min(95, Math.max(20, probability)),
-      expectedMove: round2(1 + Math.random() * 4),
+      probability: Math.min(SWARM_PREDICTION_PROBABILITY_MAX, Math.max(SWARM_PREDICTION_PROBABILITY_MIN, probability)),
+      expectedMove: round2(SWARM_PREDICTION_EXPECTED_MOVE_BASE + Math.random() * SWARM_PREDICTION_EXPECTED_MOVE_RANGE),
       timeframe: "1w",
       contributors,
-      historicalAccuracy: 45 + Math.floor(Math.random() * 25),
-      predictionCount: 5 + Math.floor(Math.random() * 20),
+      historicalAccuracy: SWARM_PREDICTION_ACCURACY_BASE + Math.floor(Math.random() * SWARM_PREDICTION_ACCURACY_RANGE),
+      predictionCount: SWARM_PREDICTION_COUNT_BASE + Math.floor(Math.random() * SWARM_PREDICTION_COUNT_RANGE),
     });
   }
 
@@ -1055,7 +1223,7 @@ export async function generateIntelligenceReport(): Promise<IntelligenceReport> 
   const configs = getAgentConfigs();
   const bestAgent = configs.reduce(
     (best, c) => {
-      const winRate = 40 + Math.random() * 30;
+      const winRate = SIMULATED_AGENT_WIN_RATE_BASE + Math.random() * SIMULATED_AGENT_WIN_RATE_RANGE;
       return winRate > best.winRate
         ? { id: c.agentId, name: c.name, winRate: Math.round(winRate * 10) / 10 }
         : best;

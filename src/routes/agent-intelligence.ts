@@ -29,6 +29,83 @@ import { countByCondition } from "../lib/math-utils.ts";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Hive Mind Score Calculation Weights
+ *
+ * These constants control how different intelligence factors are weighted
+ * when computing the overall hive mind coherence score (0-100).
+ * Weights should sum to 1.0 for balanced scoring.
+ */
+
+/**
+ * Weight factor for consensus strength in hive mind score calculation.
+ * Set to 0.4 (40%) to prioritize agent agreement patterns.
+ * Formula: hiveMindScore = consensusStrength * 0.4 + momentum * 0.3 + prediction * 0.3
+ * Rationale: Consensus signals are primary indicator of hive mind alignment.
+ */
+const HIVE_MIND_CONSENSUS_WEIGHT = 0.4;
+
+/**
+ * Weight factor for momentum alignment in hive mind score calculation.
+ * Set to 0.3 (30%) to balance directional agreement with consensus patterns.
+ * Reflects collective bullish/bearish bias strength across all agents.
+ */
+const HIVE_MIND_MOMENTUM_WEIGHT = 0.3;
+
+/**
+ * Weight factor for prediction confidence in hive mind score calculation.
+ * Set to 0.3 (30%) to balance forward-looking signals with current consensus.
+ * Reflects swarm conviction in predicted outcomes.
+ */
+const HIVE_MIND_PREDICTION_WEIGHT = 0.3;
+
+/**
+ * Hive Mind State Classification Thresholds
+ *
+ * These constants define score ranges for classifying hive mind coherence
+ * levels. Score ranges from 0 (complete disagreement) to 100 (perfect alignment).
+ */
+
+/**
+ * Minimum score for "Strong Alignment" classification.
+ * Set to 70 so score > 70 indicates highly cohesive agent thinking.
+ * Example: Strong consensus + high momentum + confident predictions = >70 score.
+ */
+const HIVE_MIND_STRONG_ALIGNMENT_THRESHOLD = 70;
+
+/**
+ * Minimum score for "Moderate Consensus" classification.
+ * Set to 50 so score 50-70 indicates partial agreement across agents.
+ * Example: Some consensus signals but mixed momentum or lower confidence.
+ */
+const HIVE_MIND_MODERATE_CONSENSUS_THRESHOLD = 50;
+
+/**
+ * Minimum score for "Divergent Views" classification.
+ * Set to 30 so score 30-50 indicates substantial agent disagreement.
+ * Below 30 is "Complete Disagreement" (no meaningful hive mind coherence).
+ */
+const HIVE_MIND_DIVERGENT_VIEWS_THRESHOLD = 30;
+
+/**
+ * Swarm Prediction High Confidence Threshold
+ *
+ * Minimum probability (%) required to classify a swarm prediction as
+ * "high confidence" worthy of elevated attention in API responses.
+ */
+
+/**
+ * Threshold for filtering high-confidence swarm predictions.
+ * Set to 70% so predictions > 70% probability are highlighted.
+ * Example: If swarm predicts NVDA up with 75% probability, it's high-confidence.
+ * Rationale: 70%+ indicates strong agent consensus on predicted direction.
+ */
+const SWARM_HIGH_CONFIDENCE_THRESHOLD = 70;
+
 export const intelligenceRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -121,7 +198,7 @@ intelligenceRoutes.get("/swarm", async (c) => {
     ok: true,
     data: {
       predictions,
-      highConfidence: predictions.filter((p) => p.probability > 70),
+      highConfidence: predictions.filter((p) => p.probability > SWARM_HIGH_CONFIDENCE_THRESHOLD),
       totalPredictions: predictions.length,
     },
   });
@@ -211,15 +288,15 @@ intelligenceRoutes.get("/hive-mind", async (c) => {
       : 50;
 
   const hiveMindScore = Math.round(
-    consensusStrength * 0.4 +
-      momentumAlignment * 0.3 +
-      predictionConfidence * 0.3,
+    consensusStrength * HIVE_MIND_CONSENSUS_WEIGHT +
+      momentumAlignment * HIVE_MIND_MOMENTUM_WEIGHT +
+      predictionConfidence * HIVE_MIND_PREDICTION_WEIGHT,
   );
 
   let hiveMindState: string;
-  if (hiveMindScore > 70) hiveMindState = "Strong Alignment";
-  else if (hiveMindScore > 50) hiveMindState = "Moderate Consensus";
-  else if (hiveMindScore > 30) hiveMindState = "Divergent Views";
+  if (hiveMindScore > HIVE_MIND_STRONG_ALIGNMENT_THRESHOLD) hiveMindState = "Strong Alignment";
+  else if (hiveMindScore > HIVE_MIND_MODERATE_CONSENSUS_THRESHOLD) hiveMindState = "Moderate Consensus";
+  else if (hiveMindScore > HIVE_MIND_DIVERGENT_VIEWS_THRESHOLD) hiveMindState = "Divergent Views";
   else hiveMindState = "Complete Disagreement";
 
   return c.json({
