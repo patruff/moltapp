@@ -3,6 +3,11 @@ import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { wallets, transactions } from "../db/schema/index.ts";
 import { errorMessage } from "../lib/errors.ts";
+import {
+  SOL_LAMPORTS_PER_SOL,
+  USDC_DECIMALS,
+  SOL_DECIMALS,
+} from "../config/constants.ts";
 
 export interface DepositParams {
   agentId: string;
@@ -38,8 +43,8 @@ export async function processDeposit(params: DepositParams): Promise<void> {
   }
 
   // Convert raw amount to decimal
-  const divisor = type === "SOL" ? 1e9 : 1e6;
-  const decimalAmount = new Decimal(amount).div(divisor).toFixed(9);
+  const divisor = type === "SOL" ? SOL_LAMPORTS_PER_SOL : 10 ** USDC_DECIMALS;
+  const decimalAmount = new Decimal(amount).div(divisor).toFixed(SOL_DECIMALS);
   const confirmedAt = new Date(timestamp * 1000);
 
   try {

@@ -30,6 +30,84 @@ export const TOKEN_2022_PROGRAM_ADDRESS =
 export const ATA_PROGRAM_ADDRESS =
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
+// ---------------------------------------------------------------------------
+// Token Precision & Instruction Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Lamports per SOL (Solana's smallest unit).
+ *
+ * SOL uses 9 decimals: 1 SOL = 1,000,000,000 lamports.
+ * Used for converting between SOL and lamports in deposits/withdrawals.
+ *
+ * Example: 0.5 SOL = 500,000,000 lamports
+ */
+export const SOL_LAMPORTS_PER_SOL = 1_000_000_000;
+
+/**
+ * USDC token decimals (smallest unit precision).
+ *
+ * USDC uses 6 decimals: 1 USDC = 1,000,000 smallest units.
+ * Used for converting between USDC and raw token amounts.
+ *
+ * Example: 10.50 USDC = 10,500,000 raw units
+ */
+export const USDC_DECIMALS = 6;
+
+/**
+ * SOL decimal precision for display formatting.
+ *
+ * Determines how many decimal places to show when formatting SOL amounts
+ * for database storage and display. Matches SOL's native 9-decimal precision.
+ *
+ * Example: amount.toFixed(SOL_DECIMALS) produces "1.234567890"
+ */
+export const SOL_DECIMALS = 9;
+
+/**
+ * SPL Token Transfer instruction buffer size (in bytes).
+ *
+ * SPL Token Transfer instruction layout:
+ * - 1 byte: discriminator (3 = Transfer)
+ * - 8 bytes: amount (u64 little-endian)
+ * Total = 9 bytes
+ */
+export const SPL_TRANSFER_INSTRUCTION_SIZE = 9;
+
+/**
+ * Offset for amount field in SPL Token Transfer instruction.
+ *
+ * After the 1-byte discriminator, the u64 amount starts at byte index 1.
+ */
+export const SPL_TRANSFER_AMOUNT_OFFSET = 1;
+
+/**
+ * CreateAssociatedTokenAccountIdempotent instruction discriminator.
+ *
+ * Value: 1 (idempotent variant that no-ops if ATA already exists)
+ * Value: 0 would be non-idempotent CreateAssociatedTokenAccount
+ */
+export const SPL_CREATE_IDEMPOTENT_DISCRIMINATOR = 1;
+
+/**
+ * SOL transfer transaction fee estimate (in lamports).
+ *
+ * Conservative estimate for a simple SOL transfer: ~5,000 lamports.
+ * Actual fees may be lower (~5,000) but we use this as a safe upper bound.
+ */
+export const SOL_TRANSFER_FEE_LAMPORTS = 5000n;
+
+/**
+ * USDC transfer worst-case fee estimate (in lamports).
+ *
+ * Includes:
+ * - Base transaction fee: ~5,000 lamports
+ * - ATA creation rent exemption: ~2,039,280 lamports (if destination ATA doesn't exist)
+ *
+ * We return the worst case (ATA creation needed) to ensure sufficient balance.
+ */
+export const USDC_ATA_CREATION_FEE_LAMPORTS = 2_044_280n;
+
 /** Stock category for classification */
 export type StockCategory =
   | "Mega-Cap Tech"

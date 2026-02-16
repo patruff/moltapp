@@ -115,6 +115,70 @@ const POSITION_MAX_DRAWDOWN_MULTIPLIER = 2.5;
  * - Index (Diversified): SPY, VOO, VTI
  * - Index (Tech-Heavy): QQQ, XLK
  */
+/**
+ * Stress Test Scenario Shock Constants
+ *
+ * Percentage shock values applied to each sector in different stress test scenarios.
+ * These parameters control portfolio stress testing for risk analysis and position sizing.
+ *
+ * Scenario Structure:
+ * - Tech Crash: Major tech selloff scenario (-20% tech, -5% financials)
+ * - Market Rally: Broad market upside scenario (+8-12% all sectors)
+ * - Interest Rate Shock: Growth stocks drop, financials rally
+ * - Crypto Contagion: Crypto market crash impacts crypto-adjacent stocks
+ * - Black Swan: Severe market crash (-25% to -35% across all sectors)
+ *
+ * Usage:
+ * - Values are percentage changes (e.g., -20 = -20% loss, +12 = +12% gain)
+ * - Applied in stress testing to calculate portfolio resilience
+ * - Used in circuit breaker logic and position limit calculations
+ */
+
+// Tech Crash Scenario: Major tech selloff (-20%)
+const STRESS_TECH_CRASH_TECHNOLOGY = -20;
+const STRESS_TECH_CRASH_FINANCIAL = -5;
+const STRESS_TECH_CRASH_COMMUNICATION = -15;
+const STRESS_TECH_CRASH_CONSUMER = -10;
+const STRESS_TECH_CRASH_HEALTHCARE = -3;
+const STRESS_TECH_CRASH_INDEX_DIVERSIFIED = -12;
+const STRESS_TECH_CRASH_INDEX_TECH_HEAVY = -18;
+
+// Market Rally Scenario: Broad market upside (+10%)
+const STRESS_RALLY_TECHNOLOGY = 12;
+const STRESS_RALLY_FINANCIAL = 8;
+const STRESS_RALLY_COMMUNICATION = 10;
+const STRESS_RALLY_CONSUMER = 10;
+const STRESS_RALLY_HEALTHCARE = 7;
+const STRESS_RALLY_INDEX_DIVERSIFIED = 10;
+const STRESS_RALLY_INDEX_TECH_HEAVY = 11;
+
+// Interest Rate Shock: Growth stocks drop, financials rally
+const STRESS_RATE_SHOCK_TECHNOLOGY = -12;
+const STRESS_RATE_SHOCK_FINANCIAL = 5;
+const STRESS_RATE_SHOCK_COMMUNICATION = -8;
+const STRESS_RATE_SHOCK_CONSUMER = -6;
+const STRESS_RATE_SHOCK_HEALTHCARE = -3;
+const STRESS_RATE_SHOCK_INDEX_DIVERSIFIED = -5;
+const STRESS_RATE_SHOCK_INDEX_TECH_HEAVY = -10;
+
+// Crypto Contagion: Crypto market crash drags down crypto-adjacent stocks
+const STRESS_CRYPTO_CONTAGION_TECHNOLOGY = -5;
+const STRESS_CRYPTO_CONTAGION_FINANCIAL = -15;
+const STRESS_CRYPTO_CONTAGION_COMMUNICATION = -3;
+const STRESS_CRYPTO_CONTAGION_CONSUMER = -5;
+const STRESS_CRYPTO_CONTAGION_HEALTHCARE = -1;
+const STRESS_CRYPTO_CONTAGION_INDEX_DIVERSIFIED = -4;
+const STRESS_CRYPTO_CONTAGION_INDEX_TECH_HEAVY = -6;
+
+// Black Swan Scenario: Severe market crash (-30%)
+const STRESS_BLACK_SWAN_TECHNOLOGY = -30;
+const STRESS_BLACK_SWAN_FINANCIAL = -25;
+const STRESS_BLACK_SWAN_COMMUNICATION = -28;
+const STRESS_BLACK_SWAN_CONSUMER = -32;
+const STRESS_BLACK_SWAN_HEALTHCARE = -20;
+const STRESS_BLACK_SWAN_INDEX_DIVERSIFIED = -27;
+const STRESS_BLACK_SWAN_INDEX_TECH_HEAVY = -32;
+
 const STRESS_TEST_SCENARIOS: Record<
   string,
   {
@@ -125,61 +189,61 @@ const STRESS_TEST_SCENARIOS: Record<
   "Tech Crash (-20%)": {
     description: "Major tech selloff: all tech stocks drop 20%, financials drop 5%",
     shocks: {
-      Technology: -20,
-      "Financial Services": -5,
-      "Communication Services": -15,
-      "Consumer Cyclical": -10,
-      Healthcare: -3,
-      "Index (Diversified)": -12,
-      "Index (Tech-Heavy)": -18,
+      Technology: STRESS_TECH_CRASH_TECHNOLOGY,
+      "Financial Services": STRESS_TECH_CRASH_FINANCIAL,
+      "Communication Services": STRESS_TECH_CRASH_COMMUNICATION,
+      "Consumer Cyclical": STRESS_TECH_CRASH_CONSUMER,
+      Healthcare: STRESS_TECH_CRASH_HEALTHCARE,
+      "Index (Diversified)": STRESS_TECH_CRASH_INDEX_DIVERSIFIED,
+      "Index (Tech-Heavy)": STRESS_TECH_CRASH_INDEX_TECH_HEAVY,
     },
   },
   "Market Rally (+10%)": {
     description: "Broad market rally: all sectors gain 8-12%",
     shocks: {
-      Technology: 12,
-      "Financial Services": 8,
-      "Communication Services": 10,
-      "Consumer Cyclical": 10,
-      Healthcare: 7,
-      "Index (Diversified)": 10,
-      "Index (Tech-Heavy)": 11,
+      Technology: STRESS_RALLY_TECHNOLOGY,
+      "Financial Services": STRESS_RALLY_FINANCIAL,
+      "Communication Services": STRESS_RALLY_COMMUNICATION,
+      "Consumer Cyclical": STRESS_RALLY_CONSUMER,
+      Healthcare: STRESS_RALLY_HEALTHCARE,
+      "Index (Diversified)": STRESS_RALLY_INDEX_DIVERSIFIED,
+      "Index (Tech-Heavy)": STRESS_RALLY_INDEX_TECH_HEAVY,
     },
   },
   "Interest Rate Shock": {
     description: "Unexpected rate hike: growth stocks drop, financials rally",
     shocks: {
-      Technology: -12,
-      "Financial Services": 5,
-      "Communication Services": -8,
-      "Consumer Cyclical": -6,
-      Healthcare: -3,
-      "Index (Diversified)": -5,
-      "Index (Tech-Heavy)": -10,
+      Technology: STRESS_RATE_SHOCK_TECHNOLOGY,
+      "Financial Services": STRESS_RATE_SHOCK_FINANCIAL,
+      "Communication Services": STRESS_RATE_SHOCK_COMMUNICATION,
+      "Consumer Cyclical": STRESS_RATE_SHOCK_CONSUMER,
+      Healthcare: STRESS_RATE_SHOCK_HEALTHCARE,
+      "Index (Diversified)": STRESS_RATE_SHOCK_INDEX_DIVERSIFIED,
+      "Index (Tech-Heavy)": STRESS_RATE_SHOCK_INDEX_TECH_HEAVY,
     },
   },
   "Crypto Contagion": {
     description: "Crypto market crash drags down crypto-adjacent stocks",
     shocks: {
-      Technology: -5,
-      "Financial Services": -15,
-      "Communication Services": -3,
-      "Consumer Cyclical": -5,
-      Healthcare: -1,
-      "Index (Diversified)": -4,
-      "Index (Tech-Heavy)": -6,
+      Technology: STRESS_CRYPTO_CONTAGION_TECHNOLOGY,
+      "Financial Services": STRESS_CRYPTO_CONTAGION_FINANCIAL,
+      "Communication Services": STRESS_CRYPTO_CONTAGION_COMMUNICATION,
+      "Consumer Cyclical": STRESS_CRYPTO_CONTAGION_CONSUMER,
+      Healthcare: STRESS_CRYPTO_CONTAGION_HEALTHCARE,
+      "Index (Diversified)": STRESS_CRYPTO_CONTAGION_INDEX_DIVERSIFIED,
+      "Index (Tech-Heavy)": STRESS_CRYPTO_CONTAGION_INDEX_TECH_HEAVY,
     },
   },
   "Black Swan (-30%)": {
     description: "Severe market crash: all stocks drop 25-35%",
     shocks: {
-      Technology: -30,
-      "Financial Services": -25,
-      "Communication Services": -28,
-      "Consumer Cyclical": -32,
-      Healthcare: -20,
-      "Index (Diversified)": -27,
-      "Index (Tech-Heavy)": -32,
+      Technology: STRESS_BLACK_SWAN_TECHNOLOGY,
+      "Financial Services": STRESS_BLACK_SWAN_FINANCIAL,
+      "Communication Services": STRESS_BLACK_SWAN_COMMUNICATION,
+      "Consumer Cyclical": STRESS_BLACK_SWAN_CONSUMER,
+      Healthcare: STRESS_BLACK_SWAN_HEALTHCARE,
+      "Index (Diversified)": STRESS_BLACK_SWAN_INDEX_DIVERSIFIED,
+      "Index (Tech-Heavy)": STRESS_BLACK_SWAN_INDEX_TECH_HEAVY,
     },
   },
 };

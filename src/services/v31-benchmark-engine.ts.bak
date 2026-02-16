@@ -15,7 +15,6 @@
 import { createHash } from "crypto";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import { countByCondition, findMax, findMin, computeVariance, computeStdDev, clamp } from "../lib/math-utils.ts";
-import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 
 // ============================================================================
 // Configuration Constants
@@ -395,7 +394,24 @@ const DIMENSION_WEIGHTS: Record<keyof V31DimensionScores, number> = {
   decisionAccountability: 0.04,
 };
 
-// Tier and grade functions now imported from ../lib/benchmark-grading-utils.ts
+function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
+  if (composite >= TIER_THRESHOLD_S) return "S";
+  if (composite >= TIER_THRESHOLD_A) return "A";
+  if (composite >= TIER_THRESHOLD_B) return "B";
+  if (composite >= TIER_THRESHOLD_C) return "C";
+  return "D";
+}
+
+function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
+  if (score >= GRADE_THRESHOLD_A_PLUS) return "A+";
+  if (score >= GRADE_THRESHOLD_A) return "A";
+  if (score >= GRADE_THRESHOLD_B_PLUS) return "B+";
+  if (score >= GRADE_THRESHOLD_B) return "B";
+  if (score >= GRADE_THRESHOLD_C_PLUS) return "C+";
+  if (score >= GRADE_THRESHOLD_C) return "C";
+  if (score >= GRADE_THRESHOLD_D) return "D";
+  return "F";
+}
 
 // ---------------------------------------------------------------------------
 // Transparency Scoring

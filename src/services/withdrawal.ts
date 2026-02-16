@@ -23,6 +23,11 @@ import { errorMessage } from "../lib/errors.ts";
 import {
   USDC_MINT_MAINNET,
   USDC_MINT_DEVNET,
+  SPL_TRANSFER_INSTRUCTION_SIZE,
+  SPL_TRANSFER_AMOUNT_OFFSET,
+  SPL_CREATE_IDEMPOTENT_DISCRIMINATOR,
+  SOL_TRANSFER_FEE_LAMPORTS,
+  USDC_ATA_CREATION_FEE_LAMPORTS,
 } from "../config/constants.ts";
 
 /** Token Program address (SPL Token) */
@@ -111,12 +116,12 @@ function buildSplTokenTransferInstruction(params: {
   owner: string;
   amount: bigint;
 }): Instruction {
-  const data = new Uint8Array(9);
+  const data = new Uint8Array(SPL_TRANSFER_INSTRUCTION_SIZE);
   // Discriminator: 3 = Transfer
   data[0] = 3;
   // Amount as u64 LE
   const view = new DataView(data.buffer);
-  view.setBigUint64(1, params.amount, true);
+  view.setBigUint64(SPL_TRANSFER_AMOUNT_OFFSET, params.amount, true);
 
   return {
     programAddress: address(TOKEN_PROGRAM_ADDRESS),
@@ -178,7 +183,7 @@ function buildCreateAtaIdempotentInstruction(params: {
         role: 0, // ReadonlyAccount
       },
     ],
-    data: new Uint8Array([1]), // 1 = CreateIdempotent
+    data: new Uint8Array([SPL_CREATE_IDEMPOTENT_DISCRIMINATOR]), // 1 = CreateIdempotent
   };
 }
 
@@ -364,10 +369,10 @@ export function estimateWithdrawalFee(
 ): bigint {
   if (tokenType === "SOL") {
     // SOL transfer: base fee ~5000 lamports
-    return 5000n;
+    return SOL_TRANSFER_FEE_LAMPORTS;
   }
 
   // USDC transfer: base fee + potential ATA creation rent (~2.04M lamports)
   // We return the worst case (ATA creation needed) to be safe
-  return 2_044_280n;
+  return USDC_ATA_CREATION_FEE_LAMPORTS;
 }

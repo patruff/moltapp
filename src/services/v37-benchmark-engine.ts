@@ -26,6 +26,7 @@
 import { createHash } from "crypto";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import { countByCondition, clamp, computeVariance } from "../lib/math-utils.ts";
+import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 
 // Re-export inherited scoring functions from v36
 export {
@@ -552,24 +553,7 @@ const DIMENSION_WEIGHTS: Record<keyof V37DimensionScores, number> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function getTier(composite: number): "S" | "A" | "B" | "C" | "D" {
-  if (composite >= TIER_S_THRESHOLD) return "S";
-  if (composite >= TIER_A_THRESHOLD) return "A";
-  if (composite >= TIER_B_THRESHOLD) return "B";
-  if (composite >= TIER_C_THRESHOLD) return "C";
-  return "D";
-}
-
-function getGrade(score: number): "A+" | "A" | "B+" | "B" | "C+" | "C" | "D" | "F" {
-  if (score >= GRADE_A_PLUS_THRESHOLD) return "A+";
-  if (score >= GRADE_A_THRESHOLD) return "A";
-  if (score >= GRADE_B_PLUS_THRESHOLD) return "B+";
-  if (score >= GRADE_B_THRESHOLD) return "B";
-  if (score >= GRADE_C_PLUS_THRESHOLD) return "C+";
-  if (score >= GRADE_C_THRESHOLD) return "C";
-  if (score >= GRADE_D_THRESHOLD) return "D";
-  return "F";
-}
+// Tier and grade functions now imported from ../lib/benchmark-grading-utils.ts
 
 // ---------------------------------------------------------------------------
 // NEW v37: Reasoning Composability

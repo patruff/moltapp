@@ -233,6 +233,86 @@ const VAR_PERCENTILE_THRESHOLD = 0.05;
  */
 const PERCENTAGE_CONVERSION_MULTIPLIER = 100;
 
+/**
+ * Calculation Normalization & Rounding Constants
+ *
+ * Used for confidence score normalization and precision rounding in simulations.
+ */
+
+/**
+ * Confidence baseline for normalization (neutral confidence midpoint)
+ *
+ * Formula: normalized_confidence = (raw_confidence - CONFIDENCE_BASELINE) / CONFIDENCE_NORMALIZATION_DIVISOR
+ *          Example: 75% confidence → (75 - 50) / 100 = +0.25 (25% above neutral)
+ *                   25% confidence → (25 - 50) / 100 = -0.25 (25% below neutral)
+ *
+ * Range: 0-100 confidence scale → -0.5 to +0.5 normalized factor
+ *
+ * Impact: Affects how agent confidence translates to position sizing in copy-trading
+ *         Higher baseline = more conservative (fewer high-confidence trades)
+ */
+const CONFIDENCE_BASELINE = 50;
+
+/**
+ * Confidence normalization divisor (converts 0-100 scale to decimal)
+ *
+ * Formula: normalized_confidence = (confidence - CONFIDENCE_BASELINE) / CONFIDENCE_NORMALIZATION_DIVISOR
+ *          Example: 100% confidence → (100 - 50) / 100 = +0.5 (maximum bullish)
+ *                   0% confidence → (0 - 50) / 100 = -0.5 (maximum bearish)
+ *
+ * Impact: Scales confidence to -0.5 to +0.5 range for position sizing calculations
+ */
+const CONFIDENCE_NORMALIZATION_DIVISOR = 100;
+
+/**
+ * Win rate precision multiplier (for 1 decimal place rounding)
+ *
+ * Formula: rounded_win_rate = Math.round(win_rate × WIN_RATE_PRECISION_MULTIPLIER) / WIN_RATE_PRECISION_DIVISOR
+ *          Example: 67.384% → Math.round(0.67384 × 1000) / 10 = 67.4%
+ *
+ * Impact: Controls display precision for win rates (1 decimal = 67.4% vs 2 decimals = 67.38%)
+ */
+const WIN_RATE_PRECISION_MULTIPLIER = 1000;
+
+/**
+ * Win rate precision divisor (for 1 decimal place rounding)
+ *
+ * Used with WIN_RATE_PRECISION_MULTIPLIER to achieve 1 decimal place precision.
+ * Example: Math.round(67.384 × 1000) / 10 = 674 / 10 = 67.4
+ */
+const WIN_RATE_PRECISION_DIVISOR = 10;
+
+/**
+ * Confidence display precision multiplier (for 1 decimal place rounding)
+ *
+ * Formula: rounded_confidence = Math.round(confidence × CONFIDENCE_DISPLAY_PRECISION_MULTIPLIER) / CONFIDENCE_DISPLAY_PRECISION_DIVISOR
+ *          Example: 73.642 → Math.round(73.642 × 10) / 10 = 73.6
+ *
+ * Impact: Controls display precision for average confidence scores (1 decimal = 73.6 vs integer = 74)
+ */
+const CONFIDENCE_DISPLAY_PRECISION_MULTIPLIER = 10;
+
+/**
+ * Confidence display precision divisor (for 1 decimal place rounding)
+ *
+ * Used with CONFIDENCE_DISPLAY_PRECISION_MULTIPLIER for 1 decimal place precision.
+ */
+const CONFIDENCE_DISPLAY_PRECISION_DIVISOR = 10;
+
+/**
+ * Weight sum validation tolerance (for floating-point comparison)
+ *
+ * Formula: Math.abs(sum_of_weights - 1.0) > WEIGHT_SUM_TOLERANCE → error
+ *          Example: [0.33, 0.33, 0.34] sums to 1.0, within tolerance ✓
+ *                   [0.30, 0.30, 0.30] sums to 0.90, exceeds tolerance ✗
+ *
+ * 0.01 = 1% tolerance for floating-point arithmetic rounding errors
+ *
+ * Impact: Prevents rejection of valid weight allocations due to floating-point precision
+ *         Too strict (0.001) = rejects valid configs, too loose (0.05) = allows imbalanced portfolios
+ */
+const WEIGHT_SUM_TOLERANCE = 0.01;
+
 // ---------------------------------------------------------------------------
 // Simulation Engine
 // ---------------------------------------------------------------------------
@@ -523,7 +603,7 @@ export async function quickSimulation(
   // Simplified return estimation based on confidence-weighted decisions
   let estimatedReturn = 0;
   for (const d of actionDecisions) {
-    const confFactor = (d.confidence - 50) / 100; // -0.5 to +0.5
+    const confFactor = (d.confidence - CONFIDENCE_BASELINE) / CONFIDENCE_NORMALIZATION_DIVISOR; // -0.5 to +0.5
     const tradeSize = startingCapital * POSITION_SIZE_PER_TRADE_MULTIPLIER * confFactor;
     estimatedReturn += tradeSize;
   }
