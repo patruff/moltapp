@@ -1041,11 +1041,11 @@ function updateKeyLessons(memory: AgentMemoryState): void {
 
   // Overall performance lesson
   if (memory.totalTradesAnalyzed >= 10) {
-    if (memory.overallWinRate > 55) {
+    if (memory.overallWinRate > WIN_RATE_STRONG_OVERALL_THRESHOLD) {
       lessons.push(
         `Strong track record: ${memory.overallWinRate.toFixed(0)}% win rate over ${memory.totalTradesAnalyzed} trades. Stay disciplined.`,
       );
-    } else if (memory.overallWinRate < 45) {
+    } else if (memory.overallWinRate < WIN_RATE_WEAK_OVERALL_THRESHOLD) {
       lessons.push(
         `Below-average win rate: ${memory.overallWinRate.toFixed(0)}%. Consider being more selective and only trading high-conviction ideas.`,
       );
@@ -1063,11 +1063,11 @@ function updateKeyLessons(memory: AgentMemoryState): void {
   // Stock-specific lessons
   for (const [symbol, profile] of memory.stockProfiles.entries()) {
     if (profile.tradeCount >= 5) {
-      if (profile.winRate > 70) {
+      if (profile.winRate > WIN_RATE_STOCK_STRENGTH_THRESHOLD) {
         lessons.push(
           `${symbol} is a strength: ${profile.winRate.toFixed(0)}% win rate across ${profile.tradeCount} trades.`,
         );
-      } else if (profile.winRate < 30) {
+      } else if (profile.winRate < WIN_RATE_STOCK_WEAKNESS_THRESHOLD) {
         lessons.push(
           `${symbol} has been problematic: only ${profile.winRate.toFixed(0)}% win rate. Consider avoiding.`,
         );
