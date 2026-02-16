@@ -68,11 +68,64 @@ type WalletChangeCallback = (
 ) => void;
 
 // ---------------------------------------------------------------------------
-// RPC Rate Limiter (5 calls per second)
+// RPC Configuration Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * RPC Rate Limiting Parameters
+ *
+ * Solana RPC providers typically enforce rate limits on API calls.
+ * These constants control how we throttle outgoing requests to prevent
+ * 429 Too Many Requests errors and maintain reliable wallet tracking.
+ */
+
+/** Maximum RPC calls allowed per rate limit window (default: 5 calls/second for mainnet) */
 const RPC_RATE_LIMIT = 5;
+
+/** Rate limit window duration in milliseconds (1 second = 1000ms) */
 const RPC_RATE_WINDOW_MS = 1000;
+
+/**
+ * Buffer time added to rate limit wait calculations to prevent edge case timing issues.
+ * When queue is full, we wait: (WINDOW - elapsed) + BUFFER to ensure oldest call expires.
+ * Value of 10ms provides small safety margin without adding noticeable delay.
+ */
+const RPC_RATE_LIMIT_BUFFER_MS = 10;
+
+/**
+ * Retry Policy Parameters
+ *
+ * RPC calls can fail due to network issues, temporary unavailability, or rate limiting.
+ * These constants control exponential backoff retry behavior.
+ */
+
+/** Maximum number of retry attempts before giving up (3 retries = 4 total attempts) */
+const MAX_RETRIES = 3;
+
+/** Initial delay before first retry in milliseconds (exponential: 500ms → 1s → 2s) */
+const BASE_DELAY_MS = 500;
+
+/**
+ * Jitter factor for retry delays (0-30% randomization).
+ * Formula: finalDelay = baseDelay + (baseDelay * random() * JITTER_FACTOR)
+ * Prevents thundering herd when multiple failed requests retry simultaneously.
+ * Example: 500ms base + 0-150ms jitter = 500-650ms actual delay
+ */
+const RETRY_JITTER_FACTOR = 0.3;
+
+/**
+ * Wallet Watch Polling Parameters
+ */
+
+/** Number of transaction signatures to fetch per watch poll (default: 10 most recent) */
+const WATCH_POLL_SIGNATURE_LIMIT = 10;
+
+/**
+ * Solana Conversion Constants
+ */
+
+/** Lamports per SOL (1 SOL = 1 billion lamports) */
+const LAMPORTS_PER_SOL = 1_000_000_000;
 
 interface QueuedRequest<T> {
   execute: () => Promise<T>;
@@ -143,7 +196,7 @@ class RpcRateLimiter {
       if (this.callTimestamps.length >= RPC_RATE_LIMIT) {
         // Wait until the oldest call expires
         const oldestTs = this.callTimestamps[0];
-        const waitMs = RPC_RATE_WINDOW_MS - (now - oldestTs) + 10;
+        const waitMs = RPC_RATE_WINDOW_MS - (now - oldestTs) + RPC_RATE_LIMIT_BUFFER_MS;
         await sleep(waitMs);
         continue;
       }
@@ -172,9 +225,6 @@ const rpcLimiter = new RpcRateLimiter();
 // Retry with exponential backoff
 // ---------------------------------------------------------------------------
 
-const MAX_RETRIES = 3;
-const BASE_DELAY_MS = 500;
-
 async function withRetry<T>(
   operation: () => Promise<T>,
   label: string,
@@ -188,7 +238,7 @@ async function withRetry<T>(
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < MAX_RETRIES) {
         const delayMs = BASE_DELAY_MS * Math.pow(2, attempt);
-        const jitter = Math.random() * delayMs * 0.3;
+        const jitter = Math.random() * delayMs * RETRY_JITTER_FACTOR;
         console.warn(
           `[SolanaTracker] ${label} attempt ${attempt + 1} failed: ${lastError.message}. Retrying in ${Math.round(delayMs + jitter)}ms...`,
         );
@@ -215,8 +265,6 @@ function getSolanaRpc() {
     env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   return createSolanaRpc(rpcUrl);
 }
-
-const LAMPORTS_PER_SOL = 1_000_000_000;
 
 // ---------------------------------------------------------------------------
 // Core Functions
@@ -396,7 +444,7 @@ export function watchWallet(
       const rpc = getSolanaRpc();
 
       const signatures = await withRetry(async () => {
-        const opts: { limit: number; until?: Signature } = { limit: 10 };
+        const opts: { limit: number; until?: Signature } = { limit: WATCH_POLL_SIGNATURE_LIMIT };
         if (lastSignature) {
           opts.until = toSignature(lastSignature);
         }
