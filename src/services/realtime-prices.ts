@@ -106,20 +106,130 @@ interface VwapTracker {
 // Configuration
 // ---------------------------------------------------------------------------
 
+/**
+ * Price Staleness & Freshness Thresholds
+ */
+
 /** Price staleness threshold in milliseconds (30 seconds) */
 const STALENESS_THRESHOLD_MS = 30_000;
+
+/**
+ * Fresh price window for multi-source deviation detection (60 seconds).
+ * Only prices fetched within this window are compared for divergence alerts.
+ * Set to 2x staleness threshold to include recently stale prices in comparison.
+ */
+const FRESH_PRICE_WINDOW_MS = 60_000;
+
+/**
+ * Price change notification threshold (0.001%).
+ * Subscribers are only notified if price moves by more than this percentage.
+ * Formula: |changePercent| > PRICE_CHANGE_NOTIFICATION_THRESHOLD
+ *
+ * Examples:
+ * - 0.001% = $100 stock moves by $0.001 triggers notification
+ * - 0.01% = $100 stock moves by $0.01 triggers notification
+ */
+const PRICE_CHANGE_NOTIFICATION_THRESHOLD = 0.001;
+
+/**
+ * External API Polling & Timeout Parameters
+ */
 
 /** Jupiter polling interval in milliseconds (5 seconds) */
 const JUPITER_POLL_INTERVAL_MS = 5_000;
 
-/** Helius WebSocket reconnect delay in milliseconds */
+/**
+ * Jupiter API request timeout in milliseconds (8 seconds).
+ * Jupiter typically responds <2s, but we allow 8s for network spikes.
+ */
+const JUPITER_API_TIMEOUT_MS = 8_000;
+
+/**
+ * WebSocket & Reconnection Parameters
+ */
+
+/** Helius WebSocket reconnect delay in milliseconds (base delay for exponential backoff) */
 const HELIUS_RECONNECT_DELAY_MS = 3_000;
 
 /** Maximum reconnect attempts before falling back to polling only */
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+/**
+ * WebSocket ping interval in milliseconds (30 seconds).
+ * Keeps connection alive by sending periodic ping messages.
+ */
+const WEBSOCKET_PING_INTERVAL_MS = 30_000;
+
+/**
+ * Price Deviation Detection
+ */
+
 /** Price deviation alert threshold (1%) */
 const DEVIATION_ALERT_THRESHOLD = 0.01;
+
+/**
+ * Deviation percentage rounding multiplier (10000 = 2 decimal places).
+ * Formula: Math.round(percent * 10000) / 100 converts 0.0123 → 1.23%
+ */
+const DEVIATION_PERCENT_ROUNDING_MULTIPLIER = 10000;
+
+/**
+ * Decimal Precision & Formatting
+ */
+
+/**
+ * Price rounding multiplier (10000 = 4 decimal places).
+ * Formula: Math.round(price * 10000) / 10000
+ * Used for VWAP and aggregated price display.
+ */
+const PRICE_ROUNDING_MULTIPLIER = 10000;
+
+/**
+ * Minimum age in milliseconds for weight calculation (100ms).
+ * Prevents division by zero in age-weighted averaging.
+ */
+const MIN_AGE_FOR_WEIGHT_MS = 100;
+
+/**
+ * Confidence Calculation Parameters
+ */
+
+/**
+ * Base confidence score for stale prices (70).
+ * When price exceeds STALENESS_THRESHOLD_MS, confidence starts at 70
+ * and decays linearly to 0 over CONFIDENCE_DECAY_WINDOW_MS.
+ */
+const CONFIDENCE_STALE_BASE = 70;
+
+/**
+ * Confidence decay window in milliseconds (5 minutes = 300,000ms).
+ * After price becomes stale, confidence drops from 70 to 0 over this period.
+ */
+const CONFIDENCE_DECAY_WINDOW_MS = 300_000;
+
+/**
+ * Base confidence score for fresh prices (80).
+ * Fresh prices (age < STALENESS_THRESHOLD_MS) start at 80 confidence
+ * and scale up to 100 based on freshness.
+ */
+const CONFIDENCE_FRESH_BASE = 80;
+
+/**
+ * Confidence bonus range for freshness (20).
+ * Formula: FRESH_BASE + (1 - ageMs / STALENESS) * FRESH_BONUS
+ * Produces confidence range of 80-100 for fresh prices.
+ */
+const CONFIDENCE_FRESH_BONUS = 20;
+
+/**
+ * Confidence bonus for multi-source agreement (10).
+ * When 2+ sources provide prices, confidence increases by this amount (capped at 100).
+ */
+const CONFIDENCE_MULTI_SOURCE_BONUS = 10;
+
+/**
+ * History & Cache Limits
+ */
 
 /** Maximum price history entries per token */
 const MAX_PRICE_HISTORY = 100;
@@ -244,10 +354,10 @@ function updatePrice(
     checkPriceDeviation(mintAddress, symbol, sourcePrices);
   }
 
-  // Notify subscribers if price changed meaningfully (>0.001%)
+  // Notify subscribers if price changed meaningfully
   const changePercent =
     oldPrice > 0 ? ((price - oldPrice) / oldPrice) * 100 : 0;
-  if (Math.abs(changePercent) > 0.001 || !oldEntry) {
+  if (Math.abs(changePercent) > PRICE_CHANGE_NOTIFICATION_THRESHOLD || !oldEntry) {
     const update: PriceUpdate = {
       symbol,
       mintAddress,
@@ -274,8 +384,8 @@ function checkPriceDeviation(
   const freshPrices: Array<{ source: string; price: number }> = [];
 
   for (const [source, entry] of sourcePrices) {
-    // Only consider prices less than 60 seconds old
-    if (now - entry.fetchedAt < 60_000) {
+    // Only consider prices within fresh window
+    if (now - entry.fetchedAt < FRESH_PRICE_WINDOW_MS) {
       freshPrices.push({ source, price: entry.price });
     }
   }
@@ -300,7 +410,7 @@ function checkPriceDeviation(
       symbol,
       mintAddress,
       sources: freshPrices,
-      maxDeviationPercent: Math.round(maxDeviationPercent * 10000) / 100,
+      maxDeviationPercent: Math.round(maxDeviationPercent * DEVIATION_PERCENT_ROUNDING_MULTIPLIER) / 100,
       timestamp: new Date(now).toISOString(),
     };
 
@@ -370,7 +480,7 @@ async function pollJupiterPrices(): Promise<void> {
 
       const resp = await fetch(`https://api.jup.ag/price/v3?ids=${ids}`, {
         headers,
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(JUPITER_API_TIMEOUT_MS),
       });
 
       if (!resp.ok) {
@@ -514,7 +624,7 @@ async function connectHeliusWebSocket(): Promise<void> {
         if (ws.readyState === 1) {
           ws.send(JSON.stringify({ jsonrpc: "2.0", id: "ping", method: "ping" }));
         }
-      }, 30_000);
+      }, WEBSOCKET_PING_INTERVAL_MS);
     });
 
     ws.on("message", (rawData: unknown) => {
@@ -642,7 +752,7 @@ export function getPriceByMint(mintAddress: string): PricePoint | null {
   const vwap = vwapTrackers.get(mintAddress);
   const vwapPrice =
     vwap && vwap.totalVolume > 0
-      ? Math.round((vwap.totalPriceVolume / vwap.totalVolume) * 10000) / 10000
+      ? Math.round((vwap.totalPriceVolume / vwap.totalVolume) * PRICE_ROUNDING_MULTIPLIER) / PRICE_ROUNDING_MULTIPLIER
       : null;
 
   return {
@@ -726,7 +836,7 @@ export function getAggregatedPrice(symbol: string): PricePoint | null {
   let totalWeight = 0;
 
   for (const entry of freshEntries) {
-    const weight = 1 / Math.max(entry.age, 100); // Avoid division by zero
+    const weight = 1 / Math.max(entry.age, MIN_AGE_FOR_WEIGHT_MS);
     weightedSum += entry.price * weight;
     totalWeight += weight;
   }
@@ -738,13 +848,13 @@ export function getAggregatedPrice(symbol: string): PricePoint | null {
   const vwap = vwapTrackers.get(mint);
   const vwapPrice =
     vwap && vwap.totalVolume > 0
-      ? Math.round((vwap.totalPriceVolume / vwap.totalVolume) * 10000) / 10000
+      ? Math.round((vwap.totalPriceVolume / vwap.totalVolume) * PRICE_ROUNDING_MULTIPLIER) / PRICE_ROUNDING_MULTIPLIER
       : null;
 
   return {
     symbol,
     mintAddress: mint,
-    price: Math.round(aggregatedPrice * 10000) / 10000,
+    price: Math.round(aggregatedPrice * PRICE_ROUNDING_MULTIPLIER) / PRICE_ROUNDING_MULTIPLIER,
     source: "aggregate",
     confidence: calculateConfidence(mint, ageMs),
     fetchedAt: new Date(now - ageMs).toISOString(),
@@ -867,18 +977,18 @@ function calculateConfidence(mintAddress: string, ageMs: number): number {
 
   // Decay by age
   if (ageMs > STALENESS_THRESHOLD_MS) {
-    // Confidence drops linearly from 70 to 0 over the next 5 minutes
+    // Confidence drops linearly from base to 0 over decay window
     const overtime = ageMs - STALENESS_THRESHOLD_MS;
-    confidence = Math.max(0, 70 - (overtime / 300_000) * 70);
+    confidence = Math.max(0, CONFIDENCE_STALE_BASE - (overtime / CONFIDENCE_DECAY_WINDOW_MS) * CONFIDENCE_STALE_BASE);
   } else {
-    // Fresh: 80-100 based on how fresh
-    confidence = 80 + (1 - ageMs / STALENESS_THRESHOLD_MS) * 20;
+    // Fresh: base to 100 based on how fresh
+    confidence = CONFIDENCE_FRESH_BASE + (1 - ageMs / STALENESS_THRESHOLD_MS) * CONFIDENCE_FRESH_BONUS;
   }
 
   // Bonus for multiple source agreement
   const sources = multiSourcePrices.get(mintAddress);
   if (sources && sources.size >= 2) {
-    confidence = Math.min(100, confidence + 10);
+    confidence = Math.min(100, confidence + CONFIDENCE_MULTI_SOURCE_BONUS);
   }
 
   return Math.round(confidence);
