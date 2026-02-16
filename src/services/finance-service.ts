@@ -96,6 +96,40 @@ const CURRENCY_DECIMAL_PRECISION = 2;
  */
 const PERCENT_DECIMAL_PRECISION = 1;
 
+/**
+ * ID Generation Constants
+ *
+ * Control how analyst IDs and client IDs are generated using timestamp
+ * and random alphanumeric suffixes for uniqueness.
+ *
+ * IDs follow the format: `{prefix}_{timestamp}_{randomSuffix}`
+ * where randomSuffix is extracted from Math.random().toString(36).
+ *
+ * Examples:
+ * - "analyst_1738540800000_a3f9z2"
+ * - "client_1738540800123_k7m2w5"
+ */
+
+/**
+ * Start position for extracting random alphanumeric suffix.
+ * Math.random().toString(36) produces "0.xxxxx" format, so we skip
+ * the "0." prefix by starting at index 2.
+ */
+const ID_RANDOM_START = 2;
+
+/**
+ * Length of random alphanumeric suffix for ID generation.
+ * A 6-character suffix provides ~2.2 billion combinations (36^6),
+ * which is sufficient for uniqueness when combined with timestamp.
+ */
+const ID_RANDOM_LENGTH = 6;
+
+/**
+ * Wallet address display truncation length for console logging.
+ * Shows first 8 characters of wallet address (e.g., "7xK9mD3q...").
+ */
+const WALLET_DISPLAY_LENGTH = 8;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -274,7 +308,7 @@ export function registerAnalyst(config: {
     throw new Error("Analyst name required");
   }
 
-  const analystId = `analyst_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const analystId = `analyst_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH)}`;
 
   const profile: AnalystProfile = {
     analystId,
@@ -314,7 +348,7 @@ export function registerClient(walletAddress: string): ClientProfile {
     }
   }
 
-  const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const clientId = `client_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH)}`;
 
   const profile: ClientProfile = {
     clientId,
@@ -323,7 +357,7 @@ export function registerClient(walletAddress: string): ClientProfile {
   };
 
   clients.set(clientId, profile);
-  console.log(`[FinanceService] Registered client: ${walletAddress.slice(0, 8)}... (${clientId})`);
+  console.log(`[FinanceService] Registered client: ${walletAddress.slice(0, WALLET_DISPLAY_LENGTH)}... (${clientId})`);
   return profile;
 }
 
