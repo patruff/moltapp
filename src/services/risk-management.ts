@@ -43,6 +43,15 @@ import { round2, round3, sumByKey, averageByKey, mean, computeVariance } from ".
  * - Volatility assumptions for return generation
  */
 
+/**
+ * Annualization Constants
+ *
+ * Used to convert daily returns to annualized metrics (Sharpe, Sortino, etc.)
+ */
+
+/** Number of trading days per year for annualization (252 = NYSE trading calendar) */
+const TRADING_DAYS_PER_YEAR = 252;
+
 /** Number of trading days to look back for VaR calculation (252 = 1 trading year) */
 const VAR_LOOKBACK_DAYS = 252;
 
@@ -667,7 +676,7 @@ export function calculateRiskAdjustedMetrics(
   // Sortino ratio
   const sortinoRatio =
     downsideDeviation > 0
-      ? ((meanReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(252)
+      ? ((meanReturn - riskFreeRate) / downsideDeviation) * Math.sqrt(TRADING_DAYS_PER_YEAR)
       : 0;
 
   // Max drawdown for Calmar
@@ -682,7 +691,7 @@ export function calculateRiskAdjustedMetrics(
   }
 
   // Calmar ratio
-  const annualizedReturn = meanReturn * 252;
+  const annualizedReturn = meanReturn * TRADING_DAYS_PER_YEAR;
   const calmarRatio = maxDD !== 0 ? annualizedReturn / Math.abs(maxDD) : 0;
 
   // Beta vs market (assume SPYx-like returns)
@@ -707,13 +716,13 @@ export function calculateRiskAdjustedMetrics(
   const excessReturns = returns.map((r, i) => r - marketReturns[i]);
   const meanExcess = mean(excessReturns);
   const trackingErrorVar = computeVariance(excessReturns, true); // population variance
-  const trackingError = Math.sqrt(trackingErrorVar) * Math.sqrt(252);
+  const trackingError = Math.sqrt(trackingErrorVar) * Math.sqrt(TRADING_DAYS_PER_YEAR);
   const informationRatio =
-    trackingError > 0 ? (meanExcess * 252) / trackingError : 0;
+    trackingError > 0 ? (meanExcess * TRADING_DAYS_PER_YEAR) / trackingError : 0;
 
   // Treynor ratio
   const treynorRatio =
-    beta !== 0 ? ((meanReturn - riskFreeRate) * 252) / beta : 0;
+    beta !== 0 ? ((meanReturn - riskFreeRate) * TRADING_DAYS_PER_YEAR) / beta : 0;
 
   // Omega ratio
   const gains = returns.filter((r) => r > riskFreeRate);
