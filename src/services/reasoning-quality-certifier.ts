@@ -229,6 +229,30 @@ const CERTIFICATE_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CERTS_PER_AGENT = 300;
 
 /**
+ * HASH AND DISPLAY FORMATTING CONSTANTS
+ * Controls how reasoning fingerprints and circular reasoning previews are formatted
+ */
+
+/**
+ * Hash prefix length for reasoning fingerprints (16 chars)
+ *
+ * Example: Full SHA-256 hash "a3f9e2..." → display first 16 chars "a3f9e2c7d1b4e8f5"
+ * Provides sufficient uniqueness for reasoning identification while keeping IDs compact
+ */
+const REASONING_HASH_PREFIX_LENGTH = 16;
+
+/**
+ * Sentence preview length for circular reasoning detection (50 chars)
+ *
+ * Compares first N characters of opening/closing sentences to detect circular logic.
+ * Example: "The stock is undervalued because..." → compare first 50 chars only
+ *
+ * Purpose: Prevents false positives from long identical prefixes in legitimate arguments
+ * Formula: if first.slice(0, 50) === last.slice(0, 50) then flag circular reasoning
+ */
+const CIRCULAR_REASONING_SENTENCE_PREVIEW_LENGTH = 50;
+
+/**
  * TREND DETECTION AND GRADING
  */
 
@@ -333,7 +357,7 @@ export function certifyReasoning(
   else level = "uncertified";
 
   // Create certificate
-  const reasoningHash = createHash("sha256").update(reasoning).digest("hex").slice(0, 16);
+  const reasoningHash = createHash("sha256").update(reasoning).digest("hex").slice(0, REASONING_HASH_PREFIX_LENGTH);
   const certContent = JSON.stringify({
     agentId,
     roundId,
@@ -469,8 +493,8 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
   const sentences = splitSentences(reasoning, LOGICAL_SOUNDNESS_SENTENCE_MIN_LENGTH);
   let circularFlag = false;
   if (sentences.length >= 2) {
-    const first = sentences[0].trim().toLowerCase().slice(0, 50);
-    const last = sentences[sentences.length - 1].trim().toLowerCase().slice(0, 50);
+    const first = sentences[0].trim().toLowerCase().slice(0, CIRCULAR_REASONING_SENTENCE_PREVIEW_LENGTH);
+    const last = sentences[sentences.length - 1].trim().toLowerCase().slice(0, CIRCULAR_REASONING_SENTENCE_PREVIEW_LENGTH);
     if (first === last) {
       circularFlag = true;
       indicators.push("Potentially circular: first and last points identical");
