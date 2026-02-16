@@ -71,6 +71,31 @@ const JOB_EXPIRY_MS = 24 * 60 * 60 * 1000;
 /** Minimum Solana wallet address length for validation (standard base58 length) */
 const WALLET_ADDRESS_MIN_LENGTH = 32;
 
+/**
+ * Formatting Precision Constants
+ *
+ * Control decimal precision for different financial value types displayed
+ * in analyst listings, price estimates, and analysis output formatting.
+ */
+
+/**
+ * Price precision for USD values (analyst pricing, budgets, LLM costs).
+ * Example: $0.0235 → "0.0235" (4 decimal places for micropayment precision)
+ */
+const PRICE_DECIMAL_PRECISION = 4;
+
+/**
+ * Currency precision for portfolio values, P&L, position prices.
+ * Example: $50.42 → "50.42" (standard 2 decimal places for currency amounts)
+ */
+const CURRENCY_DECIMAL_PRECISION = 2;
+
+/**
+ * Percentage precision for P&L percent and market changes.
+ * Example: 5.7% → "5.7" (1 decimal place for percentage displays)
+ */
+const PERCENT_DECIMAL_PRECISION = 1;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -359,7 +384,7 @@ export function estimatePrice(analystId: string, tier: PackageTier): PriceEstima
   if (!analyst) {
     // Fallback pricing for unknown analyst
     return {
-      priceUsd: `$${MIN_PRICE_USD.toFixed(4)}`,
+      priceUsd: `$${MIN_PRICE_USD.toFixed(PRICE_DECIMAL_PRECISION)}`,
       breakdown: {
         model: "unknown",
         estimatedInputTokens: 0,
@@ -378,7 +403,7 @@ export function estimatePrice(analystId: string, tier: PackageTier): PriceEstima
   const totalUsd = Math.max(MIN_PRICE_USD, Math.min(MAX_PRICE_USD, llmCostUsd + markupUsd));
 
   return {
-    priceUsd: `$${totalUsd.toFixed(4)}`,
+    priceUsd: `$${totalUsd.toFixed(PRICE_DECIMAL_PRECISION)}`,
     breakdown: {
       model: analyst.model,
       estimatedInputTokens: tokenEstimate.input,
@@ -518,7 +543,7 @@ export async function runAnalysis(
 
   console.log(
     `[FinanceService] Analysis complete: ${analyst.name} analyzed ${clientWallet.slice(0, 8)}... ` +
-    `(${tier}, ${llmResult.inputTokens}+${llmResult.outputTokens} tokens, $${totalPriceUsd.toFixed(4)})`,
+    `(${tier}, ${llmResult.inputTokens}+${llmResult.outputTokens} tokens, $${totalPriceUsd.toFixed(PRICE_DECIMAL_PRECISION)})`,
   );
 
   return financePackage;
@@ -544,12 +569,12 @@ function buildAnalysisPrompt(
   symbol?: string,
 ): string {
   const positionSummary = portfolio.positions
-    .map(p => `  - ${p.symbol}: ${p.quantity.toFixed(4)} units @ $${p.currentPrice.toFixed(2)} = $${p.value.toFixed(2)} (${p.unrealizedPnlPercent >= 0 ? "+" : ""}${p.unrealizedPnlPercent.toFixed(1)}%)`)
+    .map(p => `  - ${p.symbol}: ${p.quantity.toFixed(PRICE_DECIMAL_PRECISION)} units @ $${p.currentPrice.toFixed(CURRENCY_DECIMAL_PRECISION)} = $${p.value.toFixed(CURRENCY_DECIMAL_PRECISION)} (${p.unrealizedPnlPercent >= 0 ? "+" : ""}${p.unrealizedPnlPercent.toFixed(PERCENT_DECIMAL_PRECISION)}%)`)
     .join("\n");
 
   const marketSummary = marketPrices
     .slice(0, 20)
-    .map(p => `  - ${p.symbol}: $${p.price.toFixed(2)} (${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(1)}%)`)
+    .map(p => `  - ${p.symbol}: $${p.price.toFixed(CURRENCY_DECIMAL_PRECISION)} (${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(PERCENT_DECIMAL_PRECISION)}%)`)
     .join("\n");
 
   const tierInstructions = {
@@ -561,9 +586,9 @@ function buildAnalysisPrompt(
   return `You are an AI financial analyst reviewing a client's xStock portfolio on Solana.
 
 ## Client Portfolio
-Total Value: $${portfolio.totalValue.toFixed(2)}
-Cash (USDC): $${portfolio.cashBalance.toFixed(2)}
-Total P&L: ${portfolio.totalPnl >= 0 ? "+" : ""}$${portfolio.totalPnl.toFixed(2)} (${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(1)}%)
+Total Value: $${portfolio.totalValue.toFixed(CURRENCY_DECIMAL_PRECISION)}
+Cash (USDC): $${portfolio.cashBalance.toFixed(CURRENCY_DECIMAL_PRECISION)}
+Total P&L: ${portfolio.totalPnl >= 0 ? "+" : ""}$${portfolio.totalPnl.toFixed(CURRENCY_DECIMAL_PRECISION)} (${portfolio.totalPnlPercent >= 0 ? "+" : ""}${portfolio.totalPnlPercent.toFixed(PERCENT_DECIMAL_PRECISION)}%)
 
 Positions:
 ${positionSummary || "  (no positions)"}
@@ -856,7 +881,7 @@ export function acceptJob(jobId: string, analystId: string): AnalysisJob {
   const priceEstimate = estimatePrice(analystId, job.tier);
   if (job.budgetUsd < priceEstimate.breakdown.totalUsd) {
     throw new Error(
-      `Budget $${job.budgetUsd.toFixed(4)} is below analyst's minimum price ${priceEstimate.priceUsd} for ${job.tier} tier`,
+      `Budget $${job.budgetUsd.toFixed(PRICE_DECIMAL_PRECISION)} is below analyst's minimum price ${priceEstimate.priceUsd} for ${job.tier} tier`,
     );
   }
 
