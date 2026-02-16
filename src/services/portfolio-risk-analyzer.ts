@@ -88,54 +88,101 @@ const POSITION_VOLATILITY_MODERATE_THRESHOLD = 2;
 const POSITION_MAX_DRAWDOWN_MULTIPLIER = 2.5;
 
 /**
- * Stress Test Scenario Shock Values (%)
- * Defines sector-level shocks for what-if scenario analysis
+ * Stress Test Scenario Configurations
+ *
+ * Defines sector-level shock values (%) for portfolio what-if scenario analysis.
+ * Each scenario simulates a market condition by applying percentage shocks to different sectors.
+ *
+ * How to use:
+ * - Adjust shock values to test different market conditions
+ * - Positive values = sector gains (rally scenarios)
+ * - Negative values = sector losses (crash/correction scenarios)
+ * - Shocks are applied to position values based on sector classification
+ *
+ * Example:
+ * - Tech Crash: Technology sector drops 20%, Financials drop 5%
+ * - Market Rally: All sectors gain 8-12% (broad market strength)
+ * - Interest Rate Shock: Growth stocks (Tech) drop, Financials rally on higher rates
+ * - Crypto Contagion: Crypto-adjacent stocks (COIN, MSTR, HOOD) drop sharply
+ * - Black Swan: Severe market crash with 25-35% drops across all sectors
+ *
+ * Sectors used:
+ * - Technology: AAPL, MSFT, GOOGL, NVDA, AMZN, META, TSLA, etc.
+ * - Financial Services: JPM, BAC, GS, COIN, HOOD, etc.
+ * - Communication Services: GOOGL, META, DIS, etc.
+ * - Consumer Cyclical: AMZN, TSLA, NKE, etc.
+ * - Healthcare: UNH, JNJ, LLY, etc.
+ * - Index (Diversified): SPY, VOO, VTI
+ * - Index (Tech-Heavy): QQQ, XLK
  */
-
-// Tech Crash Scenario (-20%)
-const STRESS_TECH_CRASH_TECHNOLOGY = -20;
-const STRESS_TECH_CRASH_FINANCIAL = -5;
-const STRESS_TECH_CRASH_COMMUNICATION = -15;
-const STRESS_TECH_CRASH_CONSUMER = -10;
-const STRESS_TECH_CRASH_HEALTHCARE = -3;
-const STRESS_TECH_CRASH_INDEX_DIVERSIFIED = -12;
-const STRESS_TECH_CRASH_INDEX_TECH = -18;
-
-// Market Rally Scenario (+10%)
-const STRESS_RALLY_TECHNOLOGY = 12;
-const STRESS_RALLY_FINANCIAL = 8;
-const STRESS_RALLY_COMMUNICATION = 10;
-const STRESS_RALLY_CONSUMER = 10;
-const STRESS_RALLY_HEALTHCARE = 7;
-const STRESS_RALLY_INDEX_DIVERSIFIED = 10;
-const STRESS_RALLY_INDEX_TECH = 11;
-
-// Interest Rate Shock Scenario
-const STRESS_RATE_TECHNOLOGY = -12;
-const STRESS_RATE_FINANCIAL = 5;
-const STRESS_RATE_COMMUNICATION = -8;
-const STRESS_RATE_CONSUMER = -6;
-const STRESS_RATE_HEALTHCARE = -3;
-const STRESS_RATE_INDEX_DIVERSIFIED = -5;
-const STRESS_RATE_INDEX_TECH = -10;
-
-// Crypto Contagion Scenario
-const STRESS_CRYPTO_TECHNOLOGY = -5;
-const STRESS_CRYPTO_FINANCIAL = -15;
-const STRESS_CRYPTO_COMMUNICATION = -3;
-const STRESS_CRYPTO_CONSUMER = -5;
-const STRESS_CRYPTO_HEALTHCARE = -1;
-const STRESS_CRYPTO_INDEX_DIVERSIFIED = -4;
-const STRESS_CRYPTO_INDEX_TECH = -6;
-
-// Black Swan Scenario (-30%)
-const STRESS_SWAN_TECHNOLOGY = -30;
-const STRESS_SWAN_FINANCIAL = -25;
-const STRESS_SWAN_COMMUNICATION = -28;
-const STRESS_SWAN_CONSUMER = -32;
-const STRESS_SWAN_HEALTHCARE = -20;
-const STRESS_SWAN_INDEX_DIVERSIFIED = -27;
-const STRESS_SWAN_INDEX_TECH = -32;
+const STRESS_TEST_SCENARIOS: Record<
+  string,
+  {
+    description: string;
+    shocks: Record<string, number>;
+  }
+> = {
+  "Tech Crash (-20%)": {
+    description: "Major tech selloff: all tech stocks drop 20%, financials drop 5%",
+    shocks: {
+      Technology: -20,
+      "Financial Services": -5,
+      "Communication Services": -15,
+      "Consumer Cyclical": -10,
+      Healthcare: -3,
+      "Index (Diversified)": -12,
+      "Index (Tech-Heavy)": -18,
+    },
+  },
+  "Market Rally (+10%)": {
+    description: "Broad market rally: all sectors gain 8-12%",
+    shocks: {
+      Technology: 12,
+      "Financial Services": 8,
+      "Communication Services": 10,
+      "Consumer Cyclical": 10,
+      Healthcare: 7,
+      "Index (Diversified)": 10,
+      "Index (Tech-Heavy)": 11,
+    },
+  },
+  "Interest Rate Shock": {
+    description: "Unexpected rate hike: growth stocks drop, financials rally",
+    shocks: {
+      Technology: -12,
+      "Financial Services": 5,
+      "Communication Services": -8,
+      "Consumer Cyclical": -6,
+      Healthcare: -3,
+      "Index (Diversified)": -5,
+      "Index (Tech-Heavy)": -10,
+    },
+  },
+  "Crypto Contagion": {
+    description: "Crypto market crash drags down crypto-adjacent stocks",
+    shocks: {
+      Technology: -5,
+      "Financial Services": -15,
+      "Communication Services": -3,
+      "Consumer Cyclical": -5,
+      Healthcare: -1,
+      "Index (Diversified)": -4,
+      "Index (Tech-Heavy)": -6,
+    },
+  },
+  "Black Swan (-30%)": {
+    description: "Severe market crash: all stocks drop 25-35%",
+    shocks: {
+      Technology: -30,
+      "Financial Services": -25,
+      "Communication Services": -28,
+      "Consumer Cyclical": -32,
+      Healthcare: -20,
+      "Index (Diversified)": -27,
+      "Index (Tech-Heavy)": -32,
+    },
+  },
+};
 
 /**
  * Risk Score Composite Weights and Thresholds (0-100 scale)
@@ -743,77 +790,12 @@ function runStressTests(
   agentPositions: DBPosition[],
   portfolioValue: number,
 ): StressTestResult[] {
-  const scenarios: Array<{
-    name: string;
-    description: string;
-    shocks: Record<string, number>;
-  }> = [
-    {
-      name: "Tech Crash (-20%)",
-      description: "Major tech selloff: all tech stocks drop 20%, financials drop 5%",
-      shocks: {
-        Technology: STRESS_TECH_CRASH_TECHNOLOGY,
-        "Financial Services": STRESS_TECH_CRASH_FINANCIAL,
-        "Communication Services": STRESS_TECH_CRASH_COMMUNICATION,
-        "Consumer Cyclical": STRESS_TECH_CRASH_CONSUMER,
-        Healthcare: STRESS_TECH_CRASH_HEALTHCARE,
-        "Index (Diversified)": STRESS_TECH_CRASH_INDEX_DIVERSIFIED,
-        "Index (Tech-Heavy)": STRESS_TECH_CRASH_INDEX_TECH,
-      },
-    },
-    {
-      name: "Market Rally (+10%)",
-      description: "Broad market rally: all sectors gain 8-12%",
-      shocks: {
-        Technology: STRESS_RALLY_TECHNOLOGY,
-        "Financial Services": STRESS_RALLY_FINANCIAL,
-        "Communication Services": STRESS_RALLY_COMMUNICATION,
-        "Consumer Cyclical": STRESS_RALLY_CONSUMER,
-        Healthcare: STRESS_RALLY_HEALTHCARE,
-        "Index (Diversified)": STRESS_RALLY_INDEX_DIVERSIFIED,
-        "Index (Tech-Heavy)": STRESS_RALLY_INDEX_TECH,
-      },
-    },
-    {
-      name: "Interest Rate Shock",
-      description: "Unexpected rate hike: growth stocks drop, financials rally",
-      shocks: {
-        Technology: STRESS_RATE_TECHNOLOGY,
-        "Financial Services": STRESS_RATE_FINANCIAL,
-        "Communication Services": STRESS_RATE_COMMUNICATION,
-        "Consumer Cyclical": STRESS_RATE_CONSUMER,
-        Healthcare: STRESS_RATE_HEALTHCARE,
-        "Index (Diversified)": STRESS_RATE_INDEX_DIVERSIFIED,
-        "Index (Tech-Heavy)": STRESS_RATE_INDEX_TECH,
-      },
-    },
-    {
-      name: "Crypto Contagion",
-      description: "Crypto market crash drags down crypto-adjacent stocks",
-      shocks: {
-        Technology: STRESS_CRYPTO_TECHNOLOGY,
-        "Financial Services": STRESS_CRYPTO_FINANCIAL,
-        "Communication Services": STRESS_CRYPTO_COMMUNICATION,
-        "Consumer Cyclical": STRESS_CRYPTO_CONSUMER,
-        Healthcare: STRESS_CRYPTO_HEALTHCARE,
-        "Index (Diversified)": STRESS_CRYPTO_INDEX_DIVERSIFIED,
-        "Index (Tech-Heavy)": STRESS_CRYPTO_INDEX_TECH,
-      },
-    },
-    {
-      name: "Black Swan (-30%)",
-      description: "Severe market crash: all stocks drop 25-35%",
-      shocks: {
-        Technology: STRESS_SWAN_TECHNOLOGY,
-        "Financial Services": STRESS_SWAN_FINANCIAL,
-        "Communication Services": STRESS_SWAN_COMMUNICATION,
-        "Consumer Cyclical": STRESS_SWAN_CONSUMER,
-        Healthcare: STRESS_SWAN_HEALTHCARE,
-        "Index (Diversified)": STRESS_SWAN_INDEX_DIVERSIFIED,
-        "Index (Tech-Heavy)": STRESS_SWAN_INDEX_TECH,
-      },
-    },
-  ];
+  // Convert STRESS_TEST_SCENARIOS object to array format for processing
+  const scenarios = Object.entries(STRESS_TEST_SCENARIOS).map(([name, config]) => ({
+    name,
+    description: config.description,
+    shocks: config.shocks,
+  }));
 
   return scenarios.map((scenario) => {
     let totalImpact = 0;
