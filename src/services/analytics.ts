@@ -251,17 +251,6 @@ const VOLATILITY_MEDIUM_THRESHOLD = 1.5;
 const RISK_FREE_RATE_ANNUAL = 0.05;
 
 /**
- * Trading Days Per Year
- *
- * Number of trading days per year (252) for annualizing volatility and returns.
- *
- * Example: dailyVol * sqrt(252) = annualized volatility
- *
- * Tuning impact: Use 365 for crypto (24/7 trading) or 252 for traditional equities.
- */
-const TRADING_DAYS_PER_YEAR = 252;
-
-/**
  * VaR Percentile Thresholds
  *
  * Percentile thresholds for Value at Risk calculations (95th, 98th, 99th percentiles).
