@@ -33,6 +33,129 @@ import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
 import { round2, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Signal Strength Calculation Multipliers
+ *
+ * These multipliers control how aggressively different rule types translate
+ * indicator deviations into signal strength scores (0-100 scale).
+ *
+ * Higher multipliers = more sensitive signal generation (larger strength values
+ * for same deviation). Lower multipliers = more conservative signal strength.
+ *
+ * Strength formula: Math.min(100, Math.round(deviation * MULTIPLIER * rule.weight))
+ */
+
+/**
+ * Momentum signal strength multiplier
+ *
+ * Applied when price change exceeds momentum rule threshold.
+ * Example: 2% change with weight 1.0 → strength = min(100, round(2 * 10 * 1.0)) = 20
+ *
+ * Used in: Entry rules for momentum strategies
+ */
+const SIGNAL_STRENGTH_MOMENTUM_MULTIPLIER = 10;
+
+/**
+ * Price breakout signal strength multiplier
+ *
+ * Applied when price crosses above/below price threshold.
+ * Uses percentage deviation from threshold: ((price - threshold) / threshold) * 100
+ *
+ * Example: Price $105 crosses threshold $100 → 5% deviation → strength = min(100, round(5 * 100 * 1.0)) = 100 (capped)
+ *
+ * Used in: Entry rules for breakout/breakdown strategies
+ * Note: 100× multiplier ensures breakouts generate strong signals quickly
+ */
+const SIGNAL_STRENGTH_PRICE_MULTIPLIER = 100;
+
+/**
+ * Contrarian signal strength multiplier
+ *
+ * Applied when price reversal exceeds contrarian rule threshold.
+ * Lower multiplier reflects higher uncertainty in reversal timing.
+ *
+ * Example: 3% drop with weight 1.0 → strength = min(100, round(3 * 8 * 1.0)) = 24
+ *
+ * Used in: Entry rules for contrarian/mean-reversion strategies
+ */
+const SIGNAL_STRENGTH_CONTRARIAN_MULTIPLIER = 8;
+
+/**
+ * Generic/default signal strength multiplier
+ *
+ * Applied for unrecognized indicator types or generic threshold checks.
+ * Conservative multiplier to avoid overly strong signals from unknown rule types.
+ *
+ * Example: 4% change with weight 1.0 → strength = min(100, round(4 * 5 * 1.0)) = 20
+ *
+ * Used in: Default case for custom indicator rules
+ */
+const SIGNAL_STRENGTH_DEFAULT_MULTIPLIER = 5;
+
+/**
+ * Volatility signal strength multiplier
+ *
+ * Applied when absolute price change exceeds volatility threshold.
+ * Same as momentum multiplier since both measure change magnitude.
+ *
+ * Example: 1.5% volatility with weight 1.0 → strength = min(100, round(1.5 * 10 * 1.0)) = 15
+ *
+ * Used in: Entry rules for volatility-based strategies
+ */
+const SIGNAL_STRENGTH_VOLATILITY_MULTIPLIER = 10;
+
+/**
+ * Stop loss exit signal strength multiplier
+ *
+ * Applied when price drop exceeds stop loss threshold.
+ * Higher multiplier (15) creates urgency for risk management exits.
+ *
+ * Example: 8% loss triggers 5% stop loss → deviation = 3% → strength = min(100, round(8 * 15)) = 100 (capped)
+ *
+ * Used in: Exit rules for stop loss signals
+ * Note: No rule.weight applied to stop losses (always max urgency)
+ */
+const SIGNAL_STRENGTH_STOP_LOSS_MULTIPLIER = 15;
+
+/**
+ * Take profit exit signal strength multiplier
+ *
+ * Applied when price gain exceeds take profit threshold.
+ * Moderate multiplier (12) encourages profit-taking without excessive urgency.
+ *
+ * Example: 10% gain triggers 8% take profit → strength = min(100, round(10 * 12)) = 100 (capped)
+ *
+ * Used in: Exit rules for take profit signals
+ * Note: No rule.weight applied to take profits (target hit = exit)
+ */
+const SIGNAL_STRENGTH_TAKE_PROFIT_MULTIPLIER = 12;
+
+/**
+ * Minimum signal strength threshold for signal generation
+ *
+ * Signals below this strength are discarded to reduce noise.
+ * Prevents weak signals (strength < 10) from cluttering the marketplace.
+ *
+ * Example: Momentum rule triggers with strength = 8 → signal NOT generated
+ *
+ * Used in: Signal filtering after entry rule evaluation
+ */
+const SIGNAL_STRENGTH_MIN_THRESHOLD = 10;
+
+/**
+ * Maximum signal strength ceiling
+ *
+ * All signal strengths are capped at 100 regardless of multiplier.
+ * Ensures consistent 0-100 scale for UI display and comparison.
+ *
+ * Used in: All signal strength calculations (Math.min(SIGNAL_STRENGTH_MAX, ...))
+ */
+const SIGNAL_STRENGTH_MAX = 100;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -799,11 +922,11 @@ export async function generateStrategySignals(
         case "momentum":
           if (rule.condition === ">" && change > rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(Math.abs(change - rule.value) * 10 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change - rule.value) * SIGNAL_STRENGTH_MOMENTUM_MULTIPLIER * rule.weight));
             direction = "long";
           } else if (rule.condition === "<" && change < rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(Math.abs(change - rule.value) * 10 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change - rule.value) * SIGNAL_STRENGTH_MOMENTUM_MULTIPLIER * rule.weight));
             direction = "short";
           }
           break;
@@ -811,11 +934,11 @@ export async function generateStrategySignals(
         case "price":
           if (rule.condition === ">" && stock.price > rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(((stock.price - rule.value) / rule.value) * 100 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(((stock.price - rule.value) / rule.value) * SIGNAL_STRENGTH_PRICE_MULTIPLIER * rule.weight));
             direction = "long";
           } else if (rule.condition === "<" && stock.price < rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(((rule.value - stock.price) / rule.value) * 100 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(((rule.value - stock.price) / rule.value) * SIGNAL_STRENGTH_PRICE_MULTIPLIER * rule.weight));
             direction = "short";
           }
           break;
@@ -823,7 +946,7 @@ export async function generateStrategySignals(
         case "volatility":
           if (Math.abs(change) > rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(Math.abs(change) * 10 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change) * SIGNAL_STRENGTH_VOLATILITY_MULTIPLIER * rule.weight));
             direction = change > 0 ? "long" : "short";
           }
           break;
@@ -832,7 +955,7 @@ export async function generateStrategySignals(
           // Buy when down, sell when up
           if (rule.condition === "reversal" && Math.abs(change) > rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(Math.abs(change) * 8 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change) * SIGNAL_STRENGTH_CONTRARIAN_MULTIPLIER * rule.weight));
             direction = change < 0 ? "long" : "short";
           }
           break;
@@ -841,12 +964,12 @@ export async function generateStrategySignals(
           // Generic threshold check
           if (Math.abs(change) > rule.value) {
             triggered = true;
-            strength = Math.min(100, Math.round(Math.abs(change) * 5 * rule.weight));
+            strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change) * SIGNAL_STRENGTH_DEFAULT_MULTIPLIER * rule.weight));
             direction = change > 0 ? "long" : "short";
           }
       }
 
-      if (triggered && strength > 10) {
+      if (triggered && strength > SIGNAL_STRENGTH_MIN_THRESHOLD) {
         const metadata: SignalMetadata = {
           triggerRule: `${rule.indicator} ${rule.condition} ${rule.value}`,
           indicators: { change24h: change, price: stock.price },
@@ -875,7 +998,7 @@ export async function generateStrategySignals(
     // Evaluate exit rules for stop loss signals
     for (const rule of params.exitRules) {
       if (rule.type === "stop_loss" && change < -rule.value) {
-        const strength = Math.min(100, Math.round(Math.abs(change) * 15));
+        const strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(Math.abs(change) * SIGNAL_STRENGTH_STOP_LOSS_MULTIPLIER));
 
         const metadata: SignalMetadata = {
           triggerRule: `stop_loss at -${rule.value}%`,
@@ -901,7 +1024,7 @@ export async function generateStrategySignals(
       }
 
       if (rule.type === "take_profit" && change > rule.value) {
-        const strength = Math.min(100, Math.round(change * 12));
+        const strength = Math.min(SIGNAL_STRENGTH_MAX, Math.round(change * SIGNAL_STRENGTH_TAKE_PROFIT_MULTIPLIER));
 
         const metadata: SignalMetadata = {
           triggerRule: `take_profit at +${rule.value}%`,
