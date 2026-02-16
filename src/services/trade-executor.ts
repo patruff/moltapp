@@ -155,6 +155,39 @@ const MAX_RECENT_EXECUTIONS = 100;
  */
 const MAX_EXECUTION_DURATIONS = 500;
 
+/**
+ * Execution Pipeline Jitter Configuration
+ *
+ * Controls delay randomization between agent trades to prevent thundering herd
+ * when multiple agents trade simultaneously in a round.
+ *
+ * Formula: delay = EXECUTION_JITTER_BASE_MS + random() * EXECUTION_JITTER_MAX_MS
+ * Example: 500ms + [0, 1500ms) = 500-2000ms between trades
+ *
+ * Purpose: Distributes Jupiter API calls across time to avoid rate limit spikes.
+ * Safety: Base delay ensures minimum spacing; randomization prevents synchronized retries.
+ */
+const EXECUTION_JITTER_BASE_MS = 500;  // Minimum delay (0.5s) between sequential trades
+
+/**
+ * Maximum additional jitter for execution pipeline delays (1.5 seconds).
+ * Combined with base delay, produces 0.5-2s randomized spacing between trades.
+ */
+const EXECUTION_JITTER_MAX_MS = 1500;  // Maximum additional jitter (1.5s randomization)
+
+/**
+ * Mock Price Volatility Factor
+ *
+ * Controls price randomization when Jupiter API is unavailable or times out.
+ *
+ * Formula: variation = 1 + (Math.random() - 0.5) * MOCK_PRICE_VOLATILITY_FACTOR
+ * Example: 1 + [-0.5, 0.5) * 0.02 = [0.99, 1.01) = ±1% price movement
+ *
+ * Purpose: Creates realistic price swings in paper mode when Jupiter unavailable.
+ * Range: 0.02 produces ±1% movement (realistic intraday volatility for testing).
+ */
+const MOCK_PRICE_VOLATILITY_FACTOR = 0.02;  // ±1% price variation when Jupiter unavailable
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -427,7 +460,7 @@ export async function executePipeline(
 
     // Add small delay between executions to avoid rate limiting
     if (decisions.indexOf(entry) < decisions.length - 1) {
-      const jitterMs = 500 + Math.random() * 1500;
+      const jitterMs = EXECUTION_JITTER_BASE_MS + Math.random() * EXECUTION_JITTER_MAX_MS;
       await new Promise((resolve) => setTimeout(resolve, jitterMs));
     }
   }
@@ -700,7 +733,7 @@ async function fetchCurrentPrice(mintAddress: string, symbol: string): Promise<n
     NFLXx: 628.90, PLTRx: 24.50, GMEx: 17.80,
   };
   const base = mockPrices[symbol] ?? 100;
-  const variation = 1 + (Math.random() - 0.5) * 0.02;
+  const variation = 1 + (Math.random() - 0.5) * MOCK_PRICE_VOLATILITY_FACTOR;
   return round2(base * variation);
 }
 
