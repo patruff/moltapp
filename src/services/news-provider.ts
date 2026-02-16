@@ -602,8 +602,8 @@ export async function fetchMarketNews(
       for (const item of avItems) {
         const isDuplicate = allItems.some(
           (existing) =>
-            existing.title.toLowerCase().includes(item.title.toLowerCase().slice(0, 30)) ||
-            item.title.toLowerCase().includes(existing.title.toLowerCase().slice(0, 30)),
+            existing.title.toLowerCase().includes(item.title.toLowerCase().slice(0, TITLE_DEDUP_MATCH_LENGTH)) ||
+            item.title.toLowerCase().includes(existing.title.toLowerCase().slice(0, TITLE_DEDUP_MATCH_LENGTH)),
         );
         if (!isDuplicate) {
           allItems.push(item);
