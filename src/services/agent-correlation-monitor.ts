@@ -295,6 +295,26 @@ const HERDING_SCORE_MODERATE_THRESHOLD = 25;
  */
 const DIVERGENCE_HIGH_CONVICTION_THRESHOLD = 30;
 
+/**
+ * Percentage Calculation Precision Constants
+ *
+ * Controls decimal precision for percentage display in herding and contrarianism scores.
+ * Uses multiplier/divisor pattern for consistent rounding.
+ */
+
+/**
+ * Multiplier for 2-decimal percentage precision.
+ * Formula: Math.round(fraction * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR
+ * Example: 0.6789 → Math.round(0.6789 * 10000) / 100 = 6789 / 100 = 67.89%
+ */
+const PERCENTAGE_PRECISION_MULTIPLIER = 10000;
+
+/**
+ * Divisor for 2-decimal percentage precision (produces XX.YZ format).
+ * Used with PERCENTAGE_PRECISION_MULTIPLIER to achieve 2-decimal rounding.
+ */
+const PERCENTAGE_PRECISION_DIVISOR = 100;
+
 // ---------------------------------------------------------------------------
 // Module-level State
 // ---------------------------------------------------------------------------
@@ -712,13 +732,13 @@ export function getHerdingAnalysis(): HerdingAnalysis {
   for (const [agentId, disagreements] of agentDisagreements) {
     const rounds = agentRoundCount.get(agentId) || 0;
     contrarianismScores[agentId] = rounds > 0
-      ? Math.round((disagreements / rounds) * 100 * 100) / 100
+      ? Math.round((disagreements / rounds) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR
       : 0;
   }
 
   const herdingScore =
     totalRounds > 0
-      ? Math.round((unanimousCount / totalRounds) * 100 * 100) / 100
+      ? Math.round((unanimousCount / totalRounds) * PERCENTAGE_PRECISION_MULTIPLIER) / PERCENTAGE_PRECISION_DIVISOR
       : 0;
 
   return {
