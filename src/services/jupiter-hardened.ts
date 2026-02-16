@@ -149,8 +149,65 @@ let metrics = {
   recentTrades: [] as JupiterMetrics["recentTrades"],
 };
 
+// ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of latency samples to keep in memory for metrics averaging.
+ * Keeps recent 500 samples to provide rolling average without unbounded growth.
+ * Higher value = more stable averages but more memory usage.
+ */
 const MAX_LATENCIES = 500;
+
+/**
+ * Maximum number of recent trades to track in metrics.
+ * Used for displaying recent trade history in admin dashboards.
+ * Higher value = more trade history but more memory usage.
+ */
 const MAX_RECENT_TRADES = 100;
+
+/**
+ * Jitter factor for exponential backoff delays (0-30% of calculated delay).
+ * Formula: delay = baseDelay * 2^attempt + (delay * random() * BACKOFF_JITTER_FACTOR)
+ * Prevents thundering herd when multiple requests retry simultaneously.
+ * Higher value = more randomization in retry timing.
+ */
+const BACKOFF_JITTER_FACTOR = 0.3;
+
+/**
+ * HTTP request timeout for getOrder API calls (15 seconds).
+ * Jupiter Ultra /order endpoint typically responds in <2s under normal load.
+ * 15s allows for occasional spikes while preventing indefinite hangs.
+ */
+const ORDER_REQUEST_TIMEOUT_MS = 15_000;
+
+/**
+ * HTTP request timeout for executeOrder API calls (30 seconds).
+ * Jupiter Ultra /execute endpoint can take longer due to on-chain submission.
+ * Matches confirmationTimeoutMs default to allow full execution window.
+ */
+const EXECUTE_REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Jupiter error code for timeout during transaction execution.
+ * When Jupiter returns { code: -1006 }, the transaction submission timed out.
+ * This is retryable - the tx may still land on-chain, so we retry with backoff.
+ */
+const JUPITER_TIMEOUT_ERROR_CODE = -1006;
+
+/**
+ * Base delay for -1006 timeout retries (2 seconds + 0-1s jitter).
+ * Formula: TIMEOUT_RETRY_BASE_DELAY_MS + random(0, TIMEOUT_RETRY_JITTER_MAX_MS)
+ * Shorter than normal backoff since -1006 often resolves quickly.
+ */
+const TIMEOUT_RETRY_BASE_DELAY_MS = 2000;
+
+/**
+ * Maximum jitter to add to -1006 timeout retry delays (0-1 second).
+ * Produces total delay of 2-3 seconds for timeout-specific retries.
+ */
+const TIMEOUT_RETRY_JITTER_MAX_MS = 1000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -176,7 +233,7 @@ function getHeaders(): Record<string, string> {
  */
 function backoffDelay(attempt: number): number {
   const exponential = currentConfig.baseDelayMs * Math.pow(2, attempt);
-  const jitter = exponential * Math.random() * 0.3;
+  const jitter = exponential * Math.random() * BACKOFF_JITTER_FACTOR;
   return exponential + jitter;
 }
 
@@ -243,7 +300,7 @@ export async function getOrderWithRetry(params: {
         const res = await fetch(url.toString(), {
           method: "GET",
           headers: getHeaders(),
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(ORDER_REQUEST_TIMEOUT_MS),
         });
 
         if (!res.ok) {
@@ -396,7 +453,7 @@ export async function executeOrderWithRetry(params: {
               signedTransaction: params.signedTransaction,
               requestId: params.requestId,
             }),
-            signal: AbortSignal.timeout(30_000),
+            signal: AbortSignal.timeout(EXECUTE_REQUEST_TIMEOUT_MS),
           },
         );
 
@@ -411,13 +468,15 @@ export async function executeOrderWithRetry(params: {
       });
 
       // Check for timeout code that Jupiter returns in the body
-      if (execution.code === -1006) {
+      if (execution.code === JUPITER_TIMEOUT_ERROR_CODE) {
         retryAttempts++;
         metrics.totalRetries++;
         if (attempt < currentConfig.maxExecuteRetries) {
-          const delayMs = 2000 + Math.random() * 1000;
+          const delayMs =
+            TIMEOUT_RETRY_BASE_DELAY_MS +
+            Math.random() * TIMEOUT_RETRY_JITTER_MAX_MS;
           console.warn(
-            `[JupiterHardened] Execute timeout (code -1006). Retrying in ${Math.round(delayMs)}ms...`,
+            `[JupiterHardened] Execute timeout (code ${JUPITER_TIMEOUT_ERROR_CODE}). Retrying in ${Math.round(delayMs)}ms...`,
           );
           await sleep(delayMs);
           continue;
