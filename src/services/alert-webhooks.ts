@@ -173,6 +173,26 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
  */
 const RECENT_EVENTS_STATS_LIMIT = 20;
 
+/**
+ * Query Result Limit Constants
+ */
+
+/**
+ * Default query result limit for alert and dead letter queue APIs: 50.
+ *
+ * Controls pagination defaults for:
+ * - getDeadLetterQueue(): Returns last 50 failed deliveries by default
+ * - getRecentAlerts(): Returns up to 50 filtered alert events by default
+ *
+ * Purpose: Prevents unbounded memory consumption while providing reasonable
+ * default page size for API consumers. Users can override via limit parameter.
+ *
+ * Example:
+ * - getDeadLetterQueue() returns 50 most recent failures
+ * - getRecentAlerts({ limit: 100 }) overrides to return 100 results
+ */
+const DEFAULT_QUERY_RESULT_LIMIT = 50;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -675,7 +695,7 @@ export function getAlertStats(): AlertStats {
 /**
  * Get dead letter queue entries.
  */
-export function getDeadLetterQueue(limit = 50): WebhookDelivery[] {
+export function getDeadLetterQueue(limit = DEFAULT_QUERY_RESULT_LIMIT): WebhookDelivery[] {
   return deadLetterQueue.slice(-limit).reverse();
 }
 
@@ -726,5 +746,5 @@ export function getRecentAlerts(params?: {
     filtered = filtered.filter((e) => e.metadata.severity === params.severity);
   }
 
-  return filtered.slice(0, params?.limit ?? 50);
+  return filtered.slice(0, params?.limit ?? DEFAULT_QUERY_RESULT_LIMIT);
 }
