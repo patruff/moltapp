@@ -131,6 +131,95 @@ export interface YieldConfig {
 // Configuration
 // ---------------------------------------------------------------------------
 
+/**
+ * Yield Calculation & Allocation Constants
+ *
+ * These constants control yield accrual calculations, risk penalty scoring,
+ * decimal precision, and time-based yield projections across the DeFi yield
+ * optimization system.
+ */
+
+/**
+ * Days per year for continuous compounding formula.
+ *
+ * Uses 365.25 to account for leap years in the continuous compounding formula:
+ * V = P * e^(r*t) where t = elapsedMs / (DAYS_PER_YEAR * MS_PER_DAY)
+ *
+ * Example: For 1 year elapsed at 7% APY:
+ * - growthFactor = e^(0.07 * 1) = 1.0725
+ * - $1000 deposited → $1072.50 after 1 year
+ *
+ * Impact: Higher value = slower yield accrual, lower value = faster accrual.
+ * Using 365.25 is standard for financial calculations.
+ */
+const DAYS_PER_YEAR_COMPOUNDING = 365.25;
+
+/**
+ * Milliseconds per day for time unit conversion.
+ *
+ * Used to convert elapsed time in milliseconds to years for APY calculations.
+ * Formula: 24 hours * 60 minutes * 60 seconds * 1000 milliseconds = 86,400,000 ms/day
+ */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * Days per year for simple daily yield projections.
+ *
+ * Used in expectedDailyYield calculation: totalAllocated * (apy / 100) / DAYS_PER_YEAR_SIMPLE
+ *
+ * Example: $10,000 allocated at 7.3% blended APY:
+ * - Daily yield = 10000 * 0.073 / 365 = $2.00/day
+ * - Monthly yield = 10000 * 0.073 / 12 = $60.83/month
+ *
+ * Uses 365 (not 365.25) as simpler approximation for projection estimates.
+ */
+const DAYS_PER_YEAR_SIMPLE = 365;
+
+/**
+ * Months per year for simple monthly yield projections.
+ *
+ * Used in expectedMonthlyYield calculation: totalAllocated * (apy / 100) / MONTHS_PER_YEAR
+ */
+const MONTHS_PER_YEAR = 12;
+
+/**
+ * Risk penalty base multiplier for allocation scoring.
+ *
+ * Formula: riskPenalty = RISK_PENALTY_MULTIPLIER^(riskTier - 1)
+ *
+ * Risk penalty table at 0.8 multiplier:
+ * - Tier 1 (lowest risk):  0.8^0 = 1.00 (no penalty)
+ * - Tier 2:                0.8^1 = 0.80 (20% penalty)
+ * - Tier 3:                0.8^2 = 0.64 (36% penalty)
+ * - Tier 4:                0.8^3 = 0.512 (49% penalty)
+ * - Tier 5 (highest risk): 0.8^4 = 0.410 (59% penalty)
+ *
+ * Allocation score = APY * riskPenalty
+ *
+ * Example: MarginFi USDC (5.1% APY, tier 2):
+ * - score = 5.1 * 0.8 = 4.08
+ * Example: JLP (12.5% APY, tier 4):
+ * - score = 12.5 * 0.512 = 6.40 (still higher score despite higher risk)
+ *
+ * Impact: Lower multiplier (e.g., 0.7) = harsher risk penalties, favors safer protocols.
+ *         Higher multiplier (e.g., 0.9) = gentler penalties, allows more risky allocation.
+ */
+const RISK_PENALTY_MULTIPLIER = 0.8;
+
+/**
+ * Decimal rounding multiplier for 2-decimal USDC precision.
+ *
+ * Used in 4 calculations for rounding USDC amounts to 2 decimal places:
+ * - Deployment amount calculation: Math.floor(value * 100) / 100
+ * - Protocol-specific allocations: Math.floor(value * 100) / 100
+ * - Remaining deployable amount: Math.floor(value * 100) / 100
+ *
+ * Example: $123.456789 USDC → Math.floor(123.456789 * 100) / 100 = $123.45
+ *
+ * Formula: Math.floor(amount * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER
+ */
+const DECIMAL_PRECISION_MULTIPLIER = 100;
+
 const DEFAULT_CONFIG: YieldConfig = {
   enabled: true,
   maxDeploymentPercent: 50,
@@ -416,7 +505,7 @@ function accrueYield(position: YieldPosition): void {
   const depositedAt = new Date(position.depositedAt).getTime();
   const now = Date.now();
   const elapsedMs = now - depositedAt;
-  const elapsedYears = elapsedMs / (365.25 * 24 * 60 * 60 * 1000);
+  const elapsedYears = elapsedMs / (DAYS_PER_YEAR_COMPOUNDING * MS_PER_DAY);
 
   // Continuous compounding: V = P * e^(r*t)
   const growthFactor = Math.exp((currentApy / 100) * elapsedYears);
@@ -455,8 +544,8 @@ export function calculateOptimalAllocation(
 ): YieldAllocation {
   const maxDeployable =
     Math.floor(
-      idleCashUsdc * (currentConfig.maxDeploymentPercent / 100) * 100,
-    ) / 100;
+      idleCashUsdc * (currentConfig.maxDeploymentPercent / 100) * DECIMAL_PRECISION_MULTIPLIER,
+    ) / DECIMAL_PRECISION_MULTIPLIER;
 
   if (
     !currentConfig.enabled ||
@@ -492,7 +581,7 @@ export function calculateOptimalAllocation(
   // Calculate risk-adjusted scores for each protocol
   const scoredProtocols = eligible.map((p) => {
     // Risk penalty: higher risk tier = lower score
-    const riskPenalty = Math.pow(0.8, p.riskTier - 1);
+    const riskPenalty = Math.pow(RISK_PENALTY_MULTIPLIER, p.riskTier - 1);
     const score = p.apy * riskPenalty;
     return { protocol: p, score };
   });
@@ -507,7 +596,7 @@ export function calculateOptimalAllocation(
 
   for (const { protocol, score } of scoredProtocols) {
     const proportion = score / totalScore;
-    let amount = Math.floor(maxDeployable * proportion * 100) / 100;
+    let amount = Math.floor(maxDeployable * proportion * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER;
 
     // Respect minimum deposit
     if (amount < protocol.minDeposit) {
@@ -516,7 +605,7 @@ export function calculateOptimalAllocation(
 
     // Don't exceed remaining deployable amount
     if (totalAllocated + amount > maxDeployable) {
-      amount = Math.floor((maxDeployable - totalAllocated) * 100) / 100;
+      amount = Math.floor((maxDeployable - totalAllocated) * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_MULTIPLIER;
     }
 
     if (amount >= protocol.minDeposit) {
@@ -541,9 +630,9 @@ export function calculateOptimalAllocation(
       : 0;
 
   const expectedDailyYield =
-    round2(totalAllocated * (expectedBlendedApy / 100) / 365);
+    round2(totalAllocated * (expectedBlendedApy / 100) / DAYS_PER_YEAR_SIMPLE);
   const expectedMonthlyYield =
-    round2(totalAllocated * (expectedBlendedApy / 100) / 12);
+    round2(totalAllocated * (expectedBlendedApy / 100) / MONTHS_PER_YEAR);
 
   return {
     agentId,
