@@ -568,7 +568,7 @@ export async function runBacktest(params: {
 
   // Annualized return
   const tradingDaysCount = tradingDates.length || 1;
-  const yearsElapsed = tradingDaysCount / 252;
+  const yearsElapsed = tradingDaysCount / TRADING_DAYS_PER_YEAR;
   const annualizedReturn = yearsElapsed > 0
     ? (Math.pow(finalCapital / initialCapital, 1 / yearsElapsed) - 1) * 100
     : 0;
@@ -1063,24 +1063,24 @@ function computeBacktestMetrics(
 
   const variance = computeVariance(dailyReturns);
   const dailyVol = Math.sqrt(variance);
-  const annualizedVol = dailyVol * Math.sqrt(252);
+  const annualizedVol = dailyVol * Math.sqrt(TRADING_DAYS_PER_YEAR);
 
   // Downside deviation (negative returns only)
   const downsideVariance = computeDownsideVariance(dailyReturns);
   const downsideDeviation = Math.sqrt(downsideVariance);
-  const annualizedDownside = downsideDeviation * Math.sqrt(252);
+  const annualizedDownside = downsideDeviation * Math.sqrt(TRADING_DAYS_PER_YEAR);
 
   // Risk-free rate
   const dailyRfr = ANNUAL_RISK_FREE_RATE / TRADING_DAYS_PER_YEAR;
 
   // Sharpe ratio
   const sharpeRatio = annualizedVol > 0
-    ? round2((meanReturn - dailyRfr) / dailyVol * Math.sqrt(252))
+    ? round2((meanReturn - dailyRfr) / dailyVol * Math.sqrt(TRADING_DAYS_PER_YEAR))
     : 0;
 
   // Sortino ratio
   const sortinoRatio = annualizedDownside > 0
-    ? round2((meanReturn - dailyRfr) / downsideDeviation * Math.sqrt(252))
+    ? round2((meanReturn - dailyRfr) / downsideDeviation * Math.sqrt(TRADING_DAYS_PER_YEAR))
     : 0;
 
   // Max drawdown
