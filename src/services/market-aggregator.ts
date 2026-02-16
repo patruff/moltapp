@@ -157,7 +157,14 @@ const MIN_TRADEABLE_LIQUIDITY_USD = 50_000;
 /** Minimum spread in basis points (5 bps = 0.05% for high-liquidity stocks) */
 const SPREAD_ESTIMATION_MIN_BPS = 5;
 
-/** Spread calculation: 100 / log2(volume) with 1M baseline */
+/**
+ * Numerator in spread calculation formula: NUMERATOR / log2(volume)
+ * Higher value = wider spreads for low liquidity stocks
+ * Example: 100 / log2(1M volume) ≈ 5 bps minimum
+ */
+const SPREAD_CALCULATION_NUMERATOR = 100;
+
+/** Spread calculation: volume baseline for log2 formula (1M USD) */
 const SPREAD_ESTIMATION_VOLUME_BASELINE = 1_000_000;
 
 /**
@@ -174,7 +181,11 @@ const MOCK_PRICE_VARIATION_PCT = 0.01;
 const MOCK_VOLUME_BASE = 10_000_000;
 const MOCK_VOLUME_RANDOM_MAX = 490_000_000;
 
-/** Mock 24h change range when no history (±2.5% random) */
+/**
+ * Mock 24h change range when no history
+ * Formula: (Math.random() - 0.5) * MOCK_CHANGE_24H_MAX produces ±2.5% range
+ * Value of 5 yields [-2.5%, +2.5%] price change
+ */
 const MOCK_CHANGE_24H_MAX = 5;
 
 /**
@@ -355,7 +366,7 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
         change24h = 0;
       }
       volume24h = jupPrice.volume24h !== 0 ? jupPrice.volume24h : (prevPrice?.volume24h ?? 0);
-    } else if (prevPrice && now - new Date(prevPrice.updatedAt).getTime() < 120_000) {
+    } else if (prevPrice && now - new Date(prevPrice.updatedAt).getTime() < PRICE_CACHE_DURATION_MS) {
       // Use cached price if less than 2 minutes old
       price = prevPrice.price;
       source = "cached";
@@ -378,8 +389,8 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
         // Mock fallback (last resort)
         price = generateMockPrice(stock.symbol, prevPrice?.price);
         source = "mock";
-        change24h = prevPrice ? ((price - prevPrice.price) / prevPrice.price) * 100 : (Math.random() - 0.5) * 5;
-        volume24h = 10_000_000 + Math.random() * 490_000_000;
+        change24h = prevPrice ? ((price - prevPrice.price) / prevPrice.price) * 100 : (Math.random() - 0.5) * MOCK_CHANGE_24H_MAX;
+        volume24h = MOCK_VOLUME_BASE + Math.random() * MOCK_VOLUME_RANDOM_MAX;
       }
     }
 
@@ -388,7 +399,10 @@ export async function fetchAggregatedPrices(): Promise<AggregatedPrice[]> {
     const vwap = computeVWAP(history);
 
     // Estimate spread (tighter for higher volume)
-    const spreadBps = Math.max(5, Math.round(100 / Math.log2(Math.max(volume24h, 1_000_000))));
+    const spreadBps = Math.max(
+      SPREAD_ESTIMATION_MIN_BPS,
+      Math.round(SPREAD_CALCULATION_NUMERATOR / Math.log2(Math.max(volume24h, SPREAD_ESTIMATION_VOLUME_BASELINE)))
+    );
 
     // Get liquidity data (await the promise for this stock) if not already set from cache
     if (liquidityUsd === undefined) {
