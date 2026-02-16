@@ -102,22 +102,97 @@ export interface RetryPolicy {
 }
 
 // ---------------------------------------------------------------------------
-// Configuration
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Maximum retry attempts for failed trades.
+ *
+ * Trades exhaust this limit move to dead_letter status for manual review.
+ * 3 attempts with exponential backoff (2s → 4s → 8s) provides ~14s total
+ * recovery window for transient failures.
+ */
+const MAX_RETRY_ATTEMPTS = 3;
+
+/**
+ * Initial retry delay in milliseconds (first retry after trade failure).
+ *
+ * Value: 2000ms (2 seconds)
+ * With exponential backoff multiplier of 2:
+ *   - Attempt 1: 2s delay
+ *   - Attempt 2: 4s delay
+ *   - Attempt 3: 8s delay
+ *
+ * 2s initial delay balances quick recovery vs avoiding immediate retry storms.
+ */
+const RETRY_INITIAL_DELAY_MS = 2000;
+
+/**
+ * Exponential backoff multiplier for retry delays.
+ *
+ * Each retry delay = previous_delay * RETRY_BACKOFF_MULTIPLIER
+ * Value of 2 produces standard exponential backoff: 2s → 4s → 8s → 16s...
+ */
+const RETRY_BACKOFF_MULTIPLIER = 2;
+
+/**
+ * Maximum retry delay cap in milliseconds.
+ *
+ * Value: 30,000ms (30 seconds)
+ * Prevents excessive delays for high attempt numbers.
+ * After 4 retries with 2x backoff, delay would be 32s without this cap.
+ */
+const RETRY_MAX_DELAY_MS = 30_000;
+
+/**
+ * Jitter factor for retry delay randomization (0-30% of calculated delay).
+ *
+ * Value: 0.3 (30%)
+ * Adds random jitter up to 30% of the calculated delay to prevent
+ * thundering herd when multiple failed trades retry simultaneously.
+ *
+ * Example: 4s base delay → actual delay = 4s + random(0, 1.2s) = 4-5.2s
+ */
+const RETRY_JITTER_FACTOR = 0.3;
+
+/**
+ * Maximum failed trades retained in memory.
+ *
+ * Value: 500 trades
+ * When this limit is reached, oldest trades are evicted (FIFO).
+ * Covers typical failure volumes (~20-50 failed trades per day = 2-4 weeks retention).
+ */
+const MAX_RECOVERY_QUEUE_SIZE = 500;
+
+/**
+ * Stuck trade detection threshold in milliseconds.
+ *
+ * Value: 300,000ms (5 minutes)
+ * Trades in "submitted" status without confirmation after this duration
+ * are marked as stuck and require manual investigation.
+ *
+ * Solana transactions typically confirm in 5-30 seconds. 5 minutes allows
+ * for network congestion while catching genuinely stuck transactions.
+ */
+const STUCK_THRESHOLD_MS = 300_000; // 5 minutes
+
+/**
+ * Maximum recovery activity log entries retained in memory.
+ *
+ * Value: 1000 entries
+ * Activity log tracks all recovery actions (registration, retries, resolutions).
+ * When this limit is reached, oldest entries are evicted.
+ * 1000 entries covers ~1-2 weeks of recovery activity at typical volumes.
+ */
+const MAX_RECOVERY_LOG_SIZE = 1000;
+
 const DEFAULT_RETRY_POLICY: RetryPolicy = {
-  maxAttempts: 3,
-  initialDelayMs: 2000,
-  backoffMultiplier: 2,
-  maxDelayMs: 30_000,
+  maxAttempts: MAX_RETRY_ATTEMPTS,
+  initialDelayMs: RETRY_INITIAL_DELAY_MS,
+  backoffMultiplier: RETRY_BACKOFF_MULTIPLIER,
+  maxDelayMs: RETRY_MAX_DELAY_MS,
   jitter: true,
 };
-
-/** Maximum failed trades to keep in memory */
-const MAX_QUEUE_SIZE = 500;
-
-/** Trades older than this (ms) are considered stuck */
-const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 // ---------------------------------------------------------------------------
 // In-Memory State
@@ -187,7 +262,7 @@ export function registerFailedTrade(params: {
   failedTrades.set(recoveryId, trade);
 
   // Enforce queue size limit
-  if (failedTrades.size > MAX_QUEUE_SIZE) {
+  if (failedTrades.size > MAX_RECOVERY_QUEUE_SIZE) {
     const oldestKey = failedTrades.keys().next().value;
     if (oldestKey) failedTrades.delete(oldestKey);
   }
@@ -485,7 +560,7 @@ function calculateNextRetry(attemptNumber: number): string {
   );
 
   const jitter = currentRetryPolicy.jitter
-    ? Math.random() * delay * 0.3 // Up to 30% jitter
+    ? Math.random() * delay * RETRY_JITTER_FACTOR // Up to 30% jitter
     : 0;
 
   const totalDelay = delay + jitter;
@@ -510,8 +585,8 @@ function logRecoveryActivity(
   });
 
   // Keep bounded
-  if (recoveryLog.length > 1000) {
-    recoveryLog.splice(0, recoveryLog.length - 1000);
+  if (recoveryLog.length > MAX_RECOVERY_LOG_SIZE) {
+    recoveryLog.splice(0, recoveryLog.length - MAX_RECOVERY_LOG_SIZE);
   }
 }
 
