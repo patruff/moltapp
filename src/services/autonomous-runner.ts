@@ -27,6 +27,63 @@ import { isTradingHalted } from "./production-hardening.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default interval between trading rounds (30 minutes).
+ * Formula: 30 minutes × 60 seconds × 1000 ms = 1,800,000 milliseconds
+ * Purpose: Balances trading frequency with rate limiting and agent reasoning time.
+ */
+const DEFAULT_INTERVAL_MS = 30 * 60 * 1000;
+
+/**
+ * Maximum consecutive round failures before auto-pause (safety threshold).
+ * Purpose: Prevents runaway errors from depleting resources or triggering
+ * excessive API calls. After 3 consecutive failures, runner auto-pauses and
+ * requires manual intervention via resumeRunner().
+ */
+const MAX_CONSECUTIVE_FAILURES = 3;
+
+/**
+ * Maximum round history entries to retain in memory.
+ * Purpose: Prevents memory bloat from unbounded history accumulation.
+ * Older entries are evicted (shift) when limit is reached.
+ */
+const MAX_HISTORY_ENTRIES = 100;
+
+/**
+ * Delay before executing the first immediate round (100ms startup buffer).
+ * Purpose: Allows system initialization to complete before first round starts.
+ * Short delay (100ms) prevents race conditions without noticeable user delay.
+ */
+const IMMEDIATE_EXECUTION_DELAY_MS = 100;
+
+/**
+ * Default limit for round history queries (last 50 rounds).
+ * Purpose: Reasonable default for API responses and UI displays without
+ * overwhelming clients with excessive data.
+ */
+const DEFAULT_HISTORY_QUERY_LIMIT = 50;
+
+/**
+ * Time window for calculating failed rounds statistics (24 hours).
+ * Formula: 24 hours × 60 minutes × 60 seconds × 1000 ms = 86,400,000 milliseconds
+ * Purpose: Tracks recent failure rate for operational monitoring and alerting.
+ */
+const STATS_WINDOW_24H_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * US market hours for trading halt checks (Eastern Time, weekdays only).
+ * MARKET_OPEN_MINUTES: 9:30 AM = 9 × 60 + 30 = 570 minutes from midnight
+ * MARKET_CLOSE_MINUTES: 4:00 PM = 16 × 60 = 960 minutes from midnight
+ * Purpose: Respects US equity market hours (xStocks trade 24/7 but prices
+ * are US-market-driven). Used when respectMarketHours config is enabled.
+ */
+const MARKET_OPEN_MINUTES = 9 * 60 + 30; // 9:30 AM
+const MARKET_CLOSE_MINUTES = 16 * 60; // 4:00 PM
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -88,8 +145,8 @@ interface RunnerState {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG: RunnerConfig = {
-  intervalMs: 30 * 60 * 1000, // 30 minutes
-  maxConsecutiveFailures: 3,
+  intervalMs: DEFAULT_INTERVAL_MS,
+  maxConsecutiveFailures: MAX_CONSECUTIVE_FAILURES,
   runImmediately: true,
   enableAnalytics: true,
   respectMarketHours: false,
@@ -114,7 +171,7 @@ const state: RunnerState = {
   pauseReason: null,
 };
 
-const MAX_HISTORY = 100;
+// Removed - replaced with MAX_HISTORY_ENTRIES constant above
 
 // ---------------------------------------------------------------------------
 // Runner Control
@@ -157,7 +214,7 @@ export function startAutonomousRunner(
 
   // Run immediately if configured
   if (config.runImmediately) {
-    immediateHandle = setTimeout(executeRound, 100);
+    immediateHandle = setTimeout(executeRound, IMMEDIATE_EXECUTION_DELAY_MS);
   }
 
   return {
@@ -426,7 +483,7 @@ async function executeRound(): Promise<RoundHistoryEntry | null> {
 
   // Store in history
   state.history.push(historyEntry);
-  if (state.history.length > MAX_HISTORY) {
+  if (state.history.length > MAX_HISTORY_ENTRIES) {
     state.history.shift();
   }
 
@@ -475,7 +532,7 @@ export function getRoundHistory(options?: {
     history = history.filter((h) => !h.success);
   }
 
-  const limit = options?.limit ?? 50;
+  const limit = options?.limit ?? DEFAULT_HISTORY_QUERY_LIMIT;
   return history.slice(-limit);
 }
 
@@ -511,7 +568,7 @@ export function getRunnerStats(): {
       ? agents.reduce((s, a) => s + a, 0) / agents.length
       : 0;
 
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const oneDayAgo = new Date(Date.now() - STATS_WINDOW_24H_MS).toISOString();
   const failedLast24h = state.history.filter(
     (h) => !h.success && h.startedAt >= oneDayAgo,
   ).length;
@@ -548,7 +605,7 @@ function isMarketOpen(): boolean {
 
   // Before 9:30 AM or after 4:00 PM
   const timeMinutes = hour * 60 + minute;
-  if (timeMinutes < 9 * 60 + 30 || timeMinutes >= 16 * 60) return false;
+  if (timeMinutes < MARKET_OPEN_MINUTES || timeMinutes >= MARKET_CLOSE_MINUTES) return false;
 
   return true;
 }
