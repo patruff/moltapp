@@ -227,6 +227,28 @@ const PATTERN_MIN_TRADES_PER_ACTION = 5;
 const PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD = 0.2;
 
 /**
+ * Display Precision Constants
+ *
+ * These control decimal rounding precision for win-rate, direction accuracy,
+ * confidence scores, and bias calculations in learning metrics.
+ * Ensures consistent precision across all calibration and performance displays.
+ */
+
+/**
+ * Multiplier for 1-decimal precision rounding (e.g., 67.3%, 0.8).
+ *
+ * Formula: Math.round(value * MULTIPLIER) / DIVISOR = 1-decimal result
+ * Example: Math.round(0.678 * 10) / 10 = 6.8 / 10 = 0.68 → displayed as "68%" or "0.7"
+ */
+const DECIMAL_PRECISION_MULTIPLIER = 10;
+
+/**
+ * Divisor for 1-decimal precision rounding.
+ * Works with DECIMAL_PRECISION_MULTIPLIER to produce values like 67.3%, 0.8, etc.
+ */
+const DECIMAL_PRECISION_DIVISOR = 10;
+
+/**
  * Confidence Calibration Parameters
  *
  * These control calibration scoring and overconfidence/underconfidence detection.
@@ -672,18 +694,18 @@ export function getCalibration(agentId: string): CalibrationData {
     agentId,
     totalPredictions: tradingOutcomes.length,
     correctDirections: correct.length,
-    directionAccuracy: Math.round(actualAccuracy * 10) / 10,
+    directionAccuracy: Math.round(actualAccuracy * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR,
     calibrationBuckets: buckets,
     avgConfidenceWhenCorrect:
       correct.length > 0
-        ? Math.round(averageByKey(correct, 'confidenceAtDecision') * 10) / 10
+        ? Math.round(averageByKey(correct, 'confidenceAtDecision') * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR
         : 0,
     avgConfidenceWhenIncorrect:
       incorrect.length > 0
-        ? Math.round(averageByKey(incorrect, 'confidenceAtDecision') * 10) / 10
+        ? Math.round(averageByKey(incorrect, 'confidenceAtDecision') * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR
         : 0,
     brierScore: round3(brierScore),
-    overconfidenceBias: Math.round(overconfidenceBias * 10) / 10,
+    overconfidenceBias: Math.round(overconfidenceBias * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR,
   };
 }
 
@@ -899,7 +921,7 @@ export function getAgentLearningContext(agentId: string): AgentLearningContext {
   return {
     agentId,
     tradesAnalyzed: outcomes.length,
-    winRate: Math.round(winRate * 10) / 10,
+    winRate: Math.round(winRate * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR,
     patterns,
     calibration,
     riskParams: risk,
@@ -987,10 +1009,10 @@ export function getLearningMetrics(): LearningMetrics {
     totalBrier += calibration.brierScore;
 
     if (!bestPerformer || winRate > bestPerformer.winRate) {
-      bestPerformer = { agentId, winRate: Math.round(winRate * 10) / 10 };
+      bestPerformer = { agentId, winRate: Math.round(winRate * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR };
     }
     if (!worstPerformer || winRate < worstPerformer.winRate) {
-      worstPerformer = { agentId, winRate: Math.round(winRate * 10) / 10 };
+      worstPerformer = { agentId, winRate: Math.round(winRate * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR };
     }
   }
 
@@ -998,9 +1020,9 @@ export function getLearningMetrics(): LearningMetrics {
     totalTradesAnalyzed: totalTrades,
     totalPatternsDiscovered: totalPatterns,
     agentCount,
-    avgWinRate: agentCount > 0 ? Math.round((totalWinRate / agentCount) * 10) / 10 : 0,
+    avgWinRate: agentCount > 0 ? Math.round((totalWinRate / agentCount) * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR : 0,
     avgDirectionAccuracy:
-      agentCount > 0 ? Math.round((totalAccuracy / agentCount) * 10) / 10 : 0,
+      agentCount > 0 ? Math.round((totalAccuracy / agentCount) * DECIMAL_PRECISION_MULTIPLIER) / DECIMAL_PRECISION_DIVISOR : 0,
     avgBrierScore: agentCount > 0 ? round3(totalBrier / agentCount) : 0,
     bestPerformer,
     worstPerformer,
