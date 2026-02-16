@@ -401,6 +401,69 @@ const TIME_WINDOW_DECAY = {
   VOLUME_RATIO_LOW_THRESHOLD: 0.5,
 } as const;
 
+/**
+ * News Generation Constants
+ *
+ * Controls parameters for simulated news headline generation and sentiment scoring.
+ * These constants affect:
+ * - Volume threshold for generating volume surge headlines
+ * - Sentiment scores assigned to price action headlines (-1 to +1 scale)
+ * - Agent correlation strength thresholds for consensus/divergence insights
+ *
+ * Adjusting these values changes which stocks get volume headlines and how
+ * sentiment intensity is mapped to headline text.
+ */
+const NEWS_GENERATION = {
+  /**
+   * Notable volume threshold (dollars)
+   * Volume must exceed this threshold to generate a "Volume Surges X% Above Average" headline
+   * Used in: generateNewsDigest() line ~1377
+   * Examples: 150_000_000 → $150M minimum for volume headlines
+   */
+  NOTABLE_VOLUME_THRESHOLD: 150_000_000,
+
+  /**
+   * Sentiment scores for headline types (-1 to +1 sentiment scale)
+   * Used in: generatePriceHeadline() and generateNewsDigest()
+   */
+
+  /** Strong bullish price action sentiment (e.g., "Soars X%") */
+  SENTIMENT_STRONG_BULLISH: 0.8,
+
+  /** Moderate bullish price action sentiment (e.g., "Gains X%") */
+  SENTIMENT_MODERATE_BULLISH: 0.4,
+
+  /** Moderate bearish price action sentiment (e.g., "Dips X%") */
+  SENTIMENT_MODERATE_BEARISH: -0.4,
+
+  /** Strong bearish price action sentiment (e.g., "Tumbles X%") */
+  SENTIMENT_STRONG_BEARISH: -0.8,
+
+  /** Volume surge positive sentiment (bullish volume spike) */
+  SENTIMENT_VOLUME_SURGE_BULLISH: 0.5,
+
+  /** Volume surge negative sentiment (bearish volume spike) */
+  SENTIMENT_VOLUME_SURGE_BEARISH: -0.3,
+
+  /** Sector/keyword headline sentiment range (randomized) */
+  SENTIMENT_SECTOR_NEWS_MIN: -0.5,
+  SENTIMENT_SECTOR_NEWS_MAX: 0.5,
+
+  /** Bearish regulatory headline sentiment */
+  SENTIMENT_REGULATORY_BEARISH: -0.5,
+
+  /**
+   * Agent correlation thresholds for consensus/divergence detection
+   * Used in: getSentimentCorrelation() for identifying strong agreement/disagreement
+   */
+
+  /** Correlation > 0.5 = strong agreement between agents */
+  CORRELATION_STRONG_AGREEMENT: 0.5,
+
+  /** Correlation < -0.3 = strong disagreement between agents */
+  CORRELATION_STRONG_DISAGREEMENT: -0.3,
+} as const;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -1249,11 +1312,11 @@ export async function getSentimentCorrelation(): Promise<SentimentCorrelation> {
 
     // Generate insights
     const insights: string[] = [];
-    const highCorr = matrix.filter((m) => m.correlation > 0.5);
-    const lowCorr = matrix.filter((m) => m.correlation < -0.3);
+    const highCorr = matrix.filter((m) => m.correlation > NEWS_GENERATION.CORRELATION_STRONG_AGREEMENT);
+    const lowCorr = matrix.filter((m) => m.correlation < NEWS_GENERATION.CORRELATION_STRONG_DISAGREEMENT);
 
     if (highCorr.length > 0) {
-      insights.push(`${highCorr.map((m) => `${m.agent1.split("-")[0]} and ${m.agent2.split("-")[0]}`).join(", ")} show strong agreement (correlation > 0.5)`);
+      insights.push(`${highCorr.map((m) => `${m.agent1.split("-")[0]} and ${m.agent2.split("-")[0]}`).join(", ")} show strong agreement (correlation > ${NEWS_GENERATION.CORRELATION_STRONG_AGREEMENT})`);
     }
     if (lowCorr.length > 0) {
       insights.push(`${lowCorr.map((m) => `${m.agent1.split("-")[0]} and ${m.agent2.split("-")[0]}`).join(", ")} frequently disagree (negative correlation)`);
@@ -1374,11 +1437,11 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       }
 
       // Headline 3: Volume-based (if notable)
-      if (volume > 150_000_000) {
+      if (volume > NEWS_GENERATION.NOTABLE_VOLUME_THRESHOLD) {
         news.push({
           headline: `${name} Volume Surges ${((volume / FORMATTING_PRECISION.VOLUME_PERCENT_DIVISOR) * 100 - 100).toFixed(FORMATTING_PRECISION.VOLUME_SURGE_DECIMALS)}% Above Average on Heavy Institutional Activity`,
           source: NEWS_SOURCES[hashSeed(stock.symbol + "vol") % NEWS_SOURCES.length],
-          sentiment: change > 0 ? 0.5 : -0.3,
+          sentiment: change > 0 ? NEWS_GENERATION.SENTIMENT_VOLUME_SURGE_BULLISH : NEWS_GENERATION.SENTIMENT_VOLUME_SURGE_BEARISH,
           symbols: [stock.symbol],
           category: "market",
           publishedAt: new Date(Date.now() - hashSeed(stock.symbol + "t3") % TIME_WINDOW_DECAY.NEWS_TIMESPAN_3H_MS).toISOString(),
@@ -1388,7 +1451,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       // Headline 4: Sector/keyword based
       if (headlineCount >= 4 && keywords.length > 0) {
         const keyword = keywords[hashSeed(stock.symbol + "kw" + nowISO().slice(0, 13)) % keywords.length];
-        const sectorSentiment = seededRandom(`sector-news-${stock.symbol}`, -0.5, 0.5);
+        const sectorSentiment = seededRandom(`sector-news-${stock.symbol}`, NEWS_GENERATION.SENTIMENT_SECTOR_NEWS_MIN, NEWS_GENERATION.SENTIMENT_SECTOR_NEWS_MAX);
         const category = selectCategory(stock.symbol, sector);
 
         news.push({
@@ -1452,13 +1515,13 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
 /** Generate a price-action headline */
 function generatePriceHeadline(name: string, symbol: string, change: number, price: number): { text: string; sentiment: number } {
   if (change > 3) {
-    return { text: `${name} Soars ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% to $${price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)} as Bulls Take Control`, sentiment: 0.8 };
+    return { text: `${name} Soars ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% to $${price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)} as Bulls Take Control`, sentiment: NEWS_GENERATION.SENTIMENT_STRONG_BULLISH };
   } else if (change > 1) {
-    return { text: `${name} Gains ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% on Broad Market Strength`, sentiment: 0.4 };
+    return { text: `${name} Gains ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% on Broad Market Strength`, sentiment: NEWS_GENERATION.SENTIMENT_MODERATE_BULLISH };
   } else if (change < -3) {
-    return { text: `${name} Tumbles ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% in Heavy Selling`, sentiment: -0.8 };
+    return { text: `${name} Tumbles ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% in Heavy Selling`, sentiment: NEWS_GENERATION.SENTIMENT_STRONG_BEARISH };
   } else if (change < -1) {
-    return { text: `${name} Dips ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% Amid Cautious Trading`, sentiment: -0.4 };
+    return { text: `${name} Dips ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% Amid Cautious Trading`, sentiment: NEWS_GENERATION.SENTIMENT_MODERATE_BEARISH };
   } else {
     return { text: `${name} Holds Steady at $${price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)} in Quiet Session`, sentiment: 0 };
   }
@@ -1482,7 +1545,7 @@ function generateAgentHeadline(
   } else if (sells.length > buys.length) {
     return {
       text: `AI Models Turn Cautious on ${name}, ${sells.length} of ${decisions.length} Recommend Sell`,
-      sentiment: -0.5,
+      sentiment: NEWS_GENERATION.SENTIMENT_REGULATORY_BEARISH,
     };
   } else {
     return {
