@@ -731,9 +731,9 @@ export function scoreAccountability(
 
   if (predictedOutcome) {
     const specificity = predictedOutcome.length;
-    score += Math.min(15, Math.floor(specificity / 10));
+    score += Math.min(ACCOUNTABILITY_SPECIFICITY_MAX, Math.floor(specificity / ACCOUNTABILITY_SPECIFICITY_DIVISOR));
     if (/\$[\d,.]+|[\d.]+%/.test(predictedOutcome)) {
-      score += 15;
+      score += ACCOUNTABILITY_QUANTITATIVE_PREDICTION;
     }
   }
 
