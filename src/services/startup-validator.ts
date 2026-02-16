@@ -66,10 +66,188 @@ export interface StartupHealthReport {
 }
 
 // ---------------------------------------------------------------------------
-// Check Timeout Wrapper
+// Configuration Constants
 // ---------------------------------------------------------------------------
 
+/**
+ * Default timeout for all health checks unless overridden.
+ *
+ * Controls the maximum wait time for health check operations. If a check
+ * exceeds this timeout, it's marked as unhealthy/degraded.
+ *
+ * Formula: Health check must complete within DEFAULT_CHECK_TIMEOUT_MS
+ *
+ * Example: 8000ms allows sufficient time for most API round-trips while
+ * preventing indefinite hangs during startup validation
+ *
+ * @default 8000 - 8 seconds balances startup speed with network tolerance
+ */
 const DEFAULT_CHECK_TIMEOUT_MS = 8_000;
+
+/**
+ * Database-specific timeout for query execution.
+ *
+ * Database checks use a shorter timeout than default since DB queries
+ * should be fast (<100ms typical). 5s allows for cold starts and network
+ * latency while still failing fast on connection issues.
+ *
+ * Formula: Database query must complete within DATABASE_CHECK_TIMEOUT_MS
+ *
+ * @default 5000 - 5 seconds for database SELECT 1 query
+ */
+const DATABASE_CHECK_TIMEOUT_MS = 5_000;
+
+/**
+ * Database latency threshold for degraded status.
+ *
+ * If database responds but takes longer than this threshold, mark as
+ * "degraded" instead of "healthy". Indicates slow but functional connection.
+ *
+ * Formula: latency > DATABASE_DEGRADED_THRESHOLD_MS = degraded status
+ *
+ * Example: 2500ms query = degraded (slow but working)
+ *
+ * @default 2000 - 2 seconds threshold distinguishes healthy from slow DB
+ */
+const DATABASE_DEGRADED_THRESHOLD_MS = 2000;
+
+/**
+ * Solana RPC fetch timeout for AbortSignal.
+ *
+ * Inner timeout for fetch() API call to Solana RPC endpoint. This is the
+ * AbortSignal timeout passed to fetch(), which cancels the request if it
+ * takes too long.
+ *
+ * Formula: fetch() aborts after SOLANA_RPC_FETCH_TIMEOUT_MS
+ *
+ * @default 5000 - 5 seconds for RPC getSlot call
+ */
+const SOLANA_RPC_FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * Solana RPC outer timeout for withTimeout wrapper.
+ *
+ * Outer timeout wrapping the entire Solana RPC health check including fetch,
+ * JSON parsing, and error handling. Should be slightly longer than fetch timeout
+ * to allow graceful error handling.
+ *
+ * Formula: Total check duration must stay within SOLANA_RPC_OUTER_TIMEOUT_MS
+ *
+ * @default 6000 - 6 seconds (1s buffer beyond fetch timeout)
+ */
+const SOLANA_RPC_OUTER_TIMEOUT_MS = 6_000;
+
+/**
+ * Solana RPC latency threshold for degraded status.
+ *
+ * If RPC responds successfully but takes longer than this threshold, mark
+ * as "degraded" instead of "healthy". High latency impacts trade execution.
+ *
+ * Formula: latency > SOLANA_RPC_DEGRADED_THRESHOLD_MS = degraded status
+ *
+ * Example: 3500ms RPC call = degraded (slow network)
+ *
+ * @default 3000 - 3 seconds threshold for acceptable Solana RPC latency
+ */
+const SOLANA_RPC_DEGRADED_THRESHOLD_MS = 3000;
+
+/**
+ * Jupiter API fetch timeout for AbortSignal.
+ *
+ * Inner timeout for fetch() API call to Jupiter price endpoint. Shorter than
+ * RPC timeout since Jupiter API is typically very fast (<500ms).
+ *
+ * Formula: fetch() aborts after JUPITER_API_FETCH_TIMEOUT_MS
+ *
+ * @default 5000 - 5 seconds for Jupiter price check
+ */
+const JUPITER_API_FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * Jupiter API outer timeout for withTimeout wrapper.
+ *
+ * Outer timeout wrapping the entire Jupiter API health check. Should be
+ * slightly longer than fetch timeout for graceful error handling.
+ *
+ * Formula: Total check duration must stay within JUPITER_API_OUTER_TIMEOUT_MS
+ *
+ * @default 6000 - 6 seconds (1s buffer beyond fetch timeout)
+ */
+const JUPITER_API_OUTER_TIMEOUT_MS = 6_000;
+
+/**
+ * Anthropic API (Claude) fetch timeout for AbortSignal.
+ *
+ * Inner timeout for fetch() API call to Anthropic. Longer than other checks
+ * since LLM API includes model initialization and response generation overhead.
+ *
+ * Formula: fetch() aborts after ANTHROPIC_API_FETCH_TIMEOUT_MS
+ *
+ * @default 10000 - 10 seconds for Anthropic messages endpoint
+ */
+const ANTHROPIC_API_FETCH_TIMEOUT_MS = 10000;
+
+/**
+ * Anthropic API outer timeout for withTimeout wrapper.
+ *
+ * Outer timeout wrapping the entire Anthropic API health check. Should be
+ * longer than fetch timeout to allow for response parsing.
+ *
+ * Formula: Total check duration must stay within ANTHROPIC_API_OUTER_TIMEOUT_MS
+ *
+ * @default 12000 - 12 seconds (2s buffer beyond fetch timeout)
+ */
+const ANTHROPIC_API_OUTER_TIMEOUT_MS = 12_000;
+
+/**
+ * OpenAI API fetch timeout for AbortSignal.
+ *
+ * Inner timeout for fetch() API call to OpenAI models endpoint. Shorter than
+ * Anthropic since models list is a lightweight metadata endpoint.
+ *
+ * Formula: fetch() aborts after OPENAI_API_FETCH_TIMEOUT_MS
+ *
+ * @default 5000 - 5 seconds for OpenAI models list
+ */
+const OPENAI_API_FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * OpenAI API outer timeout for withTimeout wrapper.
+ *
+ * Outer timeout wrapping the entire OpenAI API health check.
+ *
+ * Formula: Total check duration must stay within OPENAI_API_OUTER_TIMEOUT_MS
+ *
+ * @default 6000 - 6 seconds (1s buffer beyond fetch timeout)
+ */
+const OPENAI_API_OUTER_TIMEOUT_MS = 6_000;
+
+/**
+ * xAI (Grok) API fetch timeout for AbortSignal.
+ *
+ * Inner timeout for fetch() API call to xAI models endpoint. Same as OpenAI
+ * since both use similar lightweight metadata endpoints.
+ *
+ * Formula: fetch() aborts after XAI_API_FETCH_TIMEOUT_MS
+ *
+ * @default 5000 - 5 seconds for xAI models list
+ */
+const XAI_API_FETCH_TIMEOUT_MS = 5000;
+
+/**
+ * xAI API outer timeout for withTimeout wrapper.
+ *
+ * Outer timeout wrapping the entire xAI API health check.
+ *
+ * Formula: Total check duration must stay within XAI_API_OUTER_TIMEOUT_MS
+ *
+ * @default 6000 - 6 seconds (1s buffer beyond fetch timeout)
+ */
+const XAI_API_OUTER_TIMEOUT_MS = 6_000;
+
+// ---------------------------------------------------------------------------
+// Check Timeout Wrapper
+// ---------------------------------------------------------------------------
 
 async function withTimeout<T>(
   fn: () => Promise<T>,
@@ -103,10 +281,10 @@ async function checkDatabase(): Promise<HealthCheck> {
   try {
     const result = await withTimeout(async () => {
       return await db.execute(sql`SELECT 1 as ok, NOW() as server_time`);
-    }, 5_000);
+    }, DATABASE_CHECK_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
-    const isSlowButOk = latencyMs > 2000;
+    const isSlowButOk = latencyMs > DATABASE_DEGRADED_THRESHOLD_MS;
 
     return {
       name: "database",
@@ -158,9 +336,9 @@ async function checkSolanaRpc(): Promise<HealthCheck> {
           method: "getSlot",
           params: [{ commitment: "finalized" }],
         }),
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(SOLANA_RPC_FETCH_TIMEOUT_MS),
       });
-    }, 6_000);
+    }, SOLANA_RPC_OUTER_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
 
@@ -188,7 +366,7 @@ async function checkSolanaRpc(): Promise<HealthCheck> {
 
     return {
       name: "solana_rpc",
-      status: latencyMs > 3000 ? "degraded" : "healthy",
+      status: latencyMs > SOLANA_RPC_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
       severity: "warning",
       latencyMs,
       message: `Slot ${data.result} (${latencyMs}ms)`,
@@ -221,9 +399,9 @@ async function checkJupiterApi(): Promise<HealthCheck> {
     const response = await withTimeout(async () => {
       return await fetch(
         `https://api.jup.ag/price/v3?ids=${solMint}`,
-        { headers, signal: AbortSignal.timeout(5000) },
+        { headers, signal: AbortSignal.timeout(JUPITER_API_FETCH_TIMEOUT_MS) },
       );
-    }, 6_000);
+    }, JUPITER_API_OUTER_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
 
@@ -291,9 +469,9 @@ async function checkAnthropicApi(): Promise<HealthCheck> {
           max_tokens: 1,
           messages: [{ role: "user", content: "ping" }],
         }),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(ANTHROPIC_API_FETCH_TIMEOUT_MS),
       });
-    }, 12_000);
+    }, ANTHROPIC_API_OUTER_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
 
@@ -355,9 +533,9 @@ async function checkOpenAIApi(): Promise<HealthCheck> {
     const response = await withTimeout(async () => {
       return await fetch("https://api.openai.com/v1/models", {
         headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(OPENAI_API_FETCH_TIMEOUT_MS),
       });
-    }, 6_000);
+    }, OPENAI_API_OUTER_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
 
@@ -408,9 +586,9 @@ async function checkXAIApi(): Promise<HealthCheck> {
     const response = await withTimeout(async () => {
       return await fetch("https://api.x.ai/v1/models", {
         headers: { Authorization: `Bearer ${env.XAI_API_KEY}` },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(XAI_API_FETCH_TIMEOUT_MS),
       });
-    }, 6_000);
+    }, XAI_API_OUTER_TIMEOUT_MS);
 
     const latencyMs = Date.now() - start;
 
