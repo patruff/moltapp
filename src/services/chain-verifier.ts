@@ -111,6 +111,21 @@ const SOLSCAN_BASE = "https://solscan.io";
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
 
+/**
+ * Maximum random jitter added to retry delays: 500ms (0-500ms range).
+ *
+ * Purpose: Prevents thundering herd when multiple RPC calls fail simultaneously.
+ * Formula: delay = BASE_DELAY_MS × 2^(attempt-1) + random() × RETRY_JITTER_MAX_MS
+ *
+ * Examples:
+ * - Attempt 1: 1000ms + 0-500ms = 1000-1500ms total delay
+ * - Attempt 2: 2000ms + 0-500ms = 2000-2500ms total delay
+ * - Attempt 3: 4000ms + 0-500ms = 4000-4500ms total delay
+ *
+ * Increase this value for more aggressive randomization (e.g., 1000ms for 0-1s jitter).
+ */
+const RETRY_JITTER_MAX_MS = 500;
+
 // Cache for RPC client
 let rpcClient: ReturnType<typeof createSolanaRpc> | null = null;
 
@@ -146,7 +161,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
       return await fn();
     } catch (err) {
       if (attempt === MAX_RETRIES) throw err;
-      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 500;
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * RETRY_JITTER_MAX_MS;
       console.warn(
         `[ChainVerifier] ${label} attempt ${attempt} failed, retrying in ${Math.round(delay)}ms: ${errorMessage(err)}`,
       );
