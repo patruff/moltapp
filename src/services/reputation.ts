@@ -254,24 +254,6 @@ const MODERATE_CONFIDENCE_THRESHOLD = 60;
  */
 const CALIBRATION_BIAS_THRESHOLD = 10;
 
-const ELO_TIERS: Array<{ min: number; tier: EloTier }> = [
-  { min: 2000, tier: "grandmaster" },
-  { min: 1800, tier: "master" },
-  { min: 1600, tier: "diamond" },
-  { min: 1400, tier: "platinum" },
-  { min: 1200, tier: "gold" },
-  { min: 1000, tier: "silver" },
-  { min: 0, tier: "bronze" },
-];
-
-const TRUST_LEVELS: Array<{ min: number; level: TrustLevel }> = [
-  { min: 85, level: "elite" },
-  { min: 65, level: "high" },
-  { min: 45, level: "moderate" },
-  { min: 25, level: "low" },
-  { min: 0, level: "untrusted" },
-];
-
 /**
  * Badge Threshold Constants
  *
@@ -531,6 +513,122 @@ const ELO_SCORE_FLOOR = 0;
  * Maximum ELO score per decision (caps magnitude bonus at 100%).
  */
 const ELO_SCORE_CEILING = 1;
+
+/**
+ * ELO Tier Boundary Constants
+ *
+ * Rating thresholds for agent tier classification in the leaderboard.
+ */
+
+/**
+ * Grandmaster tier minimum ELO: 2000
+ * Elite tier for the absolute best performers (top 1% of agents).
+ */
+const ELO_TIER_GRANDMASTER_MIN = 2000;
+
+/**
+ * Master tier minimum ELO: 1800
+ * Expert tier for consistently exceptional performance.
+ */
+const ELO_TIER_MASTER_MIN = 1800;
+
+/**
+ * Diamond tier minimum ELO: 1600
+ * Advanced tier for strong, reliable traders.
+ */
+const ELO_TIER_DIAMOND_MIN = 1600;
+
+/**
+ * Platinum tier minimum ELO: 1400
+ * Above-average tier for competent traders.
+ */
+const ELO_TIER_PLATINUM_MIN = 1400;
+
+/**
+ * Gold tier minimum ELO: 1200
+ * Starting tier (INITIAL_ELO) for new agents, average performance.
+ */
+const ELO_TIER_GOLD_MIN = 1200;
+
+/**
+ * Silver tier minimum ELO: 1000
+ * Below-average tier for struggling traders.
+ */
+const ELO_TIER_SILVER_MIN = 1000;
+
+/**
+ * Bronze tier minimum ELO: 0
+ * Lowest tier for poor performance (floor).
+ */
+const ELO_TIER_BRONZE_MIN = 0;
+
+/**
+ * Trust Level Boundary Constants
+ *
+ * Trust score thresholds for agent reliability classification.
+ */
+
+/**
+ * Elite trust level minimum: 85 score
+ * Highest trust level for exceptional reliability (top tier agents).
+ */
+const TRUST_LEVEL_ELITE_MIN = 85;
+
+/**
+ * High trust level minimum: 65 score
+ * Strong trust level for reliable, well-calibrated agents.
+ */
+const TRUST_LEVEL_HIGH_MIN = 65;
+
+/**
+ * Moderate trust level minimum: 45 score
+ * Average trust level for moderately reliable agents (default range).
+ */
+const TRUST_LEVEL_MODERATE_MIN = 45;
+
+/**
+ * Low trust level minimum: 25 score
+ * Below-average trust level for unreliable or uncalibrated agents.
+ */
+const TRUST_LEVEL_LOW_MIN = 25;
+
+/**
+ * Untrusted level minimum: 0 score
+ * Lowest trust level for unproven or consistently inaccurate agents.
+ */
+const TRUST_LEVEL_UNTRUSTED_MIN = 0;
+
+// ---------------------------------------------------------------------------
+// Tier and Level Configuration Arrays
+// ---------------------------------------------------------------------------
+
+/**
+ * ELO tier boundaries array
+ * Maps ELO rating thresholds to tier classifications.
+ * Ordered from highest to lowest for lookup efficiency.
+ */
+const ELO_TIERS: Array<{ min: number; tier: EloTier }> = [
+  { min: ELO_TIER_GRANDMASTER_MIN, tier: "grandmaster" },
+  { min: ELO_TIER_MASTER_MIN, tier: "master" },
+  { min: ELO_TIER_DIAMOND_MIN, tier: "diamond" },
+  { min: ELO_TIER_PLATINUM_MIN, tier: "platinum" },
+  { min: ELO_TIER_GOLD_MIN, tier: "gold" },
+  { min: ELO_TIER_SILVER_MIN, tier: "silver" },
+  { min: ELO_TIER_BRONZE_MIN, tier: "bronze" },
+];
+
+/**
+ * Trust level boundaries array
+ * Maps trust score thresholds to trust level classifications.
+ * Ordered from highest to lowest for lookup efficiency.
+ */
+const TRUST_LEVELS: Array<{ min: number; level: TrustLevel }> = [
+  { min: TRUST_LEVEL_ELITE_MIN, level: "elite" },
+  { min: TRUST_LEVEL_HIGH_MIN, level: "high" },
+  { min: TRUST_LEVEL_MODERATE_MIN, level: "moderate" },
+  { min: TRUST_LEVEL_LOW_MIN, level: "low" },
+  { min: TRUST_LEVEL_UNTRUSTED_MIN, level: "untrusted" },
+];
 
 // ---------------------------------------------------------------------------
 // Badge Definitions
