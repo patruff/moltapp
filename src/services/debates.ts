@@ -872,7 +872,7 @@ export async function generateDebate(symbol: string): Promise<Debate | null> {
     verdict = `A razor-thin margin separates ${winner.agentName} and ${runnerUp.agentName} — just ${scoreDiff} points. This debate is essentially a draw, reflecting genuine uncertainty about ${symbol}'s direction. Both positions have merit.`;
   }
 
-  const debateId = `debate_${symbol}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const debateId = `debate_${symbol}_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   return {
     id: debateId,

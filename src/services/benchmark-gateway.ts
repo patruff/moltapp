@@ -362,7 +362,7 @@ export function evaluateTrade(params: {
   const adversarialFlags = detectAdversarialPatterns(agentId, trade, coherence);
 
   // 6. Build evaluation
-  const evalId = `eval_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const evalId = `eval_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
   const evaluation: BenchmarkEvaluation = {
     evalId,
     agentId,

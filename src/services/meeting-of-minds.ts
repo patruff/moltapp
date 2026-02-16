@@ -312,7 +312,7 @@ export async function runMeetingOfMinds(
   marketData: MarketData[],
   roundId: string,
 ): Promise<MeetingResult> {
-  const meetingId = `meeting_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const meetingId = `meeting_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
   const transcript: MeetingMessage[] = [];

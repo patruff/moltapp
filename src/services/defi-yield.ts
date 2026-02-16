@@ -385,7 +385,7 @@ export function depositToYield(
     );
   }
 
-  const positionId = `yield_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const positionId = `yield_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   const position: YieldPosition = {
     positionId,

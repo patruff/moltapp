@@ -109,11 +109,16 @@ let flushIntervalId: ReturnType<typeof setInterval> | null = null;
 // Event ID Generation
 // ---------------------------------------------------------------------------
 
+import {
+  ID_RANDOM_START,
+  ID_RANDOM_LENGTH_SHORT,
+} from "../config/id-generation-constants.ts";
+
 let eventCounter = 0;
 
 function generateEventId(): string {
   eventCounter++;
-  return `evt_${Date.now()}_${eventCounter.toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  return `evt_${Date.now()}_${eventCounter.toString(36)}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
 }
 
 // ---------------------------------------------------------------------------

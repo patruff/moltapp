@@ -287,7 +287,7 @@ export function recordSlippage(params: {
   const totalImpactUsd = Math.abs(slippageUsd) * quantity;
 
   const record: SlippageRecord = {
-    id: `slip_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: `slip_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
     timestamp: new Date().toISOString(),
     agentId,
     agentName,

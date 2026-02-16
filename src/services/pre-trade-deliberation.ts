@@ -240,7 +240,7 @@ export async function runDeliberation(
   marketData: MarketData[],
   roundId: string,
 ): Promise<DeliberationRound> {
-  const deliberationId = `delib_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const deliberationId = `delib_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
   const startedAt = new Date().toISOString();
   const startMs = Date.now();
 

@@ -476,7 +476,7 @@ export function registerClaims(
   const directionMatch = extractDirection(reasoning, action);
   if (directionMatch) {
     claims.push({
-      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
       agentId,
       roundId,
       symbol,
@@ -494,7 +494,7 @@ export function registerClaims(
   const priceTargets = extractPriceTargets(reasoning, symbol);
   for (const pt of priceTargets) {
     claims.push({
-      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_pt`,
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}_pt`,
       agentId,
       roundId,
       symbol,
@@ -512,7 +512,7 @@ export function registerClaims(
   const horizonMatch = extractHorizon(reasoning);
   if (horizonMatch) {
     claims.push({
-      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_th`,
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}_th`,
       agentId,
       roundId,
       symbol,
@@ -530,7 +530,7 @@ export function registerClaims(
   const categoricalClaims = extractCategoricalClaims(reasoning, symbol);
   for (const cc of categoricalClaims) {
     claims.push({
-      id: `claim_${Date.now()}_${Math.random().toString(36).slice(2, 6)}_cat`,
+      id: `claim_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}_cat`,
       agentId,
       roundId,
       symbol,

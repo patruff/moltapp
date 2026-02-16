@@ -864,7 +864,7 @@ export function createStopRule(params: {
   action: StopRule["action"];
 }): StopRule {
   const rule: StopRule = {
-    id: `sr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: `sr_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`,
     agentId: params.agentId,
     symbol: params.symbol,
     type: params.type,
@@ -958,7 +958,7 @@ function addAlert(params: {
   agentId: string;
 }) {
   const alert: RiskAlert = {
-    id: `ra_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: `ra_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`,
     severity: params.severity,
     type: params.type,
     message: params.message,

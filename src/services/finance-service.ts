@@ -508,7 +508,7 @@ export async function runAnalysis(
   const totalPriceUsd = Math.max(MIN_PRICE_USD, Math.min(MAX_PRICE_USD, llmCostUsd + markupUsd));
 
   // 7. Record LLM usage
-  const requestId = `fin_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const requestId = `fin_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
   try {
     await recordLlmUsage({
       roundId: requestId,
@@ -841,7 +841,7 @@ export function postJob(config: {
     throw new Error(`Budget must be between $${MIN_JOB_BUDGET_USD} and $${MAX_JOB_BUDGET_USD}`);
   }
 
-  const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   const job: AnalysisJob = {
     jobId,

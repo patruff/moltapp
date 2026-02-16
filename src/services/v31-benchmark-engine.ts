@@ -530,7 +530,7 @@ export function gradeTrade(input: {
   predictedOutcome: string | null;
   previousPredictions: Array<{ predicted: string; actual: string | null }>;
 }): V31TradeGrade {
-  const tradeId = `v31_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const tradeId = `v31_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
 
   // Score reasoning depth (word count, clause density)
   const wordCount = input.reasoning.split(/\s+/).length;

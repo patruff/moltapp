@@ -482,7 +482,7 @@ export function createProposal(params: {
   if (params.type === "rule_change") riskLevel = "low";
 
   const proposal: Proposal = {
-    id: `prop_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: `prop_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
     title: params.title,
     description: params.description,
     type: params.type,
@@ -616,7 +616,7 @@ export function addDiscussionComment(params: {
   const agent = configs.find((c) => c.agentId === params.agentId);
 
   const comment: DiscussionComment = {
-    id: `disc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: `disc_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
     agentId: params.agentId,
     agentName: agent?.name ?? params.agentId,
     content: params.content,

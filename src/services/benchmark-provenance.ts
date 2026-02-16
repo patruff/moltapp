@@ -133,7 +133,7 @@ function computeBlockHash(block: Omit<ProvenanceBlock, "hash">): string {
 }
 
 function generateNonce(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_LONG)}`;
 }
 
 // ---------------------------------------------------------------------------

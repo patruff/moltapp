@@ -373,7 +373,7 @@ export function runBattle(
 
   const narrative = generateNarrative(agentA, agentB, dimensions, overallWinner, margin);
 
-  const battleId = `battle_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const battleId = `battle_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
 
   const result: BattleResult = {
     battleId,

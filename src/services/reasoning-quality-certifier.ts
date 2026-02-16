@@ -347,7 +347,7 @@ export function certifyReasoning(
   const expires = new Date(now.getTime() + CERTIFICATE_VALIDITY_MS);
 
   const certificate: QualityCertificate = {
-    certificateId: `cert_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    certificateId: `cert_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
     hash,
     agentId,
     roundId,

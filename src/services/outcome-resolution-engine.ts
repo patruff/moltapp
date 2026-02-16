@@ -365,7 +365,7 @@ export async function runOutcomeResolution(
 
       try {
         await db.insert(outcomeResolutions).values({
-          id: `or_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: `or_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
           justificationId: j.id,
           agentId: j.agentId,
           symbol: j.symbol,

@@ -262,7 +262,7 @@ export function recordOutcome(params: {
   reasoning: string;
 }): TradeOutcome {
   const outcome: TradeOutcome = {
-    outcomeId: `outcome_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    outcomeId: `outcome_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`,
     agentId: params.agentId,
     roundId: params.roundId,
     symbol: params.symbol,

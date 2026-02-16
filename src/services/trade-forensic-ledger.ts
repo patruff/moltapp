@@ -203,7 +203,7 @@ export function appendToLedger(params: {
 }): LedgerEntry {
   const sequenceNumber = ledger.length;
   const previousHash = ledger.length > 0 ? ledger[ledger.length - 1].entryHash : "genesis";
-  const entryId = `le_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const entryId = `le_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   const priceAtTrade = params.marketPrices[params.symbol] ??
     params.marketPrices[params.symbol.toLowerCase()] ?? null;

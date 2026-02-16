@@ -1199,7 +1199,7 @@ export function gradeTrade(input: {
   marketPrices: Record<string, number>;
   peerActions: Array<{ agentId: string; action: string; symbol: string }>;
 }): V34TradeGrade {
-  const tradeId = `v34_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const tradeId = `v34_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
 
   // Score reasoning depth
   const wordCount = input.reasoning.split(/\s+/).length;

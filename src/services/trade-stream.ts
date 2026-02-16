@@ -90,7 +90,7 @@ export function subscribe(
     agentIds?: string[];
   },
 ): string {
-  const id = `sub_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = `sub_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 
   subscribers.set(id, {
     id,

@@ -18,6 +18,11 @@
  * 5. ORIGINALITY — who brought novel analysis vs templated responses?
  */
 
+import {
+  ID_RANDOM_START,
+  ID_RANDOM_LENGTH_SHORT,
+} from "../config/id-generation-constants.ts";
+
 import { countByCondition, round2, sortEntriesDescending } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -591,7 +596,7 @@ export function arbitrate(
   }
 
   const arCase: ArbitrationCase = {
-    caseId: `arb_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    caseId: `arb_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`,
     roundId,
     symbol,
     agentA,

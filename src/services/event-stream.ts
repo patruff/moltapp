@@ -296,7 +296,7 @@ function generateEventId(): string {
  * Generate a short, unique subscriber identifier.
  */
 function generateSubscriberId(): string {
-  const rand = Math.random().toString(36).slice(2, 10);
+  const rand = Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_LONG);
   return `sub_${rand}`;
 }
 

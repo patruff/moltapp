@@ -95,7 +95,7 @@ const MAX_AUDIT_ENTRIES = 5000;
 // ---------------------------------------------------------------------------
 
 function generateId(): string {
-  return `audit_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return `audit_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD)}`;
 }
 
 /**

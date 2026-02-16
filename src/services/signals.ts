@@ -895,7 +895,7 @@ function generateStockSignals(
   const signals: MarketSignal[] = [];
   const now = new Date();
   const signalId = () =>
-    `sig_${symbol}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    `sig_${symbol}_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
   const expiry = new Date(now.getTime() + 30 * 60 * 1000); // 30 min expiry
 
   // RSI signals

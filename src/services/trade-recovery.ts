@@ -209,7 +209,7 @@ let recoveryCounter = 0;
 
 function generateRecoveryId(): string {
   recoveryCounter++;
-  return `rcv_${Date.now()}_${recoveryCounter.toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  return `rcv_${Date.now()}_${recoveryCounter.toString(36)}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
 }
 
 // ---------------------------------------------------------------------------
