@@ -283,6 +283,38 @@ const MIN_PATTERN_OCCURRENCES_FOR_LESSON = 3;
 const MIN_PATTERN_SUCCESS_RATE_FOR_LESSON = 60;
 
 /**
+ * Confidence Detection Thresholds (for detectConfidencePattern)
+ *
+ * These thresholds split trades into high/low confidence buckets for calibration analysis,
+ * separate from the main CONFIDENCE_HIGH_THRESHOLD/CONFIDENCE_LOW_THRESHOLD which are
+ * used throughout the codebase.
+ */
+
+/**
+ * Minimum trades in high-confidence bucket for calibration pattern detection
+ * @example
+ * - 6 high-conf trades → sufficient for calibration analysis (6 >= 5)
+ * - 3 high-conf trades → not enough data for reliable pattern
+ */
+const MIN_HIGH_CONFIDENCE_TRADES_FOR_PATTERN = 5;
+
+/**
+ * Minimum trades in low-confidence bucket for calibration pattern detection
+ * @example
+ * - 5 low-conf trades → sufficient for calibration analysis (5 >= 5)
+ * - 4 low-conf trades → not enough data for reliable pattern
+ */
+const MIN_LOW_CONFIDENCE_TRADES_FOR_PATTERN = 5;
+
+/**
+ * Minimum total closed trades for confidence calibration pattern detection
+ * @example
+ * - 16 closed trades → can analyze calibration (16 >= 15)
+ * - 12 closed trades → not enough data for calibration pattern
+ */
+const MIN_TRADES_FOR_CALIBRATION_PATTERN = 15;
+
+/**
  * Database Query Parameters
  *
  * These parameters control how much historical data is loaded from the database
@@ -733,7 +765,7 @@ function updatePriceLevels(profile: StockProfile, trade: TradeMemory): void {
  */
 function detectPatterns(memory: AgentMemoryState): void {
   const trades = memory.tradeMemories;
-  if (trades.length < 10) return;
+  if (trades.length < MIN_TRADES_FOR_OVERALL_LESSON) return;
 
   // Pattern 1: Consecutive wins/losses on same stock
   detectStreakPattern(memory);
@@ -756,7 +788,7 @@ function detectPatterns(memory: AgentMemoryState): void {
 
 function detectStreakPattern(memory: AgentMemoryState): void {
   const closedTrades = memory.tradeMemories.filter((t) => t.pnl !== null);
-  if (closedTrades.length < 5) return;
+  if (closedTrades.length < MIN_TRADES_FOR_STOCK_LESSON) return;
 
   // Group by symbol
   const bySymbol = new Map<string, TradeMemory[]>();
@@ -768,7 +800,7 @@ function detectStreakPattern(memory: AgentMemoryState): void {
   }
 
   for (const [symbol, symbolTrades] of bySymbol.entries()) {
-    if (symbolTrades.length < 3) continue;
+    if (symbolTrades.length < MIN_TRADES_FOR_SECTOR_CLASSIFICATION) continue;
 
     // Count consecutive wins
     let maxWinStreak = 0;
@@ -782,7 +814,7 @@ function detectStreakPattern(memory: AgentMemoryState): void {
       }
     }
 
-    if (maxWinStreak >= 3) {
+    if (maxWinStreak >= STREAK_MIN_CONSECUTIVE_WINS) {
       const patternId = `win-streak-${symbol}`;
       const existing = memory.patterns.find((p) => p.id === patternId);
 
