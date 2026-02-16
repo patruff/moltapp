@@ -544,7 +544,7 @@ export async function runSimulation(config: SimulationConfig): Promise<Simulatio
     tradesSkipped,
     winningTrades,
     losingTrades,
-    winRate: tradesFollowed > 0 ? Math.round((winningTrades / (winningTrades + losingTrades || 1)) * 1000) / 10 : 0,
+    winRate: tradesFollowed > 0 ? Math.round((winningTrades / (winningTrades + losingTrades || 1)) * WIN_RATE_PRECISION_MULTIPLIER) / WIN_RATE_PRECISION_DIVISOR : 0,
     bestDay: findBestDay(dailySnapshots),
     worstDay: findWorstDay(dailySnapshots),
     daysSimulated: dailySnapshots.length,
@@ -649,7 +649,7 @@ function validateConfig(config: SimulationConfig): void {
   }
   if (config.agentWeights) {
     const sum = config.agentWeights.reduce((s, w) => s + w, 0);
-    if (Math.abs(sum - 1.0) > 0.01) {
+    if (Math.abs(sum - 1.0) > WEIGHT_SUM_TOLERANCE) {
       throw new Error(`agentWeights must sum to 1.0 (got ${sum})`);
     }
   }
@@ -776,7 +776,7 @@ function buildAgentBreakdown(
       tradesGenerated: agentTrades.length,
       tradesFollowed: followed.length,
       estimatedContribution: round2(weights[idx] * config.startingCapital),
-      avgConfidence: Math.round(avgConf * 10) / 10,
+      avgConfidence: Math.round(avgConf * CONFIDENCE_DISPLAY_PRECISION_MULTIPLIER) / CONFIDENCE_DISPLAY_PRECISION_DIVISOR,
     };
   });
 }
