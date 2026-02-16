@@ -243,6 +243,55 @@ const SENTIMENT_THRESHOLDS = {
   BIAS_MODERATE_THRESHOLD: 15,        // |overallBias| > 15 = Bullish/Bearish
 } as const;
 
+/**
+ * Formatting Precision Constants
+ *
+ * Controls decimal precision and display formatting for sentiment analysis output.
+ * These constants affect how prices, percentages, and volumes are displayed in:
+ * - Sentiment descriptions (momentum, volume, news drivers)
+ * - Generated news headlines (price action, volume surges, market summaries)
+ * - Market mood index and sentiment shift reports
+ *
+ * Adjusting these values changes display precision across all user-facing sentiment output.
+ */
+const FORMATTING_PRECISION = {
+  /**
+   * Price decimal precision
+   * Used for: Stock price displays in headlines and momentum descriptions
+   * Examples: 2 decimals → $178.54, 3 decimals → $178.543
+   */
+  PRICE_DECIMALS: 2,
+
+  /**
+   * Percentage change decimal precision
+   * Used for: Daily price changes, volume ratios, market index movements
+   * Examples: 1 decimal → 5.7%, 2 decimals → 5.73%
+   */
+  PERCENT_DECIMALS: 1,
+
+  /**
+   * Volume surge percentage decimal precision
+   * Used for: Volume surge headlines (integer display for cleaner impact)
+   * Examples: 0 decimals → "125% Above Average", 1 decimal → "125.3% Above Average"
+   */
+  VOLUME_SURGE_DECIMALS: 0,
+
+  /**
+   * Volume millions divisor
+   * Used for: Converting raw volume to millions for display ($XM format)
+   * Examples: 1_000_000 → $150M (for $150,000,000 volume)
+   */
+  VOLUME_MILLIONS_DIVISOR: 1_000_000,
+
+  /**
+   * Volume percentage calculation divisor
+   * Used for: Volume surge percentage calculation in headlines
+   * Formula: ((volume / divisor) * 100 - 100) = % above baseline
+   * Examples: 100_000_000 → "50% Above Average" for $150M volume
+   */
+  VOLUME_PERCENT_DIVISOR: 100_000_000,
+} as const;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -405,7 +454,7 @@ function computeMomentumSentiment(marketData: MarketData): { score: number; driv
     driver: {
       source: "price_momentum",
       impact: Math.round(score),
-      description: `${strength} ${direction} momentum: ${change > 0 ? "+" : ""}${change.toFixed(2)}% in 24h at $${marketData.price.toFixed(2)}`,
+      description: `${strength} ${direction} momentum: ${change > 0 ? "+" : ""}${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% in 24h at $${marketData.price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)}`,
       weight: SENTIMENT_WEIGHTS.momentumSentiment,
     },
   };
@@ -438,14 +487,14 @@ function computeVolumeSentiment(marketData: MarketData): { score: number; driver
 
   score = clamp(score, -100, 100);
   const volLabel = volumeRatio > SENTIMENT_THRESHOLDS.VOLUME_RATIO_HIGH ? "above average" : volumeRatio < SENTIMENT_THRESHOLDS.VOLUME_RATIO_LOW ? "below average" : "normal";
-  const volFormatted = volume > 0 ? `$${(volume / 1_000_000).toFixed(1)}M` : "N/A";
+  const volFormatted = volume > 0 ? `$${(volume / FORMATTING_PRECISION.VOLUME_MILLIONS_DIVISOR).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}M` : "N/A";
 
   return {
     score,
     driver: {
       source: "volume_analysis",
       impact: Math.round(score),
-      description: `Volume ${volLabel} (${volFormatted}, ${volumeRatio.toFixed(1)}x avg). ${volumeRatio > 1.5 ? "High conviction move." : volumeRatio < 0.5 ? "Low conviction - signal weakened." : "Normal activity."}`,
+      description: `Volume ${volLabel} (${volFormatted}, ${volumeRatio.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}x avg). ${volumeRatio > 1.5 ? "High conviction move." : volumeRatio < 0.5 ? "Low conviction - signal weakened." : "Normal activity."}`,
       weight: SENTIMENT_WEIGHTS.volumeSentiment,
     },
   };
@@ -1218,7 +1267,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       // Headline 3: Volume-based (if notable)
       if (volume > 150_000_000) {
         news.push({
-          headline: `${name} Volume Surges ${((volume / 100_000_000) * 100 - 100).toFixed(0)}% Above Average on Heavy Institutional Activity`,
+          headline: `${name} Volume Surges ${((volume / FORMATTING_PRECISION.VOLUME_PERCENT_DIVISOR) * 100 - 100).toFixed(FORMATTING_PRECISION.VOLUME_SURGE_DECIMALS)}% Above Average on Heavy Institutional Activity`,
           source: NEWS_SOURCES[hashSeed(stock.symbol + "vol") % NEWS_SOURCES.length],
           sentiment: change > 0 ? 0.5 : -0.3,
           symbols: [stock.symbol],
@@ -1253,9 +1302,9 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
         const spyChange = spyData.change24h ?? 0;
         news.push({
           headline: spyChange > 0
-            ? `Markets Rally as S&P 500 Climbs ${spyChange.toFixed(1)}% on Risk Appetite`
+            ? `Markets Rally as S&P 500 Climbs ${spyChange.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% on Risk Appetite`
             : spyChange < -1
-            ? `Wall Street Selloff Deepens as S&P 500 Drops ${Math.abs(spyChange).toFixed(1)}%`
+            ? `Wall Street Selloff Deepens as S&P 500 Drops ${Math.abs(spyChange).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}%`
             : "Markets Tread Water as Traders Await Fed Signals",
           source: "Reuters",
           sentiment: clamp(spyChange / 3, -1, 1),
@@ -1294,15 +1343,15 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
 /** Generate a price-action headline */
 function generatePriceHeadline(name: string, symbol: string, change: number, price: number): { text: string; sentiment: number } {
   if (change > 3) {
-    return { text: `${name} Soars ${change.toFixed(1)}% to $${price.toFixed(2)} as Bulls Take Control`, sentiment: 0.8 };
+    return { text: `${name} Soars ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% to $${price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)} as Bulls Take Control`, sentiment: 0.8 };
   } else if (change > 1) {
-    return { text: `${name} Gains ${change.toFixed(1)}% on Broad Market Strength`, sentiment: 0.4 };
+    return { text: `${name} Gains ${change.toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% on Broad Market Strength`, sentiment: 0.4 };
   } else if (change < -3) {
-    return { text: `${name} Tumbles ${Math.abs(change).toFixed(1)}% in Heavy Selling`, sentiment: -0.8 };
+    return { text: `${name} Tumbles ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% in Heavy Selling`, sentiment: -0.8 };
   } else if (change < -1) {
-    return { text: `${name} Dips ${Math.abs(change).toFixed(1)}% Amid Cautious Trading`, sentiment: -0.4 };
+    return { text: `${name} Dips ${Math.abs(change).toFixed(FORMATTING_PRECISION.PERCENT_DECIMALS)}% Amid Cautious Trading`, sentiment: -0.4 };
   } else {
-    return { text: `${name} Holds Steady at $${price.toFixed(2)} in Quiet Session`, sentiment: 0 };
+    return { text: `${name} Holds Steady at $${price.toFixed(FORMATTING_PRECISION.PRICE_DECIMALS)} in Quiet Session`, sentiment: 0 };
   }
 }
 
