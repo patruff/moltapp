@@ -648,7 +648,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Made your first trading decision",
     icon: "🎯",
     rarity: "common",
-    condition: (s) => s.totalDecisions >= 1,
+    condition: (s) => s.totalDecisions >= BADGE_FIRST_TRADE_THRESHOLD,
   },
   {
     id: "ten_trades",
@@ -656,7 +656,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Completed 10 trading decisions",
     icon: "📈",
     rarity: "common",
-    condition: (s) => s.totalDecisions >= 10,
+    condition: (s) => s.totalDecisions >= BADGE_TEN_TRADES_THRESHOLD,
   },
   {
     id: "fifty_trades",
@@ -664,7 +664,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Completed 50 trading decisions",
     icon: "⚡",
     rarity: "uncommon",
-    condition: (s) => s.totalDecisions >= 50,
+    condition: (s) => s.totalDecisions >= BADGE_FIFTY_TRADES_THRESHOLD,
   },
   {
     id: "hundred_trades",
@@ -672,7 +672,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Completed 100 trading decisions",
     icon: "💎",
     rarity: "rare",
-    condition: (s) => s.totalDecisions >= 100,
+    condition: (s) => s.totalDecisions >= BADGE_HUNDRED_TRADES_THRESHOLD,
   },
   {
     id: "high_accuracy",
@@ -680,7 +680,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Achieved 70%+ prediction accuracy",
     icon: "🎯",
     rarity: "rare",
-    condition: (s) => s.accuracy >= 70 && s.totalDecisions >= 10,
+    condition: (s) => s.accuracy >= BADGE_SHARP_SHOOTER_ACCURACY && s.totalDecisions >= BADGE_SHARP_SHOOTER_MIN_TRADES,
   },
   {
     id: "well_calibrated",
@@ -688,7 +688,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Confidence calibration within 10%",
     icon: "⚖️",
     rarity: "epic",
-    condition: (s) => s.calibrationError <= 10 && s.totalDecisions >= 20,
+    condition: (s) => s.calibrationError <= BADGE_WELL_CALIBRATED_ERROR_MAX && s.totalDecisions >= BADGE_WELL_CALIBRATED_MIN_TRADES,
   },
   {
     id: "win_streak_5",
@@ -696,7 +696,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "5 correct predictions in a row",
     icon: "🔥",
     rarity: "uncommon",
-    condition: (s) => s.maxWinStreak >= 5,
+    condition: (s) => s.maxWinStreak >= BADGE_HOT_STREAK_LENGTH,
   },
   {
     id: "win_streak_10",
@@ -704,7 +704,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "10 correct predictions in a row",
     icon: "🔥",
     rarity: "epic",
-    condition: (s) => s.maxWinStreak >= 10,
+    condition: (s) => s.maxWinStreak >= BADGE_ON_FIRE_STREAK_LENGTH,
   },
   {
     id: "contrarian_winner",
@@ -712,7 +712,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Profitable while disagreeing with other agents",
     icon: "🦊",
     rarity: "rare",
-    condition: (s) => s.contrarianWins >= 5,
+    condition: (s) => s.contrarianWins >= BADGE_CONTRARIAN_WINS_THRESHOLD,
   },
   {
     id: "diamond_hands",
@@ -720,7 +720,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Held through 3+ consecutive dips and recovered",
     icon: "💎",
     rarity: "epic",
-    condition: (s) => s.holdThroughDips >= 3,
+    condition: (s) => s.holdThroughDips >= BADGE_DIAMOND_HANDS_THRESHOLD,
   },
   {
     id: "elo_1500",
@@ -728,7 +728,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Reached ELO rating of 1500",
     icon: "⭐",
     rarity: "uncommon",
-    condition: (s) => s.eloRating >= 1500,
+    condition: (s) => s.eloRating >= BADGE_RISING_STAR_ELO,
   },
   {
     id: "elo_1800",
@@ -736,7 +736,7 @@ const BADGE_DEFINITIONS: Array<{
     description: "Reached ELO rating of 1800",
     icon: "👑",
     rarity: "legendary",
-    condition: (s) => s.eloRating >= 1800,
+    condition: (s) => s.eloRating >= BADGE_MASTER_TRADER_ELO,
   },
 ];
 
