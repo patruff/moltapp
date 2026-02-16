@@ -64,6 +64,35 @@ const MAX_ITEMS_PER_QUERY = 50;
 /** Maximum number of cache entries */
 const MAX_CACHE_ENTRIES = 100;
 
+/**
+ * News Generation Constants
+ *
+ * Controls how many symbols get news generated and how fresh the news appears.
+ */
+
+/**
+ * Maximum number of symbols to generate news for per search query.
+ *
+ * Limits news generation to prevent excessive API load and keep context focused.
+ * Higher values provide more market coverage but increase generation time.
+ *
+ * Example: 10 symbols = 10 news items + 1 general market item = 11 total items
+ */
+const MAX_SYMBOLS_FOR_NEWS_GENERATION = 10;
+
+/**
+ * Maximum time offset (in milliseconds) for simulated news timestamps.
+ *
+ * Adds realistic variation to news "freshness" by backdating timestamps.
+ * Creates the appearance of news arriving at different times within the hour.
+ *
+ * Value: 3,600,000ms = 1 hour
+ * Formula: publishedAt = now - random(0, 3600000) = [now - 1h, now]
+ *
+ * Example: If now is 10:30 AM, news timestamps will range from 9:30 AM to 10:30 AM
+ */
+const NEWS_TIMESTAMP_MAX_OFFSET_MS = 3600000;
+
 // ---------------------------------------------------------------------------
 // Cache Store
 // ---------------------------------------------------------------------------
@@ -101,7 +130,7 @@ async function defaultSearchProvider(
   const now = new Date();
 
   // Generate market-aware news for each symbol
-  for (const symbol of symbols.slice(0, 10)) {
+  for (const symbol of symbols.slice(0, MAX_SYMBOLS_FOR_NEWS_GENERATION)) {
     const cleanSymbol = symbol.replace(/x$/i, "");
 
     // Create realistic market news items
@@ -133,7 +162,7 @@ async function defaultSearchProvider(
       source: "MoltApp Market Intelligence",
       url: `https://patgpt.us/news/${symbol.toLowerCase()}`,
       publishedAt: new Date(
-        now.getTime() - Math.floor(Math.random() * 3600000),
+        now.getTime() - Math.floor(Math.random() * NEWS_TIMESTAMP_MAX_OFFSET_MS),
       ).toISOString(),
       sentiment: template.sentiment,
       relevantSymbols: [symbol],
