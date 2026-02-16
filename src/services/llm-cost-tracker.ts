@@ -9,6 +9,22 @@ import { eq } from "drizzle-orm";
 import { db } from "../db/index.ts";
 import { llmUsage } from "../db/schema/index.ts";
 
+/**
+ * Token Scaling Constants
+ *
+ * LLM providers price their models per million tokens. This constant is used to convert
+ * token counts to the pricing scale used in MODEL_PRICING.
+ */
+
+/**
+ * TOKENS_PER_MILLION: Scaling factor for converting token counts to per-million pricing.
+ *
+ * All LLM providers (Anthropic, OpenAI, xAI, Google) quote prices per million tokens.
+ * Formula: cost = (tokens * price_per_million) / TOKENS_PER_MILLION
+ * Example: 50,000 input tokens at $3/million = (50,000 * 3) / 1,000,000 = $0.15
+ */
+const TOKENS_PER_MILLION = 1_000_000;
+
 // Model pricing per million tokens (as of Feb 2026)
 // Sources: https://openai.com/pricing, https://anthropic.com/pricing, https://x.ai/pricing
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -47,7 +63,7 @@ export function estimateCost(
   outputTokens: number,
 ): number {
   const pricing = MODEL_PRICING[model] ?? DEFAULT_PRICING;
-  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / TOKENS_PER_MILLION;
 }
 
 /**
