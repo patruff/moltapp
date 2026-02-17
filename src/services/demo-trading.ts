@@ -28,6 +28,48 @@ const DEMO_STARTING_USDC = "10000.000000"; // 10,000 USDC
 /** Simulated transaction signature prefix */
 const DEMO_TX_PREFIX = "DEMO_";
 
+// ---------------------------------------------------------------------------
+// Token Precision Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of decimal places in a SOL amount.
+ * SOL uses 9 decimal places (1 SOL = 1,000,000,000 lamports).
+ * Used for .toFixed(SOL_DECIMALS) formatting and decimal validation.
+ *
+ * Formula: 1 SOL = 10^SOL_DECIMALS lamports = 1,000,000,000 lamports
+ */
+const SOL_DECIMALS = 9;
+
+/**
+ * Number of decimal places in a USDC amount.
+ * USDC uses 6 decimal places (1 USDC = 1,000,000 raw token units).
+ * Used for .toFixed(USDC_DECIMALS) formatting and > USDC_DECIMALS validation.
+ *
+ * Formula: 1 USDC = 10^USDC_DECIMALS raw units = 1,000,000 raw units
+ */
+const USDC_DECIMALS = 6;
+
+/**
+ * Conversion factor from SOL to lamports (smallest SOL unit).
+ * 1 SOL = 1e9 lamports = 1,000,000,000 lamports.
+ * Used when converting display SOL amounts to raw blockchain units.
+ *
+ * Formula: lamports = sol × SOL_LAMPORTS_PER_SOL
+ * Example: 100 SOL × 1,000,000,000 = 100,000,000,000 lamports
+ */
+const SOL_LAMPORTS_PER_SOL = 1e9;
+
+/**
+ * Conversion factor from USDC to raw token units (smallest USDC unit).
+ * 1 USDC = 1e6 raw units = 1,000,000 raw units.
+ * Used when converting display USDC amounts to raw blockchain units.
+ *
+ * Formula: rawUnits = usdc × USDC_RAW_UNITS_PER_USDC
+ * Example: 10000 USDC × 1,000,000 = 10,000,000,000 raw units
+ */
+const USDC_RAW_UNITS_PER_USDC = 1e6;
+
 /** Mock stock prices (in USDC per token) */
 const DEMO_STOCK_PRICES: Record<string, string> = {
   AAPL: "150.25",
@@ -104,17 +146,17 @@ export async function getDemoBalances(agentId: string): Promise<{
   }
 
   // Convert to blockchain units
-  const lamports = solBalance.mul(1e9).toFixed(0);
-  const usdcRaw = usdcBalance.mul(1e6).toFixed(0);
+  const lamports = solBalance.mul(SOL_LAMPORTS_PER_SOL).toFixed(0);
+  const usdcRaw = usdcBalance.mul(USDC_RAW_UNITS_PER_USDC).toFixed(0);
 
   return {
     sol: {
       lamports,
-      display: solBalance.toFixed(9),
+      display: solBalance.toFixed(SOL_DECIMALS),
     },
     usdc: {
       rawAmount: usdcRaw,
-      display: usdcBalance.toFixed(6),
+      display: usdcBalance.toFixed(USDC_DECIMALS),
     },
   };
 }
@@ -148,8 +190,8 @@ export async function executeDemoBuy(req: TradeRequest): Promise<TradeResult> {
   if (usdcAmount.lte(0)) {
     throw new Error("invalid_amount: usdcAmount must be > 0");
   }
-  if (usdcAmount.decimalPlaces() > 6) {
-    throw new Error("invalid_amount: usdcAmount has more than 6 decimal places");
+  if (usdcAmount.decimalPlaces() > USDC_DECIMALS) {
+    throw new Error(`invalid_amount: usdcAmount has more than ${USDC_DECIMALS} decimal places`);
   }
 
   // 4. Check demo balance
