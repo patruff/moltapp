@@ -72,6 +72,23 @@ const MIN_SOL_LAMPORTS = 10_000_000n;
 const MIN_SOL = 0.01;
 
 /**
+ * Solana system program address used as a placeholder wallet address.
+ *
+ * This is the well-known Solana System Program public key (all 1s in base58).
+ * Used when no real wallet address is configured via environment variables.
+ *
+ * Checks against this value are used to skip on-chain RPC queries when running
+ * without real wallets (e.g., local development, paper trading mode, CI).
+ *
+ * To configure real wallets, set the corresponding environment variables:
+ * - ANTHROPIC_WALLET_PUBLIC (Claude ValueBot)
+ * - OPENAI_WALLET_PUBLIC (GPT MomentumBot)
+ * - GROK_WALLET_PUBLIC (Grok ContrarianBot)
+ * - GEMINI_WALLET_PUBLIC or ONBOARD_WALLET_PUBLIC (Gemini AnalystBot)
+ */
+const PLACEHOLDER_WALLET_ADDRESS = "11111111111111111111111111111111";
+
+/**
  * Agent wallet configurations.
  *
  * In production, these wallet addresses are set via environment variables.
@@ -83,7 +100,7 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
     agentName: "Claude ValueBot",
     publicKey:
       process.env.ANTHROPIC_WALLET_PUBLIC ||
-      "11111111111111111111111111111111", // Placeholder
+      PLACEHOLDER_WALLET_ADDRESS, // Placeholder
     provider: "anthropic",
   },
   {
@@ -91,7 +108,7 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
     agentName: "GPT MomentumBot",
     publicKey:
       process.env.OPENAI_WALLET_PUBLIC ||
-      "11111111111111111111111111111111", // Placeholder
+      PLACEHOLDER_WALLET_ADDRESS, // Placeholder
     provider: "openai",
   },
   {
@@ -99,7 +116,7 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
     agentName: "Grok ContrarianBot",
     publicKey:
       process.env.GROK_WALLET_PUBLIC ||
-      "11111111111111111111111111111111", // Placeholder
+      PLACEHOLDER_WALLET_ADDRESS, // Placeholder
     provider: "xai",
   },
   {
@@ -108,7 +125,7 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
     publicKey:
       process.env.GEMINI_WALLET_PUBLIC ||
       process.env.ONBOARD_WALLET_PUBLIC ||
-      "11111111111111111111111111111111", // Placeholder
+      PLACEHOLDER_WALLET_ADDRESS, // Placeholder
     provider: "google",
   },
 ];
@@ -118,7 +135,39 @@ const AGENT_WALLET_CONFIGS: AgentWalletConfig[] = [
 // ---------------------------------------------------------------------------
 
 const snapshotHistory: BalanceSnapshot[] = [];
+
+/**
+ * Maximum number of balance snapshots to retain in memory.
+ *
+ * Snapshots are recorded before and after each trade to track balance changes.
+ * Older entries are evicted when this limit is reached.
+ *
+ * Tuning impact: Increase for longer balance history (higher memory usage),
+ * decrease for less memory consumption.
+ */
 const MAX_SNAPSHOTS = 500;
+
+/**
+ * Default number of snapshots returned by getBalanceSnapshots (per-agent).
+ *
+ * When no limit is specified, returns this many of the most recent snapshots
+ * for an individual agent's trade history.
+ *
+ * Tuning impact: Increase to show more trade history, decrease to reduce
+ * response payload size.
+ */
+const DEFAULT_AGENT_SNAPSHOT_LIMIT = 20;
+
+/**
+ * Default number of snapshots returned by getAllBalanceSnapshots (all agents).
+ *
+ * When no limit is specified, returns this many of the most recent snapshots
+ * across all agents combined.
+ *
+ * Tuning impact: Increase for broader cross-agent visibility, decrease for
+ * smaller API response payloads.
+ */
+const DEFAULT_ALL_SNAPSHOTS_LIMIT = 50;
 
 // ---------------------------------------------------------------------------
 // Known xStocks mint addresses (for filtering)
@@ -165,7 +214,7 @@ export async function checkMinimumSol(
   }
 
   // Skip check for placeholder addresses
-  if (wallet.publicKey === "11111111111111111111111111111111") {
+  if (wallet.publicKey === PLACEHOLDER_WALLET_ADDRESS) {
     return { hasMinimum: true, balance: 0, required: MIN_SOL };
   }
 
@@ -193,7 +242,7 @@ export async function getAgentWalletStatus(
   }
 
   // Skip on-chain queries for placeholder addresses
-  if (wallet.publicKey === "11111111111111111111111111111111") {
+  if (wallet.publicKey === PLACEHOLDER_WALLET_ADDRESS) {
     return {
       agentId: wallet.agentId,
       agentName: wallet.agentName,
@@ -279,7 +328,7 @@ export async function recordBalanceSnapshot(
   let tokenBalances: Array<{ mintAddress: string; amount: number }> = [];
 
   // Skip on-chain queries for placeholder addresses
-  if (wallet.publicKey !== "11111111111111111111111111111111") {
+  if (wallet.publicKey !== PLACEHOLDER_WALLET_ADDRESS) {
     const [solResult, tokens] = await Promise.all([
       getBalance(wallet.publicKey),
       getTokenBalances(wallet.publicKey),
@@ -319,7 +368,7 @@ export async function recordBalanceSnapshot(
  */
 export function getBalanceSnapshots(
   agentId: string,
-  limit = 20,
+  limit = DEFAULT_AGENT_SNAPSHOT_LIMIT,
 ): BalanceSnapshot[] {
   return snapshotHistory
     .filter((s) => s.agentId === agentId)
@@ -329,7 +378,7 @@ export function getBalanceSnapshots(
 /**
  * Get all balance snapshots.
  */
-export function getAllBalanceSnapshots(limit = 50): BalanceSnapshot[] {
+export function getAllBalanceSnapshots(limit = DEFAULT_ALL_SNAPSHOTS_LIMIT): BalanceSnapshot[] {
   return snapshotHistory.slice(-limit);
 }
 
@@ -362,7 +411,7 @@ export async function preTradeFundCheck(agentId: string): Promise<{
   }
 
   // Placeholder check
-  if (wallet.publicKey === "11111111111111111111111111111111") {
+  if (wallet.publicKey === PLACEHOLDER_WALLET_ADDRESS) {
     return {
       ready: false,
       reason: `Wallet for ${agentId} is a placeholder. Set ${wallet.agentName.toUpperCase().replace(/\s/g, "_")}_WALLET_ADDRESS env var.`,
