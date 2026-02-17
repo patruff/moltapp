@@ -299,6 +299,14 @@ const CAUSAL_REASONING_SOURCE_MIN = 2;
  */
 const CAUSAL_REASONING_EVIDENCE_MIN = 2;
 
+/**
+ * SHA-256 hex prefix length for trade integrity fingerprint display.
+ * - Full SHA-256 = 64 hex chars; 16-char prefix is sufficient for display uniqueness
+ * - Matches v31 benchmark engine INTEGRITY_HASH_LENGTH convention
+ * - Example: "a3f9b2c1d4e5f678" (16 chars) uniquely identifies each graded trade
+ */
+const INTEGRITY_HASH_LENGTH = 16;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -829,7 +837,7 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`v33:${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, INTEGRITY_HASH_LENGTH);
 
   // Overall grade (weighted average of all 12 trade-level sub-scores)
   const subScores = [
