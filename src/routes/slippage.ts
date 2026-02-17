@@ -29,6 +29,10 @@ import {
 
 export const slippageRoutes = new Hono();
 
+// Default query limits for paginated endpoints
+const DEFAULT_ANOMALIES_LIMIT = 50; // Max anomalies returned by /anomalies endpoint
+const DEFAULT_RECENT_LIMIT = 100; // Max records returned by /recent endpoint
+
 // ---------------------------------------------------------------------------
 // GET /stats — Overall slippage statistics
 // ---------------------------------------------------------------------------
@@ -60,7 +64,7 @@ slippageRoutes.get("/stocks", (c) => {
 // ---------------------------------------------------------------------------
 
 slippageRoutes.get("/anomalies", (c) => {
-  const limit = Number(c.req.query("limit") || "50");
+  const limit = Number(c.req.query("limit") || DEFAULT_ANOMALIES_LIMIT);
   const severity = c.req.query("severity") as
     | "warning"
     | "critical"
@@ -76,7 +80,7 @@ slippageRoutes.get("/recent", (c) => {
   const agentId = c.req.query("agentId") ?? undefined;
   const symbol = c.req.query("symbol") ?? undefined;
   const action = c.req.query("action") as "buy" | "sell" | undefined;
-  const limit = Number(c.req.query("limit") || "100");
+  const limit = Number(c.req.query("limit") || DEFAULT_RECENT_LIMIT);
   const sinceParam = c.req.query("since");
   const since = sinceParam ? new Date(sinceParam) : undefined;
 
