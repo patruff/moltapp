@@ -114,6 +114,20 @@ const RISK_FREE_RATE = 0.045;
 /** Trading days per year for annualization */
 const TRADING_DAYS_PER_YEAR = 252;
 
+/**
+ * Maximum number of daily return data points to retain per agent.
+ * 365 days = 1 year of trading history for rolling Sharpe/Sortino calculations.
+ * Older entries are evicted when this limit is exceeded.
+ */
+const MAX_DAILY_RETURNS_HISTORY = 365;
+
+/**
+ * Maximum number of trade records to retain per agent.
+ * 500 trades provides sufficient history for win rate, profit factor,
+ * and payoff ratio calculations without excessive memory usage.
+ */
+const MAX_TRADES_HISTORY = 500;
+
 /** Scoring weights */
 const WEIGHTS = {
   sharpe: 0.35,
@@ -178,9 +192,9 @@ export function recordAgentReturn(
     portfolioValue: dailyReturn.portfolioValue,
   });
 
-  // Keep last 365 days
-  if (series.dailyReturns.length > 365) {
-    series.dailyReturns = series.dailyReturns.slice(-365);
+  // Keep last MAX_DAILY_RETURNS_HISTORY days
+  if (series.dailyReturns.length > MAX_DAILY_RETURNS_HISTORY) {
+    series.dailyReturns = series.dailyReturns.slice(-MAX_DAILY_RETURNS_HISTORY);
   }
 }
 
@@ -200,9 +214,9 @@ export function recordTradeOutcome(
 
   series.trades.push(trade);
 
-  // Keep last 500 trades
-  if (series.trades.length > 500) {
-    series.trades = series.trades.slice(-500);
+  // Keep last MAX_TRADES_HISTORY trades
+  if (series.trades.length > MAX_TRADES_HISTORY) {
+    series.trades = series.trades.slice(-MAX_TRADES_HISTORY);
   }
 }
 
@@ -536,8 +550,8 @@ export function recordBenchmarkReturn(
 
   spyDailyReturns.push({ date, returnPercent });
 
-  if (spyDailyReturns.length > 365) {
-    spyDailyReturns.splice(0, spyDailyReturns.length - 365);
+  if (spyDailyReturns.length > MAX_DAILY_RETURNS_HISTORY) {
+    spyDailyReturns.splice(0, spyDailyReturns.length - MAX_DAILY_RETURNS_HISTORY);
   }
 }
 
