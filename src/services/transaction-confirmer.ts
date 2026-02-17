@@ -144,6 +144,18 @@ const recentConfirmations: Array<{
 const MAX_RECENT = 100;
 const MAX_DURATIONS = 500;
 
+/**
+ * Recent Confirmations Display Limit
+ *
+ * Maximum number of recent confirmations returned by getConfirmationMetrics()
+ * in the recentConfirmations field (20). The in-memory buffer holds MAX_RECENT
+ * (100) entries; this limits how many are surfaced to API callers.
+ *
+ * Tuning impact: Increase to 50 for longer history in monitoring dashboards,
+ * decrease to 10 for faster response payload sizes.
+ */
+const RECENT_DISPLAY_LIMIT = 20;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -574,7 +586,7 @@ export function getConfirmationMetrics(): ConfirmationMetrics {
     averageConfirmationMs: avgDuration,
     averagePollAttempts: avgPolls,
     confirmationsByCommitment: { ...confirmationsByCommitment },
-    recentConfirmations: recentConfirmations.slice(0, 20),
+    recentConfirmations: recentConfirmations.slice(0, RECENT_DISPLAY_LIMIT),
   };
 }
 

@@ -109,6 +109,18 @@ const recentResults: GateMetrics["recentResults"] = [];
 const MAX_RECENT = 50;
 const MAX_DURATIONS = 200;
 
+/**
+ * Recent Gate Results Display Limit
+ *
+ * Maximum number of recent gate check results returned by getGateMetrics()
+ * in the recentResults field (20). The in-memory buffer holds MAX_RECENT
+ * (50) entries; this limits how many are surfaced to API callers.
+ *
+ * Tuning impact: Increase to 50 for longer history in monitoring dashboards,
+ * decrease to 10 for faster response payload sizes.
+ */
+const RECENT_RESULTS_DISPLAY_LIMIT = 20;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -555,7 +567,7 @@ export function getGateMetrics(): GateMetrics {
       totalChecks > 0 ? Math.round((gatesBlocked / totalChecks) * 100) : 0,
     avgDurationMs: avgDuration,
     failuresByCheck: { ...failuresByCheck },
-    recentResults: recentResults.slice(0, 20),
+    recentResults: recentResults.slice(0, RECENT_RESULTS_DISPLAY_LIMIT),
   };
 }
 

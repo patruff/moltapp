@@ -188,6 +188,18 @@ const EXECUTION_JITTER_MAX_MS = 1500;  // Maximum additional jitter (1.5s random
  */
 const MOCK_PRICE_VOLATILITY_FACTOR = 0.02;  // ±1% price variation when Jupiter unavailable
 
+/**
+ * Recent Executions Display Limit
+ *
+ * Maximum number of recent trade executions returned by getExecutionStats()
+ * in the recentExecutions field (20). The in-memory buffer holds MAX_RECENT_EXECUTIONS
+ * (100) entries; this limits how many are surfaced to API callers.
+ *
+ * Tuning impact: Increase to 50 for longer history in monitoring dashboards,
+ * decrease to 10 for faster response payload sizes.
+ */
+const RECENT_EXECUTIONS_DISPLAY_LIMIT = 20;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -890,7 +902,7 @@ export function getExecutionStats(): ExecutionStats {
     averageExecutionMs: Math.round(avgDuration),
     executionsByAgent: { ...executionsByAgent },
     executionsBySymbol: { ...executionsBySymbol },
-    recentExecutions: recentExecutions.slice(0, 20),
+    recentExecutions: recentExecutions.slice(0, RECENT_EXECUTIONS_DISPLAY_LIMIT),
     lastExecutionAt,
   };
 }

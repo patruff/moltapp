@@ -354,6 +354,18 @@ const recentRetries: Array<{
 }> = [];
 const MAX_RECENT_RETRIES = 100;
 
+/**
+ * Recent Retries Display Limit
+ *
+ * Maximum number of recent retry attempts returned by getRetryMetrics()
+ * in the recentRetries field (20). The in-memory buffer holds MAX_RECENT_RETRIES
+ * (100) entries; this limits how many are surfaced to API callers.
+ *
+ * Tuning impact: Increase to 50 for longer history in monitoring dashboards,
+ * decrease to 10 for faster response payload sizes.
+ */
+const RECENT_RETRIES_DISPLAY_LIMIT = 20;
+
 // ---------------------------------------------------------------------------
 // Core Retry Engine
 // ---------------------------------------------------------------------------
@@ -655,7 +667,7 @@ export function getRetryMetrics(): RetryMetrics {
     retriesByPolicy: { ...retriesByPolicy },
     retryBudgetExhaustion,
     averageRetriesPerCall: round2(avgRetries),
-    recentRetries: recentRetries.slice(0, 20),
+    recentRetries: recentRetries.slice(0, RECENT_RETRIES_DISPLAY_LIMIT),
   };
 }
 
