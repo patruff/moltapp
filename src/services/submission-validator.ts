@@ -54,6 +54,13 @@ const MAX_STORE_SIZE = 5000;
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
+ * Store cleanup parameters for memory management.
+ */
+
+/** Batch size for cleanup when submission store exceeds MAX_STORE_SIZE */
+const CLEANUP_BATCH_SIZE = 1000;
+
+/**
  * Default agent configuration values for submission evaluation.
  * Used when external agents don't provide their own configuration.
  */
@@ -268,7 +275,7 @@ export function validateAndScoreSubmission(
 
   // Clean up old entries if needed
   if (submissionStore.size > MAX_STORE_SIZE) {
-    const oldestKeys = Array.from(submissionStore.keys()).slice(0, 1000);
+    const oldestKeys = Array.from(submissionStore.keys()).slice(0, CLEANUP_BATCH_SIZE);
     for (const key of oldestKeys) {
       submissionStore.delete(key);
     }
@@ -286,10 +293,9 @@ export function validateAndScoreSubmission(
  */
 function checkRateLimit(agentId: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
-  const hourMs = 60 * 60 * 1000;
 
   let limit = agentRateLimits.get(agentId);
-  if (!limit || now - limit.windowStart > hourMs) {
+  if (!limit || now - limit.windowStart > HOUR_MS) {
     limit = { count: 0, windowStart: now };
     agentRateLimits.set(agentId, limit);
   }
