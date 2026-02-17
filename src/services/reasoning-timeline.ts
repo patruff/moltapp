@@ -200,6 +200,124 @@ const TOP_TERMS_DISPLAY_LIMIT = 10;
 const TOP_INFLECTION_POINTS_DISPLAY_LIMIT = 10;
 
 // ---------------------------------------------------------------------------
+// Vocabulary Trend Detection Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Vocabulary expansion detection multiplier.
+ *
+ * Second-half unique word count is compared against first-half × this multiplier.
+ * If second half exceeds this threshold, vocabulary is classified as "expanding".
+ *
+ * Formula: secondHalf.size > firstHalf.size × VOCAB_EXPANSION_MULTIPLIER → "expanding"
+ * Example: firstHalf=100 unique words → secondHalf must exceed 110 for "expanding"
+ *
+ * Current: 1.1 (10% growth) filters noise while detecting meaningful vocabulary expansion.
+ */
+const VOCAB_EXPANSION_MULTIPLIER = 1.1;
+
+/**
+ * Vocabulary contraction detection multiplier.
+ *
+ * Second-half unique word count compared against first-half × this multiplier.
+ * If second half is below this threshold, vocabulary is classified as "contracting".
+ *
+ * Formula: secondHalf.size < firstHalf.size × VOCAB_CONTRACTION_MULTIPLIER → "contracting"
+ * Example: firstHalf=100 unique words → secondHalf below 90 = "contracting"
+ *
+ * Current: 0.9 (10% shrinkage) filters noise while detecting meaningful vocabulary narrowing.
+ */
+const VOCAB_CONTRACTION_MULTIPLIER = 0.9;
+
+// ---------------------------------------------------------------------------
+// Adaptation & Consistency Score Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Low coherence threshold for adaptation opportunity detection.
+ *
+ * Reasoning snapshots with coherenceScore below this value are flagged as
+ * "low quality" decisions that provide adaptation opportunities. The service
+ * then checks whether the agent's coherence improved on the NEXT decision.
+ *
+ * Formula: coherenceScore < ADAPTATION_LOW_COHERENCE_THRESHOLD → opportunity detected
+ * Example: Agent coherence = 0.35 → below threshold → check if next decision improved
+ *
+ * Current: 0.4 identifies clearly poor reasoning (below 40% coherence quality).
+ */
+const ADAPTATION_LOW_COHERENCE_THRESHOLD = 0.4;
+
+/**
+ * Consistency score variance penalty multiplier.
+ *
+ * Controls how aggressively high variance reduces the consistency score.
+ * Formula: consistencyScore = max(0, 1 - avgVariance × CONSISTENCY_VARIANCE_PENALTY)
+ *
+ * Example: avgVariance=0.20 → score = max(0, 1 - 0.20×4) = max(0, 0.20) = 0.20
+ * Example: avgVariance=0.10 → score = max(0, 1 - 0.10×4) = max(0, 0.60) = 0.60
+ *
+ * Current: 4 means variance of 0.25+ produces a consistency score of 0 (fully inconsistent).
+ */
+const CONSISTENCY_VARIANCE_PENALTY = 4;
+
+// ---------------------------------------------------------------------------
+// Inflection Point Detection Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Confidence shift detection threshold for inflection points.
+ *
+ * Minimum absolute change in rolling average confidence to register as an
+ * inflection point. Compares 2-entry rolling averages before/after each snapshot.
+ *
+ * Formula: |nextAvgConf - prevAvgConf| > CONFIDENCE_INFLECTION_THRESHOLD → inflection
+ * Example: prevAvg=60%, nextAvg=83% → delta=0.23 > 0.20 → inflection detected
+ *
+ * Current: 0.2 (20 percentage points) filters minor fluctuations, detects major shifts.
+ */
+const CONFIDENCE_INFLECTION_THRESHOLD = 0.2;
+
+/**
+ * Coherence jump detection threshold for inflection points.
+ *
+ * Minimum absolute change in rolling average coherence to register as an
+ * inflection point. Compares 2-entry rolling averages before/after each snapshot.
+ *
+ * Formula: |nextAvgCoh - prevAvgCoh| > COHERENCE_INFLECTION_THRESHOLD → inflection
+ * Example: prevAvg=0.50, nextAvg=0.76 → delta=0.26 > 0.25 → inflection detected
+ *
+ * Current: 0.25 detects meaningful quality jumps/drops in reasoning coherence.
+ */
+const COHERENCE_INFLECTION_THRESHOLD = 0.25;
+
+/**
+ * Strategy change inflection point magnitude.
+ *
+ * Fixed severity score assigned to all detected strategy change inflection points.
+ * Strategy changes (e.g., "value" → "momentum") receive this magnitude for ranking.
+ *
+ * Scale: 0.0 (minor) to 1.0 (critical). Strategy changes are significant but
+ * not as severe as large confidence/coherence swings.
+ *
+ * Current: 0.6 places strategy changes above typical noise but below extreme score shifts.
+ */
+const STRATEGY_CHANGE_MAGNITUDE = 0.6;
+
+/**
+ * Inflection point deduplication time window in milliseconds.
+ *
+ * Two inflection points of the same type within this window are considered
+ * duplicates — only the first is retained to avoid reporting the same
+ * behavioral shift multiple times.
+ *
+ * Formula: 5 minutes × 60 seconds × 1000 ms = 300,000 ms
+ * Example: Two coherence jumps at 10:00 and 10:03 AM → deduplicated to one
+ *
+ * Current: 5 minutes groups closely-timed events as a single behavioral change.
+ */
+const INFLECTION_DEDUP_WINDOW_MS = 5 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -428,8 +546,8 @@ function analyzeVocabulary(entries: ReasoningSnapshot[]): VocabularyMetrics {
   }
 
   let trend: VocabularyMetrics["trend"] = "stable";
-  if (secondHalfWords.size > firstHalfWords.size * 1.1) trend = "expanding";
-  else if (secondHalfWords.size < firstHalfWords.size * 0.9) trend = "contracting";
+  if (secondHalfWords.size > firstHalfWords.size * VOCAB_EXPANSION_MULTIPLIER) trend = "expanding";
+  else if (secondHalfWords.size < firstHalfWords.size * VOCAB_CONTRACTION_MULTIPLIER) trend = "contracting";
 
   return {
     totalUniqueWords: allWords.size,
@@ -466,7 +584,7 @@ function computeAdaptationScore(entries: ReasoningSnapshot[]): number {
   let opportunities = 0;
 
   for (let i = 1; i < entries.length; i++) {
-    if (entries[i - 1].coherenceScore < 0.4) {
+    if (entries[i - 1].coherenceScore < ADAPTATION_LOW_COHERENCE_THRESHOLD) {
       opportunities++;
       if (entries[i].coherenceScore > entries[i - 1].coherenceScore) {
         adaptations++;
@@ -505,7 +623,7 @@ function computeConsistencyScore(entries: ReasoningSnapshot[]): number {
 
   // Lower variance = higher consistency
   const avgVariance = variances.reduce((s, v) => s + v, 0) / variances.length;
-  return Math.round(Math.max(0, 1 - avgVariance * 4) * 100) / 100;
+  return Math.round(Math.max(0, 1 - avgVariance * CONSISTENCY_VARIANCE_PENALTY) * 100) / 100;
 }
 
 // ---------------------------------------------------------------------------
@@ -522,7 +640,7 @@ function detectInflectionPoints(entries: ReasoningSnapshot[]): InflectionPoint[]
     const nextAvgConf = (entries[i + 1].confidence + entries[i + 2].confidence) / 2;
     const confDelta = Math.abs(nextAvgConf - prevAvgConf);
 
-    if (confDelta > 0.2) {
+    if (confDelta > CONFIDENCE_INFLECTION_THRESHOLD) {
       points.push({
         timestamp: entries[i].timestamp,
         roundId: entries[i].roundId,
@@ -537,7 +655,7 @@ function detectInflectionPoints(entries: ReasoningSnapshot[]): InflectionPoint[]
     const nextAvgCoh = (entries[i + 1].coherenceScore + entries[i + 2].coherenceScore) / 2;
     const cohDelta = Math.abs(nextAvgCoh - prevAvgCoh);
 
-    if (cohDelta > 0.25) {
+    if (cohDelta > COHERENCE_INFLECTION_THRESHOLD) {
       points.push({
         timestamp: entries[i].timestamp,
         roundId: entries[i].roundId,
@@ -554,7 +672,7 @@ function detectInflectionPoints(entries: ReasoningSnapshot[]): InflectionPoint[]
         roundId: entries[i].roundId,
         type: "strategy_change",
         description: `Strategy shifted from ${entries[i - 1].intent} to ${entries[i].intent}`,
-        magnitude: 0.6,
+        magnitude: STRATEGY_CHANGE_MAGNITUDE,
       });
     }
   }
@@ -564,7 +682,7 @@ function detectInflectionPoints(entries: ReasoningSnapshot[]): InflectionPoint[]
   for (const p of points) {
     const tooClose = deduped.some(
       (d) => d.type === p.type &&
-        Math.abs(new Date(d.timestamp).getTime() - new Date(p.timestamp).getTime()) < 5 * 60 * 1000,
+        Math.abs(new Date(d.timestamp).getTime() - new Date(p.timestamp).getTime()) < INFLECTION_DEDUP_WINDOW_MS,
     );
     if (!tooClose) deduped.push(p);
   }
