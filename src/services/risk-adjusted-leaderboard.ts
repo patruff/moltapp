@@ -142,6 +142,90 @@ const WEIGHTS = {
 // ---------------------------------------------------------------------------
 
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+// ---------------------------------------------------------------------------
+// Metric Normalization Bounds
+// ---------------------------------------------------------------------------
+
+/**
+ * Sharpe Ratio normalization bounds.
+ * Maps raw Sharpe to 0-100 scale for composite score.
+ * -1 = consistently losing money after risk adjustment (floor)
+ *  3 = exceptional risk-adjusted performance (ceiling, >3 is capped at 100)
+ * Example: Sharpe of 1.0 (solid) maps to 50/100; Sharpe of 2.0 maps to 75/100.
+ */
+const SHARPE_NORMALIZE_MIN = -1;
+const SHARPE_NORMALIZE_MAX = 3;
+
+/**
+ * Total Return % normalization bounds.
+ * Maps raw total return percentage to 0-100 scale.
+ * -20% = significant loss scenario (floor)
+ * +50% = exceptional return scenario (ceiling, above is capped)
+ * Example: +15% return maps to 50/100; +35% maps to 78/100.
+ */
+const RETURN_NORMALIZE_MIN = -20;
+const RETURN_NORMALIZE_MAX = 50;
+
+/**
+ * Sortino Ratio normalization bounds.
+ * Similar to Sharpe but uses downside deviation only.
+ * -1 = high downside risk relative to return (floor)
+ *  4 = very low downside risk relative to return (ceiling)
+ * Example: Sortino of 1.5 maps to 50/100; Sortino of 3.0 maps to 80/100.
+ */
+const SORTINO_NORMALIZE_MIN = -1;
+const SORTINO_NORMALIZE_MAX = 4;
+
+/**
+ * Win Rate % normalization bounds.
+ * Maps win rate percentage to 0-100 scale.
+ * 30% = poor win rate (floor — below this is capped at 0)
+ * 80% = excellent win rate (ceiling — above this is capped at 100)
+ * Example: 55% win rate maps to 50/100; 67.5% win rate maps to 75/100.
+ */
+const WIN_RATE_NORMALIZE_MIN = 30;
+const WIN_RATE_NORMALIZE_MAX = 80;
+
+/**
+ * Max Drawdown % normalization bounds (inverted — lower drawdown = better score).
+ * 0% = no drawdown at all (best possible, maps to 100/100)
+ * 30% = severe drawdown (floor for normalization, maps to 0/100)
+ * Example: 15% drawdown maps to 50/100 drawdown score; 0% drawdown = 100/100.
+ */
+const DRAWDOWN_NORMALIZE_MIN = 0;
+const DRAWDOWN_NORMALIZE_MAX = 30;
+
+// ---------------------------------------------------------------------------
+// Tier Classification Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Composite score thresholds for S/A/B/C/D tier classification.
+ * Composite score is a weighted blend of Sharpe (35%), return (25%),
+ * Sortino (20%), win rate (10%), and drawdown penalty (10%).
+ *
+ * Tier S: score ≥ 80 — exceptional risk-adjusted performance
+ * Tier A: score ≥ 60 — strong risk-adjusted performance
+ * Tier B: score ≥ 40 — adequate risk-adjusted performance
+ * Tier C: score ≥ 20 — below-average risk-adjusted performance
+ * Tier D: score  < 20 — poor risk-adjusted performance
+ */
+const TIER_S_THRESHOLD = 80;
+const TIER_A_THRESHOLD = 60;
+const TIER_B_THRESHOLD = 40;
+const TIER_C_THRESHOLD = 20;
+
+// ---------------------------------------------------------------------------
+// Display Limits
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of most recent trades to include in agent detail API responses.
+ * 50 trades provides enough history for pattern recognition without excessive payload.
+ * Uses negative slice index: series.trades.slice(-RECENT_TRADES_DISPLAY_LIMIT)
+ */
+const RECENT_TRADES_DISPLAY_LIMIT = 50;
 let cachedLeaderboard: RiskAdjustedLeaderboard | null = null;
 let lastComputedAt = 0;
 
@@ -427,14 +511,14 @@ function calculateScoreBreakdown(
   totalReturnPercent: number,
 ): RiskAdjustedEntry["scoreBreakdown"] {
   // Normalize each metric to 0-100 scale, then weight
-  const normalizedSharpe = normalizeMetric(metrics.sharpeRatio, -1, 3, false);
-  const normalizedReturn = normalizeMetric(totalReturnPercent, -20, 50, false);
-  const normalizedSortino = normalizeMetric(metrics.sortinoRatio, -1, 4, false);
-  const normalizedWinRate = normalizeMetric(metrics.winRate, 30, 80, false);
+  const normalizedSharpe = normalizeMetric(metrics.sharpeRatio, SHARPE_NORMALIZE_MIN, SHARPE_NORMALIZE_MAX, false);
+  const normalizedReturn = normalizeMetric(totalReturnPercent, RETURN_NORMALIZE_MIN, RETURN_NORMALIZE_MAX, false);
+  const normalizedSortino = normalizeMetric(metrics.sortinoRatio, SORTINO_NORMALIZE_MIN, SORTINO_NORMALIZE_MAX, false);
+  const normalizedWinRate = normalizeMetric(metrics.winRate, WIN_RATE_NORMALIZE_MIN, WIN_RATE_NORMALIZE_MAX, false);
   const normalizedDrawdown = normalizeMetric(
     metrics.maxDrawdownPercent,
-    0,
-    30,
+    DRAWDOWN_NORMALIZE_MIN,
+    DRAWDOWN_NORMALIZE_MAX,
     true,
   );
 
@@ -476,10 +560,10 @@ function normalizeMetric(
 function assignTier(
   compositeScore: number,
 ): "S" | "A" | "B" | "C" | "D" {
-  if (compositeScore >= 80) return "S";
-  if (compositeScore >= 60) return "A";
-  if (compositeScore >= 40) return "B";
-  if (compositeScore >= 20) return "C";
+  if (compositeScore >= TIER_S_THRESHOLD) return "S";
+  if (compositeScore >= TIER_A_THRESHOLD) return "A";
+  if (compositeScore >= TIER_B_THRESHOLD) return "B";
+  if (compositeScore >= TIER_C_THRESHOLD) return "C";
   return "D";
 }
 
@@ -649,7 +733,7 @@ export function getAgentRiskDetail(agentId: string): {
   return {
     entry,
     equityCurve: series?.dailyReturns ?? [],
-    recentTrades: series?.trades.slice(-50) ?? [],
+    recentTrades: series?.trades.slice(-RECENT_TRADES_DISPLAY_LIMIT) ?? [],
     benchmarkComparison: {
       agentReturn,
       benchmarkReturn: benchReturn,
