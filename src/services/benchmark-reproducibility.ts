@@ -158,6 +158,27 @@ const MIN_SAMPLE_SIZE_FOR_TEST = 2;
  */
 const MIN_SAMPLE_SIZE_FOR_STABILITY = 3;
 
+/**
+ * Reproducibility Proof Hash Truncation Length
+ *
+ * Number of hex characters to keep from the full SHA-256 digest when
+ * constructing input/output hashes for reproducibility proofs.
+ *
+ * 16 hex characters = 64 bits of entropy → ~1.8 × 10^19 unique proof IDs.
+ * This is sufficient for collision-free identification while keeping IDs
+ * compact enough to embed in API responses, URLs, and log messages.
+ *
+ * Rationale for 16 (not shorter):
+ * - 8 chars (32 bits) → birthday collision at ~65K proofs (too risky)
+ * - 16 chars (64 bits) → birthday collision at ~4 billion proofs (safe)
+ * - 32 chars (128 bits) → unnecessarily long for human-readable IDs
+ *
+ * To increase entropy (e.g. for archival/academic datasets), change to 20
+ * or 32. Both inputHash and outputHash in reproduceProof() + verifyProof()
+ * must use the same length for proof verification to succeed.
+ */
+const HASH_TRUNCATION_LENGTH = 16;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -752,14 +773,14 @@ export function generateReproducibilityProof(agentId: string): ReproducibilityPr
   const inputHash = createHash("sha256")
     .update(JSON.stringify(inputData))
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, HASH_TRUNCATION_LENGTH);
 
   // Hash the output scores
   const outputData = agentScores.map((s) => s.composite);
   const outputHash = createHash("sha256")
     .update(JSON.stringify(outputData))
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, HASH_TRUNCATION_LENGTH);
 
   const roundIds = [...new Set(agentScores.map((s) => s.roundId))];
   const timestamps = agentScores.map((s) => s.timestamp).sort();
@@ -814,7 +835,7 @@ export function verifyProof(agentId: string, inputHash: string): {
   const recomputedHash = createHash("sha256")
     .update(JSON.stringify(inputData))
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, HASH_TRUNCATION_LENGTH);
 
   const verified = recomputedHash === inputHash;
 
