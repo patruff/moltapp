@@ -44,6 +44,20 @@ const MIN_SOL_FOR_FEES = 10_000_000n; // 0.01 SOL in lamports
  */
 const MAX_SLIPPAGE_PERCENT = 5;
 
+/**
+ * Slippage Percent to Basis Points Conversion Multiplier
+ *
+ * Converts a slippage percentage (e.g. 1.23%) to basis points (123 bps).
+ * Formula: Math.round(slippagePercent * SLIPPAGE_PERCENT_TO_BPS) = bps
+ *
+ * Used when recording actualSlippageBps in trade records for both buy and
+ * sell executions. Basis points are the industry-standard unit for expressing
+ * small price movements (1 bps = 0.01%).
+ *
+ * Example: 0.75% slippage × 100 = 75 bps
+ */
+const SLIPPAGE_PERCENT_TO_BPS = 100;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -401,7 +415,7 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
         outputAmountResult: result.outputAmountResult,
         // Actual execution quality metrics (from checkSlippage)
         actualSlippagePercent: slippage.slippagePercent,
-        actualSlippageBps: Math.round(slippage.slippagePercent * 100),
+        actualSlippageBps: Math.round(slippage.slippagePercent * SLIPPAGE_PERCENT_TO_BPS),
         referencePrice: slippage.refPrice,
         executionPrice: slippage.execPrice,
       },
@@ -587,7 +601,7 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
         outputAmountResult: result.outputAmountResult,
         // Actual execution quality metrics (from checkSlippage)
         actualSlippagePercent: slippage.slippagePercent,
-        actualSlippageBps: Math.round(slippage.slippagePercent * 100),
+        actualSlippageBps: Math.round(slippage.slippagePercent * SLIPPAGE_PERCENT_TO_BPS),
         referencePrice: slippage.refPrice,
         executionPrice: slippage.execPrice,
       },
