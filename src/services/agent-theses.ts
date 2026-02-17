@@ -24,6 +24,17 @@ export interface ThesisInput {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default number of thesis records returned by getThesisHistory.
+ * Covers a typical agent's recent thesis activity without overloading API responses.
+ * Callers can pass a higher limit for full history exports.
+ */
+const THESIS_HISTORY_DEFAULT_LIMIT = 20;
+
+// ---------------------------------------------------------------------------
 // CRUD Operations
 // ---------------------------------------------------------------------------
 
@@ -120,7 +131,7 @@ export async function closeThesis(
 /**
  * Get thesis history (all statuses) for an agent.
  */
-export async function getThesisHistory(agentId: string, limit = 20) {
+export async function getThesisHistory(agentId: string, limit = THESIS_HISTORY_DEFAULT_LIMIT) {
   return db
     .select()
     .from(agentTheses)

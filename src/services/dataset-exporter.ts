@@ -96,6 +96,32 @@ export interface DatasetStatistics {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of evaluation rows to include in a dataset export by default.
+ * At ~200 bytes per row, 10,000 rows ≈ 2MB JSONL — manageable for HuggingFace uploads.
+ * Callers can pass a lower limit for faster exports or testing.
+ */
+const DATASET_DEFAULT_LIMIT = 10000;
+
+/**
+ * Number of leaderboard entries to display in the HuggingFace dataset card README.
+ * Shows the top agents without making the dataset card overly long.
+ * The full leaderboard is always accessible via the API.
+ */
+const DATASET_CARD_LEADERBOARD_LIMIT = 10;
+
+/**
+ * Multiplier for 2-decimal rounding in dataset statistics.
+ * Formula: Math.round(value * STATS_ROUNDING_MULTIPLIER) / STATS_ROUNDING_MULTIPLIER
+ * Example: 0.87654 → Math.round(87.654) / 100 = 0.88
+ * Used for avgCoherence, avgHallucinationRate, and avgComposite display.
+ */
+const STATS_ROUNDING_MULTIPLIER = 100;
+
+// ---------------------------------------------------------------------------
 // Dataset Generation
 // ---------------------------------------------------------------------------
 
@@ -109,7 +135,7 @@ export function generateDataset(options?: {
 }): DatasetRow[] {
   const evaluations = getEvaluations({
     agentId: options?.agentId,
-    limit: options?.limit ?? 10000,
+    limit: options?.limit ?? DATASET_DEFAULT_LIMIT,
   });
 
   const methodology = getCurrentMethodology();
@@ -233,9 +259,9 @@ export function calculateStatistics(rows?: DatasetRow[]): DatasetStatistics {
     dateRange: { from: timestamps[0], to: timestamps[timestamps.length - 1] },
     actionDistribution: actionDist,
     intentDistribution: intentDist,
-    avgCoherence: Math.round(data.reduce((s, r) => s + r.coherenceScore, 0) / data.length * 100) / 100,
-    avgHallucinationRate: Math.round(countByCondition(data, (r) => r.hallucinationCount > 0) / data.length * 100) / 100,
-    avgComposite: Math.round(data.reduce((s, r) => s + r.compositeScore, 0) / data.length * 100) / 100,
+    avgCoherence: Math.round(data.reduce((s, r) => s + r.coherenceScore, 0) / data.length * STATS_ROUNDING_MULTIPLIER) / STATS_ROUNDING_MULTIPLIER,
+    avgHallucinationRate: Math.round(countByCondition(data, (r) => r.hallucinationCount > 0) / data.length * STATS_ROUNDING_MULTIPLIER) / STATS_ROUNDING_MULTIPLIER,
+    avgComposite: Math.round(data.reduce((s, r) => s + r.compositeScore, 0) / data.length * STATS_ROUNDING_MULTIPLIER) / STATS_ROUNDING_MULTIPLIER,
     gradeDistribution: gradeDist,
     avgReasoningWordCount: Math.round(data.reduce((s, r) => s + r.reasoningWordCount, 0) / data.length),
   };
@@ -247,7 +273,7 @@ export function calculateStatistics(rows?: DatasetRow[]): DatasetStatistics {
 export function generateDatasetCard(): string {
   const stats = calculateStatistics();
   const methodology = getCurrentMethodology();
-  const leaderboard = getLeaderboard({ limit: 10 });
+  const leaderboard = getLeaderboard({ limit: DATASET_CARD_LEADERBOARD_LIMIT });
 
   const leaderboardTable = leaderboard.entries.length > 0
     ? leaderboard.entries.map((e) =>
