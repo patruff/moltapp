@@ -288,6 +288,23 @@ const SIGNAL_STRONG_THRESHOLD = 70;
  */
 
 /**
+ * ISO timestamp prefix length for grouping data by hour.
+ * ISO 8601 format: "2024-01-15T14:30:00.000Z"
+ * First 13 characters: "2024-01-15T14" (year + month + day + hour)
+ * Used to deduplicate snapshots to one per hour in historical signal queries.
+ * @example "2024-01-15T14:30:00.000Z".slice(0, 13) → "2024-01-15T14"
+ */
+const ISO_TIMESTAMP_HOUR_PREFIX_LENGTH = 13;
+
+/**
+ * Maximum characters of reasoning text to include in signal alert descriptions.
+ * Truncates agent reasoning to keep alert descriptions concise.
+ * Followed by "..." suffix to indicate truncation.
+ * @example "Agent reasoning: Buy AAPL because..." truncated at 100 chars
+ */
+const SIGNAL_REASONING_TRUNCATION_LENGTH = 100;
+
+/**
  * Maximum opportunities/risks to display in market dashboard.
  * @constant {number} TOP_OPPORTUNITIES_LIMIT - Top 5 bullish/bearish signals
  * @example API returns 5 strongest buy signals, 5 strongest sell signals
@@ -701,7 +718,7 @@ async function getPriceHistory(
     > | null;
     if (!snapshot) continue;
 
-    const dateKey = d.createdAt.toISOString().slice(0, 13); // group by hour
+    const dateKey = d.createdAt.toISOString().slice(0, ISO_TIMESTAMP_HOUR_PREFIX_LENGTH); // group by hour
     if (seen.has(dateKey)) continue;
     seen.add(dateKey);
 
@@ -1437,7 +1454,7 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
         indicator: `${config?.name ?? d.agentId} High-Confidence`,
         value: d.confidence,
         threshold: 85,
-        description: `${config?.name ?? d.agentId} made a ${d.confidence}% confidence ${d.action.toUpperCase()} on ${d.symbol}: "${d.reasoning.slice(0, 100)}..."`,
+        description: `${config?.name ?? d.agentId} made a ${d.confidence}% confidence ${d.action.toUpperCase()} on ${d.symbol}: "${d.reasoning.slice(0, SIGNAL_REASONING_TRUNCATION_LENGTH)}..."`,
         timeframe: "1h",
         generatedAt: d.createdAt.toISOString(),
         expiresAt: expiry.toISOString(),
