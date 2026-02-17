@@ -121,6 +121,23 @@ const REGRET_SCORE_MAX = 10;
  */
 const REGRET_SCORE_MIN = 0;
 
+/**
+ * Maximum number of top movers to include in the fresh-start scenario prompt.
+ * Controls how many stocks (sorted by absolute 24h change) are highlighted.
+ * @default 10 - Shows the 10 most volatile stocks for allocation consideration
+ * Example: 30 stocks available → show top 10 movers + all 30 in compact table
+ */
+const TOP_MOVERS_DISPLAY_LIMIT = 10;
+
+/**
+ * Maximum characters of strategy description to show in console log output.
+ * Truncates the agent's strategy field for compact log lines.
+ * @default 60 - Fits one line without wrapping; shows intent without full verbosity
+ * Example: "Diversify across tech and healthcare, avoid high-P/E stocks for now..."
+ *           → "Diversify across tech and healthcare, avoid high-P/E stocks for"...
+ */
+const STRATEGY_DESCRIPTION_LOG_LENGTH = 60;
+
 // ---------------------------------------------------------------------------
 // In-Memory Storage
 // ---------------------------------------------------------------------------
@@ -242,7 +259,7 @@ function buildFreshStartPrompt(marketData: MarketData[]): string {
     return bChange - aChange;
   });
 
-  const topMovers = sorted.slice(0, 10);
+  const topMovers = sorted.slice(0, TOP_MOVERS_DISPLAY_LIMIT);
   const moverLines = topMovers.map(
     (m) =>
       `  ${m.symbol}: $${m.price.toFixed(2)} (${(m.change24h ?? 0) >= 0 ? "+" : ""}${(m.change24h ?? 0).toFixed(1)}%)`,
@@ -480,7 +497,7 @@ export async function runPortfolioMusings(
 
       console.log(
         `[Musings] ${config.name}: regret ${regrets.regretScore}/10, ` +
-          `ideal portfolio: ${allocations.length} stocks, strategy: ${strategy.slice(0, 60)}...`,
+          `ideal portfolio: ${allocations.length} stocks, strategy: ${strategy.slice(0, STRATEGY_DESCRIPTION_LOG_LENGTH)}...`,
       );
     } catch (err) {
       console.error(
