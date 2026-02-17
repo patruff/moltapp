@@ -26,6 +26,53 @@ import { eq, sql } from "drizzle-orm";
 import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Display Formatting Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of hex characters used to display the seed hash.
+ *
+ * The simpleHash() function produces a 32-bit integer converted to hex.
+ * padStart(16, "0") left-pads to exactly 16 hex chars (64-bit display width),
+ * matching the visual width of a real SHA-256 hash prefix.
+ *
+ * Example: hash 0x1a2b3c → "000000001a2b3c00" (16 chars wide)
+ */
+const HASH_HEX_DISPLAY_LENGTH = 16;
+
+/**
+ * Number of trailing base-36 characters taken from Date.now() for API key uniqueness.
+ *
+ * Date.now() in base-36 is ~8 chars. Taking the last 6 chars gives enough
+ * entropy for seed key uniqueness within a single deployment run.
+ *
+ * Example: Date.now() = "lf3p2q" → suffix = "3p2q" (last 6 chars)
+ */
+const TIMESTAMP_SUFFIX_LENGTH = 6;
+
+/**
+ * Number of characters shown as the API key prefix stored in the database.
+ *
+ * The prefix (e.g., "mk_claude-tr") is stored alongside the key hash so
+ * operators can identify which key is which without exposing the full key.
+ *
+ * Format: mk_{agentId}_seed_{timestamp} → first 12 chars as prefix
+ * Example: "mk_claude-trader_seed_a1b2c3" → prefix = "mk_claude-tr"
+ */
+const API_KEY_PREFIX_LENGTH = 12;
+
+/**
+ * Number of characters shown when displaying wallet addresses or key hashes in logs.
+ *
+ * Showing the first 8 characters of a base-58 wallet address or hex hash
+ * provides enough context to identify a specific record in logs without
+ * exposing the full sensitive value.
+ *
+ * Example: "7xK9mD3qAbCdEfGh..." → shows "7xK9mD3q" (8 chars + "...")
+ */
+const ADDRESS_DISPLAY_LENGTH = 8;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -150,11 +197,11 @@ function simpleHash(input: string): string {
     const char = input.charCodeAt(i);
     hash = ((hash << 5) - hash + char) | 0;
   }
-  return Math.abs(hash).toString(16).padStart(16, "0");
+  return Math.abs(hash).toString(16).padStart(HASH_HEX_DISPLAY_LENGTH, "0");
 }
 
 function generateApiKey(agentId: string): string {
-  return `mk_${agentId}_seed_${Date.now().toString(36).slice(-6)}`;
+  return `mk_${agentId}_seed_${Date.now().toString(36).slice(-TIMESTAMP_SUFFIX_LENGTH)}`;
 }
 
 function getApiKeySeeds(): ApiKeySeedData[] {
@@ -163,7 +210,7 @@ function getApiKeySeeds(): ApiKeySeedData[] {
     return {
       agentId: agent.id,
       keyHash: simpleHash(fullKey),
-      keyPrefix: fullKey.slice(0, 12),
+      keyPrefix: fullKey.slice(0, API_KEY_PREFIX_LENGTH),
     };
   });
 }
@@ -268,7 +315,7 @@ async function seedWallets(records: SeedRecord[]): Promise<void> {
         table: "wallets",
         id: wallet.agentId,
         action: "created",
-        message: `Created wallet for ${wallet.agentId} (${wallet.publicKey.slice(0, 8)}...)`,
+        message: `Created wallet for ${wallet.agentId} (${wallet.publicKey.slice(0, ADDRESS_DISPLAY_LENGTH)}...)`,
       });
     } catch (err) {
       const errMsg = errorMessage(err);
@@ -516,12 +563,12 @@ export function getSeedData() {
     agents: AGENT_SEEDS,
     wallets: getWalletSeeds().map((w) => ({
       ...w,
-      publicKey: w.publicKey.slice(0, 8) + "...",
+      publicKey: w.publicKey.slice(0, ADDRESS_DISPLAY_LENGTH) + "...",
     })),
     apiKeys: getApiKeySeeds().map((k) => ({
       agentId: k.agentId,
       keyPrefix: k.keyPrefix,
-      keyHash: k.keyHash.slice(0, 8) + "...",
+      keyHash: k.keyHash.slice(0, ADDRESS_DISPLAY_LENGTH) + "...",
     })),
   };
 }
