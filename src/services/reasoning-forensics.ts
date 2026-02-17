@@ -523,10 +523,10 @@ export function identifyFailureModes(agentId: string): FailureModeReport {
 
   for (const f of failures) {
     // Reasoning gap: low coherence + short reasoning (agent didn't explain itself)
-    if (f.coherenceScore < FAILURE_COHERENCE_THRESHOLD && f.reasoning.length < 100) {
+    if (f.coherenceScore < FAILURE_COHERENCE_THRESHOLD && f.reasoning.length < REASONING_GAP_LENGTH_THRESHOLD) {
       const bucket = modeBuckets.get("reasoning_gap")!;
       bucket.count++;
-      if (bucket.examples.length < 3) {
+      if (bucket.examples.length < FAILURE_MODE_EXAMPLES_LIMIT) {
         bucket.examples.push(truncate(f.reasoning, 80));
       }
     }
@@ -535,16 +535,16 @@ export function identifyFailureModes(agentId: string): FailureModeReport {
     if (f.hallucinationFlags.length > 0) {
       const bucket = modeBuckets.get("data_hallucination")!;
       bucket.count++;
-      if (bucket.examples.length < 3) {
+      if (bucket.examples.length < FAILURE_MODE_EXAMPLES_LIMIT) {
         bucket.examples.push(f.hallucinationFlags[0]);
       }
     }
 
     // Overconfidence: high confidence on a low-coherence trade
-    if (f.confidence > 0.75 && f.coherenceScore < FAILURE_COHERENCE_THRESHOLD) {
+    if (f.confidence > OVERCONFIDENCE_THRESHOLD && f.coherenceScore < FAILURE_COHERENCE_THRESHOLD) {
       const bucket = modeBuckets.get("overconfidence")!;
       bucket.count++;
-      if (bucket.examples.length < 3) {
+      if (bucket.examples.length < FAILURE_MODE_EXAMPLES_LIMIT) {
         bucket.examples.push(
           `Confidence ${(f.confidence * 100).toFixed(0)}% but coherence ${(f.coherenceScore * 100).toFixed(0)}%`,
         );
@@ -555,7 +555,7 @@ export function identifyFailureModes(agentId: string): FailureModeReport {
     if (isIntentActionMismatch(f.intent, f.action)) {
       const bucket = modeBuckets.get("strategy_mismatch")!;
       bucket.count++;
-      if (bucket.examples.length < 3) {
+      if (bucket.examples.length < FAILURE_MODE_EXAMPLES_LIMIT) {
         bucket.examples.push(`Intent "${f.intent}" but action "${f.action}"`);
       }
     }
@@ -564,7 +564,7 @@ export function identifyFailureModes(agentId: string): FailureModeReport {
     if (f.disciplineViolations.length > 0) {
       const bucket = modeBuckets.get("rule_violation")!;
       bucket.count++;
-      if (bucket.examples.length < 3) {
+      if (bucket.examples.length < FAILURE_MODE_EXAMPLES_LIMIT) {
         bucket.examples.push(f.disciplineViolations[0]);
       }
     }
@@ -587,7 +587,7 @@ export function identifyFailureModes(agentId: string): FailureModeReport {
   }
   const commonHallucinationTypes = [...hallucinationTypeCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, HALLUCINATION_TYPES_LIMIT)
     .map(([type]) => type);
 
   // Averages on failing trades
