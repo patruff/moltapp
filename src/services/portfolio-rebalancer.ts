@@ -126,6 +126,24 @@ const STOCK_VOLATILITY_DEFAULT = 2.0;
 const TRANSACTION_COST_RATE = 0.003;
 
 /**
+ * Kelly Criterion Safety Factor
+ *
+ * Industry standard: use half-Kelly (0.5) for conservative position sizing.
+ * Full Kelly criterion maximizes long-term growth but can be too aggressive —
+ * it assumes perfect knowledge of win probability and edge, which is never exact.
+ * Half-Kelly reduces variance and drawdown risk while still capturing most
+ * of the long-run growth benefit.
+ *
+ * Formula: optimal_position = fullKelly × KELLY_SAFETY_FACTOR
+ *
+ * Example: fullKelly = 0.20 (20% of portfolio) → actual position = 0.20 × 0.5 = 10%
+ *
+ * References: Edward Thorp, "The Kelly Criterion in Blackjack, Sports Betting, and
+ * the Stock Market" — half-Kelly is the standard conservative implementation.
+ */
+const KELLY_SAFETY_FACTOR = 0.5;
+
+/**
  * Rebalancing Decision Thresholds
  */
 
@@ -519,7 +537,7 @@ function kellyOptimize(
     const kelly = winProb / avgLoss - lossProb / avgWin;
 
     // Use half-Kelly for safety (common practice)
-    return Math.max(0, kelly * 0.5);
+    return Math.max(0, kelly * KELLY_SAFETY_FACTOR);
   });
 
   return normalizeWeights(kellyWeights, config);
