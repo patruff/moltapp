@@ -31,6 +31,100 @@ import {
 } from "../services/wallet-policy.ts";
 
 // ---------------------------------------------------------------------------
+// News & Search Tool Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of news articles or search results returned per query.
+ *
+ * Controls response verbosity: 10 results gives agents sufficient coverage
+ * without overwhelming the context window (~800-2000 tokens per batch).
+ * Applies to both Alpha Vantage news feed (filtered results) and Brave web
+ * search results.
+ *
+ * Also used as the Alpha Vantage API `limit` query parameter.
+ */
+const SEARCH_NEWS_RESULTS_LIMIT = 10;
+
+/**
+ * Maximum character length for article/result description snippets.
+ *
+ * Truncates description text at 400 characters to balance information density
+ * with token efficiency. 400 characters typically captures the lede paragraph
+ * (who/what/when/where) without including full article body.
+ *
+ * Applied to Alpha Vantage article summaries and Brave search descriptions.
+ */
+const NEWS_DESCRIPTION_MAX_CHARS = 400;
+
+/**
+ * HTTP fetch timeout for Alpha Vantage news sentiment API calls (milliseconds).
+ *
+ * 10 seconds allows for typical AV API latency (200-2000ms) while preventing
+ * indefinite hangs on slow/congested requests.
+ */
+const AV_NEWS_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * HTTP fetch timeout for Brave web search API calls (milliseconds).
+ *
+ * 10 seconds matches AV timeout for consistent news tool latency profile.
+ * Brave typically responds in 300-1500ms; 10s handles congested requests.
+ */
+const BRAVE_SEARCH_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * HTTP fetch timeout for Jupiter Ultra Order API quote requests (milliseconds).
+ *
+ * 15 seconds is longer than news timeouts because Jupiter quotes involve
+ * on-chain route computation across multiple DEX pools.  Jupiter typically
+ * responds in 500-3000ms; 15s tolerates occasional routing delays.
+ */
+const JUPITER_QUOTE_TIMEOUT_MS = 15_000;
+
+// ---------------------------------------------------------------------------
+// Token Decimal Conversion Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw units per USDC token (6 decimal places: 1 USDC = 1,000,000 raw units).
+ *
+ * Used to convert between human-readable USDC amounts and Jupiter API raw
+ * lamport-equivalent integers for USDC (SPL token with 6 decimals).
+ *
+ * Formula: rawUnits = usdcAmount × USDC_RAW_UNITS_PER_USDC
+ * Example: $50.00 USDC = 50 × 1,000,000 = 50,000,000 raw units
+ */
+const USDC_RAW_UNITS_PER_USDC = 1_000_000;
+
+/**
+ * Raw units per xStock token (8 decimal places: 1 share = 100,000,000 raw units).
+ *
+ * xStock tokens (tokenized equities via Backed Finance) use 8 decimal places,
+ * matching the Bitcoin/Solana ecosystem convention for precision-critical assets.
+ *
+ * Formula: rawUnits = shareAmount × XSTOCK_RAW_UNITS_PER_TOKEN
+ * Example: 0.5 shares = 0.5 × 100,000,000 = 50,000,000 raw units
+ */
+const XSTOCK_RAW_UNITS_PER_TOKEN = 100_000_000;
+
+/**
+ * Display decimal places for USDC amounts in trade execution strings.
+ *
+ * USDC has 6 decimal places (matching raw precision). Used with .toFixed() to
+ * produce string amounts passed to executeBuy() — e.g., "50.000000" USDC.
+ */
+const USDC_DISPLAY_DECIMALS = 6;
+
+/**
+ * Display decimal places for xStock quantities in trade execution strings.
+ *
+ * xStock tokens have 8 decimal places. Used with .toFixed() in executeSell()
+ * to produce precise share count strings — e.g., "0.50000000" shares.
+ */
+const XSTOCK_DISPLAY_DECIMALS = 8;
+
+// ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
 // ---------------------------------------------------------------------------
 
@@ -713,13 +807,13 @@ async function executeSearchNewsAlphaVantage(
     const url = new URL("https://www.alphavantage.co/query");
     url.searchParams.set("function", "NEWS_SENTIMENT");
     url.searchParams.set("tickers", ticker);
-    url.searchParams.set("limit", "10");
+    url.searchParams.set("limit", String(SEARCH_NEWS_RESULTS_LIMIT));
     url.searchParams.set("apikey", apiKey);
 
     // Map freshness to time_from/time_to if needed
     // Alpha Vantage doesn't have direct freshness param, so we'll filter client-side
     const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(AV_NEWS_FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -769,9 +863,9 @@ async function executeSearchNewsAlphaVantage(
       }
     });
 
-    const results = filteredFeed.slice(0, 10).map((article) => ({
+    const results = filteredFeed.slice(0, SEARCH_NEWS_RESULTS_LIMIT).map((article) => ({
       title: article.title ?? "",
-      description: (article.summary ?? "").slice(0, 400),
+      description: (article.summary ?? "").slice(0, NEWS_DESCRIPTION_MAX_CHARS),
       url: article.url ?? "",
       source: article.source ?? "Alpha Vantage",
       sentiment_score: article.overall_sentiment_score ?? 0,
@@ -837,7 +931,7 @@ async function executeSearchNewsBrave(
         "X-Subscription-Token": apiKey,
         Accept: "application/json",
       },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(BRAVE_SEARCH_FETCH_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -851,9 +945,9 @@ async function executeSearchNewsBrave(
     const rawResults = data.web?.results ?? [];
 
     // Format results with age context
-    const results = rawResults.slice(0, 10).map((r) => ({
+    const results = rawResults.slice(0, SEARCH_NEWS_RESULTS_LIMIT).map((r) => ({
       title: r.title ?? "",
-      description: (r.description ?? "").slice(0, 400),
+      description: (r.description ?? "").slice(0, NEWS_DESCRIPTION_MAX_CHARS),
       url: r.url ?? "",
       age: r.age ?? r.page_age ?? "unknown",
     }));
@@ -967,13 +1061,13 @@ async function executeGetExecutionQuote(
       inputMint = USDC_MINT_MAINNET;
       outputMint = stock.mintAddress;
       // USDC has 6 decimals
-      amountRaw = Math.floor(args.amount * 1_000_000).toString();
+      amountRaw = Math.floor(args.amount * USDC_RAW_UNITS_PER_USDC).toString();
     } else {
       // Selling stock: Stock -> USDC
       inputMint = stock.mintAddress;
       outputMint = USDC_MINT_MAINNET;
       // Stock has 8 decimals (per catalog)
-      amountRaw = Math.floor(args.amount * 100_000_000).toString();
+      amountRaw = Math.floor(args.amount * XSTOCK_RAW_UNITS_PER_TOKEN).toString();
     }
 
     // Use Jupiter Ultra Order API (same as actual trades)
@@ -991,7 +1085,7 @@ async function executeGetExecutionQuote(
         Accept: "application/json",
         "x-api-key": jupiterApiKey,
       },
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(JUPITER_QUOTE_TIMEOUT_MS),
     });
 
     if (!res.ok) {
@@ -1038,13 +1132,13 @@ async function executeGetExecutionQuote(
 
     if (args.side === "buy") {
       // Input is USDC (6 decimals), output is stock (8 decimals)
-      inputAmount = inAmountParsed / 1_000_000;
-      outputAmount = outAmountParsed / 100_000_000;
+      inputAmount = inAmountParsed / USDC_RAW_UNITS_PER_USDC;
+      outputAmount = outAmountParsed / XSTOCK_RAW_UNITS_PER_TOKEN;
       effectivePrice = inputAmount / outputAmount;
     } else {
       // Input is stock (8 decimals), output is USDC (6 decimals)
-      inputAmount = inAmountParsed / 100_000_000;
-      outputAmount = outAmountParsed / 1_000_000;
+      inputAmount = inAmountParsed / XSTOCK_RAW_UNITS_PER_TOKEN;
+      outputAmount = outAmountParsed / USDC_RAW_UNITS_PER_USDC;
       effectivePrice = outputAmount / inputAmount;
     }
 
@@ -1148,14 +1242,14 @@ async function executeExecuteTrade(
       result = await executeBuy({
         agentId: ctx.agentId,
         stockSymbol: stock.symbol,
-        usdcAmount: args.amount.toFixed(6),
+        usdcAmount: args.amount.toFixed(USDC_DISPLAY_DECIMALS),
       });
     } else {
       result = await executeSell({
         agentId: ctx.agentId,
         stockSymbol: stock.symbol,
         usdcAmount: "0",
-        stockQuantity: args.amount.toFixed(9),
+        stockQuantity: args.amount.toFixed(XSTOCK_DISPLAY_DECIMALS),
       });
     }
 
