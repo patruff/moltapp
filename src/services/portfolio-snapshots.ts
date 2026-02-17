@@ -131,6 +131,65 @@ function getBufferedSnapshots(agentId: string): PortfolioSnapshot[] {
 const INITIAL_CAPITAL = 10_000;
 
 /**
+ * Multiplier for converting decimal fractions to percentages.
+ *
+ * Used throughout portfolio calculations:
+ * - unrealizedPnlPercent: (price change / cost basis) × PERCENT_MULTIPLIER
+ * - totalPnlPercent: (total P&L / initial capital) × PERCENT_MULTIPLIER
+ * - portfolioWeight: (position value / total portfolio value) × PERCENT_MULTIPLIER
+ * - drawdownPercent: (peak - current / peak) × PERCENT_MULTIPLIER
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Maximum number of drawdown periods retained in the analyzeDrawdown result.
+ *
+ * Drawdown periods are sorted chronologically; only the most recent N periods
+ * are returned to keep API response payloads manageable.
+ */
+const DRAWDOWN_PERIODS_DISPLAY_LIMIT = 20;
+
+/**
+ * Milliseconds per day, used to compute recovery time in days.
+ *
+ * Formula: recoveryDays = (recoveryMs - troughMs) / MS_PER_DAY
+ */
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+/**
+ * Default number of snapshots fetched from the database by getAgentTimeline.
+ *
+ * Callers can override via options.limit. Higher values show more history
+ * but increase DB query time and response payload.
+ */
+const DEFAULT_TIMELINE_QUERY_LIMIT = 500;
+
+/**
+ * NYSE trading days per year, used for Sharpe ratio annualization.
+ *
+ * Standard finance convention: 252 trading days (365 calendar days minus
+ * ~104 weekend days and ~9 market holidays).
+ */
+const TRADING_DAYS_PER_YEAR = 252;
+
+/**
+ * Number of 30-minute trading rounds per day.
+ *
+ * MoltApp runs a round every 30 minutes, so there are 48 rounds per 24-hour day.
+ * Used to annualize Sharpe ratio from per-round returns:
+ *   annualizationFactor = √(TRADING_DAYS_PER_YEAR × ROUNDS_PER_DAY)
+ */
+const ROUNDS_PER_DAY = 48;
+
+/**
+ * Precision multiplier for 4-decimal rounding in return/volatility statistics.
+ *
+ * Formula: Math.round(value × RETURN_PRECISION_MULTIPLIER) / RETURN_PRECISION_MULTIPLIER
+ * Produces 4-decimal precision (e.g., 0.0023 for 0.23% return).
+ */
+const RETURN_PRECISION_MULTIPLIER = 10000;
+
+/**
  * Take a portfolio snapshot for a single agent.
  *
  * Reads the agent's current positions, calculates total value using
@@ -175,7 +234,7 @@ export async function takeSnapshot(
     const marketValue = qty * currentPrice;
     const unrealizedPnl = (currentPrice - costBasis) * qty;
     const unrealizedPnlPercent =
-      costBasis > 0 ? ((currentPrice - costBasis) / costBasis) * 100 : 0;
+      costBasis > 0 ? ((currentPrice - costBasis) / costBasis) * PERCENT_MULTIPLIER : 0;
 
     positionsValue += marketValue;
 
@@ -196,11 +255,11 @@ export async function takeSnapshot(
   const totalValue = cashBalance + positionsValue;
   const totalPnl = totalValue - INITIAL_CAPITAL;
   const totalPnlPercent =
-    INITIAL_CAPITAL > 0 ? (totalPnl / INITIAL_CAPITAL) * 100 : 0;
+    INITIAL_CAPITAL > 0 ? (totalPnl / INITIAL_CAPITAL) * PERCENT_MULTIPLIER : 0;
 
   // 5. Set portfolio weights
   for (const ps of positionSnapshots) {
-    ps.portfolioWeight = totalValue > 0 ? (ps.marketValue / totalValue) * 100 : 0;
+    ps.portfolioWeight = totalValue > 0 ? (ps.marketValue / totalValue) * PERCENT_MULTIPLIER : 0;
   }
 
   // 6. Build snapshot object
@@ -302,7 +361,7 @@ export function buildEquityCurve(
       peakValue = snap.totalValue;
     }
     const drawdownPercent =
-      peakValue > 0 ? ((peakValue - snap.totalValue) / peakValue) * 100 : 0;
+      peakValue > 0 ? ((peakValue - snap.totalValue) / peakValue) * PERCENT_MULTIPLIER : 0;
 
     curve.push({
       timestamp: snap.createdAt,
@@ -365,7 +424,7 @@ export function analyzeDrawdown(curve: EquityCurvePoint[]): DrawdownAnalysis {
 
     const dd =
       peakValue > 0
-        ? ((peakValue - point.totalValue) / peakValue) * 100
+        ? ((peakValue - point.totalValue) / peakValue) * PERCENT_MULTIPLIER
         : 0;
 
     if (dd > 0 && currentPeriodStart === null) {
@@ -403,7 +462,7 @@ export function analyzeDrawdown(curve: EquityCurvePoint[]): DrawdownAnalysis {
     if (lastPeriod.recovered && lastPeriod.end) {
       const troughMs = new Date(lastPeriod.start).getTime();
       const recoveryMs = new Date(lastPeriod.end).getTime();
-      recoveryDays = Math.round((recoveryMs - troughMs) / (1000 * 60 * 60 * 24));
+      recoveryDays = Math.round((recoveryMs - troughMs) / MS_PER_DAY);
     }
   }
 
@@ -416,7 +475,7 @@ export function analyzeDrawdown(curve: EquityCurvePoint[]): DrawdownAnalysis {
     troughValue: round2(troughValue),
     troughDate,
     recoveryDays,
-    drawdownPeriods: drawdownPeriods.slice(-20), // Keep last 20 periods
+    drawdownPeriods: drawdownPeriods.slice(-DRAWDOWN_PERIODS_DISPLAY_LIMIT),
   };
 }
 
@@ -432,7 +491,7 @@ export async function getAgentTimeline(
   agentId: string,
   options?: { limit?: number; fromDate?: string; toDate?: string },
 ): Promise<AgentPerformanceTimeline> {
-  const limit = options?.limit ?? 500;
+  const limit = options?.limit ?? DEFAULT_TIMELINE_QUERY_LIMIT;
 
   // Try DB first, fall back to buffer
   let snapshots: PortfolioSnapshot[] = [];
@@ -524,7 +583,7 @@ function computeSummary(
   const endValue = snapshots[snapshots.length - 1].totalValue;
   const totalReturn = endValue - startValue;
   const totalReturnPercent =
-    startValue > 0 ? (totalReturn / startValue) * 100 : 0;
+    startValue > 0 ? (totalReturn / startValue) * PERCENT_MULTIPLIER : 0;
 
   // Compute daily returns (period-to-period)
   const returns: number[] = [];
@@ -534,7 +593,7 @@ function computeSummary(
     const prevValue = snapshots[i - 1].totalValue;
     if (prevValue > 0) {
       const periodReturn =
-        ((snapshots[i].totalValue - prevValue) / prevValue) * 100;
+        ((snapshots[i].totalValue - prevValue) / prevValue) * PERCENT_MULTIPLIER;
       returns.push(periodReturn);
       returnDates.push(snapshots[i].createdAt);
     }
@@ -567,8 +626,8 @@ function computeSummary(
   }
 
   // Annualized Sharpe ratio (assuming risk-free rate ≈ 0 for simplicity)
-  // Annualize: assuming ~2 snapshots/day with 30-min rounds
-  const annualizationFactor = Math.sqrt(252 * 48); // 48 half-hour periods per day
+  // Annualize: ROUNDS_PER_DAY 30-min periods per day × TRADING_DAYS_PER_YEAR trading days
+  const annualizationFactor = Math.sqrt(TRADING_DAYS_PER_YEAR * ROUNDS_PER_DAY);
   const sharpeRatio =
     volatility > 0
       ? round2((avgDailyReturn / volatility) * annualizationFactor)
@@ -581,8 +640,8 @@ function computeSummary(
     totalReturnPercent: round2(totalReturnPercent),
     bestDay,
     worstDay,
-    avgDailyReturn: Math.round(avgDailyReturn * 10000) / 10000,
-    volatility: Math.round(volatility * 10000) / 10000,
+    avgDailyReturn: Math.round(avgDailyReturn * RETURN_PRECISION_MULTIPLIER) / RETURN_PRECISION_MULTIPLIER,
+    volatility: Math.round(volatility * RETURN_PRECISION_MULTIPLIER) / RETURN_PRECISION_MULTIPLIER,
     sharpeRatio,
     roundsTracked: snapshots.length,
   };
