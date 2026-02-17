@@ -161,6 +161,45 @@ const STRUCTURAL_WEIGHT_PREDICTED_OUTCOME = 0.3;
 const STRUCTURAL_MIN_SCORE = 0.5;
 
 // ---------------------------------------------------------------------------
+// Composite Score Precision & Rejection Message Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Multiplier for rounding the composite quality score to 2 decimal places.
+ *
+ * Formula: Math.round(rawScore * COMPOSITE_SCORE_PRECISION_MULTIPLIER) / COMPOSITE_SCORE_PRECISION_DIVISOR
+ * Example: 0.7345 → Math.round(0.7345 * 100) / 100 = 0.73
+ *
+ * Produces 2-decimal precision (e.g., 0.73, 0.85) for consistent score display
+ * in rejection messages and quality gate statistics.
+ */
+const COMPOSITE_SCORE_PRECISION_MULTIPLIER = 100;
+
+/**
+ * Divisor for rounding the composite quality score to 2 decimal places.
+ *
+ * Used with COMPOSITE_SCORE_PRECISION_MULTIPLIER:
+ * Math.round(score * 100) / 100 = 2-decimal precision
+ *
+ * Must equal COMPOSITE_SCORE_PRECISION_MULTIPLIER so the ratio is 1.0,
+ * preserving the score value while eliminating floating-point noise beyond 2 decimals.
+ */
+const COMPOSITE_SCORE_PRECISION_DIVISOR = 100;
+
+/**
+ * Maximum characters of original reasoning to include in rejection log messages.
+ *
+ * When a trade is rejected by the quality gate, the rejection decision includes
+ * a truncated excerpt of the original reasoning for debugging. 200 characters
+ * captures enough context (~2-3 sentences) to understand why reasoning failed
+ * without making rejection messages excessively long in trade logs.
+ *
+ * Example: "because AAPL showed strong momentum at $185.20, up 2.3% today.
+ * The RSI indicates..." (truncated at 200 chars)
+ */
+const REJECTION_REASONING_PREVIEW_LENGTH = 200;
+
+// ---------------------------------------------------------------------------
 // Default Config
 // ---------------------------------------------------------------------------
 
@@ -289,8 +328,8 @@ export function checkReasoningQuality(
         coherence.score * COMPOSITE_WEIGHT_COHERENCE +
         hallucinationFreeScore * COMPOSITE_WEIGHT_HALLUCINATION_FREE +
         structuralScore * COMPOSITE_WEIGHT_STRUCTURAL) *
-        100,
-    ) / 100;
+        COMPOSITE_SCORE_PRECISION_MULTIPLIER,
+    ) / COMPOSITE_SCORE_PRECISION_DIVISOR;
 
   if (compositeScore < cfg.minCompositeScore) {
     rejectionReasons.push(
@@ -326,7 +365,7 @@ export function checkReasoningQuality(
       quantity: 0,
       reasoning: `[QUALITY GATE REJECTED] Original action: ${decision.action} ${decision.symbol}. ` +
         `Rejection reasons: ${rejectionReasons.join("; ")}. ` +
-        `Original reasoning: ${decision.reasoning.slice(0, 200)}`,
+        `Original reasoning: ${decision.reasoning.slice(0, REJECTION_REASONING_PREVIEW_LENGTH)}`,
       confidence: 0,
       timestamp: decision.timestamp,
       sources: decision.sources,
