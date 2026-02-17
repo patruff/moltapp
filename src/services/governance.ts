@@ -119,6 +119,26 @@ const SAMPLE_PROPOSAL_COUNT = 3;
 /** Number of agents that vote in sample proposals (3 agents = full participation example) */
 const SAMPLE_VOTE_AGENT_COUNT = 3;
 
+/**
+ * Percentage Calculation Constants
+ *
+ * Multipliers for converting decimal fractions to percentages in governance statistics.
+ */
+
+/**
+ * Percentage multiplier for converting fractions to percentages: 100.
+ *
+ * Formula: Math.round((fraction) * PERCENT_MULTIPLIER) = whole percentage
+ * Example: 0.75 × 100 = 75%
+ *
+ * Used for:
+ * - Proposer pass rate: passed / total × 100
+ * - Quorum success rate: proposalsWithQuorum / total × 100
+ * - Agent participation rate: votes / eligibleProposals × 100
+ * - Majority alignment rate: alignedVotes / totalVotes × 100
+ */
+const PERCENT_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -751,7 +771,7 @@ export function getGovernanceStats(): GovernanceStats {
   let mostSuccessfulProposer: GovernanceStats["mostSuccessfulProposer"] = null;
   for (const [agentId, data] of proposerStats) {
     const passRate =
-      data.total > 0 ? Math.round((data.passed / data.total) * 100) : 0;
+      data.total > 0 ? Math.round((data.passed / data.total) * PERCENT_MULTIPLIER) : 0;
     if (
       !mostSuccessfulProposer ||
       passRate > mostSuccessfulProposer.passRate
@@ -766,7 +786,7 @@ export function getGovernanceStats(): GovernanceStats {
   );
   const quorumSuccessRate =
     totalProposals > 0
-      ? Math.round((proposalsWithQuorum.length / totalProposals) * 100)
+      ? Math.round((proposalsWithQuorum.length / totalProposals) * PERCENT_MULTIPLIER)
       : 0;
 
   return {
@@ -821,7 +841,7 @@ export function getAgentGovernanceProfile(agentId: string) {
   ).length;
   const participationRate =
     eligibleProposals > 0
-      ? Math.round((agentVotes.length / eligibleProposals) * 100)
+      ? Math.round((agentVotes.length / eligibleProposals) * PERCENT_MULTIPLIER)
       : 0;
 
   return {
@@ -838,7 +858,7 @@ export function getAgentGovernanceProfile(agentId: string) {
     participationRate,
     majorityAlignment:
       agentVotes.length > 0
-        ? Math.round((alignedVotes / agentVotes.length) * 100)
+        ? Math.round((alignedVotes / agentVotes.length) * PERCENT_MULTIPLIER)
         : 0,
     recentActivity: agentVotes.slice(-5).map((v) => ({
       proposalId: proposals.find((p) =>
