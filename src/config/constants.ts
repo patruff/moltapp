@@ -154,6 +154,26 @@ export const TOP_ANALYSIS_ITEMS_LIMIT = 5;
  */
 export const TOP_THEMES_DISPLAY_LIMIT = 8;
 
+/**
+ * Maximum number of agent-intent combinations to display in strategy attribution
+ * analysis results.
+ *
+ * Controls how many top-performing agent+strategy pairings appear in the
+ * getTopAgentIntentCombinations() results, which rank agents by their average
+ * P&L per trading intent (e.g., "ValueBot + momentum = +2.3% avg").
+ *
+ * Set higher than TOP_ANALYSIS_ITEMS_LIMIT (10 vs 5) because combinations are:
+ * - Cross-dimensional (agent × intent matrix has many potential pairs)
+ * - More exhaustive (users benefit from seeing broader agent-strategy coverage)
+ * - Less redundant (each combination is a unique agent+intent pair)
+ *
+ * Example: 3 agents × 6 intents = 18 combinations → show top 10 by avg P&L
+ *
+ * Tuning: Increase to 15 for broader agent-strategy coverage, decrease to 5 to
+ * match TOP_ANALYSIS_ITEMS_LIMIT for consistency.
+ */
+export const TOP_AGENT_INTENT_COMBINATIONS_LIMIT = 10;
+
 /** Stock category for classification */
 export type StockCategory =
   | "Mega-Cap Tech"

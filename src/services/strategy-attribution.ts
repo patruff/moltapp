@@ -15,7 +15,7 @@
 
 import type { TradingIntent } from "../schemas/trade-reasoning.ts";
 import { getTopKey, round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
-import { TOP_ANALYSIS_ITEMS_LIMIT } from "../config/constants.ts";
+import { TOP_ANALYSIS_ITEMS_LIMIT, TOP_AGENT_INTENT_COMBINATIONS_LIMIT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -216,7 +216,7 @@ function computeIntentRankings(
     }
     const topSymbols = [...symbolCounts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
+      .slice(0, TOP_ANALYSIS_ITEMS_LIMIT)
       .map(([symbol, count]) => ({ symbol, count }));
 
     rankings.push({
@@ -330,7 +330,7 @@ function findBestCombinations(
       };
     })
     .sort((a, b) => b.avgPnl - a.avgPnl)
-    .slice(0, 10);
+    .slice(0, TOP_AGENT_INTENT_COMBINATIONS_LIMIT);
 }
 
 // ---------------------------------------------------------------------------
