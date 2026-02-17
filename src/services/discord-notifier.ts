@@ -41,6 +41,60 @@ import { countByCondition } from "../lib/math-utils.ts";
  */
 const TOP_ERRORS_DISPLAY_LIMIT = 3;
 
+/**
+ * Trade Reasoning Embed Max Length
+ *
+ * Maximum characters for agent reasoning text in Discord trade embed fields.
+ * Discord embed field values have a 1024-character limit; 256 is chosen to keep
+ * reasoning concise and readable in Discord channels.
+ *
+ * The truncation uses 253 characters + "..." (3 chars) = 256 total displayed.
+ *
+ * Tuning impact: Increase to 500 for more reasoning detail, decrease to 100
+ * for shorter embed messages.
+ */
+const TRADE_REASONING_EMBED_MAX_LENGTH = 256;
+
+/**
+ * Trade Reasoning Truncation Length
+ *
+ * Characters to slice when truncating reasoning to fit TRADE_REASONING_EMBED_MAX_LENGTH.
+ * Equals TRADE_REASONING_EMBED_MAX_LENGTH - 3 to leave room for "..." suffix.
+ */
+const TRADE_REASONING_TRUNCATION_LENGTH = TRADE_REASONING_EMBED_MAX_LENGTH - 3;
+
+/**
+ * Round ID Footer Display Length
+ *
+ * Characters of round ID to show in Discord embed footers for trade notifications.
+ * Round IDs can be long UUIDs; 20 characters is enough to identify a round
+ * while keeping the footer text short.
+ *
+ * Example: "round_1738540800000_a3f9" → "round_1738540800000_" (20 chars)
+ */
+const ROUND_ID_FOOTER_DISPLAY_LENGTH = 20;
+
+/**
+ * Round ID Description Display Length
+ *
+ * Characters of round ID to show in Discord embed descriptions and field values
+ * for round summaries and agent disagreement notifications.
+ * 24 characters provides slightly more context than the footer display.
+ *
+ * Example: "round_1738540800000_a3f9z2" (24 chars shown in backtick formatting)
+ */
+const ROUND_ID_DESCRIPTION_DISPLAY_LENGTH = 24;
+
+/**
+ * Error Message Truncation Length
+ *
+ * Maximum characters for individual error messages displayed in Discord embeds.
+ * Prevents a single very long error from dominating the notification.
+ *
+ * Example: Long stack trace → truncated to first 100 characters
+ */
+const ERROR_MESSAGE_DISPLAY_LENGTH = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -386,8 +440,8 @@ export async function notifyTradeExecution(
 
   if (config.includeReasoning && trade.reasoning) {
     const truncatedReasoning =
-      trade.reasoning.length > 256
-        ? trade.reasoning.slice(0, 253) + "..."
+      trade.reasoning.length > TRADE_REASONING_EMBED_MAX_LENGTH
+        ? trade.reasoning.slice(0, TRADE_REASONING_TRUNCATION_LENGTH) + "..."
         : trade.reasoning;
     fields.push({
       name: "Reasoning",
@@ -402,7 +456,7 @@ export async function notifyTradeExecution(
     fields,
     footer: {
       text: trade.roundId
-        ? `Round: ${trade.roundId.slice(0, 20)}`
+        ? `Round: ${trade.roundId.slice(0, ROUND_ID_FOOTER_DISPLAY_LENGTH)}`
         : "MoltApp Trading",
     },
     timestamp: new Date().toISOString(),
@@ -469,7 +523,7 @@ export async function notifyRoundSummary(
       name: "Errors",
       value: round.errors
         .slice(0, TOP_ERRORS_DISPLAY_LIMIT)
-        .map((e) => `❌ ${e.slice(0, 100)}`)
+        .map((e) => `❌ ${e.slice(0, ERROR_MESSAGE_DISPLAY_LENGTH)}`)
         .join("\n"),
       inline: false,
     });
@@ -477,7 +531,7 @@ export async function notifyRoundSummary(
 
   const embed: DiscordEmbed = {
     title: `📋 Trading Round Complete`,
-    description: `Round \`${round.roundId.slice(0, 24)}\` — ${round.results.length} agents participated`,
+    description: `Round \`${round.roundId.slice(0, ROUND_ID_DESCRIPTION_DISPLAY_LENGTH)}\` — ${round.results.length} agents participated`,
     color,
     fields,
     footer: { text: "MoltApp Autonomous Trading" },
@@ -539,7 +593,7 @@ export async function notifyAgentDisagreement(
       },
       {
         name: "Round",
-        value: `\`${disagreement.roundId.slice(0, 24)}\``,
+        value: `\`${disagreement.roundId.slice(0, ROUND_ID_DESCRIPTION_DISPLAY_LENGTH)}\``,
         inline: true,
       },
     ],
