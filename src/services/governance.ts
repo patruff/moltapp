@@ -139,6 +139,37 @@ const SAMPLE_VOTE_AGENT_COUNT = 3;
  */
 const PERCENT_MULTIPLIER = 100;
 
+/**
+ * Time Conversion Constants
+ *
+ * Millisecond equivalents for common time units used in governance proposal
+ * timing calculations (voting windows, proposal ages, execution delays).
+ */
+
+/**
+ * Milliseconds per hour: 3,600,000ms.
+ *
+ * Formula: hours × MS_PER_HOUR = milliseconds
+ * Example: VOTING_DURATION_HOURS_DEFAULT (72h) × 3,600,000 = 259,200,000ms (3 days)
+ *
+ * Used for:
+ * - Converting votingDurationHours to milliseconds in createProposal()
+ */
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+/**
+ * Milliseconds per day: 86,400,000ms.
+ *
+ * Formula: days × MS_PER_DAY = milliseconds
+ * Example: 3 days × 86,400,000 = 259,200,000ms voting window
+ *
+ * Used for:
+ * - Calculating proposal creation, voting start/end, and execution timestamps
+ *   in seedProposals() for the 3 sample governance proposals
+ * - Replaces local MS_PER_DAY variable (was defined inside seedProposals function)
+ */
+const MS_PER_DAY = 86_400_000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -313,7 +344,6 @@ function seedProposals() {
   if (configs.length === 0) return;
 
   const now = new Date();
-  const dayMs = 86_400_000;
 
   // Proposal 1: Strategy change
   proposals.push({
@@ -346,7 +376,7 @@ function seedProposals() {
         option: "for",
         votingPower: VOTING_POWER_ALLOCATION,
         reasoning: "NVIDIA is the most important stock in AI. We should have more flexibility here.",
-        timestamp: new Date(now.getTime() - dayMs).toISOString(),
+        timestamp: new Date(now.getTime() - MS_PER_DAY).toISOString(),
       },
     ],
     votingPower: {
@@ -357,9 +387,9 @@ function seedProposals() {
       quorumThreshold: QUORUM_THRESHOLD_STANDARD,
       passingThreshold: PASSING_THRESHOLD_EMERGENCY,
     },
-    createdAt: new Date(now.getTime() - 2 * dayMs).toISOString(),
-    votingStartsAt: new Date(now.getTime() - dayMs).toISOString(),
-    votingEndsAt: new Date(now.getTime() + 2 * dayMs).toISOString(),
+    createdAt: new Date(now.getTime() - 2 * MS_PER_DAY).toISOString(),
+    votingStartsAt: new Date(now.getTime() - MS_PER_DAY).toISOString(),
+    votingEndsAt: new Date(now.getTime() + 2 * MS_PER_DAY).toISOString(),
     discussion: [
       {
         id: "disc_001",
@@ -367,7 +397,7 @@ function seedProposals() {
         agentName: configs[0]?.name ?? "Agent 1",
         content: "NVIDIA's data center revenue is growing 100%+ YoY. We need more room to capitalize.",
         sentiment: "supportive",
-        timestamp: new Date(now.getTime() - dayMs).toISOString(),
+        timestamp: new Date(now.getTime() - MS_PER_DAY).toISOString(),
       },
     ],
   });
@@ -407,9 +437,9 @@ function seedProposals() {
       quorumThreshold: QUORUM_THRESHOLD_STANDARD,
       passingThreshold: PASSING_THRESHOLD_STANDARD,
     },
-    createdAt: new Date(now.getTime() - dayMs).toISOString(),
-    votingStartsAt: new Date(now.getTime() - dayMs / 2).toISOString(),
-    votingEndsAt: new Date(now.getTime() + 3 * dayMs).toISOString(),
+    createdAt: new Date(now.getTime() - MS_PER_DAY).toISOString(),
+    votingStartsAt: new Date(now.getTime() - MS_PER_DAY / 2).toISOString(),
+    votingEndsAt: new Date(now.getTime() + 3 * MS_PER_DAY).toISOString(),
     discussion: [],
   });
 
@@ -445,7 +475,7 @@ function seedProposals() {
         ? "Solana exposure makes sense for our platform"
         : "Need more data on SOLx liquidity before committing",
       timestamp: new Date(
-        now.getTime() - (3 - i) * dayMs,
+        now.getTime() - (3 - i) * MS_PER_DAY,
       ).toISOString(),
     })),
     votingPower: {
@@ -456,10 +486,10 @@ function seedProposals() {
       quorumThreshold: QUORUM_THRESHOLD_STANDARD,
       passingThreshold: PASSING_THRESHOLD_STANDARD,
     },
-    createdAt: new Date(now.getTime() - 5 * dayMs).toISOString(),
-    votingStartsAt: new Date(now.getTime() - 4 * dayMs).toISOString(),
-    votingEndsAt: new Date(now.getTime() - dayMs).toISOString(),
-    executedAt: new Date(now.getTime() - dayMs / 2).toISOString(),
+    createdAt: new Date(now.getTime() - 5 * MS_PER_DAY).toISOString(),
+    votingStartsAt: new Date(now.getTime() - 4 * MS_PER_DAY).toISOString(),
+    votingEndsAt: new Date(now.getTime() - MS_PER_DAY).toISOString(),
+    executedAt: new Date(now.getTime() - MS_PER_DAY / 2).toISOString(),
     discussion: [
       {
         id: "disc_003",
@@ -468,7 +498,7 @@ function seedProposals() {
         content:
           "SOLx has deep liquidity on Jupiter and gives us a crypto-native asset class. This is a no-brainer for a Solana-based platform.",
         sentiment: "supportive",
-        timestamp: new Date(now.getTime() - 4 * dayMs).toISOString(),
+        timestamp: new Date(now.getTime() - 4 * MS_PER_DAY).toISOString(),
       },
     ],
   });
@@ -495,7 +525,7 @@ export function createProposal(params: {
   const proposer = configs.find((c) => c.agentId === params.proposerAgentId);
 
   const now = new Date();
-  const votingDuration = (params.votingDurationHours ?? VOTING_DURATION_HOURS_DEFAULT) * 60 * 60 * 1000;
+  const votingDuration = (params.votingDurationHours ?? VOTING_DURATION_HOURS_DEFAULT) * MS_PER_HOUR;
 
   // Determine risk level based on type
   let riskLevel: "low" | "medium" | "high" = "medium";

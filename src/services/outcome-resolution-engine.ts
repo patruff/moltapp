@@ -152,6 +152,24 @@ const CALIBRATION_BUCKET_BOUNDARIES = [
 const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.1;
 
 /**
+ * Time Conversion Constants
+ *
+ * Millisecond equivalents used in resolution horizon minimum-age calculations.
+ */
+
+/**
+ * Milliseconds per hour: 3,600,000ms.
+ *
+ * Formula: horizonHours × MS_PER_HOUR = milliseconds cutoff age
+ * Example: 4h horizon → Date.now() - 4 × 3,600,000 = 4-hour-old cutoff
+ *
+ * Used for:
+ * - resolveOutcomesForHorizon(): minimum age check before resolving predictions
+ *   (ensures a 4h prediction is at least 4 hours old before scoring it)
+ */
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+/**
  * Resolution horizons: all supported time windows for outcome resolution.
  *
  * Each entry defines:
