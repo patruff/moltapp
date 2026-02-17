@@ -116,6 +116,43 @@ const MIN_SOPHISTICATION_LEVEL = 1;
  */
 const ANALYTICAL_METHOD_MIXED_MIN_COUNT = 2;
 
+/**
+ * Fingerprint Code Generation Constants
+ *
+ * Parameters for generating the compact taxonomy fingerprint string.
+ * The fingerprint format is: {STRAT}-{METH}-{STRUCT}-{EVID}-{FW}-L{sophistication}
+ * Example: "VAL-FUN-DED-QUA-THR-L3" (value investing, fundamental, deductive, quantitative, threshold, level 3)
+ */
+
+/**
+ * Number of characters taken from each taxonomy dimension name for the fingerprint code.
+ * Each dimension is sliced to 3 characters and uppercased.
+ * Example: "momentum_trading".slice(0, 3).toUpperCase() = "MOM"
+ * Example: "fundamental".slice(0, 3).toUpperCase() = "FUN"
+ */
+const FINGERPRINT_CODE_LENGTH = 3;
+
+/**
+ * Agent Taxonomy Profile Display Limits
+ *
+ * Controls how many items are shown in the agent taxonomy profile summary.
+ * These limits balance completeness vs conciseness in API responses.
+ */
+
+/**
+ * Maximum number of frequent cognitive biases to include in agent taxonomy profile.
+ * Shows top 5 most common biases by frequency (out of all detected cognitive patterns).
+ * Example: Agent with 10 bias types → show top 5 most frequent in profile.
+ */
+const FREQUENT_BIASES_DISPLAY_LIMIT = 5;
+
+/**
+ * Maximum number of top themes to include in agent taxonomy profile.
+ * Shows top 8 most common analytical themes by frequency.
+ * Example: Agent with 20 unique themes → show top 8 most frequent in profile.
+ */
+const TOP_THEMES_DISPLAY_LIMIT = 8;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -423,11 +460,11 @@ function generateFingerprint(
   framework: DecisionFramework,
   sophistication: number,
 ): string {
-  const stratCode = strategy.slice(0, 3).toUpperCase();
-  const methCode = method.slice(0, 3).toUpperCase();
-  const structCode = structure.slice(0, 3).toUpperCase();
-  const evidCode = evidence.slice(0, 3).toUpperCase();
-  const fwCode = framework.slice(0, 3).toUpperCase();
+  const stratCode = strategy.slice(0, FINGERPRINT_CODE_LENGTH).toUpperCase();
+  const methCode = method.slice(0, FINGERPRINT_CODE_LENGTH).toUpperCase();
+  const structCode = structure.slice(0, FINGERPRINT_CODE_LENGTH).toUpperCase();
+  const evidCode = evidence.slice(0, FINGERPRINT_CODE_LENGTH).toUpperCase();
+  const fwCode = framework.slice(0, FINGERPRINT_CODE_LENGTH).toUpperCase();
 
   return `${stratCode}-${methCode}-${structCode}-${evidCode}-${fwCode}-L${sophistication}`;
 }
@@ -556,7 +593,7 @@ export function getAgentTaxonomyProfile(agentId: string): AgentTaxonomyProfile |
   const frequentBiases = [...biasCounts.entries()]
     .map(([type, count]) => ({ type, frequency: Math.round((count / history.length) * 100) / 100 }))
     .sort((a, b) => b.frequency - a.frequency)
-    .slice(0, 5);
+    .slice(0, FREQUENT_BIASES_DISPLAY_LIMIT);
 
   // Theme frequency
   const themeCounts = new Map<string, number>();
@@ -568,7 +605,7 @@ export function getAgentTaxonomyProfile(agentId: string): AgentTaxonomyProfile |
   const topThemes = [...themeCounts.entries()]
     .map(([theme, count]) => ({ theme, frequency: Math.round((count / history.length) * 100) / 100 }))
     .sort((a, b) => b.frequency - a.frequency)
-    .slice(0, 8);
+    .slice(0, TOP_THEMES_DISPLAY_LIMIT);
 
   // Fingerprint diversity (unique fingerprints / total)
   const uniqueFingerprints = new Set(history.map((c) => c.fingerprint)).size;
