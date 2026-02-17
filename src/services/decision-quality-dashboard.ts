@@ -88,6 +88,23 @@ export interface DecisionQualityReport {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default quality score used when a dimension service fails or has no data.
+ *
+ * Value of 0.5 represents a neutral/unknown quality level (neither good nor bad).
+ * Chosen to avoid penalizing agents when data is temporarily unavailable.
+ * Used as fallback for: calibration ECE, integrity score, accountability score,
+ * memory score, tool correctness, and sequence adherence.
+ *
+ * Range: 0.0 (worst) to 1.0 (best)
+ * Neutral: 0.5 (corresponds to ~C grade when used as composite score)
+ */
+const DEFAULT_QUALITY_SCORE = 0.5;
+
+// ---------------------------------------------------------------------------
 // Weight Configuration
 // ---------------------------------------------------------------------------
 
@@ -155,31 +172,31 @@ export async function generateDecisionQualityReport(
 
   // Extract scores with defaults for missing data
   const calibration = {
-    ece: calibrationResult?.ece ?? 0.5,
+    ece: calibrationResult?.ece ?? DEFAULT_QUALITY_SCORE,
     grade: calibrationResult?.grade ?? "N/A",
     overconfidenceRatio: calibrationResult?.overconfidenceRatio ?? 0,
   };
 
   const integrity = {
-    integrityScore: integrityResult?.integrityScore ?? 0.5,
+    integrityScore: integrityResult?.integrityScore ?? DEFAULT_QUALITY_SCORE,
     flipFlops: integrityResult?.summary?.flipFlops ?? 0,
     contradictions: integrityResult?.summary?.contradictions ?? 0,
   };
 
   const accountability = {
-    accountabilityScore: accountabilityResult?.accountabilityScore ?? 0.5,
+    accountabilityScore: accountabilityResult?.accountabilityScore ?? DEFAULT_QUALITY_SCORE,
     accuracyRate: accountabilityResult?.accuracyRate ?? 0,
     totalClaims: accountabilityResult?.totalClaims ?? 0,
   };
 
   const memory = {
-    memoryScore: memoryResult?.memoryScore ?? 0.5,
+    memoryScore: memoryResult?.memoryScore ?? DEFAULT_QUALITY_SCORE,
     trend: memoryResult?.trend ?? ("stable" as const),
   };
 
   const toolUse = {
-    correctnessScore: toolUseResult?.correctnessScore ?? 0.5,
-    sequenceAdherence: toolUseResult?.sequenceAdherence ?? 0.5,
+    correctnessScore: toolUseResult?.correctnessScore ?? DEFAULT_QUALITY_SCORE,
+    sequenceAdherence: toolUseResult?.sequenceAdherence ?? DEFAULT_QUALITY_SCORE,
     violations: toolUseResult?.violations?.map((v) => v.description) ?? [],
   };
 
