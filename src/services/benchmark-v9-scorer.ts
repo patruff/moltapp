@@ -707,10 +707,10 @@ export function getAgentScore(agentId: string): AgentBenchmarkScore | null {
       worstTrade = { symbol: r.input.symbol, pnl, coherence: coh };
     }
     if (!mostCoherent || coh > mostCoherent.score) {
-      mostCoherent = { reasoning: r.input.reasoning.slice(0, 200), score: coh };
+      mostCoherent = { reasoning: r.input.reasoning.slice(0, HIGHLIGHT_REASONING_SNIPPET_LENGTH), score: coh };
     }
     if (!leastCoherent || coh < leastCoherent.score) {
-      leastCoherent = { reasoning: r.input.reasoning.slice(0, 200), score: coh };
+      leastCoherent = { reasoning: r.input.reasoning.slice(0, HIGHLIGHT_REASONING_SNIPPET_LENGTH), score: coh };
     }
   }
 

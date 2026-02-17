@@ -211,6 +211,21 @@ const TREND_DECLINING_THRESHOLD = 0.05;
 
 // Within ±TREND_*_THRESHOLD = "stable"
 
+/**
+ * Recent Scores Display Limit
+ *
+ * Maximum number of recent depth scores to include in the agent depth profile result.
+ * Controls how much scoring history is returned in API responses for display in
+ * agent reasoning analysis dashboards.
+ *
+ * - 10 scores: enough to show recent trend without excessive data in responses
+ * - Increase to 20 for deeper historical context in analysis views
+ * - Decrease to 5 for lighter API responses with just the most recent scores
+ *
+ * Example: Agent analyzed 50 trades → profile shows last 10 depth scores
+ */
+const RECENT_SCORES_DISPLAY_LIMIT = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -661,7 +676,7 @@ export function getAgentDepthProfile(agentId: string): AgentDepthProfile {
     classification,
     strongestDimension,
     weakestDimension,
-    recentScores: scores.slice(0, 10),
+    recentScores: scores.slice(0, RECENT_SCORES_DISPLAY_LIMIT),
     totalAnalyzed: entries.length,
   };
 }
