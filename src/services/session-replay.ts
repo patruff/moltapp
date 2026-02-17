@@ -23,6 +23,73 @@ import { errorMessage } from "../lib/errors.ts";
 import { getTopKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Session Replay Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum time gap (ms) between a decision and a trade to consider them matched.
+ * A decision at T=0 and a trade at T=30s could still be from the same action.
+ * Trades further apart are treated as belonging to different agents/rounds.
+ * Example: decision at 10:00:00.000, trade at 10:00:25.000 → matched (25s < 30s)
+ */
+const TRADE_MATCH_WINDOW_MS = 30_000;
+
+/**
+ * Maximum characters of reasoning text to include in timeline replay events.
+ * Keeps timeline payloads compact while showing enough context to understand decisions.
+ * Full reasoning is available in the decisions array (not truncated there).
+ * Example: "Buy AAPL: strong momentum, RSI oversold, P/E below..." → 200 chars
+ */
+const REASONING_DISPLAY_MAX_LENGTH = 200;
+
+/**
+ * Artificial delay (ms) added to trade execution events when no exact trade timestamp exists.
+ * Also used as the offsetMs adjustment for executed/failed trade events.
+ * Creates realistic-looking timeline spacing between decision and execution.
+ * Formula: tradeTimestamp = decisionTimestamp + TRADE_EXECUTION_DELAY_MS
+ */
+const TRADE_EXECUTION_DELAY_MS = 1000;
+
+/**
+ * Delay (ms) added after the last decision to fire the "round_complete" event.
+ * Ensures round_complete appears after all trade events in the sorted timeline.
+ * Formula: roundCompleteTimestamp = lastDecisionTimestamp + ROUND_COMPLETE_DELAY_MS
+ * Example: last decision at T=45s, round_complete fires at T=47s
+ */
+const ROUND_COMPLETE_DELAY_MS = 2000;
+
+/**
+ * Duration threshold (ms) for switching between short and long duration formats.
+ * Below this threshold: display as "Xs" (e.g., "45s")
+ * At or above this threshold: display as "Xm Ys" (e.g., "2m 30s")
+ * Value: 60,000ms = 60 seconds = 1 minute
+ */
+const DURATION_LONG_FORMAT_THRESHOLD_MS = 60_000;
+
+/**
+ * Default maximum number of sessions returned by listSessions() when no limit specified.
+ * Balances API response size with usefulness (50 sessions = ~100KB typical response).
+ * Callers can override by passing options.limit explicitly.
+ */
+const DEFAULT_SESSIONS_QUERY_LIMIT = 50;
+
+/**
+ * Confidence threshold (%) for generating "high confidence" annotations.
+ * Decisions at or above this threshold get a highlight annotation in the replay.
+ * Example: confidence=92 → "Agent X is very confident (92%) about buying AAPL"
+ * Scale: 0-100 where 100 = maximum confidence, 90+ = very high confidence signal
+ */
+const HIGH_CONFIDENCE_ANNOTATION_THRESHOLD = 90;
+
+/**
+ * Maximum characters of reasoning to include in presentation export format.
+ * Slightly longer than REASONING_DISPLAY_MAX_LENGTH for presentation context.
+ * Presentation exports are used for demos/slides where fuller context helps.
+ * Example: 300 chars captures the key thesis without overwhelming slide content
+ */
+const EXPORT_REASONING_MAX_LENGTH = 300;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -180,7 +247,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
         (t.stockSymbol === decision.symbol &&
           Math.abs(
             new Date(t.createdAt).getTime() - new Date(decision.createdAt).getTime(),
-          ) < 30_000),
+          ) < TRADE_MATCH_WINDOW_MS),
     );
 
     timeline.push({
@@ -192,7 +259,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
         symbol: decision.symbol,
         quantity: decision.quantity,
         confidence: decision.confidence,
-        reasoning: decision.reasoning.slice(0, 200),
+        reasoning: decision.reasoning.slice(0, REASONING_DISPLAY_MAX_LENGTH),
         model: decision.modelUsed,
       },
       offsetMs: Math.max(0, offsetMs),
@@ -203,7 +270,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
       timeline.push({
         timestamp: matchingTrade
           ? matchingTrade.createdAt.toISOString()
-          : new Date(new Date(decision.createdAt).getTime() + 1000).toISOString(),
+          : new Date(new Date(decision.createdAt).getTime() + TRADE_EXECUTION_DELAY_MS).toISOString(),
         type: "trade_executed",
         agentId: decision.agentId,
         data: {
@@ -214,11 +281,11 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
           pricePerToken: matchingTrade?.pricePerToken,
           mode: decision.executed === "executed_paper" ? "paper" : "live",
         },
-        offsetMs: Math.max(0, offsetMs + 1000),
+        offsetMs: Math.max(0, offsetMs + TRADE_EXECUTION_DELAY_MS),
       });
     } else if (decision.executed === "failed") {
       timeline.push({
-        timestamp: new Date(new Date(decision.createdAt).getTime() + 1000).toISOString(),
+        timestamp: new Date(new Date(decision.createdAt).getTime() + TRADE_EXECUTION_DELAY_MS).toISOString(),
         type: "trade_failed",
         agentId: decision.agentId,
         data: {
@@ -226,7 +293,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
           action: decision.action,
           symbol: decision.symbol,
         },
-        offsetMs: Math.max(0, offsetMs + 1000),
+        offsetMs: Math.max(0, offsetMs + TRADE_EXECUTION_DELAY_MS),
       });
     }
 
@@ -255,7 +322,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
     ? new Date(decisions[decisions.length - 1].createdAt).getTime()
     : baseTime;
   timeline.push({
-    timestamp: new Date(lastEventTime + 2000).toISOString(),
+    timestamp: new Date(lastEventTime + ROUND_COMPLETE_DELAY_MS).toISOString(),
     type: "round_complete",
     data: {
       decisionsCount: decisions.length,
@@ -263,7 +330,7 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
         (d: typeof decisions[number]) => d.executed === "executed" || d.executed === "executed_paper",
       ).length,
     },
-    offsetMs: lastEventTime - baseTime + 2000,
+    offsetMs: lastEventTime - baseTime + ROUND_COMPLETE_DELAY_MS,
   });
 
   // Sort timeline by offset
@@ -310,8 +377,8 @@ export async function replaySession(roundId: string): Promise<SessionReplay> {
 
   // Calculate duration
   const durationMs = timeline.length > 0 ? timeline[timeline.length - 1].offsetMs : 0;
-  const durationStr = durationMs > 60000
-    ? `${Math.round(durationMs / 60000)}m ${Math.round((durationMs % 60000) / 1000)}s`
+  const durationStr = durationMs > DURATION_LONG_FORMAT_THRESHOLD_MS
+    ? `${Math.round(durationMs / DURATION_LONG_FORMAT_THRESHOLD_MS)}m ${Math.round((durationMs % DURATION_LONG_FORMAT_THRESHOLD_MS) / 1000)}s`
     : `${Math.round(durationMs / 1000)}s`;
 
   return {
@@ -363,7 +430,7 @@ export async function listSessions(
   decisionCount: number;
   executedCount: number;
 }>> {
-  const limit = options?.limit ?? 50;
+  const limit = options?.limit ?? DEFAULT_SESSIONS_QUERY_LIMIT;
 
   try {
     const conditions: ReturnType<typeof sql>[] = [];
@@ -527,7 +594,7 @@ function generateAnnotations(
 
   // Detect high confidence decisions
   for (const d of decisions) {
-    if (d.confidence >= 90 && d.action !== "hold") {
+    if (d.confidence >= HIGH_CONFIDENCE_ANNOTATION_THRESHOLD && d.action !== "hold") {
       annotations.push({
         agentId: d.agentId,
         text: `${d.agentName} is very confident (${d.confidence}%) about ${d.action}ing ${d.symbol}`,
