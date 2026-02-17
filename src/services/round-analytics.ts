@@ -244,6 +244,69 @@ const RECENT_ROUNDS_DEFAULT_LIMIT = 20;
 /** Minimum trend trades required for reliable trend detection. */
 const TREND_MIN_TRADES = 3;
 
+/**
+ * Display Precision Rounding Constants
+ *
+ * Controls the decimal precision for confidence and quality score display in API responses.
+ * Formula: Math.round(value * MULTIPLIER) / DIVISOR = 1-decimal precision
+ * Example: 73.666... → Math.round(73.666 * 10) / 10 = 73.7
+ *
+ * Used for: avgConfidence, majorityConfidence, confidenceSpread, qualityScore,
+ * movingAvgConfidence, movingAvgQuality, roundQualityScore, avgRoundQuality
+ */
+
+/** Multiply before rounding to achieve 1-decimal place precision. */
+const SCORE_DISPLAY_PRECISION_MULTIPLIER = 10;
+
+/** Divide after rounding for 1-decimal place display (e.g., 73.7 not 737). */
+const SCORE_DISPLAY_PRECISION_DIVISOR = 10;
+
+/**
+ * Execution Success Rate Precision Constants
+ *
+ * Controls the decimal precision for execution success rate display (3-decimal places).
+ * Formula: Math.round(rate * MULTIPLIER) / DIVISOR = 3-decimal precision
+ * Example: 0.66666... → Math.round(0.66666 * 1000) / 1000 = 0.667
+ *
+ * Used for: executionSuccessRate, averageParticipation in analytics status
+ */
+
+/** Multiply before rounding to achieve 3-decimal place precision. */
+const RATE_DISPLAY_PRECISION_MULTIPLIER = 1000;
+
+/** Divide after rounding for 3-decimal place display (e.g., 0.667 not 667). */
+const RATE_DISPLAY_PRECISION_DIVISOR = 1000;
+
+/**
+ * Pattern Detection Thresholds
+ *
+ * Controls when patterns are flagged in the analytics summary.
+ * These thresholds determine what constitutes "unusual" behavior worthy of reporting.
+ */
+
+/** Participation rate below this triggers a "low_participation" pattern alert. */
+const PATTERN_LOW_PARTICIPATION_THRESHOLD = 0.5;
+
+/** Execution rate below this triggers an "execution_failures" pattern alert. */
+const PATTERN_EXECUTION_FAILURE_THRESHOLD = 0.8;
+
+/** Minimum participation rate to bother checking for execution failures (avoids noise). */
+const PATTERN_MIN_PARTICIPATION_FOR_EXEC_CHECK = 0.3;
+
+/** Unanimous round rate above this triggers a "high_agreement" herding risk alert. */
+const PATTERN_HIGH_AGREEMENT_THRESHOLD = 0.5;
+
+/**
+ * Time Conversion Constants
+ *
+ * Used for converting days to milliseconds in analytics period calculations.
+ * Formula: periodDays * MS_PER_DAY = millisecond cutoff timestamp
+ * Example: 7 days * 86,400,000 = 604,800,000ms (1 week)
+ */
+
+/** Milliseconds per day (24 hours × 60 minutes × 60 seconds × 1000ms). */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -318,7 +381,7 @@ export function analyzeRound(
     marketContext,
     metrics: {
       totalUsdcTraded: round2(totalUsdc),
-      avgConfidence: Math.round(avgConf * 10) / 10,
+      avgConfidence: Math.round(avgConf * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
       avgQuantity: round2(avgQty),
       uniqueStocksTraded: uniqueStocks,
       buyToSellRatio: sells > 0 ? round2(buys / sells) : buys > 0 ? Infinity : 0,
@@ -417,9 +480,9 @@ function analyzeConsensus(decisions: RoundDecision[]): RoundAnalytics["consensus
     type,
     majorityAction: majAction ?? null,
     majoritySymbol: majSymbol ?? null,
-    majorityConfidence: Math.round(majAvgConf * 10) / 10,
+    majorityConfidence: Math.round(majAvgConf * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
     dissenterCount,
-    confidenceSpread: Math.round(spread * 10) / 10,
+    confidenceSpread: Math.round(spread * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
   };
 }
 
@@ -465,7 +528,7 @@ function scoreDecisionQuality(
 
     return {
       agentId: d.agentId,
-      qualityScore: Math.round(qualityScore * 10) / 10,
+      qualityScore: Math.round(qualityScore * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
       factors: {
         confidenceCalibration: Math.round(confidenceCalibration),
         executionSuccess: Math.round(executionSuccess),
@@ -501,7 +564,7 @@ function scoreDecisionQuality(
           reason: `Lowest quality score: ${worst.qualityScore.toFixed(0)}`,
         }
       : null,
-    roundQualityScore: Math.round(roundQuality * 10) / 10,
+    roundQualityScore: Math.round(roundQuality * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
   };
 }
 
@@ -656,14 +719,14 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
       recentRounds: recentRoundsData,
       trend,
       trendScore: round3(trendScore),
-      movingAvgConfidence: Math.round(movingAvgConfidence * 10) / 10,
-      movingAvgQuality: Math.round(movingAvgQuality * 10) / 10,
+      movingAvgConfidence: Math.round(movingAvgConfidence * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
+      movingAvgQuality: Math.round(movingAvgQuality * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
       currentExecutionStreak: execStreak,
       executionSuccessRate:
         recentRoundsData.length > 0
           ? Math.round(
-              (execSuccesses / recentRoundsData.length) * 1000,
-            ) / 1000
+              (execSuccesses / recentRoundsData.length) * RATE_DISPLAY_PRECISION_MULTIPLIER,
+            ) / RATE_DISPLAY_PRECISION_DIVISOR
           : 0,
     });
   }
@@ -677,7 +740,7 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
 export function generateAnalyticsSummary(
   periodDays = 7,
 ): AnalyticsSummary {
-  const cutoff = Date.now() - periodDays * 24 * 60 * 60 * 1000;
+  const cutoff = Date.now() - periodDays * MS_PER_DAY;
   const cutoffStr = new Date(cutoff).toISOString();
 
   const periodRounds = roundHistory.filter(
@@ -730,7 +793,7 @@ export function generateAnalyticsSummary(
   // Detect patterns
   const patterns: AnalyticsSummary["patterns"] = [];
 
-  if (avgParticipation < 0.5) {
+  if (avgParticipation < PATTERN_LOW_PARTICIPATION_THRESHOLD) {
     patterns.push({
       type: "low_participation",
       description: `Low participation rate (${(avgParticipation * 100).toFixed(0)}%) — agents are mostly holding`,
@@ -738,7 +801,7 @@ export function generateAnalyticsSummary(
     });
   }
 
-  if (avgExecution < 0.8 && avgParticipation > 0.3) {
+  if (avgExecution < PATTERN_EXECUTION_FAILURE_THRESHOLD && avgParticipation > PATTERN_MIN_PARTICIPATION_FOR_EXEC_CHECK) {
     patterns.push({
       type: "execution_failures",
       description: `Execution success rate ${(avgExecution * 100).toFixed(0)}% — investigate trade failures`,
@@ -746,7 +809,7 @@ export function generateAnalyticsSummary(
     });
   }
 
-  if (unanimousCount / periodRounds.length > 0.5) {
+  if (unanimousCount / periodRounds.length > PATTERN_HIGH_AGREEMENT_THRESHOLD) {
     patterns.push({
       type: "high_agreement",
       description: `${((unanimousCount / periodRounds.length) * 100).toFixed(0)}% of rounds are unanimous — possible herding risk`,
@@ -780,7 +843,7 @@ export function generateAnalyticsSummary(
     system: {
       avgParticipationRate: round3(avgParticipation),
       avgExecutionRate: round3(avgExecution),
-      avgRoundQuality: Math.round(avgQuality * 10) / 10,
+      avgRoundQuality: Math.round(avgQuality * SCORE_DISPLAY_PRECISION_MULTIPLIER) / SCORE_DISPLAY_PRECISION_DIVISOR,
       totalUsdcTraded: round2(totalUsdc),
       unanimousRoundRate: round3(unanimousCount / periodRounds.length),
       splitRoundRate: round3(splitCount / periodRounds.length),
@@ -833,16 +896,16 @@ export function getAnalyticsStatus(): {
       qualities.length > 0
         ? Math.round(
             (qualities.reduce((s, v) => s + v, 0) / qualities.length) *
-              10,
-          ) / 10
+              SCORE_DISPLAY_PRECISION_MULTIPLIER,
+          ) / SCORE_DISPLAY_PRECISION_DIVISOR
         : 0,
     averageParticipation:
       participations.length > 0
         ? Math.round(
             (participations.reduce((s, v) => s + v, 0) /
               participations.length) *
-              1000,
-          ) / 1000
+              RATE_DISPLAY_PRECISION_MULTIPLIER,
+          ) / RATE_DISPLAY_PRECISION_DIVISOR
         : 0,
   };
 }
