@@ -92,6 +92,35 @@ const MAX_BUFFER_SIZE = 5000;
 /** How often to attempt DynamoDB flush (ms) */
 const FLUSH_INTERVAL_MS = 60_000;
 
+/**
+ * Default pagination limit for queryAuditLog when caller does not specify.
+ * Controls how many events are returned per API request.
+ * Increase for wider dashboards, decrease for mobile/low-bandwidth clients.
+ */
+const DEFAULT_QUERY_LIMIT = 50;
+
+/**
+ * Maximum events flushed to DynamoDB per flush cycle.
+ * Reads the last N events from the in-memory buffer, ignoring older entries.
+ * Setting too high increases flush latency; setting too low risks losing older events.
+ */
+const DYNAMO_FLUSH_BATCH_COUNT = 500;
+
+/**
+ * DynamoDB BatchWriteItem hard limit per request (AWS-imposed maximum).
+ * The AWS API rejects batch requests with more than 25 items.
+ * Do NOT increase this value — it will cause DynamoDB API errors.
+ * Formula: eventsToFlush.length / 25 = number of API calls per flush cycle
+ */
+const DYNAMO_BATCH_SIZE = 25;
+
+/**
+ * DynamoDB item TTL in days. Items older than this are auto-deleted by DynamoDB.
+ * 90 days = ~3 months of compliance audit history retained per event.
+ * Formula: ttl = Math.floor(Date.now() / 1000) + DYNAMO_TTL_DAYS * 24 * 60 * 60
+ */
+const DYNAMO_TTL_DAYS = 90;
+
 /** DynamoDB table name (from environment) */
 const AUDIT_TABLE =
   process.env.AGENT_STATE_TABLE || "moltapp-agent-state";
@@ -308,7 +337,7 @@ export function queryAuditLog(query: AuditLogQuery = {}): {
   limit: number;
   offset: number;
 } {
-  const limit = query.limit ?? 50;
+  const limit = query.limit ?? DEFAULT_QUERY_LIMIT;
   const offset = query.offset ?? 0;
 
   let filtered = [...eventBuffer];
@@ -426,10 +455,10 @@ export async function flushToDynamoDB(): Promise<{
     const client = new DynamoDBClient({});
 
     // Batch events into groups of 25 (DynamoDB limit)
-    const eventsToFlush = eventBuffer.slice(-500); // Flush last 500
+    const eventsToFlush = eventBuffer.slice(-DYNAMO_FLUSH_BATCH_COUNT);
 
-    for (let i = 0; i < eventsToFlush.length; i += 25) {
-      const batch = eventsToFlush.slice(i, i + 25);
+    for (let i = 0; i < eventsToFlush.length; i += DYNAMO_BATCH_SIZE) {
+      const batch = eventsToFlush.slice(i, i + DYNAMO_BATCH_SIZE);
       const putRequests = batch.map((event) => ({
         PutRequest: {
           Item: {
