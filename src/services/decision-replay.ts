@@ -263,6 +263,15 @@ const INITIAL_CAPITAL = 10000;
 const PORTFOLIO_RECENT_TRADES_DISPLAY_LIMIT = 5;
 
 /**
+ * Maximum key factors to extract from reasoning text.
+ * Filters sentences containing important keywords (e.g., "because", "risk", "opportunity")
+ * and shows the top N most relevant sentences in decision analysis.
+ * Lower value = more focused analysis; higher value = more verbose forensics.
+ * Example: Agent reasoning with 12 keyword-matching sentences → show top 5.
+ */
+const KEY_FACTORS_DISPLAY_LIMIT = 5;
+
+/**
  * MARKET DIRECTION CLASSIFICATION THRESHOLDS
  *
  * Control how market sentiment is classified based on average 24h price change.
@@ -758,7 +767,7 @@ function analyzeReasoning(reasoning: string, confidence: number): ReasoningBreak
   const importantKeywords = ["because", "due to", "given", "considering", "based on", "risk", "opportunity", "strong", "weak", "growth", "decline"];
   const keyFactors = sentences
     .filter((s) => importantKeywords.some((kw) => s.toLowerCase().includes(kw)))
-    .slice(0, 5);
+    .slice(0, KEY_FACTORS_DISPLAY_LIMIT);
 
   // Sentiment detection
   const bullishWords = ["buy", "long", "bullish", "growth", "opportunity", "upside", "strong", "outperform", "rally"];
