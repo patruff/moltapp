@@ -236,6 +236,63 @@ const ARGUMENT_RICHNESS_POINTS = 5;
 const ARGUMENT_DEPTH_CHARS = 200;
 
 // ---------------------------------------------------------------------------
+// Debate History & Precision Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum Reasoning Length for Argument Inclusion
+ *
+ * Minimum characters required in an agent's reasoning text (10) to include it
+ * as a supporting point in debate arguments.
+ *
+ * Example: "BUY" (3 chars) → excluded. "Strong earnings growth..." (30 chars) → included.
+ *
+ * Tuning impact: Raise to 20 to require more substantive reasoning before including.
+ */
+const MIN_REASONING_LENGTH_FOR_ARGUMENT = 10;
+
+/**
+ * Debate History Display Limit
+ *
+ * Maximum number of past debates returned by getDebateHistory() queries (50).
+ * Sorted by most recent first before slicing.
+ *
+ * Example: 150 debates in DB → return most recent 50 for display.
+ *
+ * Tuning impact: Increase to 100 for longer history displays, decrease to 25
+ * for faster API response times.
+ */
+const DEBATE_HISTORY_DISPLAY_LIMIT = 50;
+
+/**
+ * Win Rate Precision Rounding
+ *
+ * Produces 1-decimal-place win rate percentages (e.g., 67.3%) via:
+ *   Math.round(fraction × WIN_RATE_PRECISION_MULTIPLIER) / WIN_RATE_PRECISION_DIVISOR
+ *
+ * Formula: Math.round((wins/total) × 1000) / 10 = 1-decimal percentage
+ * Example: 67/100 → Math.round(670) / 10 = 67.0%
+ *
+ * Tuning impact: Change to 10000/100 for 2-decimal precision (67.00%).
+ */
+const WIN_RATE_PRECISION_MULTIPLIER = 1000;
+const WIN_RATE_PRECISION_DIVISOR = 10;
+
+/**
+ * Average Conviction Precision Rounding
+ *
+ * Produces 1-decimal-place conviction averages (e.g., 73.6) via:
+ *   Math.round(value × CONVICTION_PRECISION_MULTIPLIER) / CONVICTION_PRECISION_DIVISOR
+ *
+ * Formula: Math.round(totalConfidence/debates × 10) / 10 = 1-decimal score
+ * Example: 736/10 = 73.6 average conviction score
+ *
+ * Tuning impact: Change to 100/100 for whole-number precision (74).
+ */
+const CONVICTION_PRECISION_MULTIPLIER = 10;
+const CONVICTION_PRECISION_DIVISOR = 10;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -700,7 +757,7 @@ function buildArguments(
   const supportingPoints = pointSet.map((p) => interpolate(p, vars));
 
   // Append the agent's actual reasoning as the final supporting point
-  if (reasoning && reasoning.length > 10) {
+  if (reasoning && reasoning.length > MIN_REASONING_LENGTH_FOR_ARGUMENT) {
     supportingPoints.push(`My specific analysis: ${reasoning}`);
   }
 
@@ -1138,7 +1195,7 @@ export async function getDebateHistory(): Promise<
 
   // Sort by date (most recent first), limit to 50
   history.sort((a, b) => new Date(b.debateDate).getTime() - new Date(a.debateDate).getTime());
-  return history.slice(0, 50);
+  return history.slice(0, DEBATE_HISTORY_DISPLAY_LIMIT);
 }
 
 /**
@@ -1474,8 +1531,8 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     };
   });
 
-  const winRate = totalDebates > 0 ? Math.round((wins / totalDebates) * 1000) / 10 : 0;
-  const avgConviction = totalDebates > 0 ? Math.round((totalDebateConfidence / totalDebates) * 10) / 10 : 0;
+  const winRate = totalDebates > 0 ? Math.round((wins / totalDebates) * WIN_RATE_PRECISION_MULTIPLIER) / WIN_RATE_PRECISION_DIVISOR : 0;
+  const avgConviction = totalDebates > 0 ? Math.round((totalDebateConfidence / totalDebates) * CONVICTION_PRECISION_MULTIPLIER) / CONVICTION_PRECISION_DIVISOR : 0;
 
   return {
     agentId,
