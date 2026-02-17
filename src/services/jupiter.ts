@@ -4,6 +4,24 @@ import { getTurnkeySigner } from "./wallet.ts";
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Delay in milliseconds before retrying after a Jupiter -1006 timeout error.
+ * Jupiter's -1006 code indicates a server-side timeout; a short pause before
+ * retry gives the network time to recover without excessive waiting.
+ */
+const JUPITER_TIMEOUT_RETRY_DELAY_MS = 2000;
+
+/**
+ * Maximum number of token mint addresses per Jupiter Price API V3 request.
+ * The Jupiter Price API enforces a 50-mint limit per query; batching is
+ * required when fetching prices for more than 50 tokens at once.
+ */
+const JUPITER_PRICE_API_BATCH_SIZE = 50;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -198,7 +216,7 @@ export async function executeOrder(params: {
 
   // Retry once on timeout (-1006)
   if (result.code === -1006) {
-    await sleep(2000);
+    await sleep(JUPITER_TIMEOUT_RETRY_DELAY_MS);
     result = await doRequest();
   }
 
@@ -225,9 +243,9 @@ export async function getPrices(
 ): Promise<Record<string, JupiterPrice | null>> {
   const result: Record<string, JupiterPrice | null> = {};
 
-  // Batch in groups of 50
-  for (let i = 0; i < mintAddresses.length; i += 50) {
-    const batch = mintAddresses.slice(i, i + 50);
+  // Batch in groups of JUPITER_PRICE_API_BATCH_SIZE
+  for (let i = 0; i < mintAddresses.length; i += JUPITER_PRICE_API_BATCH_SIZE) {
+    const batch = mintAddresses.slice(i, i + JUPITER_PRICE_API_BATCH_SIZE);
     const ids = batch.join(",");
 
     const res = await fetch(
