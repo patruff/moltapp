@@ -152,6 +152,30 @@ const CALIBRATION_BUCKET_BOUNDARIES = [
 const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.1;
 
 /**
+ * Prediction Store Memory Limit
+ *
+ * Maximum number of predictions held in the in-memory predictionStore before
+ * oldest entries are evicted. Controls memory usage of the outcome resolution
+ * feedback loop.
+ *
+ * When predictionStore.length exceeds this limit, entries are trimmed from the
+ * front (oldest entries removed first) so the store stays at exactly this size.
+ *
+ * Why 500?
+ * - At ~3 agents × ~48 trades/day = ~144 trades/day, 500 entries ≈ 3.5 days
+ *   of rolling prediction history — enough for all active resolution horizons
+ *   (1h, 4h, 24h, 7d, 30d) to find unresolved predictions without excessive
+ *   memory pressure.
+ * - Smaller (e.g. 200): risk evicting predictions before the 7d/30d horizons
+ *   can resolve them, causing missed outcome resolutions.
+ * - Larger (e.g. 2000): unnecessary memory overhead for a rolling feedback store.
+ *
+ * Note: This is an in-memory buffer only. All predictions are durably stored
+ * in the database via the tradeJustifications table.
+ */
+const PREDICTION_STORE_MAX_SIZE = 500;
+
+/**
  * Time Conversion Constants
  *
  * Millisecond equivalents used in resolution horizon minimum-age calculations.
@@ -700,8 +724,8 @@ export function registerPrediction(params: {
     registeredAt: new Date().toISOString(),
     resolved: false,
   });
-  if (predictionStore.length > 500) {
-    predictionStore.splice(0, predictionStore.length - 500);
+  if (predictionStore.length > PREDICTION_STORE_MAX_SIZE) {
+    predictionStore.splice(0, predictionStore.length - PREDICTION_STORE_MAX_SIZE);
   }
 }
 
