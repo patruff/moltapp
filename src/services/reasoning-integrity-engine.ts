@@ -173,6 +173,33 @@ const MAX_HISTORY = 100;
 /** Maximum stored violations (circular buffer) */
 const MAX_VIOLATIONS = 500;
 
+/**
+ * Reasoning Evidence Truncation Lengths
+ *
+ * When integrity violations are recorded, the evidence object includes
+ * truncated reasoning snippets to avoid storing and transmitting full
+ * reasoning text (which can be thousands of characters per trade).
+ *
+ * Two distinct truncation lengths are used based on the violation type:
+ *
+ * - FLIP_FLOP: 200 characters — flip-flop evidence needs more context to
+ *   show stance change (e.g., "I'm bullish on AAPL..." vs "I'm bearish on AAPL...").
+ *   Extra length helps auditors understand the reasoning pivot.
+ *
+ * - COPYPASTA / SOURCE_FABRICATION: 150 characters — copypasta and source
+ *   fabrication checks only need a short snippet to identify duplication or
+ *   bad source citations. Shorter = less noise in violation reports.
+ *
+ * Both values are intentionally short to keep violation payloads lightweight
+ * when reporting across API responses and storing in violation logs (MAX_VIOLATIONS = 500).
+ */
+
+/** Flip-flop evidence reasoning truncation length (200 chars for stance comparison) */
+const FLIPFLOP_EVIDENCE_MAX_LENGTH = 200;
+
+/** Copypasta and source fabrication evidence truncation length (150 chars for snippet matching) */
+const INTEGRITY_EVIDENCE_MAX_LENGTH = 150;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -306,8 +333,8 @@ function detectFlipFlops(agentId: string, history: ReasoningRecord[]): Integrity
               agentId,
               description: `Reversed ${symbol} from ${prev.action} to ${curr.action} within ${hours.toFixed(1)} hours`,
               evidence: {
-                tradeA: { roundId: prev.roundId, symbol, action: prev.action, reasoning: prev.reasoning.slice(0, 200) },
-                tradeB: { roundId: curr.roundId, symbol, action: curr.action, reasoning: curr.reasoning.slice(0, 200) },
+                tradeA: { roundId: prev.roundId, symbol, action: prev.action, reasoning: prev.reasoning.slice(0, FLIPFLOP_EVIDENCE_MAX_LENGTH) },
+                tradeB: { roundId: curr.roundId, symbol, action: curr.action, reasoning: curr.reasoning.slice(0, FLIPFLOP_EVIDENCE_MAX_LENGTH) },
               },
               timestamp: curr.timestamp,
             });
@@ -359,8 +386,8 @@ function detectCopypasta(agentId: string, history: ReasoningRecord[]): Integrity
           agentId,
           description: `${(similarity * 100).toFixed(0)}% reasoning similarity between ${a.symbol} ${a.action} and ${b.symbol} ${b.action}`,
           evidence: {
-            tradeA: { roundId: a.roundId, symbol: a.symbol, action: a.action, reasoning: a.reasoning.slice(0, 150) },
-            tradeB: { roundId: b.roundId, symbol: b.symbol, action: b.action, reasoning: b.reasoning.slice(0, 150) },
+            tradeA: { roundId: a.roundId, symbol: a.symbol, action: a.action, reasoning: a.reasoning.slice(0, INTEGRITY_EVIDENCE_MAX_LENGTH) },
+            tradeB: { roundId: b.roundId, symbol: b.symbol, action: b.action, reasoning: b.reasoning.slice(0, INTEGRITY_EVIDENCE_MAX_LENGTH) },
           },
           timestamp: b.timestamp,
         });
@@ -438,7 +465,7 @@ function detectSourceFabrication(agentId: string, history: ReasoningRecord[]): I
           agentId,
           description: `Cited unrecognized sources: ${unreferenced.join(", ")}`,
           evidence: {
-            tradeA: { roundId: record.roundId, symbol: record.symbol, action: record.action, reasoning: record.reasoning.slice(0, 150) },
+            tradeA: { roundId: record.roundId, symbol: record.symbol, action: record.action, reasoning: record.reasoning.slice(0, INTEGRITY_EVIDENCE_MAX_LENGTH) },
           },
           timestamp: record.timestamp,
         });
