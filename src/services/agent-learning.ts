@@ -249,6 +249,32 @@ const DECIMAL_PRECISION_MULTIPLIER = 10;
 const DECIMAL_PRECISION_DIVISOR = 10;
 
 /**
+ * Win Rate Percentage Precision Constants
+ *
+ * These convert a win rate fraction (0.0–1.0) into a percentage with 1 decimal place
+ * (e.g., 67.8%) for display in adaptive risk params and learning summaries.
+ *
+ * Formula: Math.round(winRate × WIN_RATE_PERCENT_MULTIPLIER) / WIN_RATE_PERCENT_DIVISOR
+ * Example: Math.round(0.678 × 1000) / 10 = 678 / 10 = 67.8 (shown as "67.8%")
+ *
+ * This differs from DECIMAL_PRECISION_MULTIPLIER (10) which rounds a decimal to
+ * 1 decimal place without converting to percentage. Here we scale by 1000 then
+ * divide by 10 to effectively multiply by 100 with 1 decimal precision.
+ */
+
+/**
+ * Multiplier for converting win rate fraction to percentage with 1 decimal.
+ * Value 1000: Math.round(0.678 × 1000) = 678 (preserves 1 decimal after dividing by 10)
+ */
+const WIN_RATE_PERCENT_MULTIPLIER = 1000;
+
+/**
+ * Divisor for converting win rate fraction to percentage with 1 decimal.
+ * Value 10: 678 / 10 = 67.8 (final percentage with 1 decimal place)
+ */
+const WIN_RATE_PERCENT_DIVISOR = 10;
+
+/**
  * Confidence Calibration Parameters
  *
  * These control calibration scoring and overconfidence/underconfidence detection.
@@ -813,7 +839,7 @@ export function calculateAdaptiveRisk(agentId: string): AdaptiveRiskParams {
     minConfidenceThreshold: minConfidence,
     avoidSymbols,
     strengthSymbols,
-    recentWinRate: Math.round(winRate * 1000) / 10,
+    recentWinRate: Math.round(winRate * WIN_RATE_PERCENT_MULTIPLIER) / WIN_RATE_PERCENT_DIVISOR,
     currentStreak: { type: streakType, count: streakCount },
     updatedAt: new Date().toISOString(),
   };
