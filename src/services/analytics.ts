@@ -229,6 +229,92 @@ const TRADING_DAYS_PER_YEAR = 252;
 const ANALYTICS_ROUNDING_DIVISOR = 10;
 
 /**
+ * Precision Rounding Constants
+ *
+ * Constants for rounding risk metrics and performance statistics to consistent
+ * decimal precision across all analytics reports.
+ */
+
+/**
+ * 4-Decimal Precision Multiplier
+ *
+ * Used for high-precision risk metrics like maxDrawdown, volatility, downsideDeviation,
+ * and VaR where fractional values matter for risk assessment.
+ *
+ * Formula: Math.round(value × 10000) / 10000
+ *
+ * Example: Math.round(0.12345 × 10000) / 10000 = 1235 / 10000 = 0.1235
+ *
+ * Use cases: maxDrawdown, volatility, downsideDeviation, valueAtRisk95
+ *
+ * Tuning impact: Change to 100000 for 5-decimal precision (0.12345) or 1000 for 3-decimal (0.123).
+ */
+const PRECISION_4_DECIMAL_MULTIPLIER = 10000;
+
+/**
+ * 4-Decimal Precision Divisor
+ *
+ * Divisor matching PRECISION_4_DECIMAL_MULTIPLIER for 4-decimal rounding.
+ *
+ * Formula: Math.round(value × PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR
+ *
+ * Example: Math.round(0.12345 × 10000) / 10000 = 0.1235
+ */
+const PRECISION_4_DECIMAL_DIVISOR = 10000;
+
+/**
+ * 2-Decimal Percentage Multiplier
+ *
+ * Used for converting decimal fractions to 2-decimal percentages (e.g., 0.1234 → 12.34%).
+ *
+ * Formula: Math.round(value × 10000) / 100
+ *
+ * Example: Math.round(0.1234 × 10000) / 100 = 1234 / 100 = 12.34
+ *
+ * Use cases: maxDrawdownPercent (displays drawdown as percentage with 2 decimals)
+ *
+ * Tuning impact: Change to 1000/10 for 1-decimal percentage (12.3%) or 100000/1000 for 3-decimal (12.345%).
+ */
+const PERCENTAGE_2_DECIMAL_MULTIPLIER = 10000;
+
+/**
+ * 2-Decimal Percentage Divisor
+ *
+ * Divisor for converting to 2-decimal percentage format.
+ *
+ * Formula: Math.round(value × PERCENTAGE_2_DECIMAL_MULTIPLIER) / PERCENTAGE_2_DECIMAL_DIVISOR
+ *
+ * Example: Math.round(0.1234 × 10000) / 100 = 12.34%
+ */
+const PERCENTAGE_2_DECIMAL_DIVISOR = 100;
+
+/**
+ * 1-Decimal Percentage Multiplier
+ *
+ * Used for sector allocation and agreement rate percentages with 1-decimal precision.
+ *
+ * Formula: Math.round(value × 1000) / 10
+ *
+ * Example: Math.round(0.753 × 1000) / 10 = 753 / 10 = 75.3%
+ *
+ * Use cases: sector allocation percentage, agent agreement rate
+ *
+ * Tuning impact: Change to 10000/100 for 2-decimal percentage (75.34%) or 100/1 for integer (75%).
+ */
+const PERCENTAGE_1_DECIMAL_MULTIPLIER = 1000;
+
+/**
+ * 1-Decimal Percentage Divisor
+ *
+ * Divisor for converting to 1-decimal percentage format.
+ *
+ * Formula: Math.round(value × PERCENTAGE_1_DECIMAL_MULTIPLIER) / PERCENTAGE_1_DECIMAL_DIVISOR
+ *
+ * Example: Math.round(0.753 × 1000) / 10 = 75.3%
+ */
+const PERCENTAGE_1_DECIMAL_DIVISOR = 10;
+
+/**
  * Market Volatility Classification
  *
  * Thresholds for classifying market volatility as high/medium/low based on
@@ -888,13 +974,13 @@ function computeRiskMetrics(
 
   return {
     sharpeRatio: round2(sharpeRatio),
-    maxDrawdown: Math.round(maxDrawdown * 10000) / 10000,
-    maxDrawdownPercent: Math.round(maxDrawdown * 10000) / 100,
-    volatility: Math.round(volatility * 10000) / 10000,
-    downsideDeviation: Math.round(downsideDeviation * 10000) / 10000,
+    maxDrawdown: Math.round(maxDrawdown * PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR,
+    maxDrawdownPercent: Math.round(maxDrawdown * PERCENTAGE_2_DECIMAL_MULTIPLIER) / PERCENTAGE_2_DECIMAL_DIVISOR,
+    volatility: Math.round(volatility * PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR,
+    downsideDeviation: Math.round(downsideDeviation * PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR,
     sortinoRatio: round2(sortinoRatio),
     calmarRatio: round2(calmarRatio),
-    valueAtRisk95: Math.round(valueAtRisk95 * 10000) / 10000,
+    valueAtRisk95: Math.round(valueAtRisk95 * PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR,
     avgPositionSize: round2(avgPositionSize),
     maxPositionConcentration: Math.round(maxPositionConcentration * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
   };
@@ -1012,7 +1098,7 @@ function computeSectorAllocation(
     sector,
     symbols: Array.from(data.symbols),
     tradeCount: data.count,
-    allocation: Math.round((data.count / total) * 1000) / 10,
+    allocation: Math.round((data.count / total) * PERCENTAGE_1_DECIMAL_MULTIPLIER) / PERCENTAGE_1_DECIMAL_DIVISOR,
   }));
   return sortByDescending(sectorData, "tradeCount");
 }
@@ -1297,7 +1383,7 @@ function computeComparisonEntry(
     winRate: Math.round(winRate * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     avgConfidence: Math.round(avgConf * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
     sharpeRatio: round2(sharpe),
-    maxDrawdown: Math.round(maxDD * 10000) / 10000,
+    maxDrawdown: Math.round(maxDD * PRECISION_4_DECIMAL_MULTIPLIER) / PRECISION_4_DECIMAL_DIVISOR,
     favoriteStock,
     riskTolerance: config.riskTolerance,
   };
@@ -1523,7 +1609,7 @@ function computeAgreementRate(
     }
   }
 
-  return totalRounds > 0 ? Math.round((agreementCount / totalRounds) * 1000) / 10 : 0;
+  return totalRounds > 0 ? Math.round((agreementCount / totalRounds) * PERCENTAGE_1_DECIMAL_MULTIPLIER) / PERCENTAGE_1_DECIMAL_DIVISOR : 0;
 }
 
 function findMostControversialStock(
