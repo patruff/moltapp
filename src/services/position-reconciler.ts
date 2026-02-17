@@ -107,6 +107,32 @@ const QUANTITY_TOLERANCE = 0.000001;
 const WARNING_THRESHOLD_PERCENT = 1;
 const CRITICAL_THRESHOLD_PERCENT = 5;
 
+/**
+ * Difference percentage assigned when a position is entirely missing from one side.
+ *
+ * Used when:
+ * - DB tracks a position but chain has 0 tokens (PHANTOM discrepancy)
+ * - Chain has tokens that DB doesn't track at all (EXCESS discrepancy)
+ * - Chain is unreachable (all positions treated as phantom)
+ *
+ * Value of 100 represents a 100% discrepancy — the position is completely
+ * absent from one side, so the difference equals 100% of the expected quantity.
+ */
+const COMPLETE_DISCREPANCY_PERCENT = 100;
+
+/**
+ * Delay between per-agent reconciliations when running reconcileAllAgents().
+ *
+ * Purpose: Prevents thundering herd on the Solana RPC when multiple agents
+ * are reconciled in sequence. Each agent requires one getWalletBalances() call,
+ * which hits the RPC. A 500ms gap keeps request rate well under the RPC limit
+ * (5 calls/second) even for large agent fleets.
+ *
+ * Formula: agentCount × INTER_AGENT_DELAY_MS = total reconciliation duration
+ * Example: 3 agents × 500ms = ~1.5s total for a full reconciliation cycle
+ */
+const INTER_AGENT_DELAY_MS = 500;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -170,7 +196,7 @@ export async function reconcileAgent(
         dbQuantity: parseFloat(p.quantity),
         chainQuantity: 0,
         difference: parseFloat(p.quantity),
-        differencePercent: 100,
+        differencePercent: COMPLETE_DISCREPANCY_PERCENT,
         discrepancy: "PHANTOM" as const,
         withinTolerance: false,
         tokenAccount: null,
@@ -254,7 +280,7 @@ export async function reconcileAgent(
         dbQuantity: 0,
         chainQuantity: chainToken.amount,
         difference: chainToken.amount,
-        differencePercent: 100,
+        differencePercent: COMPLETE_DISCREPANCY_PERCENT,
         discrepancy: "EXCESS",
         withinTolerance: false,
         tokenAccount: chainToken.tokenAccount,
@@ -340,7 +366,7 @@ export async function reconcileAllAgents(
     }
 
     // Small delay between agents to respect RPC rate limits
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, INTER_AGENT_DELAY_MS));
   }
 
   return reports;
