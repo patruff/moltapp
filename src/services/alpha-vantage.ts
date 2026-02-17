@@ -76,6 +76,45 @@ const MAX_SYMBOLS_PER_BATCH = 5;
 const RATE_LIMIT_DELAY_MS = 12000;
 
 // ---------------------------------------------------------------------------
+// Timestamp Parsing Constants
+// ---------------------------------------------------------------------------
+// Alpha Vantage returns timestamps in compact format: "YYYYMMDDTHHmmss"
+// Example: "20260206T150000" = 2026-02-06 at 15:00:00 UTC
+// Each constant marks the start/end slice position within this 15-char string.
+
+/** Start index of the year component in AV timestamp (chars 0-3 = YYYY) */
+const AV_TS_YEAR_START = 0;
+/** End index of the year component in AV timestamp */
+const AV_TS_YEAR_END = 4;
+
+/** Start index of the month component in AV timestamp (chars 4-5 = MM) */
+const AV_TS_MONTH_START = 4;
+/** End index of the month component in AV timestamp */
+const AV_TS_MONTH_END = 6;
+
+/** Start index of the day component in AV timestamp (chars 6-7 = DD) */
+const AV_TS_DAY_START = 6;
+/** End index of the day component in AV timestamp */
+const AV_TS_DAY_END = 8;
+
+// Index 8 is the literal "T" separator — skipped
+
+/** Start index of the hour component in AV timestamp (chars 9-10 = HH) */
+const AV_TS_HOUR_START = 9;
+/** End index of the hour component in AV timestamp */
+const AV_TS_HOUR_END = 11;
+
+/** Start index of the minute component in AV timestamp (chars 11-12 = mm) */
+const AV_TS_MINUTE_START = 11;
+/** End index of the minute component in AV timestamp */
+const AV_TS_MINUTE_END = 13;
+
+/** Start index of the second component in AV timestamp (chars 13-14 = ss) */
+const AV_TS_SECOND_START = 13;
+/** End index of the second component in AV timestamp */
+const AV_TS_SECOND_END = 15;
+
+// ---------------------------------------------------------------------------
 // Cache
 // ---------------------------------------------------------------------------
 
@@ -136,12 +175,12 @@ async function fetchAlphaVantageNews(
       let publishedAt: string;
       try {
         // Convert "20260206T150000" to ISO format
-        const year = timePublished.slice(0, 4);
-        const month = timePublished.slice(4, 6);
-        const day = timePublished.slice(6, 8);
-        const hour = timePublished.slice(9, 11);
-        const minute = timePublished.slice(11, 13);
-        const second = timePublished.slice(13, 15);
+        const year = timePublished.slice(AV_TS_YEAR_START, AV_TS_YEAR_END);
+        const month = timePublished.slice(AV_TS_MONTH_START, AV_TS_MONTH_END);
+        const day = timePublished.slice(AV_TS_DAY_START, AV_TS_DAY_END);
+        const hour = timePublished.slice(AV_TS_HOUR_START, AV_TS_HOUR_END);
+        const minute = timePublished.slice(AV_TS_MINUTE_START, AV_TS_MINUTE_END);
+        const second = timePublished.slice(AV_TS_SECOND_START, AV_TS_SECOND_END);
         publishedAt = new Date(
           `${year}-${month}-${day}T${hour}:${minute}:${second}Z`,
         ).toISOString();
