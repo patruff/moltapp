@@ -31,6 +31,68 @@ import {
   type V32TradeGrade,
 } from "../services/v32-benchmark-engine.ts";
 
+// ---------------------------------------------------------------------------
+// Display Limit & Query Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of top-performing dimensions to show per agent in leaderboard.
+ * Highlights each agent's strongest evaluation dimensions (e.g., best 5 of 24).
+ */
+const TOP_DIMENSIONS_DISPLAY_LIMIT = 5;
+
+/**
+ * Number of weakest dimensions to show per agent in leaderboard.
+ * Surfaces each agent's biggest improvement areas (e.g., worst 3 of 24).
+ */
+const WEAKEST_DIMENSIONS_DISPLAY_LIMIT = 3;
+
+/**
+ * Maximum number of trade grades returned by the /trade-grades endpoint.
+ * Hard cap prevents excessive memory usage for large datasets.
+ * Default query limit is 50; this is the upper bound.
+ */
+const MAX_TRADE_GRADES_QUERY_LIMIT = 200;
+
+/**
+ * Number of trade grades fetched for grounding analysis per agent.
+ * Large enough to compute meaningful averages but bounded for performance.
+ */
+const GROUNDING_TRADES_QUERY_LIMIT = 100;
+
+/**
+ * Number of recent trades shown in the grounding analysis response.
+ * Provides a useful sample without overwhelming the response payload.
+ */
+const RECENT_TRADES_DISPLAY_LIMIT = 10;
+
+/**
+ * Number of round summaries fetched before slicing for consensus display.
+ * Fetches more than needed to allow filtering/sorting before display.
+ */
+const CONSENSUS_ROUNDS_FETCH_LIMIT = 20;
+
+/**
+ * Number of recent rounds displayed in the consensus analysis response.
+ * Shows enough history to detect consensus trends without large payloads.
+ */
+const RECENT_ROUNDS_DISPLAY_LIMIT = 5;
+
+/**
+ * Maximum trade grades to export in JSONL/CSV export endpoints.
+ * Also used for total trade count in health check reporting.
+ * Large enough to export full datasets for researchers.
+ */
+const EXPORT_MAX_TRADES_LIMIT = 2000;
+
+/**
+ * Maximum round summaries to fetch for health check reporting.
+ * Provides accurate total round count without unbounded memory usage.
+ */
+const HEALTH_ROUNDS_QUERY_LIMIT = 200;
+
+// ---------------------------------------------------------------------------
+
 export const benchmarkV32ApiRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -58,11 +120,11 @@ benchmarkV32ApiRoutes.get("/leaderboard", (c) => {
       roundsPlayed: s.roundsPlayed,
       topDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
+        .slice(0, TOP_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       weakestDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => a - b)
-        .slice(0, 3)
+        .slice(0, WEAKEST_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       lastUpdated: s.lastUpdated,
     })),
@@ -74,7 +136,7 @@ benchmarkV32ApiRoutes.get("/leaderboard", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV32ApiRoutes.get("/trade-grades", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), MAX_TRADE_GRADES_QUERY_LIMIT);
   const agentId = c.req.query("agent");
   const minGrade = c.req.query("minGrade");
 
@@ -210,7 +272,7 @@ benchmarkV32ApiRoutes.get("/dimensions", (c) => {
 
 benchmarkV32ApiRoutes.get("/grounding/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const trades = getTradeGradesByAgent(agentId, 100);
+  const trades = getTradeGradesByAgent(agentId, GROUNDING_TRADES_QUERY_LIMIT);
 
   if (trades.length === 0) {
     return c.json({
@@ -238,7 +300,7 @@ benchmarkV32ApiRoutes.get("/grounding/:agentId", (c) => {
       highlyGroundedTrades: highlyGrounded,
       poorlyGroundedTrades: poorlyGrounded,
       groundingRate: round2(highlyGrounded / trades.length),
-      recentTrades: trades.slice(0, 10).map((t) => ({
+      recentTrades: trades.slice(0, RECENT_TRADES_DISPLAY_LIMIT).map((t) => ({
         tradeId: t.tradeId,
         symbol: t.symbol,
         action: t.action,
@@ -256,7 +318,7 @@ benchmarkV32ApiRoutes.get("/grounding/:agentId", (c) => {
 
 benchmarkV32ApiRoutes.get("/consensus", (c) => {
   const scores = getAgentScores();
-  const rounds = getRoundSummaries(20);
+  const rounds = getRoundSummaries(CONSENSUS_ROUNDS_FETCH_LIMIT);
 
   const agentConsensus = scores.map((s) => ({
     agentId: s.agentId,
@@ -275,7 +337,7 @@ benchmarkV32ApiRoutes.get("/consensus", (c) => {
     benchmark: "moltapp-v32",
     consensusAnalysis: {
       agents: agentConsensus,
-      recentRounds: rounds.slice(0, 5).map((r) => ({
+      recentRounds: rounds.slice(0, RECENT_ROUNDS_DISPLAY_LIMIT).map((r) => ({
         roundId: r.roundId,
         consensusAgreement: r.consensusAgreement,
         avgConsensusQuality: r.avgConsensusQuality,
@@ -290,7 +352,7 @@ benchmarkV32ApiRoutes.get("/consensus", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV32ApiRoutes.get("/export/jsonl", (c) => {
-  const trades = getTradeGrades(2000);
+  const trades = getTradeGrades(EXPORT_MAX_TRADES_LIMIT);
   const lines = trades.map((t) => JSON.stringify({
     trade_id: t.tradeId,
     agent_id: t.agentId,
@@ -330,7 +392,7 @@ benchmarkV32ApiRoutes.get("/export/jsonl", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV32ApiRoutes.get("/export/csv", (c) => {
-  const trades = getTradeGrades(2000);
+  const trades = getTradeGrades(EXPORT_MAX_TRADES_LIMIT);
 
   const headers = [
     "trade_id", "agent_id", "symbol", "action", "confidence",
@@ -373,8 +435,8 @@ benchmarkV32ApiRoutes.get("/health", (c) => {
     dimensions: getDimensionCount(),
     health: {
       agentsScored: scores.length,
-      totalTradeGrades: getTradeGrades(2000).length,
-      totalRoundSummaries: getRoundSummaries(200).length,
+      totalTradeGrades: getTradeGrades(EXPORT_MAX_TRADES_LIMIT).length,
+      totalRoundSummaries: getRoundSummaries(HEALTH_ROUNDS_QUERY_LIMIT).length,
       latestTrade: trades[0]?.gradedAt ?? null,
       latestRound: rounds[0]?.timestamp ?? null,
       engineStatus: "operational",
