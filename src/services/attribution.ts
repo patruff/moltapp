@@ -676,12 +676,12 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     : 0;
 
   const factors: FactorLoading[] = [
-    { factor: "Momentum", loading: momentumLoading, description: "Tendency to buy winners and sell losers (trend-following)", confidence: Math.min(momentumCount, 30) / 30 * 100 },
-    { factor: "Value", loading: valueLoading, description: "Preference for undervalued / lower-priced stocks", confidence: Math.min(valueCount, 30) / 30 * 100 },
-    { factor: "Size", loading: sizeLoading, description: "Preference for large-cap (+) vs small-cap (-) stocks", confidence: Math.min(sizeCount, 30) / 30 * 100 },
-    { factor: "Volatility", loading: volatilityLoading, description: "Preference for high-volatility (+) vs low-volatility (-) stocks", confidence: Math.min(volCount, 30) / 30 * 100 },
-    { factor: "Quality", loading: qualityLoading, description: "Preference for stable, profitable companies", confidence: Math.min(qualityCount, 30) / 30 * 100 },
-    { factor: "Crypto", loading: cryptoLoading, description: "Exposure to crypto-adjacent stocks (COIN, MSTR, HOOD)", confidence: Math.min(cryptoCount, 30) / 30 * 100 },
+    { factor: "Momentum", loading: momentumLoading, description: "Tendency to buy winners and sell losers (trend-following)", confidence: Math.min(momentumCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
+    { factor: "Value", loading: valueLoading, description: "Preference for undervalued / lower-priced stocks", confidence: Math.min(valueCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
+    { factor: "Size", loading: sizeLoading, description: "Preference for large-cap (+) vs small-cap (-) stocks", confidence: Math.min(sizeCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
+    { factor: "Volatility", loading: volatilityLoading, description: "Preference for high-volatility (+) vs low-volatility (-) stocks", confidence: Math.min(volCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
+    { factor: "Quality", loading: qualityLoading, description: "Preference for stable, profitable companies", confidence: Math.min(qualityCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
+    { factor: "Crypto", loading: cryptoLoading, description: "Exposure to crypto-adjacent stocks (COIN, MSTR, HOOD)", confidence: Math.min(cryptoCount, FACTOR_CONFIDENCE_MAX_TRADES) / FACTOR_CONFIDENCE_MAX_TRADES * FACTOR_CONFIDENCE_MULTIPLIER },
   ];
 
   // Round confidence values
@@ -691,12 +691,12 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
 
   // Determine tilt narrative
   let factorTilt: string;
-  if (momentumLoading > 30) factorTilt = "Trend-following momentum style";
-  else if (momentumLoading < -30) factorTilt = "Contrarian mean-reversion style";
-  else if (qualityLoading > 30) factorTilt = "Quality-focused blue-chip style";
-  else if (volatilityLoading > 30) factorTilt = "Risk-seeking, high-beta style";
-  else if (cryptoLoading > 30) factorTilt = "Crypto-tilted digital-asset style";
-  else if (valueLoading > 30) factorTilt = "Deep-value bargain-hunting style";
+  if (momentumLoading > FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Trend-following momentum style";
+  else if (momentumLoading < -FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Contrarian mean-reversion style";
+  else if (qualityLoading > FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Quality-focused blue-chip style";
+  else if (volatilityLoading > FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Risk-seeking, high-beta style";
+  else if (cryptoLoading > FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Crypto-tilted digital-asset style";
+  else if (valueLoading > FACTOR_TILT_STRONG_THRESHOLD) factorTilt = "Deep-value bargain-hunting style";
   else factorTilt = "Balanced multi-factor style with no extreme tilt";
 
   return {
@@ -730,7 +730,7 @@ export async function getAlphaBeta(
   for (const d of data.decisions) {
     const dayKey = d.createdAt.toISOString().slice(0, 10);
     const returns = dailyReturns.get(dayKey) ?? [];
-    const normalizedReturn = (d.confidence - 50) / 50;
+    const normalizedReturn = (d.confidence - CONFIDENCE_NEUTRAL) / CONFIDENCE_NORMALIZATION_DIVISOR;
     returns.push(d.action === "sell" ? -normalizedReturn : normalizedReturn);
     dailyReturns.set(dayKey, returns);
   }
@@ -808,8 +808,8 @@ export async function getAlphaBeta(
   const informationRatio = trackingError > 0 ? meanExcess / trackingError : 0;
 
   // Annualize
-  const annualizedAlpha = alpha * 252;
-  const annualizedTE = trackingError * Math.sqrt(252);
+  const annualizedAlpha = alpha * ANNUALIZATION_TRADING_DAYS;
+  const annualizedTE = trackingError * Math.sqrt(ANNUALIZATION_TRADING_DAYS);
   const annualizedIR = annualizedTE > 0 ? (annualizedAlpha / annualizedTE) : 0;
 
   return {
@@ -820,9 +820,9 @@ export async function getAlphaBeta(
     rSquared: round(clamp(rSquared, 0, 1), 4),
     trackingError: round(annualizedTE, 6),
     informationRatio: round(annualizedIR, 4),
-    portfolioReturn: round(meanP * 252, 6),
-    benchmarkReturn: round(benchmarkDailyReturn * 252, 6),
-    excessReturn: round((meanP - benchmarkDailyReturn) * 252, 6),
+    portfolioReturn: round(meanP * ANNUALIZATION_TRADING_DAYS, 6),
+    benchmarkReturn: round(benchmarkDailyReturn * ANNUALIZATION_TRADING_DAYS, 6),
+    excessReturn: round((meanP - benchmarkDailyReturn) * ANNUALIZATION_TRADING_DAYS, 6),
     generatedAt: new Date().toISOString(),
   };
 }
@@ -867,7 +867,7 @@ export async function getTradeContributions(
     const price = market?.price ?? parseFloat(pos.averageCostBasis);
     totalPortfolioValue += price * parseFloat(pos.quantity);
   }
-  totalPortfolioValue = Math.max(totalPortfolioValue, 10000); // Minimum is initial capital
+  totalPortfolioValue = Math.max(totalPortfolioValue, PORTFOLIO_MIN_VALUE_USDC); // Minimum is initial capital
 
   const contributions: TradeContribution[] = [];
 
@@ -899,7 +899,7 @@ export async function getTradeContributions(
 
     // Holding period: time since trade
     const holdingPeriodMs = Date.now() - trade.createdAt.getTime();
-    const holdingPeriodHours = holdingPeriodMs / (1000 * 60 * 60);
+    const holdingPeriodHours = holdingPeriodMs / (MS_PER_DAY / 24);
 
     // Timing score: how close to daily low (for buys) or daily high (for sells)
     // Using change24h as a proxy for intra-day range
@@ -907,10 +907,10 @@ export async function getTradeContributions(
     let timingScore: number;
     if (trade.side === "buy") {
       // Good timing = buying when price is low relative to range
-      timingScore = change < 0 ? 70 + Math.min(30, Math.abs(change) * 3) : 50 - Math.min(30, change * 3);
+      timingScore = change < 0 ? TIMING_GRADE_A_THRESHOLD + Math.min(TIMING_SCORE_BONUS_MAX, Math.abs(change) * TIMING_SCORE_CHANGE_MULTIPLIER) : TIMING_SCORE_BASE - Math.min(TIMING_SCORE_BONUS_MAX, change * TIMING_SCORE_CHANGE_MULTIPLIER);
     } else {
       // Good timing = selling when price is high relative to range
-      timingScore = change > 0 ? 70 + Math.min(30, change * 3) : 50 - Math.min(30, Math.abs(change) * 3);
+      timingScore = change > 0 ? TIMING_GRADE_A_THRESHOLD + Math.min(TIMING_SCORE_BONUS_MAX, change * TIMING_SCORE_CHANGE_MULTIPLIER) : TIMING_SCORE_BASE - Math.min(TIMING_SCORE_BONUS_MAX, Math.abs(change) * TIMING_SCORE_CHANGE_MULTIPLIER);
     }
 
     // Portfolio contribution
@@ -930,9 +930,9 @@ export async function getTradeContributions(
       for (const d of data.decisions) {
         if (d.symbol === trade.stockSymbol) {
           const timeDiff = Math.abs(trade.createdAt.getTime() - d.createdAt.getTime());
-          if (timeDiff < 5 * 60 * 1000) {
+          if (timeDiff < DECISION_MATCH_TIME_TOLERANCE_MS) {
             confidence = d.confidence;
-            isConvictionTrade = d.confidence > 80;
+            isConvictionTrade = d.confidence > TIMING_CONVICTION_THRESHOLD;
             break;
           }
         }
@@ -987,7 +987,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
       const matchingTrade = data.trades.find(
         (t: typeof data.trades[0]) =>
           t.stockSymbol === d.symbol &&
-          Math.abs(t.createdAt.getTime() - d.createdAt.getTime()) < 60 * 1000,
+          Math.abs(t.createdAt.getTime() - d.createdAt.getTime()) < TIMING_DECISION_MATCH_WINDOW_MS,
       );
       if (matchingTrade) {
         totalExecTime += matchingTrade.createdAt.getTime() - d.createdAt.getTime();
@@ -1019,7 +1019,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
     const entry = hourSlots.get(hour) ?? { decisions: 0, totalConf: 0, wins: 0 };
     entry.decisions++;
     entry.totalConf += d.confidence;
-    if (d.confidence >= 50 && d.action !== "hold") entry.wins++;
+    if (d.confidence >= CONFIDENCE_NEUTRAL && d.action !== "hold") entry.wins++;
     hourSlots.set(hour, entry);
   }
 
@@ -1062,7 +1062,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
     const entry = daySlots.get(day) ?? { decisions: 0, totalConf: 0, wins: 0 };
     entry.decisions++;
     entry.totalConf += d.confidence;
-    if (d.confidence >= 50 && d.action !== "hold") entry.wins++;
+    if (d.confidence >= CONFIDENCE_NEUTRAL && d.action !== "hold") entry.wins++;
     daySlots.set(day, entry);
   }
 
@@ -1092,7 +1092,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
   for (const d of actionDecisions) {
     const market = data.marketData.find((m) => m.symbol.toLowerCase() === d.symbol.toLowerCase());
     const change = market?.change24h ?? 0;
-    const normalizedReturn = (d.confidence - 50) / 50;
+    const normalizedReturn = (d.confidence - CONFIDENCE_NEUTRAL) / CONFIDENCE_NORMALIZATION_DIVISOR;
 
     let regime: string;
     if (Math.abs(change) > 5) regime = "High Volatility";
@@ -1105,7 +1105,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
     entry.decisions++;
     entry.totalConf += d.confidence;
     entry.totalReturn += normalizedReturn;
-    if (d.confidence >= 50) entry.wins++;
+    if (d.confidence >= CONFIDENCE_NEUTRAL) entry.wins++;
   }
 
   const regimePerformance: RegimePerformance[] = Object.entries(regimes).map(
@@ -1175,12 +1175,12 @@ export async function getRiskContribution(agentId: string): Promise<RiskContribu
   const symbolDecisions = new Map<string, number[]>();
   for (const d of data.decisions) {
     const returns = symbolDecisions.get(d.symbol) ?? [];
-    returns.push((d.confidence - 50) / 50);
+    returns.push((d.confidence - CONFIDENCE_NEUTRAL) / CONFIDENCE_NORMALIZATION_DIVISOR);
     symbolDecisions.set(d.symbol, returns);
   }
   for (const [symbol, returns] of symbolDecisions) {
     if (returns.length < 2) {
-      symbolVolatility.set(symbol, 0.02); // Default 2% daily vol
+      symbolVolatility.set(symbol, RISK_DEFAULT_VOLATILITY); // Default 2% daily vol
       continue;
     }
     const variance = computeVariance(returns);
@@ -1188,13 +1188,11 @@ export async function getRiskContribution(agentId: string): Promise<RiskContribu
   }
 
   // Portfolio-level VaR (parametric, 95% confidence, 1-day)
-  const Z_95 = 1.645;
-
   // Standalone VaR per position
   const posRisks: PositionRisk[] = positionValues.map((p) => {
-    const vol = symbolVolatility.get(p.symbol) ?? 0.02;
-    const standaloneVaR = p.value * vol * Z_95;
-    const marginalVaR = p.weight * vol * Z_95;
+    const vol = symbolVolatility.get(p.symbol) ?? RISK_DEFAULT_VOLATILITY;
+    const standaloneVaR = p.value * vol * RISK_VAR_Z_SCORE_95;
+    const marginalVaR = p.weight * vol * RISK_VAR_Z_SCORE_95;
     const componentVaR = standaloneVaR * p.weight;
 
     // Concentration risk (weight^2 contribution to Herfindahl)
@@ -1206,7 +1204,7 @@ export async function getRiskContribution(agentId: string): Promise<RiskContribu
       weight: round(p.weight, 4),
       marginalVaR: round(marginalVaR, 4),
       componentVaR: round(componentVaR, 2),
-      correlationContribution: round(p.weight * (symbolVolatility.get(p.symbol) ?? 0.02), 6),
+      correlationContribution: round(p.weight * (symbolVolatility.get(p.symbol) ?? RISK_DEFAULT_VOLATILITY), 6),
       concentrationRisk: round(concentrationRisk, 2),
       standalonVaR: round(standaloneVaR, 2),
     };
@@ -1301,7 +1299,7 @@ export async function getFullAttributionReport(agentId: string): Promise<FullAtt
   );
 
   // Risk narrative
-  if (risk.concentrationScore > 60) {
+  if (risk.concentrationScore > RISK_CONCENTRATION_HIGH_THRESHOLD) {
     narrativeParts.push(
       `WARNING: Portfolio is highly concentrated (score: ${risk.concentrationScore}/100). Diversification ratio of ${risk.diversificationRatio.toFixed(2)} indicates limited risk reduction from multi-asset holding.`,
     );
