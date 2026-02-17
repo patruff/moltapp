@@ -148,6 +148,42 @@ const reportStore = new Map<string, TransparencyReport[]>();
 const MAX_REPORTS_PER_AGENT = 200;
 
 // ---------------------------------------------------------------------------
+// Text Truncation & Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Character limit for claim deduplication key generation.
+ * Uses first 50 chars of lowercased claim text as a Map key to detect duplicates.
+ * Short enough for fast key comparison; long enough to distinguish unique claims.
+ * Example: "AAPL is trading at $185.50 with..." → key "general:aapl is trading at $185.50 with..."
+ */
+const CLAIM_KEY_TRUNCATION_LENGTH = 50;
+
+/**
+ * Maximum character length for extracted claim and logic step text.
+ * Limits the text stored per claim/step to keep TransparencyReport sizes manageable.
+ * 200 characters typically captures the core of a market claim without full context.
+ * Example: "The stock has shown strong upward momentum over the past week, suggesting bullish sentiment" (90 chars)
+ */
+const CLAIM_TEXT_MAX_LENGTH = 200;
+
+/**
+ * Character window size for nearby-evidence context search.
+ * When checking if a source keyword appears near a claim in reasoning text,
+ * scans CLAIM_EVIDENCE_CONTEXT_WINDOW characters before and after the claim position.
+ * 100 characters = roughly 1-2 sentences of surrounding context.
+ * Formula: reasoning.slice(claimPos - WINDOW, claimPos + claimLength + WINDOW)
+ */
+const CLAIM_EVIDENCE_CONTEXT_WINDOW = 100;
+
+/**
+ * Maximum number of common assumptions to surface in transparency stats.
+ * Controls how many top-recurring assumptions appear in getTransparencyStats().
+ * Top 5 provides a concise summary without overwhelming the stats response.
+ */
+const COMMON_ASSUMPTIONS_DISPLAY_LIMIT = 5;
+
+// ---------------------------------------------------------------------------
 // Core Analysis Functions
 // ---------------------------------------------------------------------------
 
@@ -184,11 +220,11 @@ export function extractClaims(reasoning: string): ExtractedClaim[] {
   for (const sentence of sentences) {
     if (/\b(?:is\s+(?:trading|priced|valued)|has\s+(?:been|shown|demonstrated)|shows|indicates|reflects|represents)\b/i.test(sentence)) {
       const trimmed = sentence.trim();
-      const key = `general:${trimmed.slice(0, 50).toLowerCase()}`;
+      const key = `general:${trimmed.slice(0, CLAIM_KEY_TRUNCATION_LENGTH).toLowerCase()}`;
       if (!seen.has(key)) {
         seen.add(key);
         claims.push({
-          text: trimmed.slice(0, 200),
+          text: trimmed.slice(0, CLAIM_TEXT_MAX_LENGTH),
           offset: reasoning.indexOf(trimmed),
           type: "general",
           verifiable: false,
@@ -249,7 +285,7 @@ function getEvidenceStrength(claim: ExtractedClaim, source: string, reasoning: s
   // Check if the source keyword appears near the claim in reasoning
   const claimPos = reasoning.toLowerCase().indexOf(claimLower);
   if (claimPos >= 0) {
-    const nearby = reasoning.slice(Math.max(0, claimPos - 100), claimPos + claimLower.length + 100).toLowerCase();
+    const nearby = reasoning.slice(Math.max(0, claimPos - CLAIM_EVIDENCE_CONTEXT_WINDOW), claimPos + claimLower.length + CLAIM_EVIDENCE_CONTEXT_WINDOW).toLowerCase();
     if (nearby.includes(sourceLower.replace(/_/g, " "))) {
       return "indirect";
     }
@@ -289,7 +325,7 @@ export function extractLogicChain(reasoning: string): LogicStep[] {
     }
 
     steps.push({
-      text: sentence.slice(0, 200),
+      text: sentence.slice(0, CLAIM_TEXT_MAX_LENGTH),
       role,
       valid: true, // Default to valid; could be enhanced with contradiction detection
       dependsOn,
@@ -611,7 +647,7 @@ export function getTransparencyStats(): {
   const agentCount = reportStore.size || 1;
   const commonAssumptions = [...assumptionCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, COMMON_ASSUMPTIONS_DISPLAY_LIMIT)
     .map(([a]) => a);
 
   return {
