@@ -87,6 +87,30 @@ export interface PortfolioSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// Query Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default number of portfolio snapshots returned by getSnapshots().
+ *
+ * Controls how many recent snapshots are available for drawdown analysis and
+ * portfolio timeline display. Snapshots are stored per-agent and sliced from
+ * the end (most recent first). Higher values give more history but larger
+ * API response payloads.
+ */
+const DEFAULT_SNAPSHOTS_QUERY_LIMIT = 20;
+
+/**
+ * Default number of anomalies returned by getAnomalies() when no limit filter
+ * is provided by the caller.
+ *
+ * Anomalies include excessive trading, PnL spikes, concentration risk,
+ * drawdown warnings, and correlation risk events. Higher limit = more history
+ * visible in the monitoring dashboard; lower limit = faster API responses.
+ */
+const DEFAULT_ANOMALIES_QUERY_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -126,7 +150,7 @@ export function getDrawdownTracker(agentId: string): DrawdownTracker | null {
 /**
  * Get recent snapshots for an agent.
  */
-export function getSnapshots(agentId: string, limit = 20): PortfolioSnapshot[] {
+export function getSnapshots(agentId: string, limit = DEFAULT_SNAPSHOTS_QUERY_LIMIT): PortfolioSnapshot[] {
   const snapshots = portfolioSnapshots.get(agentId) ?? [];
   return snapshots.slice(-limit);
 }
@@ -156,7 +180,7 @@ export function getAnomalies(filters?: {
     filtered = filtered.filter((a) => a.severity === filters.severity);
   }
 
-  const limit = filters?.limit ?? 50;
+  const limit = filters?.limit ?? DEFAULT_ANOMALIES_QUERY_LIMIT;
   return filtered.slice(-limit);
 }
 
