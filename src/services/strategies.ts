@@ -155,6 +155,69 @@ const SIGNAL_STRENGTH_MIN_THRESHOLD = 10;
  */
 const SIGNAL_STRENGTH_MAX = 100;
 
+/**
+ * Trending Strategies Display Limit
+ *
+ * Maximum number of strategies shown in trending results, sorted by adoption
+ * velocity (most new adoptions in last 7 days). Controls discovery feed size.
+ *
+ * Example: 50 strategies have new adoptions → show top 20 by trend score
+ *
+ * Used in: getTrendingStrategies() adoption count ranking
+ */
+const TRENDING_STRATEGIES_DISPLAY_LIMIT = 20;
+
+/**
+ * New Strategies Inclusion Limit
+ *
+ * Maximum number of newly created strategies (last 7 days) included in
+ * trending results when not already present from adoption velocity ranking.
+ * Gives recent high-rated strategies discovery visibility even without adoptions.
+ *
+ * Example: 12 new strategies with high ratings → include top 5 in trending feed
+ *
+ * Used in: getTrendingStrategies() new strategy boost
+ */
+const NEW_STRATEGIES_TRENDING_LIMIT = 5;
+
+/**
+ * Top Creators Display Limit
+ *
+ * Maximum number of strategy creators shown in marketplace statistics,
+ * ranked by total number of strategies created. Controls leaderboard size.
+ *
+ * Example: 25 agents have created strategies → show top 10 by count
+ *
+ * Used in: getMarketplaceStats() creator ranking
+ */
+const TOP_CREATORS_DISPLAY_LIMIT = 10;
+
+/**
+ * 7-Day Time Window in Milliseconds
+ *
+ * Duration used for trending detection and recent activity statistics.
+ * 7 days = 168 hours = 10,080 minutes = 604,800,000 milliseconds.
+ *
+ * Formula: Date.now() - TIME_WINDOW_7D_MS = cutoff for "recent" strategies
+ * Example: Used to find strategies created or adopted in last week
+ *
+ * Used in: getTrendingStrategies(), getMarketplaceStats() recent activity
+ */
+const TIME_WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * 1-Day Time Window in Milliseconds
+ *
+ * Duration used for daily signal activity statistics in marketplace overview.
+ * 1 day = 24 hours = 1,440 minutes = 86,400,000 milliseconds.
+ *
+ * Formula: Date.now() - TIME_WINDOW_1D_MS = cutoff for "today's" signals
+ * Example: Used to count signals generated in last 24 hours
+ *
+ * Used in: getMarketplaceStats() recent signals count
+ */
+const TIME_WINDOW_1D_MS = 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -1152,7 +1215,7 @@ export async function getStrategyPerformance(
  * @returns Array of trending strategy data
  */
 export async function getTrendingStrategies() {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(Date.now() - TIME_WINDOW_7D_MS);
 
   // Get all recent adoptions
   const recentAdoptions = await db
@@ -1171,7 +1234,7 @@ export async function getTrendingStrategies() {
   // Fetch strategy details for top trending
   const sortedEntries = Array.from(adoptionCounts.entries())
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 20);
+    .slice(0, TRENDING_STRATEGIES_DISPLAY_LIMIT);
 
   const trending = [];
   for (const [strategyId, recentAdoptionCount] of sortedEntries) {
@@ -1208,7 +1271,7 @@ export async function getTrendingStrategies() {
       ),
     )
     .orderBy(desc(strategies.avgRating))
-    .limit(5);
+    .limit(NEW_STRATEGIES_TRENDING_LIMIT);
 
   for (const strategy of newStrategies) {
     if (trending.some((t) => t.strategyId === strategy.id)) continue;
@@ -1400,11 +1463,11 @@ export async function getMarketplaceStats(): Promise<MarketplaceStats> {
   const topCreators = Array.from(creatorCounts.entries())
     .map(([agentId, strategyCount]) => ({ agentId, strategyCount }))
     .sort((a, b) => b.strategyCount - a.strategyCount)
-    .slice(0, 10);
+    .slice(0, TOP_CREATORS_DISPLAY_LIMIT);
 
   // Recent activity
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(Date.now() - TIME_WINDOW_7D_MS);
+  const oneDayAgo = new Date(Date.now() - TIME_WINDOW_1D_MS);
 
   const recentStrategies = allStrategies.filter(
     (s: Strategy) => s.createdAt && s.createdAt >= sevenDaysAgo,
