@@ -162,6 +162,43 @@ const TREND_IMPROVEMENT_THRESHOLD = 0.05;
  */
 const TREND_DECLINE_THRESHOLD = -0.05;
 
+/**
+ * Display Limit Constants
+ *
+ * Controls how many items are returned in analysis result arrays.
+ */
+
+/**
+ * Maximum number of top analysis terms shown in vocabulary metrics.
+ *
+ * Controls how many of the most frequently used analysis terms are included
+ * in the topTerms array of VocabularyMetrics (e.g., "bullish", "momentum").
+ *
+ * Example: Agent uses 80 distinct analysis terms → show top 10 most frequent.
+ *
+ * HIGHER values = MORE terms shown = more comprehensive vocabulary analysis
+ * LOWER values = FEWER terms shown = more focused on dominant vocabulary
+ *
+ * Current: 10 provides focused vocabulary snapshot without overwhelming API responses.
+ */
+const TOP_TERMS_DISPLAY_LIMIT = 10;
+
+/**
+ * Maximum number of inflection points returned per agent timeline.
+ *
+ * Controls how many behavior change events (confidence shifts, strategy changes,
+ * coherence jumps, vocabulary shifts) are included in the inflectionPoints array.
+ * Results are sorted by magnitude (highest severity first).
+ *
+ * Example: Agent has 25 detected inflection points → return top 10 by magnitude.
+ *
+ * HIGHER values = MORE inflection points = more detailed behavior change history
+ * LOWER values = FEWER inflection points = focused on most significant changes only
+ *
+ * Current: 10 highlights the most significant behavioral shifts for timeline analysis.
+ */
+const TOP_INFLECTION_POINTS_DISPLAY_LIMIT = 10;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -368,7 +405,7 @@ function analyzeVocabulary(entries: ReasoningSnapshot[]): VocabularyMetrics {
 
   const topTerms = [...termFrequency.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
+    .slice(0, TOP_TERMS_DISPLAY_LIMIT)
     .map(([term, frequency]) => ({ term, frequency }));
 
   const avgWordCount = Math.round(totalWordCount / entries.length);
@@ -532,5 +569,5 @@ function detectInflectionPoints(entries: ReasoningSnapshot[]): InflectionPoint[]
     if (!tooClose) deduped.push(p);
   }
 
-  return deduped.sort((a, b) => b.magnitude - a.magnitude).slice(0, 10);
+  return deduped.sort((a, b) => b.magnitude - a.magnitude).slice(0, TOP_INFLECTION_POINTS_DISPLAY_LIMIT);
 }
