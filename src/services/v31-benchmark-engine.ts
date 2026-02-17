@@ -605,7 +605,7 @@ export function gradeTrade(input: {
   };
 
   tradeGrades.unshift(grade);
-  if (tradeGrades.length > 2000) tradeGrades.length = 2000;
+  if (tradeGrades.length > MAX_TRADE_GRADES) tradeGrades.length = MAX_TRADE_GRADES;
 
   return grade;
 }
@@ -774,7 +774,7 @@ export function recordRoundSummary(input: {
   };
 
   roundSummaries.unshift(summary);
-  if (roundSummaries.length > 200) roundSummaries.length = 200;
+  if (roundSummaries.length > MAX_ROUND_SUMMARIES) roundSummaries.length = MAX_ROUND_SUMMARIES;
   return summary;
 }
 
