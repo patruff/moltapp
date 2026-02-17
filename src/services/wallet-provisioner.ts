@@ -75,6 +75,28 @@ const AGENT_DEFINITIONS = [
 /** Minimum SOL for transaction fees */
 const MIN_SOL_FOR_FEES = 0.01;
 
+/**
+ * DynamoDB TTL for wallet records: 1 year in seconds.
+ * Wallet records persist for 1 year before DynamoDB auto-expires them.
+ * Formula: 365 days × 24 hours × 60 minutes × 60 seconds = 31,536,000 seconds
+ */
+const DYNAMODB_TTL_SECONDS_ONE_YEAR = 365 * 24 * 60 * 60;
+
+/**
+ * Solana System Program address (all 1s) used as a placeholder/null wallet.
+ * This is the default value when no wallet address is configured — it is not
+ * a valid agent wallet and triggers new wallet creation via Turnkey.
+ * The System Program owns all uninitialized accounts on Solana.
+ */
+const SOLANA_PLACEHOLDER_ADDRESS = "11111111111111111111111111111111";
+
+/**
+ * Number of characters to show when displaying a wallet address in logs.
+ * Shows the first 8 characters followed by "..." for readability.
+ * Example: "7xK9mD3q..." instead of the full 44-character base58 address.
+ */
+const WALLET_ADDRESS_DISPLAY_LENGTH = 8;
+
 // ---------------------------------------------------------------------------
 // In-Memory Wallet Registry
 // ---------------------------------------------------------------------------
@@ -120,7 +142,7 @@ async function persistWalletToDynamo(
           lastTradeTimestamp: { S: wallet.provisionedAt },
           ttl: {
             N: String(
-              Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60,
+              Math.floor(Date.now() / 1000) + DYNAMODB_TTL_SECONDS_ONE_YEAR,
             ),
           }, // 1 year TTL
         },
@@ -223,7 +245,7 @@ export async function provisionAllWallets(): Promise<ProvisioningResult> {
     try {
       // Check if wallet already exists via env var
       const envAddress = process.env[def.envKey];
-      if (envAddress && envAddress !== "11111111111111111111111111111111") {
+      if (envAddress && envAddress !== SOLANA_PLACEHOLDER_ADDRESS) {
         const existing: ProvisionedWallet = {
           agentId: def.agentId,
           agentName: def.agentName,
@@ -235,7 +257,7 @@ export async function provisionAllWallets(): Promise<ProvisioningResult> {
         walletRegistry.set(def.agentId, existing);
         results.push(existing);
         console.log(
-          `[WalletProvisioner] ${def.agentName}: Using env wallet ${envAddress.slice(0, 8)}...`,
+          `[WalletProvisioner] ${def.agentName}: Using env wallet ${envAddress.slice(0, WALLET_ADDRESS_DISPLAY_LENGTH)}...`,
         );
         continue;
       }
@@ -245,7 +267,7 @@ export async function provisionAllWallets(): Promise<ProvisioningResult> {
       if (cached && cached.publicKey) {
         results.push(cached);
         console.log(
-          `[WalletProvisioner] ${def.agentName}: Using DynamoDB wallet ${cached.publicKey.slice(0, 8)}...`,
+          `[WalletProvisioner] ${def.agentName}: Using DynamoDB wallet ${cached.publicKey.slice(0, WALLET_ADDRESS_DISPLAY_LENGTH)}...`,
         );
         continue;
       }
