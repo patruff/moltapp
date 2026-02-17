@@ -277,6 +277,25 @@ const HALLUCINATION_FREE_BASE_SCORE = 100; // Perfect score with no hallucinatio
 const HALLUCINATION_PENALTY_PER_FLAG = 25; // Points deducted per hallucination flag
 
 /**
+ * Integrity Hash Display Length
+ *
+ * Controls how many hex characters of the SHA256 hash are shown.
+ * A 16-character prefix provides sufficient uniqueness for display purposes
+ * while keeping the hash compact in API responses and audit trails.
+ */
+const INTEGRITY_HASH_LENGTH = 16; // SHA256 hex prefix length for trade integrity display
+
+/**
+ * Coherence Score Percent Multiplier
+ *
+ * Converts coherence score (0-1 float) to 0-100 scale for sub-score averaging.
+ * Used when combining coherence with other 0-100 dimension scores in the
+ * overall grade calculation. Duplicate usage at lines 553 and 636.
+ * Example: 0.85 coherence × 100 = 85 coherence score out of 100
+ */
+const COHERENCE_SCORE_PERCENT_MULTIPLIER = 100; // Converts 0-1 coherence to 0-100 scale
+
+/**
  * Default/Fallback Scores
  *
  * Used when insufficient data exists for accurate scoring.
@@ -546,12 +565,12 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, INTEGRITY_HASH_LENGTH);
 
   // Overall grade (weighted average of sub-scores)
   const subScores = [
-    input.coherenceScore * 100,
-    (1 - Math.min(1, input.hallucinationFlags.length * 0.25)) * 100,
+    input.coherenceScore * COHERENCE_SCORE_PERCENT_MULTIPLIER,
+    (1 - Math.min(1, input.hallucinationFlags.length * HALLUCINATION_PENALTY_MULTIPLIER)) * COHERENCE_SCORE_PERCENT_MULTIPLIER,
     input.disciplinePassed ? 90 : 30,
     reasoningDepthScore,
     sourceQualityScore,
@@ -633,7 +652,7 @@ export function scoreAgent(input: {
   const drawdownScore = clamp(100 - Math.abs(input.maxDrawdown) * 2, 0, 100);
 
   // Reasoning Quality
-  const coherence = avg(t.map((x) => x.coherenceScore * 100));
+  const coherence = avg(t.map((x) => x.coherenceScore * COHERENCE_SCORE_PERCENT_MULTIPLIER));
   const reasoningDepth = avg(t.map((x) => x.reasoningDepthScore));
   const sourceQuality = avg(t.map((x) => x.sourceQualityScore));
   const logicalConsistency = avg(t.map((x) => x.logicalConsistencyScore));
@@ -763,7 +782,7 @@ function calculateConsensus(scores: V31AgentScore[]): number {
   if (scores.length < 2) return 1;
   const composites = scores.map((s) => s.compositeScore);
   const variance = computeVariance(composites, true);
-  return r(Math.max(0, 1 - Math.sqrt(variance) / 50));
+  return r(Math.max(0, 1 - Math.sqrt(variance) / CONSENSUS_VARIANCE_DIVISOR));
 }
 
 // ---------------------------------------------------------------------------
