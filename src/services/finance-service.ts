@@ -117,6 +117,21 @@ const PERCENT_DECIMAL_PRECISION = 1;
  */
 const WALLET_DISPLAY_LENGTH = 8;
 
+/**
+ * Maximum number of market prices included in the analyst LLM prompt.
+ * Limits how many stocks are shown in the "Current Market Data" section
+ * to keep prompt size manageable and reduce token consumption.
+ * Example: If 50 stocks are available, only the first 20 are included.
+ */
+const MARKET_PRICES_DISPLAY_LIMIT = 20;
+
+/**
+ * Maximum characters of raw LLM response used in the fallback assessment.
+ * Applied when the LLM returns content that cannot be parsed as structured JSON.
+ * 500 characters typically captures the key conclusion paragraph.
+ */
+const ASSESSMENT_TEXT_FALLBACK_LENGTH = 500;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -563,7 +578,7 @@ export async function runAnalysis(
   }
 
   console.log(
-    `[FinanceService] Analysis complete: ${analyst.name} analyzed ${clientWallet.slice(0, 8)}... ` +
+    `[FinanceService] Analysis complete: ${analyst.name} analyzed ${clientWallet.slice(0, WALLET_DISPLAY_LENGTH)}... ` +
     `(${tier}, ${llmResult.inputTokens}+${llmResult.outputTokens} tokens, $${totalPriceUsd.toFixed(PRICE_DECIMAL_PRECISION)})`,
   );
 
@@ -594,7 +609,7 @@ function buildAnalysisPrompt(
     .join("\n");
 
   const marketSummary = marketPrices
-    .slice(0, 20)
+    .slice(0, MARKET_PRICES_DISPLAY_LIMIT)
     .map(p => `  - ${p.symbol}: $${p.price.toFixed(CURRENCY_DECIMAL_PRECISION)} (${p.change24h >= 0 ? "+" : ""}${p.change24h.toFixed(PERCENT_DECIMAL_PRECISION)}%)`)
     .join("\n");
 
@@ -745,7 +760,7 @@ function parseAnalysisResponse(
   _tier: PackageTier,
 ): FinancePackage["analysis"] {
   const fallback: FinancePackage["analysis"] = {
-    overallAssessment: content.slice(0, 500),
+    overallAssessment: content.slice(0, ASSESSMENT_TEXT_FALLBACK_LENGTH),
     positionReviews: [],
     riskAssessment: "Unable to parse structured risk assessment",
     recommendations: [],
@@ -844,7 +859,7 @@ export function postJob(config: {
   };
 
   jobs.set(jobId, job);
-  console.log(`[FinanceService] Job posted: "${job.title}" ($${job.budgetUsd}) by ${job.clientWallet.slice(0, 8)}...`);
+  console.log(`[FinanceService] Job posted: "${job.title}" ($${job.budgetUsd}) by ${job.clientWallet.slice(0, WALLET_DISPLAY_LENGTH)}...`);
   return job;
 }
 
