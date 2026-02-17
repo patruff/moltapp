@@ -198,6 +198,69 @@ const MAX_TURNS = 6;
 /** Max total tool calls in research phase before forcing a decision */
 const MAX_TOOL_CALLS = 12;
 
+// ---------------------------------------------------------------------------
+// Context Truncation & Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of top-moving stocks to show in the initial user message.
+ * Controls how many movers the agent sees before starting research.
+ * Higher values give more market context; lower values keep the message concise.
+ * @example 10 movers → "AAPL: $182.50 (+1.2%), TSLA: $245.00 (-0.8%), ..."
+ */
+const TOP_MOVERS_DISPLAY_LIMIT = 10;
+
+/**
+ * Maximum characters to show from tool call arguments in console logs.
+ * Prevents overly long log lines when tool arguments are large JSON objects.
+ * @example JSON.stringify({symbols: ["AAPL","TSLA","NVDA",...]}).slice(0, 80)
+ */
+const TOOL_ARGS_LOG_PREVIEW_LENGTH = 80;
+
+/**
+ * Maximum length (characters) of tool results stored in the tool trace.
+ * Limits per-entry size in the trace array used for benchmark/audit output.
+ * Excess is replaced with "...[truncated]" marker.
+ * @example 2000 chars ≈ ~500 tokens, keeps trace readable without losing key data
+ */
+const TOOL_TRACE_RESULT_MAX_LENGTH = 2000;
+
+/**
+ * Maximum length (characters) of executed trade results shown in research brief.
+ * Truncates long trade confirmations (signature, fill details) to key information.
+ * @example 300 chars captures tx hash + filled price + quantity
+ */
+const TRADE_RESULT_BRIEF_LENGTH = 300;
+
+/**
+ * Maximum characters of tool call arguments shown per entry in research brief.
+ * Keeps the research brief compact while preserving tool identity.
+ * @example 100 chars captures symbol list and key parameters
+ */
+const BRIEF_TOOL_ARGS_LENGTH = 100;
+
+/**
+ * Maximum characters of tool result shown per entry in research brief.
+ * Balances data richness vs token consumption in the decision model's input.
+ * @example 500 chars ≈ ~125 tokens per tool entry, 12 tools = ~1500 tokens
+ */
+const BRIEF_TOOL_RESULT_LENGTH = 500;
+
+/**
+ * Maximum total length (characters) of the compiled research brief.
+ * ~1500 tokens at ~4 chars/token. Prevents context window overload in decision phase.
+ * Excess is replaced with "\n\n...[research data truncated]" marker.
+ * @example 6000 chars ≈ 1500 tokens for research data + ~200 tokens for decision prompt
+ */
+const RESEARCH_BRIEF_MAX_LENGTH = 6000;
+
+/**
+ * Maximum characters of raw LLM response shown in error messages.
+ * Provides enough context to diagnose parsing failures without flooding logs.
+ * @example 200 chars shows the start of a malformed JSON response for debugging
+ */
+const LLM_ERROR_PREVIEW_LENGTH = 200;
+
 /** Minimal system prompt for the research phase (~80 tokens) */
 const RESEARCH_SYSTEM_PROMPT = `You are a trading research assistant. Gather market data using the available tools. Steps:
 1. Check portfolio positions and active theses (get_portfolio, get_active_theses)
@@ -317,7 +380,7 @@ export abstract class BaseTradingAgent {
     const topMovers = [...marketData]
       .filter((d) => d.change24h !== null)
       .sort((a, b) => Math.abs(b.change24h!) - Math.abs(a.change24h!))
-      .slice(0, 10)
+      .slice(0, TOP_MOVERS_DISPLAY_LIMIT)
       .map(
         (d) =>
           `${d.symbol}: $${d.price.toFixed(2)} (${d.change24h! >= 0 ? "+" : ""}${d.change24h!.toFixed(2)}%)`,
@@ -404,7 +467,7 @@ export abstract class BaseTradingAgent {
         for (const tc of agentTurn.toolCalls) {
           totalToolCalls++;
           console.log(
-            `[${this.config.name}] Tool call #${totalToolCalls}/${MAX_TOOL_CALLS}: ${tc.name}(${JSON.stringify(tc.arguments).slice(0, 80)})`,
+            `[${this.config.name}] Tool call #${totalToolCalls}/${MAX_TOOL_CALLS}: ${tc.name}(${JSON.stringify(tc.arguments).slice(0, TOOL_ARGS_LOG_PREVIEW_LENGTH)})`,
           );
           const result = await executeTool(tc.name, tc.arguments, ctx);
           results.push({ toolCallId: tc.id, result });
@@ -414,7 +477,7 @@ export abstract class BaseTradingAgent {
             turn: turn + 1,
             tool: tc.name,
             arguments: tc.arguments,
-            result: result.length > 2000 ? result.slice(0, 2000) + "...[truncated]" : result,
+            result: result.length > TOOL_TRACE_RESULT_MAX_LENGTH ? result.slice(0, TOOL_TRACE_RESULT_MAX_LENGTH) + "...[truncated]" : result,
             timestamp: new Date().toISOString(),
           });
         }
@@ -474,20 +537,20 @@ export abstract class BaseTradingAgent {
     if (executedTrades.length > 0) {
       brief += `\nTRADES ALREADY EXECUTED THIS ROUND (${executedTrades.length}):\n`;
       for (const trade of executedTrades) {
-        brief += `- ${trade.result.slice(0, 300)}\n`;
+        brief += `- ${trade.result.slice(0, TRADE_RESULT_BRIEF_LENGTH)}\n`;
       }
       brief += "\n";
     }
 
     for (const entry of toolTrace) {
-      const args = JSON.stringify(entry.arguments).slice(0, 100);
+      const args = JSON.stringify(entry.arguments).slice(0, BRIEF_TOOL_ARGS_LENGTH);
       brief += `\n--- ${entry.tool}(${args}) ---\n`;
-      brief += entry.result.slice(0, 500) + "\n";
+      brief += entry.result.slice(0, BRIEF_TOOL_RESULT_LENGTH) + "\n";
     }
 
     // Truncate to ~1500 tokens (~6000 chars) to keep decision model input reasonable
-    if (brief.length > 6000) {
-      brief = brief.slice(0, 6000) + "\n\n...[research data truncated]";
+    if (brief.length > RESEARCH_BRIEF_MAX_LENGTH) {
+      brief = brief.slice(0, RESEARCH_BRIEF_MAX_LENGTH) + "\n\n...[research data truncated]";
     }
 
     brief += "\n\nBased on ALL the research above, output ONLY a valid JSON trading decision with: action (buy/sell/hold), symbol, quantity (USDC for buys, shares for sells, 0 for holds), reasoning, confidence (0-100), sources (array of data sources used), intent, predictedOutcome, thesisStatus.";
@@ -518,7 +581,7 @@ export abstract class BaseTradingAgent {
     // Try to find JSON object in the response
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error(`No JSON object found in LLM response: ${raw.slice(0, 200)}`);
+      throw new Error(`No JSON object found in LLM response: ${raw.slice(0, LLM_ERROR_PREVIEW_LENGTH)}`);
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
