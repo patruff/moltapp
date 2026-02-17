@@ -95,6 +95,71 @@ const ROUND_ID_DESCRIPTION_DISPLAY_LENGTH = 24;
  */
 const ERROR_MESSAGE_DISPLAY_LENGTH = 100;
 
+/**
+ * Discord Rate Limit Window
+ *
+ * Time window in milliseconds used to count recent messages for self-imposed
+ * rate limiting before sending to Discord. Set to 1 minute to match Discord's
+ * own rate limit measurement window.
+ *
+ * Formula: messages sent in last RATE_LIMIT_WINDOW_MS ≥ maxMessagesPerMinute → skip
+ *
+ * Tuning impact: Change window if rate limiting logic needs adjustment.
+ */
+const DISCORD_RATE_LIMIT_WINDOW_MS = 60_000;
+
+/**
+ * Discord Webhook Timeout
+ *
+ * Maximum milliseconds to wait for a Discord webhook HTTP response before
+ * aborting the request. 10 seconds allows for occasional Discord API slowness
+ * while preventing indefinite hangs.
+ *
+ * Applied to both the initial request and the 429 retry attempt.
+ *
+ * Tuning impact: Increase to 15_000 for more tolerance on slow connections,
+ * decrease to 5_000 for faster failure detection.
+ */
+const DISCORD_WEBHOOK_TIMEOUT_MS = 10_000;
+
+/**
+ * Discord Rate Limit Retry Default Delay
+ *
+ * Fallback delay in milliseconds when Discord returns HTTP 429 (rate limited)
+ * but does not include a Retry-After header. 5 seconds is a safe default that
+ * avoids hammering the API while not waiting too long.
+ *
+ * Discord typically includes Retry-After headers; this only applies as a fallback.
+ *
+ * Tuning impact: Increase to 10_000 for more conservative retry behavior.
+ */
+const DISCORD_RETRY_DELAY_MS = 5000;
+
+/**
+ * Quantity Display Decimal Precision
+ *
+ * Number of decimal places for trade quantity values in Discord embed fields.
+ * 4 decimal places supports fractional share quantities (e.g., 0.0042 shares)
+ * while remaining readable in Discord notifications.
+ *
+ * Example: 0.00423 shares → "0.0042" (4 decimals)
+ *
+ * Tuning impact: Increase to 6 for very small fractional amounts.
+ */
+const QUANTITY_DISPLAY_DECIMAL_PRECISION = 4;
+
+/**
+ * Price Display Decimal Precision
+ *
+ * Number of decimal places for USD price and value amounts in Discord embeds.
+ * 2 decimal places is the standard for currency display (e.g., $142.53).
+ *
+ * Applied to: filledPrice, usdcAmount fields in trade notifications.
+ *
+ * Example: $142.534 → "$142.53" (2 decimals, standard currency format)
+ */
+const PRICE_DISPLAY_DECIMAL_PRECISION = 2;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -291,7 +356,7 @@ async function sendToDiscord(
 
   // Rate limit check
   const now = Date.now();
-  const oneMinuteAgo = now - 60_000;
+  const oneMinuteAgo = now - DISCORD_RATE_LIMIT_WINDOW_MS;
   const recentCount = countByCondition(recentTimestamps, (t) => t > oneMinuteAgo);
 
   if (recentCount >= config.maxMessagesPerMinute) {
@@ -314,7 +379,7 @@ async function sendToDiscord(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(finalPayload),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(DISCORD_WEBHOOK_TIMEOUT_MS),
     });
 
     if (response.ok || response.status === 204) {
@@ -331,7 +396,7 @@ async function sendToDiscord(
     // Discord rate limit (429)
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
-      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : 5000;
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : DISCORD_RETRY_DELAY_MS;
       console.warn(
         `[DiscordNotifier] Discord rate limit hit, retry after ${waitMs}ms`,
       );
@@ -342,7 +407,7 @@ async function sendToDiscord(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(finalPayload),
-        signal: AbortSignal.timeout(10_000),
+        signal: AbortSignal.timeout(DISCORD_WEBHOOK_TIMEOUT_MS),
       });
 
       if (retryResp.ok || retryResp.status === 204) {
@@ -403,7 +468,7 @@ export async function notifyTradeExecution(
   if (trade.action !== "hold") {
     fields.push({
       name: "Quantity",
-      value: trade.quantity.toFixed(4),
+      value: trade.quantity.toFixed(QUANTITY_DISPLAY_DECIMAL_PRECISION),
       inline: true,
     });
   }
@@ -411,7 +476,7 @@ export async function notifyTradeExecution(
   if (trade.filledPrice !== undefined) {
     fields.push({
       name: "Price",
-      value: `$${trade.filledPrice.toFixed(2)}`,
+      value: `$${trade.filledPrice.toFixed(PRICE_DISPLAY_DECIMAL_PRECISION)}`,
       inline: true,
     });
   }
@@ -419,7 +484,7 @@ export async function notifyTradeExecution(
   if (trade.usdcAmount !== undefined) {
     fields.push({
       name: "Value",
-      value: `$${trade.usdcAmount.toFixed(2)}`,
+      value: `$${trade.usdcAmount.toFixed(PRICE_DISPLAY_DECIMAL_PRECISION)}`,
       inline: true,
     });
   }
@@ -613,7 +678,7 @@ export async function notifyDailySummary(
   const agentLines = summary.agentPerformance.map((a) => {
     const pnlEmoji = a.pnl >= 0 ? "📈" : "📉";
     const sign = pnlSign(a.pnl);
-    return `**${a.agentName}**: ${a.trades} trades, ${a.wins}W/${a.losses}L, ${pnlEmoji} ${sign}$${a.pnl.toFixed(2)} (${sign}${a.pnlPercent.toFixed(2)}%)`;
+    return `**${a.agentName}**: ${a.trades} trades, ${a.wins}W/${a.losses}L, ${pnlEmoji} ${sign}$${a.pnl.toFixed(PRICE_DISPLAY_DECIMAL_PRECISION)} (${sign}${a.pnlPercent.toFixed(PRICE_DISPLAY_DECIMAL_PRECISION)}%)`;
   });
 
   // Sort by P&L descending for ranking
@@ -625,7 +690,7 @@ export async function notifyDailySummary(
   const embed: DiscordEmbed = {
     title: `📊 Daily Summary — ${summary.date}`,
     description: winner
-      ? `🏆 **${winner.agentName}** leads with ${pnlSign(winner.pnl)}$${winner.pnl.toFixed(2)}`
+      ? `🏆 **${winner.agentName}** leads with ${pnlSign(winner.pnl)}$${winner.pnl.toFixed(PRICE_DISPLAY_DECIMAL_PRECISION)}`
       : "No agent activity today",
     color: COLORS.DAILY_SUMMARY,
     fields: [
@@ -724,7 +789,7 @@ export function configureDiscordNotifier(
  */
 export function getDiscordNotifierMetrics(): DiscordNotifierMetrics {
   const now = Date.now();
-  const oneMinuteAgo = now - 60_000;
+  const oneMinuteAgo = now - DISCORD_RATE_LIMIT_WINDOW_MS;
   const messagesSentLastMinute = recentTimestamps.filter(
     (t) => t > oneMinuteAgo,
   ).length;
