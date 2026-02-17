@@ -259,6 +259,62 @@ const ACTIVE_PATTERNS_DISPLAY_LIMIT = 5;
 const RELEVANT_STOCK_PROFILES_DISPLAY_LIMIT = 8;
 
 /**
+ * Text Truncation & Lookback Window Constants
+ *
+ * These constants control how much text and how many historical records
+ * are included in agent memory prompts and lessons, balancing context
+ * richness against prompt verbosity.
+ */
+
+/**
+ * Maximum characters of trade reasoning text shown in win/loss lessons.
+ * Captures the key thesis without overwhelming the lesson with the full reasoning.
+ * @example
+ * - Reasoning is 500 chars → show first 100 chars in lesson summary
+ */
+const REASONING_TEXT_DISPLAY_LENGTH = 100;
+
+/**
+ * Maximum characters of lesson text shown in recent trade summaries.
+ * Short enough to fit in a compact trade line, long enough to convey the lesson.
+ * @example
+ * - Lesson is 200 chars → show first 60 chars in trade line
+ */
+const LESSON_TEXT_DISPLAY_LENGTH = 60;
+
+/**
+ * Number of recent trades examined for stock-level sentiment updates.
+ * Uses the last N completed trades on a symbol to determine bullish/bearish/neutral.
+ * @example
+ * - 20 trades on AAPL → examine last 5 to set current sentiment
+ */
+const STOCK_SENTIMENT_RECENT_TRADES = 5;
+
+/**
+ * Number of recent completed trades examined for sector rotation detection.
+ * Larger window catches longer-term sector trends vs short-term noise.
+ * @example
+ * - Agent has 100 trades → analyze last 30 for sector performance patterns
+ */
+const SECTOR_ROTATION_LOOKBACK_TRADES = 30;
+
+/**
+ * Number of recent trades shown in memory prompt (Section 5: Recent Trades).
+ * Provides recency context for what the agent has been doing lately.
+ * @example
+ * - Agent has 50 trades → show last 5 for immediate context
+ */
+const MEMORY_PROMPT_RECENT_TRADES = 5;
+
+/**
+ * Number of recent trades returned in the getAgentMemory API response.
+ * Larger than MEMORY_PROMPT_RECENT_TRADES since API consumers may want more detail.
+ * @example
+ * - Agent has 50 trades → return last 10 in API response
+ */
+const AGENT_MEMORY_API_RECENT_TRADES = 10;
+
+/**
  * Minimum Occurrence Thresholds
  *
  * These thresholds control when data becomes statistically significant enough
@@ -639,13 +695,13 @@ function extractLesson(trade: Omit<TradeMemory, "lesson" | "marketConditions">):
     trade.pnlPercent !== null ? Math.abs(trade.pnlPercent) : 0;
 
   if (isWin && magnitude > TRADE_MAGNITUDE_BIG_THRESHOLD) {
-    return `Strong win on ${trade.symbol} (${trade.action}): +${magnitude.toFixed(1)}%. Confidence was ${trade.confidence}%. ${trade.reasoning.slice(0, 100)}`;
+    return `Strong win on ${trade.symbol} (${trade.action}): +${magnitude.toFixed(1)}%. Confidence was ${trade.confidence}%. ${trade.reasoning.slice(0, REASONING_TEXT_DISPLAY_LENGTH)}`;
   }
   if (isWin && magnitude <= TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Small win on ${trade.symbol} (${trade.action}): +${magnitude.toFixed(1)}%. The thesis was correct but upside was limited.`;
   }
   if (!isWin && magnitude > TRADE_MAGNITUDE_BIG_THRESHOLD) {
-    return `Significant loss on ${trade.symbol} (${trade.action}): -${magnitude.toFixed(1)}%. Need to review: was the thesis wrong or was timing off? Original reasoning: ${trade.reasoning.slice(0, 100)}`;
+    return `Significant loss on ${trade.symbol} (${trade.action}): -${magnitude.toFixed(1)}%. Need to review: was the thesis wrong or was timing off? Original reasoning: ${trade.reasoning.slice(0, REASONING_TEXT_DISPLAY_LENGTH)}`;
   }
   if (!isWin && magnitude <= TRADE_MAGNITUDE_BIG_THRESHOLD) {
     return `Small loss on ${trade.symbol} (${trade.action}): -${magnitude.toFixed(1)}%. Minor setback, thesis may still play out over longer timeframe.`;
@@ -718,7 +774,7 @@ function updateStockProfile(
   // Update sentiment based on recent performance
   const recentTrades = memory.tradeMemories
     .filter((t) => t.symbol === trade.symbol && t.pnl !== null)
-    .slice(-5);
+    .slice(-STOCK_SENTIMENT_RECENT_TRADES);
   const recentWins = countByCondition(recentTrades, (t) => t.pnl! > 0);
   const recentTotal = recentTrades.length;
 
@@ -927,7 +983,7 @@ function detectTimingPattern(memory: AgentMemoryState): void {
 function detectSectorRotation(memory: AgentMemoryState): void {
   const recentTrades = memory.tradeMemories
     .filter((t) => t.pnl !== null)
-    .slice(-30);
+    .slice(-SECTOR_ROTATION_LOOKBACK_TRADES);
   if (recentTrades.length < 10) return;
 
   const sectorPerformance = new Map<
@@ -1154,8 +1210,8 @@ export function recordPeerObservation(
   peer.observations.push(desc);
 
   // Cap observations
-  if (peer.observations.length > 50) {
-    peer.observations = peer.observations.slice(-50);
+  if (peer.observations.length > MAX_PEER_OBSERVATIONS) {
+    peer.observations = peer.observations.slice(-MAX_PEER_OBSERVATIONS);
   }
 
   memory.lastUpdated = new Date().toISOString();
@@ -1216,15 +1272,15 @@ export function generateMemoryPrompt(agentId: string): string {
     sections.push(`STOCK KNOWLEDGE:\n${profileLines.join("\n")}`);
   }
 
-  // Section 5: Recent trades (last 5 for recency context)
-  const recentTrades = memory.tradeMemories.slice(-5);
+  // Section 5: Recent trades (last N for recency context)
+  const recentTrades = memory.tradeMemories.slice(-MEMORY_PROMPT_RECENT_TRADES);
   if (recentTrades.length > 0) {
     const tradeLines = recentTrades.map((t) => {
       const pnlStr =
         t.pnl !== null
           ? `${t.pnl >= 0 ? "+" : ""}$${t.pnl.toFixed(2)} (${t.pnlPercent?.toFixed(1)}%)`
           : "open";
-      return `• ${t.action.toUpperCase()} ${t.symbol} @$${t.entryPrice.toFixed(2)} → ${pnlStr}${t.lesson ? ` [${t.lesson.slice(0, 60)}]` : ""}`;
+      return `• ${t.action.toUpperCase()} ${t.symbol} @$${t.entryPrice.toFixed(2)} → ${pnlStr}${t.lesson ? ` [${t.lesson.slice(0, LESSON_TEXT_DISPLAY_LENGTH)}]` : ""}`;
     });
     sections.push(`RECENT TRADES:\n${tradeLines.join("\n")}`);
   }
@@ -1351,7 +1407,7 @@ export function getAgentMemory(agentId: string): {
     patterns: memory.patterns,
     stockProfiles: [...memory.stockProfiles.values()],
     peerCount: memory.peerObservations.size,
-    recentTrades: memory.tradeMemories.slice(-10),
+    recentTrades: memory.tradeMemories.slice(-AGENT_MEMORY_API_RECENT_TRADES),
     lastUpdated: memory.lastUpdated,
   };
 }
