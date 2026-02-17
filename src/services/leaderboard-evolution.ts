@@ -68,6 +68,27 @@ const DEFAULT_ELO = 1500;
 /** Standard ELO K-factor: how much a single round can swing ratings */
 const K_FACTOR = 32;
 
+/**
+ * ELO expected score denominator.
+ * Standard chess ELO uses 400 as the divisor in the logistic function:
+ * E(A) = 1 / (1 + 10^((R_B - R_A) / ELO_SCALE_FACTOR))
+ * A difference of 400 points means ~91% win probability for the higher-rated agent.
+ */
+const ELO_SCALE_FACTOR = 400;
+
+/**
+ * ELO draw outcome score (0.5 for both players in a tie).
+ * Standard ELO: win=1.0, draw=0.5, loss=0.0
+ */
+const ELO_DRAW_SCORE = 0.5;
+
+/**
+ * ELO display rounding precision multiplier.
+ * Math.round(elo * ELO_DISPLAY_PRECISION) / ELO_DISPLAY_PRECISION = 1 decimal place.
+ * Example: 1523.67 → 1523.7
+ */
+const ELO_DISPLAY_PRECISION = 10;
+
 /** Maximum snapshots retained in memory */
 const MAX_SNAPSHOTS = 500;
 
@@ -207,7 +228,7 @@ export function calculateEloUpdate(
   scoreB: number,
 ): { newA: number; newB: number } {
   // Expected scores (probability of winning)
-  const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+  const expectedA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / ELO_SCALE_FACTOR));
   const expectedB = 1 - expectedA;
 
   // Actual outcome based on composite scores
@@ -221,8 +242,8 @@ export function calculateEloUpdate(
     actualA = 0;
     actualB = 1;
   } else {
-    actualA = 0.5;
-    actualB = 0.5;
+    actualA = ELO_DRAW_SCORE;
+    actualB = ELO_DRAW_SCORE;
   }
 
   // ELO update
@@ -332,5 +353,5 @@ export function getStreakInfo(agentId: string): StreakInfo {
 
 /** Round to 1 decimal place for clean display */
 function round(v: number): number {
-  return Math.round(v * 10) / 10;
+  return Math.round(v * ELO_DISPLAY_PRECISION) / ELO_DISPLAY_PRECISION;
 }
