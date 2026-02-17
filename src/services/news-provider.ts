@@ -214,6 +214,80 @@ const JSON_MARKDOWN_PREFIX_TYPED = 7;
 /** Length of "```" prefix (3 characters) */
 const JSON_MARKDOWN_PREFIX_GENERIC = 3;
 
+/**
+ * Perplexity API Request Parameters
+ *
+ * Control the LLM generation settings for Perplexity news queries.
+ */
+
+/**
+ * Maximum tokens for Perplexity API response.
+ *
+ * Purpose: Limits response length and API cost
+ * - 2048 tokens is sufficient for 5-10 structured JSON news items
+ * - Each news item ~150-200 tokens (title + summary + metadata)
+ * - Higher values = longer responses but more expensive
+ *
+ * Impact: Used in fetchPerplexityNews() API request body
+ */
+const PERPLEXITY_MAX_TOKENS = 2048;
+
+/**
+ * Temperature for Perplexity API requests.
+ *
+ * Purpose: Controls randomness/creativity in LLM responses
+ * - 0.1 = very deterministic (consistent structured JSON output)
+ * - Higher values = more creative but less reliable JSON parsing
+ * - Low temperature critical for structured JSON news output
+ *
+ * Impact: Used in fetchPerplexityNews() API request body
+ */
+const PERPLEXITY_TEMPERATURE = 0.1;
+
+/**
+ * Minimum content length to attempt fallback news parsing.
+ *
+ * Purpose: Avoid creating empty/useless fallback news items
+ * - Content < 20 characters is likely an error message, not useful news
+ * - 20 chars minimum ensures fallback has meaningful text to show
+ *
+ * Impact: Used in parsePerplexityResponse() error fallback path
+ */
+const MIN_CONTENT_LENGTH_FOR_FALLBACK = 20;
+
+/**
+ * Alpha Vantage Sentiment Classification Thresholds
+ *
+ * Alpha Vantage returns sentiment scores on a continuous scale.
+ * These thresholds classify scores into positive/negative/neutral buckets.
+ */
+
+/**
+ * Alpha Vantage sentiment score threshold for "positive" classification.
+ *
+ * Purpose: Maps AV continuous sentiment score (-1 to +1) to positive label
+ * - Score > 0.15 = "positive" (bullish news)
+ * - Score -0.15 to 0.15 = "neutral" (balanced or ambiguous coverage)
+ * - Score < -0.15 = "negative" (bearish news)
+ *
+ * Impact: Used in fetchAlphaVantageNews() sentiment mapping
+ * Source: Based on Alpha Vantage documentation for sentiment label boundaries
+ */
+const AV_SENTIMENT_POSITIVE_THRESHOLD = 0.15;
+
+/**
+ * Alpha Vantage ticker relevance score threshold for inclusion.
+ *
+ * Purpose: Filters low-relevance ticker mentions from news attribution
+ * - Score > 0.3 = ticker is significantly mentioned in the article
+ * - Score 0-0.3 = ticker mentioned briefly or in passing (exclude)
+ * - Prevents attributing articles to stocks they barely mention
+ *
+ * Impact: Used in fetchAlphaVantageNews() ticker sentiment filtering
+ * Example: Fed rate decision article → AAPL relevance 0.1 (excluded), SPY 0.8 (included)
+ */
+const AV_TICKER_RELEVANCE_THRESHOLD = 0.3;
+
 // ---------------------------------------------------------------------------
 // Perplexity Provider
 // ---------------------------------------------------------------------------
@@ -262,8 +336,8 @@ Return 5-10 items covering the most important recent developments.`,
     body: JSON.stringify({
       model: "sonar",
       messages,
-      max_tokens: 2048,
-      temperature: 0.1,
+      max_tokens: PERPLEXITY_MAX_TOKENS,
+      temperature: PERPLEXITY_TEMPERATURE,
     }),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
@@ -379,7 +453,7 @@ function parsePerplexityResponse(
     );
 
     // Create a single item from the raw text content
-    if (content.length > 20) {
+    if (content.length > MIN_CONTENT_LENGTH_FOR_FALLBACK) {
       items.push({
         title: "Market Intelligence Summary",
         summary: content.slice(0, NEWS_SUMMARY_MAX_LENGTH),
@@ -446,11 +520,11 @@ async function fetchAlphaVantageNews(
       // Map AV sentiment to our format
       const score = item.overall_sentiment_score;
       const sentiment: "positive" | "negative" | "neutral" =
-        score > 0.15 ? "positive" : score < -0.15 ? "negative" : "neutral";
+        score > AV_SENTIMENT_POSITIVE_THRESHOLD ? "positive" : score < -AV_SENTIMENT_POSITIVE_THRESHOLD ? "negative" : "neutral";
 
       // Map tickers to xStock symbols
       const relevantSymbols = (item.ticker_sentiment ?? [])
-        .filter((ts) => parseFloat(ts.relevance_score) > 0.3)
+        .filter((ts) => parseFloat(ts.relevance_score) > AV_TICKER_RELEVANCE_THRESHOLD)
         .map((ts) => {
           const match = symbols.find(
             (s) =>
