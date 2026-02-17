@@ -147,6 +147,26 @@ const ALPHA_BETA_MIN_OBSERVATIONS = 2; // Minimum daily returns for valid alpha/
  */
 const DECISION_MATCH_TIME_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes tolerance for finding nearby decisions
 
+/**
+ * Trade contributions default query limit.
+ * Controls how many trades are returned in the getTradeContributions API response.
+ */
+const TRADE_CONTRIBUTIONS_DEFAULT_LIMIT = 50; // Default max trades to return (largest P&L impact first)
+
+/**
+ * Summary report top contributions limit.
+ * Controls how many top trades are included in the full attribution summary narrative.
+ */
+const SUMMARY_TOP_CONTRIBUTIONS_LIMIT = 10; // Show top 10 trades in attribution summary
+
+/**
+ * Benchmark return noise factor for alpha/beta simulation.
+ * Adds realistic daily variation to simulated benchmark return series.
+ * Formula: benchmarkReturn + (Math.random() - 0.5) * BENCHMARK_NOISE_FACTOR
+ * Example: 0.005 produces ±0.25% daily noise around the benchmark return
+ */
+const BENCHMARK_DAILY_NOISE_FACTOR = 0.005; // ±0.25% random noise on simulated benchmark returns
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -749,7 +769,7 @@ export async function getAlphaBeta(
 
   // Generate benchmark return series (same length as portfolio)
   const benchmarkReturns = portfolioReturns.map(() =>
-    benchmarkDailyReturn + (Math.random() - 0.5) * 0.005,
+    benchmarkDailyReturn + (Math.random() - 0.5) * BENCHMARK_DAILY_NOISE_FACTOR,
   );
 
   // Calculate beta via covariance / variance
@@ -841,7 +861,7 @@ export async function getAlphaBeta(
  */
 export async function getTradeContributions(
   agentId: string,
-  limit: number = 50,
+  limit: number = TRADE_CONTRIBUTIONS_DEFAULT_LIMIT,
 ): Promise<TradeContribution[]> {
   const data = await fetchAgentData(agentId);
 
@@ -917,14 +937,14 @@ export async function getTradeContributions(
     const portfolioContribution = totalPortfolioValue > 0 ? (pnl / totalPortfolioValue) * 100 : 0;
 
     // Find matching decision for confidence
-    let confidence = 50;
+    let confidence = CONFIDENCE_NEUTRAL;
     let isConvictionTrade = false;
     const tradeTime = trade.createdAt.toISOString().slice(0, 16);
     const decisionKey = `${trade.stockSymbol}_${tradeTime}`;
     const decision = decisionMap.get(decisionKey);
     if (decision) {
       confidence = decision.confidence;
-      isConvictionTrade = decision.confidence > 80;
+      isConvictionTrade = decision.confidence > TIMING_CONVICTION_THRESHOLD;
     } else {
       // Search nearby decisions
       for (const d of data.decisions) {
@@ -1258,7 +1278,7 @@ export async function getFullAttributionReport(agentId: string): Promise<FullAtt
     getAttributionBreakdown(agentId),
     getFactorExposure(agentId),
     getAlphaBeta(agentId),
-    getTradeContributions(agentId, 10),
+    getTradeContributions(agentId, SUMMARY_TOP_CONTRIBUTIONS_LIMIT),
     getTimingAnalysis(agentId),
     getRiskContribution(agentId),
   ]);
