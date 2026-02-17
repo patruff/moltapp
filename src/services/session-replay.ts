@@ -674,7 +674,7 @@ export function exportForPresentation(replay: SessionReplay): {
       action: d.action,
       symbol: d.symbol,
       confidence: d.confidence,
-      reasoning: d.reasoning.slice(0, 300),
+      reasoning: d.reasoning.slice(0, EXPORT_REASONING_MAX_LENGTH),
       executed: d.executionResult.executed,
     })),
     highlights: replay.annotations.map((a) => a.text),
