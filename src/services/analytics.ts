@@ -381,6 +381,42 @@ const RISK_FREE_RATE_ANNUAL = 0.05;
  */
 const VAR_PERCENTILE_95 = 0.05;
 
+/**
+ * Time Conversion Constant - Milliseconds Per Hour
+ *
+ * Milliseconds per hour (60 minutes × 60 seconds × 1000 milliseconds).
+ *
+ * Used for converting cumulative hold-duration milliseconds to hours
+ * in average trade duration calculations.
+ *
+ * Formula: MS_PER_HOUR = 60 × 60 × 1000 = 3,600,000
+ *
+ * Example: 7,200,000 ms / 3,600,000 = 2 hours
+ *
+ * Tuning impact: This is a standard constant (shouldn't change).
+ */
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+/**
+ * Confidence Normalization Divisor
+ *
+ * Divisor for converting the 0-100 confidence scale to a centered return
+ * signal in the range [-1, +1] for Sharpe/Sortino ratio calculations.
+ *
+ * Formula: normalizedReturn = (confidence - 50) / CONFIDENCE_NORMALIZATION_DIVISOR
+ *
+ * Example: confidence 75 → (75 - 50) / 50 = +0.5 (moderately bullish signal)
+ *          confidence 25 → (25 - 50) / 50 = -0.5 (moderately bearish signal)
+ *          confidence 50 → (50 - 50) / 50 =  0.0 (neutral signal)
+ *
+ * Scale:  confidence 100 → +1.0 (maximum bullish)
+ *         confidence   0 → -1.0 (maximum bearish)
+ *
+ * Tuning impact: This divisor should equal (100 - HIGH_CONFIDENCE_THRESHOLD)
+ * to keep the scale symmetric around the neutral midpoint.
+ */
+const CONFIDENCE_NORMALIZATION_DIVISOR = 50;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -643,9 +679,9 @@ export async function getAgentAnalytics(
   // Determine time window
   const now = new Date();
   let startDate: Date | null = null;
-  if (period === "24h") startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  else if (period === "7d") startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  else if (period === "30d") startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  if (period === "24h") startDate = new Date(now.getTime() - MS_PER_DAY);
+  else if (period === "7d") startDate = new Date(now.getTime() - 7 * MS_PER_DAY);
+  else if (period === "30d") startDate = new Date(now.getTime() - 30 * MS_PER_DAY);
 
   // Fetch all decisions for this agent in the time window
   const conditions = startDate
@@ -917,7 +953,7 @@ function computeRiskMetrics(
   const confidenceValues = actionDecisions.map((d) => d.confidence);
 
   // Normalize confidence to return-like values (-1 to 1)
-  const returns = confidenceValues.map((c) => (c - 50) / 50);
+  const returns = confidenceValues.map((c) => (c - HIGH_CONFIDENCE_THRESHOLD) / CONFIDENCE_NORMALIZATION_DIVISOR);
 
   // Mean return
   const meanReturn = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
@@ -1007,7 +1043,7 @@ function computeTradingPatterns(
   // Time span
   const oldest = decisions[decisions.length - 1].createdAt;
   const newest = decisions[0].createdAt;
-  const daySpan = Math.max(1, (newest.getTime() - oldest.getTime()) / (24 * 60 * 60 * 1000));
+  const daySpan = Math.max(1, (newest.getTime() - oldest.getTime()) / MS_PER_DAY);
   const avgDecisionsPerDay = decisions.length / daySpan;
 
   // Symbol frequency
@@ -1061,7 +1097,7 @@ function computeTradingPatterns(
     totalGapMs += decisions[i - 1].createdAt.getTime() - decisions[i].createdAt.getTime();
     gaps++;
   }
-  const avgHoldDuration = gaps > 0 ? totalGapMs / gaps / (60 * 60 * 1000) : 0;
+  const avgHoldDuration = gaps > 0 ? totalGapMs / gaps / MS_PER_HOUR : 0;
 
   return {
     avgDecisionsPerDay: Math.round(avgDecisionsPerDay * ANALYTICS_ROUNDING_DIVISOR) / ANALYTICS_ROUNDING_DIVISOR,
@@ -1351,7 +1387,7 @@ function computeComparisonEntry(
     : 0;
 
   // Simple Sharpe from confidence
-  const returns = actionDecisions.map((d) => (d.confidence - 50) / 50);
+  const returns = actionDecisions.map((d) => (d.confidence - HIGH_CONFIDENCE_THRESHOLD) / CONFIDENCE_NORMALIZATION_DIVISOR);
   const mean = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
   const variance = computeVariance(returns, false); // Sample variance (n-1)
   const vol = Math.sqrt(variance);
