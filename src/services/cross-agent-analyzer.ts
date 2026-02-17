@@ -111,6 +111,28 @@ const INSIGHT_UNANIMOUS_MIN_ROUNDS = 5;
 /** Correlation threshold for "highly correlated" insight */
 const INSIGHT_HIGH_CORRELATION_THRESHOLD = 0.7;
 
+/**
+ * Confidence & Accuracy Display Precision Rounding Constants
+ *
+ * Controls rounding precision for confidence scores, herding frequency,
+ * contrarian accuracy, and unanimous accuracy values in cross-agent reports.
+ *
+ * Formula: Math.round(value × MULTIPLIER) / DIVISOR
+ * Example: 73.667% → Math.round(73.667 × 10) / 10 = 73.7%
+ *
+ * Produces 1-decimal-place percentages (e.g., 73.7%, 42.0%, 91.3%) for:
+ * - majorityAvgConfidence: average confidence of agents in majority
+ * - herdingFrequency: % of rounds where herding was detected
+ * - contrarianAccuracy: win rate of contrarian agents vs majority
+ * - unanimousAccuracy: win rate of rounds where all 3 agents agreed
+ */
+
+/** Multiply before rounding to achieve 1-decimal-place precision */
+const DISPLAY_PRECISION_MULTIPLIER = 10;
+
+/** Divide after rounding to restore decimal percentage format */
+const DISPLAY_PRECISION_DIVISOR = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -437,7 +459,7 @@ function analyzeRoundConsensus(
     majoritySymbol: majSymbol ?? null,
     majorityCount: majCount,
     contrarian,
-    majorityAvgConfidence: Math.round(majAvgConf * 10) / 10,
+    majorityAvgConfidence: Math.round(majAvgConf * DISPLAY_PRECISION_MULTIPLIER) / DISPLAY_PRECISION_DIVISOR,
     majorityProfitable: null,
   };
 }
@@ -836,9 +858,9 @@ export function generateReport(periodDays = 7): CrossAgentReport {
     correlationMatrix: correlations,
     insights,
     stats: {
-      herdingFrequency: Math.round(herdingFrequency * 10) / 10,
-      contrarianAccuracy: Math.round(contrarianAccuracy * 10) / 10,
-      unanimousAccuracy: Math.round(unanimousAccuracy * 10) / 10,
+      herdingFrequency: Math.round(herdingFrequency * DISPLAY_PRECISION_MULTIPLIER) / DISPLAY_PRECISION_DIVISOR,
+      contrarianAccuracy: Math.round(contrarianAccuracy * DISPLAY_PRECISION_MULTIPLIER) / DISPLAY_PRECISION_DIVISOR,
+      unanimousAccuracy: Math.round(unanimousAccuracy * DISPLAY_PRECISION_MULTIPLIER) / DISPLAY_PRECISION_DIVISOR,
       avgAgreementLevel: round3(avgAgreement),
       mostCorrelatedPair: mostCorrelated
         ? {
