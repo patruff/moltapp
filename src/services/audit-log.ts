@@ -479,7 +479,7 @@ export async function flushToDynamoDB(): Promise<{
               : {}),
             ttl: {
               N: String(
-                Math.floor(Date.now() / 1000) + 90 * 24 * 60 * 60, // 90 day TTL
+                Math.floor(Date.now() / 1000) + DYNAMO_TTL_DAYS * 24 * 60 * 60,
               ),
             },
           },
