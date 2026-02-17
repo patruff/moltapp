@@ -23,6 +23,38 @@ import { getAgentConfigs } from "../agents/orchestrator.ts";
 type PaymentRow = typeof agentPayments.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum allowed tip amount in USDC.
+ * Prevents accidental overpayments and constrains the tipping economy.
+ * Example: A user cannot send a tip larger than $1,000,000 USDC.
+ */
+const MAX_TIP_AMOUNT_USDC = 1_000_000;
+
+/**
+ * Number of recent tips to show in an agent's earnings profile.
+ * Controls how many recent tip transactions are returned alongside summary stats.
+ * Example: An agent with 500 tips will only show the 20 most recent ones.
+ */
+const RECENT_TIPS_DISPLAY_LIMIT = 20;
+
+/**
+ * Number of top tippers to show in an agent's earnings profile.
+ * Controls the leaderboard of supporters ranked by total amount tipped.
+ * Example: Shows the 10 most generous supporters, even if there are 100+ tippers.
+ */
+const TOP_TIPPERS_DISPLAY_LIMIT = 10;
+
+/**
+ * Default number of payment history records returned per page.
+ * Used when the caller does not specify a limit parameter.
+ * Balances response size with completeness for typical pagination scenarios.
+ */
+const DEFAULT_PAYMENT_HISTORY_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -132,7 +164,7 @@ export async function sendTip(request: TipRequest): Promise<TipResult> {
     throw new Error("Tip amount must be greater than 0");
   }
 
-  if (request.amount > 1000000) {
+  if (request.amount > MAX_TIP_AMOUNT_USDC) {
     throw new Error("Tip amount cannot exceed 1,000,000 USDC");
   }
 
@@ -269,7 +301,7 @@ export async function getAgentEarningsProfile(
     .from(agentPayments)
     .where(eq(agentPayments.toAgentId, agentId))
     .orderBy(desc(agentPayments.createdAt))
-    .limit(20);
+    .limit(RECENT_TIPS_DISPLAY_LIMIT);
 
   // Get top tippers
   let topTippers: TopTipper[] = [];
@@ -285,7 +317,7 @@ export async function getAgentEarningsProfile(
       .where(eq(agentPayments.toAgentId, agentId))
       .groupBy(agentPayments.fromId, agentPayments.fromName)
       .orderBy(sql`sum(${agentPayments.amount}) desc`)
-      .limit(10);
+      .limit(TOP_TIPPERS_DISPLAY_LIMIT);
 
     topTippers = tipperQuery.map((t: typeof tipperQuery[number]) => ({
       fromId: t.fromId,
@@ -444,7 +476,7 @@ export async function getEarningsLeaderboard(): Promise<EarningsLeaderboard> {
  */
 export async function getAgentPaymentHistory(
   agentId: string,
-  limit: number = 50,
+  limit: number = DEFAULT_PAYMENT_HISTORY_LIMIT,
   offset: number = 0,
 ): Promise<{
   payments: RecentTip[];

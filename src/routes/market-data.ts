@@ -21,6 +21,30 @@ import {
 export const marketDataRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default candle period in minutes when not specified by the caller.
+ * 30-minute candles balance granularity with readability for intraday analysis.
+ * Allowed range: 1–1440 minutes (1 minute to 1 full trading day).
+ */
+const DEFAULT_CANDLE_PERIOD_MINUTES = 30;
+
+/**
+ * Default number of candles to return when not specified by the caller.
+ * 48 candles × 30-minute period = 24 hours of intraday history.
+ * Allowed range: 1–200 candles.
+ */
+const DEFAULT_CANDLE_COUNT = 48;
+
+/**
+ * Maximum number of candles allowed per request.
+ * Caps response size to prevent excessive computation and payload size.
+ */
+const MAX_CANDLE_COUNT = 200;
+
+// ---------------------------------------------------------------------------
 // Market Snapshot
 // ---------------------------------------------------------------------------
 
@@ -104,8 +128,8 @@ marketDataRoutes.get("/indicators/:symbol", (c) => {
  */
 marketDataRoutes.get("/candles/:symbol", (c) => {
   const symbol = c.req.param("symbol");
-  const period = parseQueryInt(c.req.query("period"), 30, 1, 1440);
-  const count = parseQueryInt(c.req.query("count"), 48, 1, 200);
+  const period = parseQueryInt(c.req.query("period"), DEFAULT_CANDLE_PERIOD_MINUTES, 1, 1440);
+  const count = parseQueryInt(c.req.query("count"), DEFAULT_CANDLE_COUNT, 1, MAX_CANDLE_COUNT);
 
   const candles = buildCandles(symbol, period, count);
 
