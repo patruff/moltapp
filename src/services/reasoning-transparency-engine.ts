@@ -184,6 +184,126 @@ const CLAIM_EVIDENCE_CONTEXT_WINDOW = 100;
 const COMMON_ASSUMPTIONS_DISPLAY_LIMIT = 5;
 
 // ---------------------------------------------------------------------------
+// Claim Confidence & Scoring Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum extraction confidence for pattern-matched claims (regex hits).
+ * Pattern-matched claims (price, trend, fundamental, etc.) have high confidence
+ * because the regex pattern is specific. The value 0.8 means "80% sure this
+ * is a genuine claim, not noise."
+ * Formula: extractionConfidence = PATTERN_CLAIM_CONFIDENCE_MIN + random() * PATTERN_CLAIM_CONFIDENCE_RANGE
+ * Example: 0.8 + 0.14 = 0.94 confidence for a matched price claim
+ */
+const PATTERN_CLAIM_CONFIDENCE_MIN = 0.8;
+
+/**
+ * Random range added on top of PATTERN_CLAIM_CONFIDENCE_MIN for pattern-matched claims.
+ * Adds realistic variation rather than a fixed confidence score.
+ * Range of 0.2 produces confidence values in [0.8, 1.0].
+ * Example: Math.random() * 0.2 = 0.17 → confidence = 0.97
+ */
+const PATTERN_CLAIM_CONFIDENCE_RANGE = 0.2;
+
+/**
+ * Fixed extraction confidence for sentence-level claims (assertive verb patterns).
+ * Sentence-level detection is less precise than regex patterns (broader heuristic),
+ * so confidence is set lower at 0.6 = "60% sure this is a genuine claim."
+ * Unlike pattern claims, no random variation — consistent moderate confidence.
+ */
+const SENTENCE_CLAIM_CONFIDENCE = 0.6;
+
+// ---------------------------------------------------------------------------
+// Counterfactual Generation Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Confidence threshold above which a trade is considered "high-confidence."
+ * Trades with confidence > HIGH_CONFIDENCE_THRESHOLD generate counterfactuals
+ * about events that could invalidate a strong conviction (e.g., earnings miss).
+ * Value of 0.7 = 70% confidence on the 0-1 scale.
+ */
+const HIGH_CONFIDENCE_THRESHOLD = 0.7;
+
+/**
+ * Confidence threshold below which a trade is considered "low-confidence."
+ * Trades with confidence < LOW_CONFIDENCE_THRESHOLD generate counterfactuals
+ * about catalysts that could convert uncertainty into conviction.
+ * Value of 0.3 = 30% confidence on the 0-1 scale.
+ */
+const LOW_CONFIDENCE_THRESHOLD = 0.3;
+
+// ---------------------------------------------------------------------------
+// Transparency Score Computation Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default logic validity score when no logic chain steps are found.
+ * A reasoning text with no identifiable logic steps is given 0.5 (neutral)
+ * rather than 0 (penalized) — absence of detected steps ≠ bad reasoning.
+ * Used in: logicValidity = logicChain.length > 0 ? validSteps/total : DEFAULT
+ */
+const DEFAULT_LOGIC_VALIDITY_SCORE = 0.5;
+
+/**
+ * Penalty applied to assumptionAwareness per high-criticality assumption.
+ * Each unstated high-criticality assumption reduces the score by this amount.
+ * Formula: assumptionAwareness = max(0, 1 - highCritCount * PENALTY)
+ * Example: 2 high-criticality assumptions → 1 - 2 * 0.2 = 0.6 awareness score
+ * Value of 0.2 means a single critical assumption costs 20% of the awareness score.
+ */
+const HIGH_CRIT_ASSUMPTION_PENALTY = 0.2;
+
+/**
+ * Denominator for counterfactual depth score normalization.
+ * counterfactualDepth = min(1, counterfactuals.length / MAX_COUNTERFACTUALS_FOR_FULL_SCORE)
+ * A report with 4+ counterfactuals receives a full depth score of 1.0.
+ * Example: 2 counterfactuals → 2/4 = 0.5 depth score
+ */
+const MAX_COUNTERFACTUALS_FOR_FULL_SCORE = 4;
+
+// ---------------------------------------------------------------------------
+// Transparency Score Weights (must sum to 1.0)
+// ---------------------------------------------------------------------------
+
+/**
+ * Weight of claim density in the composite transparency score.
+ * Claims per word-count ratio — measures how fact-dense the reasoning is.
+ * Lower weight (20%) because claim count alone doesn't capture reasoning quality.
+ */
+const WEIGHT_CLAIM_DENSITY = 0.20;
+
+/**
+ * Weight of evidence coverage in the composite transparency score.
+ * Fraction of claims with direct evidence links — measures grounding quality.
+ * Higher weight (25%) because evidence-backed claims are more auditable.
+ */
+const WEIGHT_EVIDENCE_COVERAGE = 0.25;
+
+/**
+ * Weight of logic validity in the composite transparency score.
+ * Fraction of logic steps that are valid (non-contradictory) — measures coherence.
+ * Higher weight (25%) because logical consistency is central to good reasoning.
+ */
+const WEIGHT_LOGIC_VALIDITY = 0.25;
+
+/**
+ * Weight of assumption awareness in the composite transparency score.
+ * Penalizes unstated high-criticality assumptions — measures intellectual honesty.
+ * Medium weight (15%) — assumptions are important but not always articulable.
+ */
+const WEIGHT_ASSUMPTION_AWARENESS = 0.15;
+
+/**
+ * Weight of counterfactual depth in the composite transparency score.
+ * Measures how many "what would change my mind" scenarios are considered.
+ * Medium weight (15%) — counterfactual thinking is valuable but supplementary.
+ * Note: WEIGHT_CLAIM_DENSITY + WEIGHT_EVIDENCE_COVERAGE + WEIGHT_LOGIC_VALIDITY
+ *       + WEIGHT_ASSUMPTION_AWARENESS + WEIGHT_COUNTERFACTUAL_DEPTH = 1.0
+ */
+const WEIGHT_COUNTERFACTUAL_DEPTH = 0.15;
+
+// ---------------------------------------------------------------------------
 // Core Analysis Functions
 // ---------------------------------------------------------------------------
 
@@ -209,7 +329,7 @@ export function extractClaims(reasoning: string): ExtractedClaim[] {
           type,
           verifiable: type === "price" || type === "trend" || type === "fundamental",
           verified: null,
-          extractionConfidence: 0.8 + Math.random() * 0.2,
+          extractionConfidence: PATTERN_CLAIM_CONFIDENCE_MIN + Math.random() * PATTERN_CLAIM_CONFIDENCE_RANGE,
         });
       }
     }
@@ -229,7 +349,7 @@ export function extractClaims(reasoning: string): ExtractedClaim[] {
           type: "general",
           verifiable: false,
           verified: null,
-          extractionConfidence: 0.6,
+          extractionConfidence: SENTENCE_CLAIM_CONFIDENCE,
         });
       }
     }
@@ -460,13 +580,13 @@ export function generateCounterfactuals(
   }
 
   // Confidence-based counterfactual
-  if (confidence > 0.7) {
+  if (confidence > HIGH_CONFIDENCE_THRESHOLD) {
     counterfactuals.push({
       condition: "New negative earnings surprise or regulatory action",
       expectedChange: "High-confidence trade could flip to low-confidence hold",
       sensitivity: "high",
     });
-  } else if (confidence < 0.3) {
+  } else if (confidence < LOW_CONFIDENCE_THRESHOLD) {
     counterfactuals.push({
       condition: "Strong positive catalyst (earnings beat, partnership)",
       expectedChange: "Low-confidence hold could become medium-confidence buy",
@@ -524,17 +644,17 @@ export function analyzeTransparency(
   const validSteps = countByCondition(logicChain, (s) => s.valid);
   const logicValidity = logicChain.length > 0
     ? validSteps / logicChain.length
-    : 0.5;
+    : DEFAULT_LOGIC_VALIDITY_SCORE;
   const highCritAssumptions = countByCondition(assumptions, (a) => a.criticality === "high");
-  const assumptionAwareness = Math.max(0, 1 - highCritAssumptions * 0.2);
-  const counterfactualDepth = Math.min(1, counterfactuals.length / 4);
+  const assumptionAwareness = Math.max(0, 1 - highCritAssumptions * HIGH_CRIT_ASSUMPTION_PENALTY);
+  const counterfactualDepth = Math.min(1, counterfactuals.length / MAX_COUNTERFACTUALS_FOR_FULL_SCORE);
 
   const transparencyScore = round2(
-    claimDensity * 0.20 +
-    evidenceCoverage * 0.25 +
-    logicValidity * 0.25 +
-    assumptionAwareness * 0.15 +
-    counterfactualDepth * 0.15,
+    claimDensity * WEIGHT_CLAIM_DENSITY +
+    evidenceCoverage * WEIGHT_EVIDENCE_COVERAGE +
+    logicValidity * WEIGHT_LOGIC_VALIDITY +
+    assumptionAwareness * WEIGHT_ASSUMPTION_AWARENESS +
+    counterfactualDepth * WEIGHT_COUNTERFACTUAL_DEPTH,
   );
 
   const report: TransparencyReport = {
