@@ -143,6 +143,50 @@ const TOP_DIMENSIONS_FOR_NARRATIVE = 3;
  */
 const TOP_HIGHLIGHTS_DISPLAY_LIMIT = 3;
 
+/**
+ * Recent Battles Display Limit
+ *
+ * Maximum number of recent battles to include in an agent's battle profile
+ * (returned by getAgentBattleStats). Shows the most recent battles sorted
+ * by round number, descending.
+ *
+ * Example: Agent has 42 battles → show last 10 for profile display.
+ *
+ * Tuning impact: Increase to 20 for deeper recent performance context,
+ * decrease to 5 for a tighter summary.
+ */
+const RECENT_BATTLES_DISPLAY_LIMIT = 10;
+
+/**
+ * Contradiction Highlights Search Limit
+ *
+ * Maximum number of battles to scan when searching for "dimension contradiction"
+ * highlights — battles where an agent won the reasoning dimension but still lost
+ * the overall battle (i.e., financial performance overcame reasoning quality).
+ *
+ * Scanning stops once a single contradiction is found (break after first match).
+ *
+ * Example: 200 battles in history → scan first 50 to find a contradiction.
+ *
+ * Tuning impact: Increase to 100 for broader contradiction discovery, decrease
+ * to 20 to limit scan time when battle history is large.
+ */
+const CONTRADICTION_HIGHLIGHTS_SEARCH_LIMIT = 50;
+
+/**
+ * Tie Battles Display Limit
+ *
+ * Maximum number of tied battles (overallWinner === null) to include in the
+ * battle highlight reel. Ties are rare and noteworthy — agents with identical
+ * aggregate scores across all dimensions.
+ *
+ * Example: 5 ties exist → show 2 in highlights for variety without clutter.
+ *
+ * Tuning impact: Increase to 3 for more tie examples, decrease to 1 to
+ * keep the highlight reel concise.
+ */
+const TIE_BATTLES_DISPLAY_LIMIT = 2;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -604,7 +648,7 @@ export function getAgentBattleRecord(agentId: string): BattleRecord {
     weakestDimension,
     streakType,
     streakLength,
-    recentBattles: agentBattles.slice(0, 10),
+    recentBattles: agentBattles.slice(0, RECENT_BATTLES_DISPLAY_LIMIT),
   };
 }
 
@@ -685,7 +729,7 @@ export function getBattleHighlights(limit = 10): BattleHighlight[] {
   }
 
   // Battles with dimension contradictions (A won reasoning but lost overall)
-  for (const b of battleHistory.slice(0, 50)) {
+  for (const b of battleHistory.slice(0, CONTRADICTION_HIGHLIGHTS_SEARCH_LIMIT)) {
     if (!b.overallWinner) continue;
     const reasoningDim = b.dimensions.find((d) => d.name === "reasoning_coherence");
     if (reasoningDim && reasoningDim.winnerAgentId && reasoningDim.winnerAgentId !== b.overallWinner) {
@@ -699,7 +743,7 @@ export function getBattleHighlights(limit = 10): BattleHighlight[] {
   }
 
   // Ties
-  const ties = battleHistory.filter((b) => b.overallWinner === null).slice(0, 2);
+  const ties = battleHistory.filter((b) => b.overallWinner === null).slice(0, TIE_BATTLES_DISPLAY_LIMIT);
   for (const b of ties) {
     highlights.push({
       battleId: b.battleId,
