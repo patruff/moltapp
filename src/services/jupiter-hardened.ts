@@ -168,6 +168,21 @@ const MAX_LATENCIES = 500;
 const MAX_RECENT_TRADES = 100;
 
 /**
+ * Number of recent trades to include in getJupiterMetrics() API responses.
+ *
+ * Controls how many recent trade entries are returned from the metrics endpoint.
+ * Distinct from MAX_RECENT_TRADES (storage limit = 100) — this is the display
+ * limit for API consumers. Reduces response payload size while still providing
+ * useful recent trade context.
+ *
+ * Example: If 80 trades have occurred, the API returns only the most recent 20.
+ *
+ * Tuning: Increase to 30-50 for more trade history in admin dashboards,
+ * decrease to 10 for smaller response payloads.
+ */
+const RECENT_TRADES_DISPLAY_LIMIT = 20;
+
+/**
  * Jitter factor for exponential backoff delays (0-30% of calculated delay).
  * Formula: delay = baseDelay * 2^attempt + (delay * random() * BACKOFF_JITTER_FACTOR)
  * Prevents thundering herd when multiple requests retry simultaneously.
@@ -783,7 +798,7 @@ export function getJupiterHardenedMetrics(): JupiterMetrics {
     avgOrderLatencyMs: avgOrder,
     avgExecutionLatencyMs: avgExecution,
     avgConfirmationLatencyMs: avgConfirmation,
-    recentTrades: metrics.recentTrades.slice(0, 20),
+    recentTrades: metrics.recentTrades.slice(0, RECENT_TRADES_DISPLAY_LIMIT),
   };
 }
 

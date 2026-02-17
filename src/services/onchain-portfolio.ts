@@ -65,9 +65,6 @@ export interface OnChainPortfolio {
 /** Initial capital per agent (actual funding amount) */
 const AGENT_INITIAL_CAPITAL = 50; // $50 USDC per agent
 
-/** USDC decimals */
-const USDC_DECIMALS = 6;
-
 /** Approximate SOL price in USD (for portfolio valuation) */
 const SOL_PRICE_USD = 200; // Conservative estimate, update as needed
 
