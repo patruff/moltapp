@@ -189,6 +189,8 @@ interface ReasoningSnapshot {
 const testHistory = new Map<string, AdversarialTest[]>();
 const reasoningPairs = new Map<string, ReasoningSnapshot[]>();
 const MAX_HISTORY = 200;
+/** Maximum reasoning snapshots retained per agent for noise sensitivity comparison. */
+const MAX_SNAPSHOT_HISTORY = 100;
 
 // ---------------------------------------------------------------------------
 // Signal Conflict Detector
@@ -587,7 +589,7 @@ export function recordAdversarialResult(
 export function recordReasoningForComparison(snapshot: ReasoningSnapshot): void {
   const snaps = reasoningPairs.get(snapshot.agentId) ?? [];
   snaps.push(snapshot);
-  if (snaps.length > 100) snaps.splice(0, snaps.length - 100);
+  if (snaps.length > MAX_SNAPSHOT_HISTORY) snaps.splice(0, snaps.length - MAX_SNAPSHOT_HISTORY);
   reasoningPairs.set(snapshot.agentId, snaps);
 }
 

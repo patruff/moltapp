@@ -80,6 +80,19 @@ const LEARNING_SCORE_MULTIPLIER = 2.0; // Amplifies coherence improvement: score
 const DIVERGENCE_THRESHOLD = 0.2; // |ΔScore| > 0.2 between agents = divergent gene
 const MAX_OBSERVATIONS = 300; // Maximum observations stored per agent (circular buffer)
 
+/**
+ * Normalization Divisors
+ * Used to scale raw metrics into [0, 1] range for gene scoring.
+ * Increasing these values makes the gene less sensitive to large values;
+ * decreasing them saturates the gene score at smaller raw values.
+ */
+/** Max trade quantity used to normalize avg_trade_size into [0, 1] for risk appetite gene.
+ * avgQuantity / 2000: quantity of 2000 shares = score of 1.0 (maximum risk appetite). */
+const RISK_APPETITE_TRADE_SIZE_NORM = 2000;
+/** Max reasoning word count used to normalize reasoning_length into [0, 1] for info processing gene.
+ * avgWords / 100: reasoning of 100 words = score of 1.0 (maximum depth of processing). */
+const REASONING_LENGTH_NORM = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -172,7 +185,7 @@ function scoreRiskAppetite(obs: TradeObservation[]): Gene {
   // Higher = more risk-taking
   const score = Math.min(1,
     (1 - holdRate) * GENE_SCORING_WEIGHTS.risk_appetite.hold_rate_inverse +
-    Math.min(1, avgQuantity / 2000) * GENE_SCORING_WEIGHTS.risk_appetite.avg_trade_size +
+    Math.min(1, avgQuantity / RISK_APPETITE_TRADE_SIZE_NORM) * GENE_SCORING_WEIGHTS.risk_appetite.avg_trade_size +
     (highConfTrades / Math.max(1, nonHold.length)) * GENE_SCORING_WEIGHTS.risk_appetite.high_conf_trades,
   );
 
@@ -285,7 +298,7 @@ function scoreInformationProcessing(obs: TradeObservation[]): Gene {
   const score = Math.min(1,
     avgCoherence * GENE_SCORING_WEIGHTS.information_processing.avg_coherence +
     (1 - hallRate) * GENE_SCORING_WEIGHTS.information_processing.hallucination_free +
-    Math.min(1, avgReasoningLength / 100) * GENE_SCORING_WEIGHTS.information_processing.reasoning_length,
+    Math.min(1, avgReasoningLength / REASONING_LENGTH_NORM) * GENE_SCORING_WEIGHTS.information_processing.reasoning_length,
   );
 
   const evidence: string[] = [];
