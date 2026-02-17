@@ -1165,7 +1165,7 @@ function computeStreaks(
     let type: StreakType;
     if (d.action === "hold") {
       type = "hold";
-    } else if (d.confidence >= 50) {
+    } else if (d.confidence >= HIGH_CONFIDENCE_THRESHOLD) {
       type = "win";
     } else {
       type = "loss";
@@ -1379,7 +1379,7 @@ function computeComparisonEntry(
   decisions: Array<{ action: string; confidence: number; symbol: string }>,
 ): AgentComparisonEntry {
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
-  const highConf = actionDecisions.filter((d) => d.confidence >= 50);
+  const highConf = actionDecisions.filter((d) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
   const winRate = actionDecisions.length > 0 ? (highConf.length / actionDecisions.length) * 100 : 0;
 
   const avgConf = decisions.length > 0
@@ -1391,7 +1391,7 @@ function computeComparisonEntry(
   const mean = returns.length > 0 ? returns.reduce((s, r) => s + r, 0) / returns.length : 0;
   const variance = computeVariance(returns, false); // Sample variance (n-1)
   const vol = Math.sqrt(variance);
-  const sharpe = vol > 0 ? (mean / vol) * Math.sqrt(252) : 0;
+  const sharpe = vol > 0 ? (mean / vol) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
   // Max drawdown
   let peak = 0;
