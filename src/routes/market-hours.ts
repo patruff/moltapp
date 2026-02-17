@@ -25,6 +25,10 @@ import {
 
 export const marketHoursRoutes = new Hono();
 
+// Default query parameters for market hours endpoints
+const DEFAULT_HOLIDAYS_LIMIT = 5; // Upcoming holidays to return by default
+const DEFAULT_TRADING_CONFIDENCE = 50; // Neutral confidence threshold for /check endpoint
+
 // ---------------------------------------------------------------------------
 // GET /session — Current session info
 // ---------------------------------------------------------------------------
@@ -46,7 +50,7 @@ marketHoursRoutes.get("/schedule", (c) => {
 // ---------------------------------------------------------------------------
 
 marketHoursRoutes.get("/holidays", (c) => {
-  const limit = Number(c.req.query("limit") || "5");
+  const limit = Number(c.req.query("limit") || DEFAULT_HOLIDAYS_LIMIT);
   return c.json(getUpcomingHolidays(limit));
 });
 
@@ -55,7 +59,7 @@ marketHoursRoutes.get("/holidays", (c) => {
 // ---------------------------------------------------------------------------
 
 marketHoursRoutes.get("/check", (c) => {
-  const confidence = Number(c.req.query("confidence") || "50");
+  const confidence = Number(c.req.query("confidence") || DEFAULT_TRADING_CONFIDENCE);
   return c.json(checkTradingSession(confidence));
 });
 

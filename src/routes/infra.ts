@@ -31,6 +31,9 @@ import { getTradingInfraStatus } from "../agents/orchestrator.ts";
 
 export const infraRoutes = new Hono();
 
+// Default query limits for paginated endpoints
+const DEFAULT_ACTIVATIONS_LIMIT = 50; // Max circuit breaker activations returned by /activations endpoint
+
 // ---------------------------------------------------------------------------
 // GET /status — Full infrastructure status overview
 // ---------------------------------------------------------------------------
@@ -103,7 +106,7 @@ infraRoutes.put("/circuit-breaker/config", async (c) => {
 // ---------------------------------------------------------------------------
 
 infraRoutes.get("/circuit-breaker/activations", (c) => {
-  const limit = Number(c.req.query("limit") || "50");
+  const limit = Number(c.req.query("limit") || DEFAULT_ACTIVATIONS_LIMIT);
   return c.json(getRecentActivations(limit));
 });
 

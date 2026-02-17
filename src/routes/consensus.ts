@@ -17,6 +17,10 @@ import { errorMessage } from "../lib/errors.ts";
 
 const consensus = new Hono();
 
+// Default query limits for paginated endpoints
+const DEFAULT_CONSENSUS_HISTORY_LIMIT = 20; // Max signals returned by /history endpoint
+const DEFAULT_CONSENSUS_ROUNDS_LIMIT = 50; // Max rounds analyzed by /historical endpoint
+
 // ---------------------------------------------------------------------------
 // GET /api/v1/consensus — Full consensus engine status
 // ---------------------------------------------------------------------------
@@ -37,7 +41,7 @@ consensus.get("/", async (c) => {
 // GET /api/v1/consensus/history — Recent consensus signals and divergences
 // ---------------------------------------------------------------------------
 consensus.get("/history", (c) => {
-  const limit = Number(c.req.query("limit")) || 20;
+  const limit = Number(c.req.query("limit")) || DEFAULT_CONSENSUS_HISTORY_LIMIT;
   const history = getConsensusHistory(limit);
   return c.json({
     status: "ok",
@@ -77,7 +81,7 @@ consensus.get("/matrix", (c) => {
 // ---------------------------------------------------------------------------
 consensus.get("/historical", async (c) => {
   try {
-    const rounds = Number(c.req.query("rounds")) || 50;
+    const rounds = Number(c.req.query("rounds")) || DEFAULT_CONSENSUS_ROUNDS_LIMIT;
     const analysis = await analyzeHistoricalConsensus(rounds);
     return c.json({
       status: "ok",
