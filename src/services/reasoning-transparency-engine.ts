@@ -304,6 +304,29 @@ const WEIGHT_ASSUMPTION_AWARENESS = 0.15;
 const WEIGHT_COUNTERFACTUAL_DEPTH = 0.15;
 
 // ---------------------------------------------------------------------------
+// Sentence Splitting Minimum Length Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum character length for sentence-level claim extraction (splitSentences call).
+ * Sentences shorter than 15 characters are too brief to contain a meaningful market claim.
+ * Filters out fragments like "Yes.", "No.", "OK.", "Indeed.", etc.
+ * Example: "AAPL is trading" (16 chars) passes; "Yes." (4 chars) filtered out.
+ * Used in: extractClaims() — splitSentences(reasoning, SENTENCE_MIN_LENGTH_FOR_CLAIMS)
+ */
+const SENTENCE_MIN_LENGTH_FOR_CLAIMS = 15;
+
+/**
+ * Minimum character length for logic chain sentence extraction.
+ * Filters fragments produced by splitting on [.!?]+ punctuation.
+ * Sentences under 10 characters (single words, short phrases) cannot contain
+ * logical premise/inference/conclusion structure.
+ * Example: "Therefore AAPL is a buy" (23 chars) passes; "So" (2 chars) filtered out.
+ * Used in: extractLogicChain() — filter((s) => s.length > SENTENCE_MIN_LENGTH_FOR_LOGIC)
+ */
+const SENTENCE_MIN_LENGTH_FOR_LOGIC = 10;
+
+// ---------------------------------------------------------------------------
 // Core Analysis Functions
 // ---------------------------------------------------------------------------
 
@@ -336,7 +359,7 @@ export function extractClaims(reasoning: string): ExtractedClaim[] {
   }
 
   // Also extract sentence-level claims (sentences with assertive verbs)
-  const sentences = splitSentences(reasoning, 15);
+  const sentences = splitSentences(reasoning, SENTENCE_MIN_LENGTH_FOR_CLAIMS);
   for (const sentence of sentences) {
     if (/\b(?:is\s+(?:trading|priced|valued)|has\s+(?:been|shown|demonstrated)|shows|indicates|reflects|represents)\b/i.test(sentence)) {
       const trimmed = sentence.trim();
@@ -419,7 +442,7 @@ function getEvidenceStrength(claim: ExtractedClaim, source: string, reasoning: s
  */
 export function extractLogicChain(reasoning: string): LogicStep[] {
   const steps: LogicStep[] = [];
-  const sentences = reasoning.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 10);
+  const sentences = reasoning.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > SENTENCE_MIN_LENGTH_FOR_LOGIC);
 
   for (const sentence of sentences) {
     let role: LogicStep["role"] = "premise";
