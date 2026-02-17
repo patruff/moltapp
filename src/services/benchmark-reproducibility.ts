@@ -559,10 +559,10 @@ export function bootstrapCI(
     bootstrapMeans.reduce((s, v) => s + (v - mean) ** 2, 0) / iterations,
   );
 
-  const ci95Lower = bootstrapMeans[Math.floor(iterations * 0.025)];
-  const ci95Upper = bootstrapMeans[Math.floor(iterations * 0.975)];
-  const ci99Lower = bootstrapMeans[Math.floor(iterations * 0.005)];
-  const ci99Upper = bootstrapMeans[Math.floor(iterations * 0.995)];
+  const ci95Lower = bootstrapMeans[Math.floor(iterations * BOOTSTRAP_CI95_LOWER_PERCENTILE)];
+  const ci95Upper = bootstrapMeans[Math.floor(iterations * BOOTSTRAP_CI95_UPPER_PERCENTILE)];
+  const ci99Lower = bootstrapMeans[Math.floor(iterations * BOOTSTRAP_CI99_LOWER_PERCENTILE)];
+  const ci99Upper = bootstrapMeans[Math.floor(iterations * BOOTSTRAP_CI99_UPPER_PERCENTILE)];
 
   return {
     mean: round3(mean),
