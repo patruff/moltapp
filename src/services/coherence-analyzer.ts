@@ -69,6 +69,47 @@ const AGGREGATE_WEIGHT_COHERENCE = 0.4;          // 40% - logical consistency is
 const AGGREGATE_WEIGHT_HALLUCINATION = 0.3;      // 30% - factual accuracy is critical
 const AGGREGATE_WEIGHT_DISCIPLINE = 0.3;         // 30% - rule compliance ensures fair benchmark
 
+/**
+ * Coherence scoring formula base values.
+ * These are the starting scores before netSentiment adjustment.
+ * Strong alignment = 0.7 base (can reach 1.0 with perfect sentiment match)
+ * Ambiguous alignment = 0.5 base (neutral quality signal)
+ * Contradictory alignment = 0.4 base (poor but not zero — partial credit)
+ * No signals case = 0.5 (neutral when no sentiment detected)
+ * Discipline hold = 0.8 (high score when agent cites risk management)
+ * Example: netSentiment=0.9 buy → 0.7 + 0.9 × 0.3 = 0.97 coherence
+ */
+const COHERENCE_SCORE_STRONG_BASE = 0.7;        // Base score when sentiment strongly aligns with action
+const COHERENCE_SCORE_AMBIGUOUS_BASE = 0.5;     // Base score when sentiment is ambiguous/unclear
+const COHERENCE_SCORE_CONTRADICTORY_BASE = 0.4; // Base score when sentiment contradicts action
+const COHERENCE_SCORE_NO_SIGNALS = 0.5;         // Score when reasoning has no detectable sentiment signals
+const COHERENCE_SCORE_DISCIPLINE_HOLD = 0.8;    // Score when hold is justified by risk management/guardrails
+const COHERENCE_SCORE_MIN_FLOOR = 0.05;         // Minimum floor — even contradictory reasoning gets some credit
+
+/**
+ * Coherence scoring formula multipliers.
+ * Applied to netSentiment (-1 to +1) to scale the score range above base.
+ * Strong multiplier: 0.7 base + netSentiment × 0.3 → scores from 0.4 to 1.0
+ * Ambiguous multiplier: 0.5 base + |netSentiment| × 0.2 → scores from 0.5 to 0.7
+ * Contradictory multiplier: 0.4 + netSentiment × 0.4 → scores from 0.0 to 0.8
+ * Formula ensures strong alignment → high scores, contradiction → low scores
+ */
+const COHERENCE_MULTIPLIER_STRONG = 0.3;        // Multiplier for strong alignment case (max range: 0.7 to 1.0)
+const COHERENCE_MULTIPLIER_AMBIGUOUS = 0.2;     // Multiplier for ambiguous case (max range: 0.5 to 0.7)
+const COHERENCE_MULTIPLIER_CONTRADICTORY = 0.4; // Multiplier for contradictory case (max range: 0.05 to 0.8)
+
+/**
+ * Conflicting signals detection thresholds.
+ * When reasoning has both strong bullish AND strong bearish signals,
+ * a "conflicting" signal is added and coherence is slightly reduced.
+ * Threshold: both bullish score > 2 AND bearish score > 2
+ * Penalty: reduces coherence score by CONFLICT_SCORE_PENALTY (capped at 0.1 floor)
+ * Weight: the conflicting signal has a mid-weight (0.5) in the signals array
+ */
+const COHERENCE_CONFLICT_SCORE_THRESHOLD = 2;   // Score threshold for detecting conflicting signals
+const COHERENCE_CONFLICT_SIGNAL_WEIGHT = 0.5;   // Weight of the "conflicting" signal marker
+const COHERENCE_CONFLICT_SCORE_PENALTY = 0.1;   // Score reduction applied when both signals detected
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -255,13 +296,13 @@ export function analyzeCoherence(
 
   if (action === "buy") {
     if (netSentiment > COHERENCE_SENTIMENT_THRESHOLD_BUY) {
-      score = 0.7 + netSentiment * 0.3; // 0.79 to 1.0
+      score = COHERENCE_SCORE_STRONG_BASE + netSentiment * COHERENCE_MULTIPLIER_STRONG; // 0.79 to 1.0
       explanation = "Bullish reasoning supports buy action";
     } else if (netSentiment > -COHERENCE_AMBIGUOUS_THRESHOLD) {
-      score = 0.5 + netSentiment * 0.2;
+      score = COHERENCE_SCORE_AMBIGUOUS_BASE + netSentiment * COHERENCE_MULTIPLIER_AMBIGUOUS;
       explanation = "Reasoning is ambiguous but not contradictory for buy";
     } else {
-      score = Math.max(0.05, 0.4 + netSentiment * 0.4);
+      score = Math.max(COHERENCE_SCORE_MIN_FLOOR, COHERENCE_SCORE_CONTRADICTORY_BASE + netSentiment * COHERENCE_MULTIPLIER_CONTRADICTORY);
       explanation = "Bearish reasoning contradicts buy action";
 
       // Check for contrarian / mean_reversion justification
@@ -272,13 +313,13 @@ export function analyzeCoherence(
     }
   } else if (action === "sell") {
     if (netSentiment < COHERENCE_SENTIMENT_THRESHOLD_SELL) {
-      score = 0.7 + Math.abs(netSentiment) * 0.3;
+      score = COHERENCE_SCORE_STRONG_BASE + Math.abs(netSentiment) * COHERENCE_MULTIPLIER_STRONG;
       explanation = "Bearish reasoning supports sell action";
     } else if (netSentiment < COHERENCE_AMBIGUOUS_THRESHOLD) {
-      score = 0.5 + Math.abs(netSentiment) * 0.2;
+      score = COHERENCE_SCORE_AMBIGUOUS_BASE + Math.abs(netSentiment) * COHERENCE_MULTIPLIER_AMBIGUOUS;
       explanation = "Reasoning is ambiguous but not contradictory for sell";
     } else {
-      score = Math.max(0.05, 0.4 - netSentiment * 0.4);
+      score = Math.max(COHERENCE_SCORE_MIN_FLOOR, COHERENCE_SCORE_CONTRADICTORY_BASE - netSentiment * COHERENCE_MULTIPLIER_CONTRADICTORY);
       explanation = "Bullish reasoning contradicts sell action";
 
       // Check for profit-taking justification
@@ -290,32 +331,32 @@ export function analyzeCoherence(
   } else {
     // Hold
     if (neutralScore > 0 || (Math.abs(netSentiment) < COHERENCE_HOLD_SENTIMENT_MAX && totalSignals > 0)) {
-      score = 0.7 + (1 - Math.abs(netSentiment)) * 0.3;
+      score = COHERENCE_SCORE_STRONG_BASE + (1 - Math.abs(netSentiment)) * COHERENCE_MULTIPLIER_STRONG;
       explanation = "Neutral/cautious reasoning supports hold action";
     } else if (totalSignals === 0) {
-      score = 0.5;
+      score = COHERENCE_SCORE_NO_SIGNALS;
       explanation = "No clear sentiment signals in reasoning";
     } else {
       // Strong signals but choosing to hold — could be discipline or contradiction
-      score = 0.4;
+      score = COHERENCE_SCORE_CONTRADICTORY_BASE;
       explanation = "Strong directional signals present but chose to hold";
 
       if (/guardrail|limit|insufficient|cash\s+buffer|wait\s+for/i.test(reasoning)) {
-        score = 0.8;
+        score = COHERENCE_SCORE_DISCIPLINE_HOLD;
         explanation = "Strong signals tempered by risk management discipline";
       }
     }
   }
 
   // Check for conflicting signals (both very bullish AND very bearish)
-  if (bullishScore > 2 && bearishScore > 2) {
+  if (bullishScore > COHERENCE_CONFLICT_SCORE_THRESHOLD && bearishScore > COHERENCE_CONFLICT_SCORE_THRESHOLD) {
     signals.push({
       type: "conflicting",
       text: "Contains both strong bullish and bearish signals",
-      weight: 0.5,
+      weight: COHERENCE_CONFLICT_SIGNAL_WEIGHT,
     });
     // Conflicting is interesting but reduces coherence slightly
-    score = Math.max(0.1, score - 0.1);
+    score = Math.max(COHERENCE_SCORE_MIN_FLOOR * 2, score - COHERENCE_CONFLICT_SCORE_PENALTY);
     explanation += " (warning: conflicting directional signals)";
   }
 
