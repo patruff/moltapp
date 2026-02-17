@@ -243,6 +243,36 @@ const FLOW_STRENGTH_MULTIPLIER = 1.2;
  */
 const MS_PER_HOUR = 60 * 60 * 1000; // 3,600,000 milliseconds
 
+/**
+ * Position Heatmap Intensity Calculation Constants
+ *
+ * Controls how trading intensity is scored per agent-symbol pair in the heatmap.
+ * Formula: intensity = min(100, round(tradeCount × TRADE_COUNT_MULTIPLIER + avgConfidence × CONFIDENCE_MULTIPLIER))
+ * Example: 5 trades at 70% confidence → min(100, round(5×10 + 70×0.5)) = min(100, 85) = 85 intensity
+ */
+
+/**
+ * Trade count contribution to heatmap intensity.
+ * Each trade adds 10 intensity points (caps out at 10 trades for full trade-count contribution).
+ */
+const HEATMAP_INTENSITY_TRADE_MULTIPLIER = 10;
+
+/**
+ * Average confidence contribution to heatmap intensity.
+ * Scales 0-100 confidence to 0-50 intensity points (half weight vs trade count).
+ */
+const HEATMAP_INTENSITY_CONFIDENCE_MULTIPLIER = 0.5;
+
+/**
+ * Smart Money Flow Strength Divisor
+ *
+ * Converts raw net flow dollar amounts to a 0-100 strength score.
+ * Formula: strength = min(100, round(|netFlow| / FLOW_STRENGTH_DIVISOR))
+ * Example: $500 net flow → min(100, round(500/10)) = 50 strength
+ * Reaches max strength (100) at $1,000 net flow.
+ */
+const AGGREGATE_FLOW_STRENGTH_DIVISOR = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -812,7 +842,7 @@ export async function getPositionHeatmap(): Promise<PositionHeatmap> {
       const avgConfidence = symbolDecisions.reduce((s: number, d: AgentDecision) => s + d.confidence, 0) / symbolDecisions.length;
       const latestAction = symbolDecisions[0]?.action ?? "hold";
       // Intensity: combination of trade count and avg confidence
-      const intensity = Math.min(100, Math.round(symbolDecisions.length * 10 + avgConfidence * 0.5));
+      const intensity = Math.min(100, Math.round(symbolDecisions.length * HEATMAP_INTENSITY_TRADE_MULTIPLIER + avgConfidence * HEATMAP_INTENSITY_CONFIDENCE_MULTIPLIER));
 
       cells.push({
         agentId,
@@ -951,7 +981,7 @@ export async function getSmartMoneyFlow(hours = SMART_MONEY_FLOW_DEFAULT_HOURS):
       totalOutflow: Math.round(totalOutflow),
       netFlow: Math.round(netFlowTotal),
       direction: netFlowTotal > AGGREGATE_FLOW_THRESHOLD ? "net_inflow" : netFlowTotal < -AGGREGATE_FLOW_THRESHOLD ? "net_outflow" : "balanced",
-      strength: Math.min(100, Math.round(Math.abs(netFlowTotal) / 10)),
+      strength: Math.min(100, Math.round(Math.abs(netFlowTotal) / AGGREGATE_FLOW_STRENGTH_DIVISOR)),
     },
     narrative: `Smart money flow over ${period}: ${topInflow ? `Strongest inflow into ${topInflow.symbol}.` : "No significant inflows."} ${topOutflow ? `Largest outflow from ${topOutflow.symbol}.` : "No significant outflows."} Overall direction: ${netFlowTotal > 0 ? "NET BULLISH" : netFlowTotal < 0 ? "NET BEARISH" : "BALANCED"}.`,
   };
