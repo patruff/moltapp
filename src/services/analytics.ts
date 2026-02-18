@@ -417,6 +417,39 @@ const MS_PER_HOUR = 60 * 60 * 1000;
  */
 const CONFIDENCE_NORMALIZATION_DIVISOR = 50;
 
+/**
+ * Simple Percentage Multiplier
+ *
+ * Converts a decimal fraction directly to a percentage (no rounding).
+ *
+ * Formula: fraction × PERCENT_MULTIPLIER = percentage
+ *
+ * Example: 0.75 × 100 = 75 (percent)
+ *
+ * Use cases: winRate, bullishPct, bearishPct, contrarianRate, agreementRate,
+ *            reversalRate, concentrationRisk, diversificationScore, communityAgreement
+ *
+ * Tuning impact: This is a mathematical definition (1 = 100%) and should not change.
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Social Comment Weight Multiplier
+ *
+ * Weight applied to comment count in the social engagement score.
+ * Comments (2×) are weighted more than reactions (1×) because comments
+ * signal deeper engagement: a user who comments has processed the trade
+ * thesis, whereas a reaction is a one-click response.
+ *
+ * Formula: socialScore = totalReactions + totalComments × SOCIAL_COMMENT_WEIGHT
+ *
+ * Example: 10 reactions + 3 comments × 2 = 10 + 6 = 16 social score
+ *
+ * Tuning impact: Increase to 3 to reward comments even more heavily,
+ * or decrease to 1 to treat reactions and comments equally.
+ */
+const SOCIAL_COMMENT_WEIGHT = 2;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -822,12 +855,12 @@ export async function getArenaOverview(): Promise<ArenaOverview> {
     // Social score (reactions + comments)
     const decisionIds = agentDecisionsList.map((d: typeof agentDecisionsList[0]) => d.id);
     const socialMetrics = decisionIds.length > 0 ? await computeSocialMetrics(decisionIds) : { totalReactions: 0, totalComments: 0, bullishReactions: 0, bearishReactions: 0, avgReactionsPerDecision: 0, communityAgreement: 0 };
-    const socialScore = socialMetrics.totalReactions + socialMetrics.totalComments * 2;
+    const socialScore = socialMetrics.totalReactions + socialMetrics.totalComments * SOCIAL_COMMENT_WEIGHT;
 
     // Win rate
     const buysSells = agentDecisionsList.filter((d: typeof agentDecisionsList[0]) => d.action !== "hold");
     const highConfidence = buysSells.filter((d: typeof buysSells[0]) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
-    const winRate = buysSells.length > 0 ? (highConfidence.length / buysSells.length) * 100 : 0;
+    const winRate = buysSells.length > 0 ? (highConfidence.length / buysSells.length) * PERCENT_MULTIPLIER : 0;
 
     // Avg confidence
     const avgConf = averageByKey(agentDecisionsList, 'confidence');
@@ -909,7 +942,7 @@ function computePerformance(
   // Win rate: decisions with confidence >= HIGH_CONFIDENCE_THRESHOLD that are buy/sell are "wins"
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
   const highConfidence = actionDecisions.filter((d) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
-  const winRate = actionDecisions.length > 0 ? (highConfidence.length / actionDecisions.length) * 100 : 0;
+  const winRate = actionDecisions.length > 0 ? (highConfidence.length / actionDecisions.length) * PERCENT_MULTIPLIER : 0;
 
   const avgConfidence = averageByKey(decisions, 'confidence');
   const winsConf = averageByKey(highConfidence, 'confidence');
@@ -1005,7 +1038,7 @@ function computeRiskMetrics(
   const countObjects = Object.values(symbolCounts).map((count) => ({ count }));
   const maxSymbolCount = findMax(countObjects, 'count')?.count ?? 0;
   const maxPositionConcentration = actionDecisions.length > 0
-    ? (maxSymbolCount / actionDecisions.length) * 100
+    ? (maxSymbolCount / actionDecisions.length) * PERCENT_MULTIPLIER
     : 0;
 
   return {
@@ -1076,7 +1109,7 @@ function computeTradingPatterns(
   // Symbol diversity (unique symbols / total decisions)
   const uniqueSymbols = new Set(actionDecisions.map((d) => d.symbol));
   const symbolDiversity = actionDecisions.length > 0
-    ? (uniqueSymbols.size / actionDecisions.length) * 100
+    ? (uniqueSymbols.size / actionDecisions.length) * PERCENT_MULTIPLIER
     : 0;
 
   // Reversal rate (how often consecutive decisions switch buy<->sell)
@@ -1088,7 +1121,7 @@ function computeTradingPatterns(
       reversals++;
     }
   }
-  const reversalRate = decisions.length > 1 ? (reversals / (decisions.length - 1)) * 100 : 0;
+  const reversalRate = decisions.length > 1 ? (reversals / (decisions.length - 1)) * PERCENT_MULTIPLIER : 0;
 
   // Avg hold duration: average time between consecutive decisions
   let totalGapMs = 0;
@@ -1208,8 +1241,8 @@ function computeSentimentProfile(
   const sellCount = countByCondition(decisions, (d) => d.action === "sell");
   const total = actionDecisions.length || 1;
 
-  const bullishPct = (buyCount / total) * 100;
-  const bearishPct = (sellCount / total) * 100;
+  const bullishPct = (buyCount / total) * PERCENT_MULTIPLIER;
+  const bearishPct = (sellCount / total) * PERCENT_MULTIPLIER;
 
   const overallSentiment: "bullish" | "bearish" | "neutral" =
     bullishPct > SENTIMENT_BULLISH_THRESHOLD ? "bullish" : bearishPct > SENTIMENT_BULLISH_THRESHOLD ? "bearish" : "neutral";
@@ -1230,7 +1263,7 @@ function computeSentimentProfile(
     }
   }
   const contrarianism = actionDecisions.length > 0
-    ? (contrarianCount / actionDecisions.length) * 100
+    ? (contrarianCount / actionDecisions.length) * PERCENT_MULTIPLIER
     : 0;
 
   return {
@@ -1314,7 +1347,7 @@ async function computeSocialMetrics(decisionIds: number[]): Promise<SocialMetric
 
   const totalReactions = bullishReactions + bearishReactions;
   const avgReactionsPerDecision = decisionIds.length > 0 ? totalReactions / decisionIds.length : 0;
-  const communityAgreement = totalReactions > 0 ? (bullishReactions / totalReactions) * 100 : 50;
+  const communityAgreement = totalReactions > 0 ? (bullishReactions / totalReactions) * PERCENT_MULTIPLIER : 50;
 
   return {
     totalReactions,
@@ -1380,7 +1413,7 @@ function computeComparisonEntry(
 ): AgentComparisonEntry {
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
   const highConf = actionDecisions.filter((d) => d.confidence >= HIGH_CONFIDENCE_THRESHOLD);
-  const winRate = actionDecisions.length > 0 ? (highConf.length / actionDecisions.length) * 100 : 0;
+  const winRate = actionDecisions.length > 0 ? (highConf.length / actionDecisions.length) * PERCENT_MULTIPLIER : 0;
 
   const avgConf = decisions.length > 0
     ? decisions.reduce((s, d) => s + d.confidence, 0) / decisions.length
@@ -1456,7 +1489,7 @@ function computeHeadToHead(
   }
 
   const totalShared = sameDecisionCount + oppositeDecisionCount;
-  const agreementRate = totalShared > 0 ? (sameDecisionCount / totalShared) * 100 : 0;
+  const agreementRate = totalShared > 0 ? (sameDecisionCount / totalShared) * PERCENT_MULTIPLIER : 0;
 
   // Symbol overlap - extract symbols from non-hold decisions in single pass
   const symbols1 = new Set(decisions1.filter((d) => d.action !== "hold").map((d) => d.symbol));
