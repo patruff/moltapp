@@ -84,6 +84,37 @@ const CATALOG_DEFAULT_PAGE_SIZE = 20;
 /** Default maximum actions per hour (fallback for unknown action types) */
 const RATE_LIMIT_DEFAULT_MAX = 100;
 
+/**
+ * Time Window Constants
+ * Millisecond durations for expiry and shield calculations
+ */
+/** Milliseconds per day (24h × 60min × 60s × 1000ms = 86,400,000ms)
+ * Used for: daily quest expiry, streak shield protection duration
+ * Example: expiresAt = now + MS_PER_DAY → expires exactly 24 hours from now
+ */
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Bonding Curve (Dynamic Pricing) Parameters
+ * Price increases by BONDING_CURVE_PRICE_INCREASE for every BONDING_CURVE_TIER_SIZE purchases.
+ * Formula: demandMultiplier = 1 + floor(purchaseCount / TIER_SIZE) × PRICE_INCREASE
+ * Example: 25 purchases → floor(25/10)=2 tiers × 2% = 4% premium → price × 1.04
+ */
+/** Number of purchases per demand tier (tier boundary for price step-up) */
+const BONDING_CURVE_TIER_SIZE = 10;
+/** Price increase fraction per completed demand tier (0.02 = 2% per tier) */
+const BONDING_CURVE_PRICE_INCREASE = 0.02;
+/** Multiplier for rounding dynamic prices to 2 decimal places (cents precision) */
+const PRICE_ROUNDING_MULTIPLIER = 100;
+
+/**
+ * Referral Bonus Points
+ * Points awarded to referrers for each successful referral registration.
+ * Used in: referral_apply route, quest reward grants, flash quest point reward
+ * Example: 3 referrals × REFERRAL_BONUS_POINTS = 1,500 points earned
+ */
+const REFERRAL_BONUS_POINTS = 500;
+
 // ─── Types ─────────────────────────────────────────────
 
 type PricingModel = "per_package" | "per_token";
@@ -844,7 +875,7 @@ mobileMarketplaceRoutes.post("/shared", async (c) => {
       agentDiscoverable: body.agentDiscoverable !== false, // default true
       createdAt: new Date().toISOString(),
       expiresAt: body.expiresInDays
-        ? new Date(Date.now() + body.expiresInDays * 86400000).toISOString()
+        ? new Date(Date.now() + body.expiresInDays * MS_PER_DAY).toISOString()
         : undefined,
     };
 
@@ -904,11 +935,11 @@ mobileMarketplaceRoutes.post("/shared/:id/purchase", async (c) => {
 
   // ── Dynamic Pricing (bonding curve) ──
   // Price increases by 2% for every 10 purchases (prevents scraping)
-  const demandMultiplier = 1 + Math.floor(shared.purchaseCount / 10) * 0.02;
+  const demandMultiplier = 1 + Math.floor(shared.purchaseCount / BONDING_CURVE_TIER_SIZE) * BONDING_CURVE_PRICE_INCREASE;
   const basePrice = buyerType === "agent" && shared.agentPriceUsdc != null
     ? shared.agentPriceUsdc
     : shared.priceUsdc;
-  const dynamicPrice = Math.round(basePrice * demandMultiplier * 100) / 100;
+  const dynamicPrice = Math.round(basePrice * demandMultiplier * PRICE_ROUNDING_MULTIPLIER) / PRICE_ROUNDING_MULTIPLIER;
 
   shared.purchaseCount += 1;
 
@@ -1285,7 +1316,7 @@ mobileMarketplaceRoutes.post("/referrals/apply", async (c) => {
       referrerUserId: referrer.id,
       referredUserId: walletAddress ?? "demo-user",
       referralCode: code,
-      pointsAwarded: 500,
+      pointsAwarded: REFERRAL_BONUS_POINTS,
       createdAt: new Date().toISOString(),
     };
     referrals.push(referral);
@@ -1296,10 +1327,10 @@ mobileMarketplaceRoutes.post("/referrals/apply", async (c) => {
       ledger = { userId: referrer.id, totalPoints: 0, entries: [] };
       pointsLedger.set(referrer.id, ledger);
     }
-    ledger.totalPoints += 500;
+    ledger.totalPoints += REFERRAL_BONUS_POINTS;
     ledger.entries.push({
       id: generateId("pts"),
-      amount: 500,
+      amount: REFERRAL_BONUS_POINTS,
       reason: "Referral bonus",
       createdAt: new Date().toISOString(),
     });
@@ -1535,7 +1566,7 @@ mobileMarketplaceRoutes.post("/streak-shield/activate", async (c) => {
 
     shield.shieldsOwned -= 1;
     // Shield protects for 24 hours
-    shield.activeUntil = new Date(Date.now() + 86400_000).toISOString();
+    shield.activeUntil = new Date(Date.now() + MS_PER_DAY).toISOString();
 
     return c.json({
       success: true,
@@ -1757,7 +1788,7 @@ mobileMarketplaceRoutes.post("/quests/generate", async (c) => {
         progress: 0,
         status: "available",
         sortOrder: 100,
-        expiresAt: new Date(Date.now() + 86400_000).toISOString(),
+        expiresAt: new Date(Date.now() + MS_PER_DAY).toISOString(),
       });
     }
 
@@ -1774,7 +1805,7 @@ mobileMarketplaceRoutes.post("/quests/generate", async (c) => {
         progress: 0,
         status: "available",
         sortOrder: 101,
-        expiresAt: new Date(Date.now() + 7 * 86400_000).toISOString(),
+        expiresAt: new Date(Date.now() + 7 * MS_PER_DAY).toISOString(),
       });
     }
 
@@ -1785,12 +1816,12 @@ mobileMarketplaceRoutes.post("/quests/generate", async (c) => {
         title: "Flash Quest: Quick Buy",
         description: "Purchase any analysis in the next hour for bonus points",
         category: "marketplace",
-        pointsReward: 500,
+        pointsReward: REFERRAL_BONUS_POINTS,
         requirement: { type: "buy_shared", count: 1 },
         progress: 0,
         status: "available",
         sortOrder: 102,
-        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+        expiresAt: new Date(Date.now() + RATE_LIMIT_WINDOW_MS).toISOString(),
       });
     }
 
