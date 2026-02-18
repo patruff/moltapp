@@ -285,12 +285,24 @@ const MAX_BUFFER_SIZE = 100;
 const RATE_WINDOW_MS = 60_000;
 
 /**
+ * Default number of recent events returned by {@link EventBus.getLatestEvents}.
+ *
+ * Used when a new SSE client connects and requests replay history without
+ * specifying an explicit count. 10 events provides enough context to catch
+ * up on recent activity without overwhelming the client on initial connect.
+ *
+ * Formula: `[...buffer].reverse().slice(0, LATEST_EVENTS_DEFAULT_COUNT)`
+ * Example: buffer has 100 events → client receives the 10 most recent
+ */
+const LATEST_EVENTS_DEFAULT_COUNT = 10;
+
+/**
  * Generate a short, unique event identifier.
  * Format: `evt_<timestamp36>_<random>`
  */
 function generateEventId(): string {
   const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 8);
+  const rand = Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_STANDARD);
   return `evt_${ts}_${rand}`;
 }
 
@@ -473,7 +485,7 @@ export class EventBus {
    *
    * @param count - Number of events to retrieve (default 10)
    */
-  getLatestEvents(count: number = 10): StreamEvent[] {
+  getLatestEvents(count: number = LATEST_EVENTS_DEFAULT_COUNT): StreamEvent[] {
     return [...this.buffer].reverse().slice(0, count);
   }
 
