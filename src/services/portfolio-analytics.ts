@@ -975,7 +975,7 @@ export async function generateEquityCurve(
     const portfolioValue = cash + positionValue;
     peak = Math.max(peak, portfolioValue);
     const drawdownPercent =
-      peak > 0 ? ((peak - portfolioValue) / peak) * 100 : 0;
+      peak > 0 ? ((peak - portfolioValue) / peak) * PERCENT_MULTIPLIER : 0;
 
     points.push({
       timestamp: trade.createdAt.toISOString(),
