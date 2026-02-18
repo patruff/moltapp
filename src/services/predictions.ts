@@ -298,6 +298,32 @@ const CALIBRATION_MIN_BUCKET_SAMPLES = 2;
 const CALIBRATION_DEFAULT_SCORE = 50;
 
 /**
+ * Calibration Bucket Midpoint Offset
+ *
+ * When converting a bucket's lower bound to an expected accuracy percentage,
+ * add half the bucket size to get the midpoint. For 10-point buckets (0-9%,
+ * 10-19%, etc.) the midpoint is bucket + 5.
+ *
+ * Formula: expectedAccuracy = (bucket + MIDPOINT_OFFSET) / SCORE_MULTIPLIER
+ * Example: bucket=70 → (70 + 5) / 100 = 0.75 (75% expected accuracy)
+ */
+const CALIBRATION_BUCKET_MIDPOINT_OFFSET = CALIBRATION_BUCKET_SIZE / 2;
+
+/**
+ * Calibration Score Multiplier
+ *
+ * Converts a decimal fraction (0.0–1.0) to a 0–100 integer score and converts
+ * decimal probabilities to percentage form.
+ *
+ * Used in:
+ *  - calibrationScore: Math.round((1 - error) × 100) → integer 0–100
+ *  - deltaPct: (delta / creation) × 100 → price change as percentage
+ *
+ * Example: calibration error 0.12 → score = round((1 - 0.12) × 100) = 88
+ */
+const CALIBRATION_SCORE_MULTIPLIER = 100;
+
+/**
  * Leaderboard Ranking Weights
  *
  * Control how agents are scored and ranked in the prediction leaderboard composite metric.
@@ -398,6 +424,19 @@ const DEFAULT_QUERY_LIMIT = 20;
  * @example getHotPredictions() → returns top 20 predictions by total pool size
  */
 const HOT_PREDICTIONS_DISPLAY_LIMIT = 20;
+
+/**
+ * Even-Split Percent Default
+ *
+ * Fallback value (50%) used when a denominator is zero and an even split
+ * assumption is appropriate:
+ *   - Pool percentage: when totalPool === 0 both sides show 50%
+ *   - Implied probability: when odds are 0 (no market yet) default to 50%
+ *
+ * Formula: forPercent = totalPool > 0 ? (forPool / totalPool) * 100 : EVEN_SPLIT_PERCENT
+ * Example: empty pool → forPercent = 50, againstPercent = 50 (50/50 split)
+ */
+const EVEN_SPLIT_PERCENT = 50;
 
 /** Aggregate stats for an agent's prediction track record */
 export interface AgentPredictionStats {
@@ -799,7 +838,7 @@ export async function resolvePrediction(
   const creationPrice = parseFloat(prediction.currentPriceAtCreation);
   const currentPrice = stock.price;
   const priceDelta = currentPrice - creationPrice;
-  const priceDeltaPercent = (priceDelta / creationPrice) * 100;
+  const priceDeltaPercent = (priceDelta / creationPrice) * CALIBRATION_SCORE_MULTIPLIER;
 
   // Determine correctness based on prediction type
   let isCorrect = false;
@@ -1151,7 +1190,7 @@ export async function getAgentPredictionStats(
   // Bucket predictions by confidence decile and compare to actual accuracy
   const calibrationBuckets = new Map<number, { total: number; correct: number }>();
   for (const pred of resolved) {
-    const bucket = Math.floor(pred.confidence / 10) * 10;
+    const bucket = Math.floor(pred.confidence / CALIBRATION_BUCKET_SIZE) * CALIBRATION_BUCKET_SIZE;
     const entry = calibrationBuckets.get(bucket) ?? { total: 0, correct: 0 };
     entry.total++;
     if (pred.status === "resolved_correct") entry.correct++;
@@ -1161,8 +1200,8 @@ export async function getAgentPredictionStats(
   let calibrationError = 0;
   let calibrationBucketCount = 0;
   for (const [bucket, data] of calibrationBuckets) {
-    if (data.total >= 2) {
-      const expectedAccuracy = (bucket + 5) / 100; // midpoint of bucket
+    if (data.total >= CALIBRATION_MIN_BUCKET_SAMPLES) {
+      const expectedAccuracy = (bucket + CALIBRATION_BUCKET_MIDPOINT_OFFSET) / CALIBRATION_SCORE_MULTIPLIER; // midpoint of bucket
       const actualAccuracy = data.correct / data.total;
       calibrationError += Math.abs(expectedAccuracy - actualAccuracy);
       calibrationBucketCount++;
@@ -1174,10 +1213,10 @@ export async function getAgentPredictionStats(
       ? Math.max(
           0,
           Math.round(
-            (1 - calibrationError / calibrationBucketCount) * 100,
+            (1 - calibrationError / calibrationBucketCount) * CALIBRATION_SCORE_MULTIPLIER,
           ),
         )
-      : 50; // default if not enough data
+      : CALIBRATION_DEFAULT_SCORE; // default if not enough data
 
   // Best and worst calls (by price delta)
   let bestCall: AgentPredictionStats["bestCall"] = null;
@@ -1187,7 +1226,7 @@ export async function getAgentPredictionStats(
     const creation = parseFloat(pred.currentPriceAtCreation);
     const resolution = parseFloat(pred.resolutionPrice ?? "0");
     const delta = resolution - creation;
-    const deltaPct = creation > 0 ? (delta / creation) * 100 : 0;
+    const deltaPct = creation > 0 ? (delta / creation) * CALIBRATION_SCORE_MULTIPLIER : 0;
 
     // For correct predictions, bigger absolute delta = better call
     // For incorrect, bigger absolute delta = worse call
@@ -1289,7 +1328,7 @@ export async function getPredictionLeaderboard(): Promise<
 
     // Composite score for ranking
     const winRateScore = stats.winRate * LEADERBOARD_WEIGHT_WIN_RATE;
-    const calibrationBonus = (stats.calibrationScore / 100) * LEADERBOARD_WEIGHT_CALIBRATION;
+    const calibrationBonus = (stats.calibrationScore / CALIBRATION_SCORE_MULTIPLIER) * LEADERBOARD_WEIGHT_CALIBRATION;
     const volumeScore = Math.min(LEADERBOARD_WEIGHT_VOLUME, Math.log10(stats.totalPoolVolume + 1) * LEADERBOARD_VOLUME_LOG_MULTIPLIER);
     const consistencyScore = Math.min(LEADERBOARD_WEIGHT_CONSISTENCY, stats.totalPredictions * LEADERBOARD_CONSISTENCY_PER_PREDICTION);
     const profitability =
