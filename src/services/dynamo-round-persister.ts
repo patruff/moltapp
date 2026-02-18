@@ -129,6 +129,61 @@ const AGENT_STATE_TABLE = process.env.AGENT_STATE_TABLE ?? "moltapp-agent-state"
 const TTL_90_DAYS = 90 * 24 * 60 * 60;
 
 // ---------------------------------------------------------------------------
+// Agent State Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Consecutive execution error threshold for marking an agent as "error" status.
+ *
+ * When an agent accumulates this many consecutive execution errors in a row,
+ * its state snapshot transitions from "active" to "error". A single successful
+ * round resets consecutiveErrors to 0, returning the agent to "active".
+ *
+ * Formula: consecutiveErrors >= CONSECUTIVE_ERRORS_ERROR_THRESHOLD → status = "error"
+ * Example: 3 failed rounds in a row → status = "error", 1 success → status = "active"
+ */
+const CONSECUTIVE_ERRORS_ERROR_THRESHOLD = 3;
+
+/**
+ * Default portfolio value (USD) used in agent state snapshots when no live
+ * portfolio data is available (first-run or portfolio fetch failure).
+ *
+ * Matches the standard $10,000 starting capital for all MoltApp agents so that
+ * dashboards show a sensible baseline rather than $0 before the first trade.
+ *
+ * Formula: snapshot.portfolioValue = portfolio?.value ?? existing?.portfolioValue ?? DEFAULT_AGENT_PORTFOLIO_VALUE
+ * Example: Agent launched but hasn't traded yet → portfolioValue = 10000
+ */
+const DEFAULT_AGENT_PORTFOLIO_VALUE = 10_000;
+
+/**
+ * Default cash balance (USD) used in agent state snapshots when no live
+ * portfolio data is available (first-run or portfolio fetch failure).
+ *
+ * Matches DEFAULT_AGENT_PORTFOLIO_VALUE because a brand-new agent holds 100%
+ * cash before any positions are opened.
+ *
+ * Formula: snapshot.cashBalance = portfolio?.cash ?? existing?.cashBalance ?? DEFAULT_AGENT_CASH_BALANCE
+ * Example: Agent launched but hasn't traded yet → cashBalance = 10000
+ */
+const DEFAULT_AGENT_CASH_BALANCE = 10_000;
+
+/**
+ * DynamoDB scan over-fetch multiplier for getRecentRounds().
+ *
+ * DynamoDB Scan returns items in an unpredictable order. To ensure we have
+ * enough items after client-side sorting and slicing to the requested limit,
+ * we request limit × DYNAMO_SCAN_OVERFETCH_MULTIPLIER items from DynamoDB.
+ *
+ * Formula: scanLimit = requestedLimit × DYNAMO_SCAN_OVERFETCH_MULTIPLIER
+ * Example: caller requests 20 rounds → scan fetches 40 → sort → slice(0, 20)
+ *
+ * Note: Increase to 3× if filtering by agent ID causes many items to be
+ * dropped; decrease to 1.5× if DynamoDB read costs become significant.
+ */
+const DYNAMO_SCAN_OVERFETCH_MULTIPLIER = 2;
+
+// ---------------------------------------------------------------------------
 // Client initialization
 // ---------------------------------------------------------------------------
 
@@ -292,7 +347,7 @@ async function persistAgentState(params: {
 
     const snapshot: AgentStateSnapshot = {
       agentId: params.agentId,
-      status: consecutiveErrors >= 3 ? "error" : "active",
+      status: consecutiveErrors >= CONSECUTIVE_ERRORS_ERROR_THRESHOLD ? "error" : "active",
       lastTradeTimestamp: params.timestamp,
       lastAction: params.result.decision.action,
       lastSymbol: params.result.decision.symbol,
@@ -302,8 +357,8 @@ async function persistAgentState(params: {
       consecutiveHolds,
       consecutiveErrors,
       lastRoundId: params.roundId,
-      portfolioValue: params.portfolio?.value ?? existing?.portfolioValue ?? 10000,
-      cashBalance: params.portfolio?.cash ?? existing?.cashBalance ?? 10000,
+      portfolioValue: params.portfolio?.value ?? existing?.portfolioValue ?? DEFAULT_AGENT_PORTFOLIO_VALUE,
+      cashBalance: params.portfolio?.cash ?? existing?.cashBalance ?? DEFAULT_AGENT_CASH_BALANCE,
       positionsCount: params.portfolio?.positionsCount ?? existing?.positionsCount ?? 0,
       totalPnlPercent: params.portfolio?.pnlPercent ?? existing?.totalPnlPercent ?? 0,
       updatedAt: params.timestamp,
@@ -425,7 +480,7 @@ export async function getRecentRounds(limit: number = 20): Promise<PersistedRoun
     const result = await db.send(
       new ScanCommand({
         TableName: ROUNDS_TABLE,
-        Limit: limit * 2, // Over-fetch to account for filtering
+        Limit: limit * DYNAMO_SCAN_OVERFETCH_MULTIPLIER, // Over-fetch to account for filtering
       }),
     );
 
