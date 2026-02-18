@@ -97,6 +97,19 @@ const ENTROPY_MIN_INTENTS = 2;
  */
 const DNA_COMPARISON_TOP_N = 3;
 
+/**
+ * Maximum trade history retained per agent for DNA profiling.
+ * Older entries are evicted (FIFO) once the window is full.
+ *
+ * 500 trades chosen as the retention limit:
+ * - Provides sufficient history for meaningful multi-dimensional profiling
+ * - Recent enough to reflect current strategy (not stale months-old behaviour)
+ * - Bounded memory: 500 entries × ~10 fields × ~50 bytes ≈ 250 KB per agent
+ *
+ * Example: After the 501st recorded trade, the oldest entry is dropped.
+ */
+const DNA_MAX_HISTORY = 500;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -162,7 +175,6 @@ export interface TradeDataPoint {
 
 const tradeHistory: Map<string, TradeDataPoint[]> = new Map();
 const dnaProfiles: Map<string, StrategyDNA> = new Map();
-const MAX_HISTORY = 500;
 
 // ---------------------------------------------------------------------------
 // Data Collection
@@ -174,7 +186,7 @@ const MAX_HISTORY = 500;
 export function recordTradeForDNA(data: TradeDataPoint): void {
   const list = tradeHistory.get(data.agentId) ?? [];
   list.push(data);
-  if (list.length > MAX_HISTORY) list.shift();
+  if (list.length > DNA_MAX_HISTORY) list.shift();
   tradeHistory.set(data.agentId, list);
 }
 
