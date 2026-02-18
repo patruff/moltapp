@@ -229,6 +229,20 @@ const CERTIFICATE_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CERTS_PER_AGENT = 300;
 
 /**
+ * Default query limit for getRecentCertificates() API responses.
+ *
+ * Controls how many recent quality certificates are returned per agent when
+ * no explicit limit is provided. 20 certificates covers recent certification
+ * history (gold/silver/bronze) without bloating profile API responses.
+ *
+ * Context: MAX_CERTS_PER_AGENT=300 is the in-memory storage cap;
+ * this default is the typical API page size (~7% of max storage).
+ *
+ * Example: Agent has 150 stored certs → API returns most recent 20.
+ */
+const DEFAULT_QUALITY_CERTS_LIMIT = 20;
+
+/**
  * HASH AND DISPLAY FORMATTING CONSTANTS
  * Controls how reasoning fingerprints and circular reasoning previews are formatted
  */
@@ -699,7 +713,7 @@ export function verifyCertificate(hash: string): QualityCertificate | null {
 /**
  * Get recent certificates for an agent.
  */
-export function getRecentCertificates(agentId: string, limit = 20): QualityCertificate[] {
+export function getRecentCertificates(agentId: string, limit = DEFAULT_QUALITY_CERTS_LIMIT): QualityCertificate[] {
   return (certificateStore.get(agentId) ?? []).slice(0, limit);
 }
 

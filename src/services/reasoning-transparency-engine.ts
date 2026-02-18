@@ -147,6 +147,20 @@ const TIME_HORIZON_ASSUMPTIONS = /\b(?:short[\s-]term|long[\s-]term|medium[\s-]t
 const reportStore = new Map<string, TransparencyReport[]>();
 const MAX_REPORTS_PER_AGENT = 200;
 
+/**
+ * Default query limit for getTransparencyReports() API responses.
+ *
+ * Controls how many recent transparency reports are returned per agent when
+ * no explicit limit is provided. 50 reports covers ~1-2 trading rounds of
+ * transparency data without overwhelming API consumers.
+ *
+ * Context: MAX_REPORTS_PER_AGENT=200 is the in-memory storage cap;
+ * this default is the typical API page size (25% of max storage).
+ *
+ * Example: Agent has 120 stored reports → API returns most recent 50.
+ */
+const DEFAULT_TRANSPARENCY_REPORTS_LIMIT = 50;
+
 // ---------------------------------------------------------------------------
 // Text Truncation & Display Limit Constants
 // ---------------------------------------------------------------------------
@@ -713,7 +727,7 @@ export function analyzeTransparency(
 /**
  * Get transparency reports for an agent.
  */
-export function getTransparencyReports(agentId: string, limit = 50): TransparencyReport[] {
+export function getTransparencyReports(agentId: string, limit = DEFAULT_TRANSPARENCY_REPORTS_LIMIT): TransparencyReport[] {
   return (reportStore.get(agentId) ?? []).slice(0, limit);
 }
 
