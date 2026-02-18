@@ -17,7 +17,7 @@
  *   3. Request paid endpoint — x402 handles 402 → payment → content automatically
  */
 
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
 import {
   getLatestMeeting,
   type MeetingResult,
@@ -50,6 +50,15 @@ export const SOLANA_DEVNET_NETWORK = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
 
 /** Maximum cached requests in history (circular buffer) */
 const MAX_CACHED_REQUESTS = 1000;
+
+/**
+ * Market Analysis Reasoning Truncation Length
+ * Maximum characters of agent reasoning included in paid market analysis responses.
+ * Truncates to keep API response payloads manageable while preserving key decision logic.
+ * Formula: reasoning.slice(0, MARKET_ANALYSIS_REASONING_TRUNCATION_LENGTH)
+ * Example: 2000-char reasoning → truncated to first 500 chars
+ */
+const MARKET_ANALYSIS_REASONING_TRUNCATION_LENGTH = 500;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -194,7 +203,7 @@ export function generateMarketAnalysis(symbol?: string): AdviceResponse {
     action: d.decision.action,
     symbol: d.decision.symbol,
     confidence: d.decision.confidence,
-    reasoning: d.decision.reasoning.slice(0, 500),
+    reasoning: d.decision.reasoning.slice(0, MARKET_ANALYSIS_REASONING_TRUNCATION_LENGTH),
     executed: d.executed,
   }));
 
