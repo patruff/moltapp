@@ -166,12 +166,70 @@ export interface SimulationMetrics {
 // Constants
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Default Simulation Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default number of independent Monte Carlo simulation paths.
+ * Value of 1000 provides statistically stable distribution estimates:
+ * - p5/p95 percentiles stabilize after ~500 simulations
+ * - Standard error of mean ≈ σ/√1000 (small relative to distribution spread)
+ * - Runtime: ~1000 simulations × 30 days = 30,000 equity path evaluations
+ *
+ * Increasing to 5000+ improves tail accuracy (p1/p99) but multiplies runtime.
+ * Decreasing to 200-500 speeds up API responses at the cost of noisier percentiles.
+ */
+const DEFAULT_NUM_SIMULATIONS = 1000;
+
+/**
+ * Default forecast horizon in trading days.
+ * Value of 30 days ≈ 6 trading weeks (1.5 calendar months).
+ *
+ * Represents a medium-term outlook aligned with typical algorithmic
+ * trading evaluation windows. Shorter horizons (5-10 days) are useful
+ * for near-term stress testing; longer horizons (90-252 days) for
+ * annual performance projections.
+ *
+ * Formula: horizonDays × dailySampledReturn → equity path length
+ */
+const DEFAULT_HORIZON_DAYS = 30;
+
+/**
+ * Default starting capital for each simulation path (USD).
+ * Value of $10,000 provides a round-number baseline for percentage comparisons
+ * and aligns with retail algorithmic trading starting portfolios.
+ *
+ * Final values are directly comparable to each other across agents since
+ * all paths start with the same capital. Probability metrics (profit/loss/
+ * doubling) are calculated relative to this value.
+ *
+ * Example: LOSS_THRESHOLD = $10,000 × 0.90 = $9,000 (10% loss threshold)
+ *          DOUBLING_THRESHOLD = $10,000 × 2 = $20,000 (100% gain threshold)
+ */
+const DEFAULT_INITIAL_CAPITAL = 10_000;
+
+/**
+ * Default confidence level for Value at Risk (VaR) and Conditional VaR (CVaR).
+ * Value of 0.95 = 95th percentile confidence: "we are 95% confident losses
+ * will not exceed VaR."
+ *
+ * Industry standard: 95% confidence is the most common VaR reporting level
+ * (Basel III uses 99% for regulatory capital; 95% is standard for risk monitoring).
+ *
+ * VaR calculation: sort final values ascending, take value at index
+ * floor(N × (1 - 0.95)) = floor(N × 0.05) = 5th percentile loss
+ *
+ * Example: 1000 simulations × (1 - 0.95) = 50th worst outcome = VaR index
+ */
+const DEFAULT_CONFIDENCE_LEVEL = 0.95;
+
 /** Default simulation configuration. */
 const DEFAULT_CONFIG: MonteCarloConfig = {
-  numSimulations: 1000,
-  horizonDays: 30,
-  initialCapital: 10000,
-  confidenceLevel: 0.95,
+  numSimulations: DEFAULT_NUM_SIMULATIONS,
+  horizonDays: DEFAULT_HORIZON_DAYS,
+  initialCapital: DEFAULT_INITIAL_CAPITAL,
+  confidenceLevel: DEFAULT_CONFIDENCE_LEVEL,
 };
 
 /** The three competing AI agents in the MoltApp arena. */
