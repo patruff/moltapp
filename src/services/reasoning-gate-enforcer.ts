@@ -84,6 +84,47 @@ const MIN_REASONING_LENGTH = 20;
 const MIN_COHERENCE_THRESHOLD = 0.15;
 const TEMPLATE_SIMILARITY_THRESHOLD = 0.85;
 
+// ---------------------------------------------------------------------------
+// Reasoning Quality Thresholds
+// ---------------------------------------------------------------------------
+//
+// These control the feedback thresholds surfaced when agents submit trades via
+// validateSubmission(). They are advisory (suggestions), not hard rejections.
+//
+// Two-tier advisory system:
+//   - REASONING_WARN_LENGTH: below this triggers a "too short" suggestion
+//   - REASONING_DETAIL_LENGTH: below this triggers a "more detail" suggestion
+//
+// Formula: reasoning that's ≥ REASONING_DETAIL_LENGTH gets no length warnings
+// Example: 120-char reasoning → no warnings; 60-char → one warning; 30-char → both
+//
+const REASONING_WARN_LENGTH = 50;
+/**
+ * Reasoning length at which agents receive a suggestion to elaborate.
+ * Reasoning shorter than 50 characters is unlikely to capture a meaningful
+ * market thesis and will score lower on benchmark coherence metrics.
+ */
+
+const REASONING_DETAIL_LENGTH = 100;
+/**
+ * Reasoning length above which no "be more detailed" suggestion is shown.
+ * Reasoning in the 50-99 character range triggers a softer prompt encouraging
+ * longer, richer context that scores better on coherence metrics.
+ */
+
+// ---------------------------------------------------------------------------
+// Originality Check Word Count Threshold
+// ---------------------------------------------------------------------------
+//
+// Minimum distinct (filtered) word count before Jaccard similarity is run.
+// Reasoning with fewer than MIN_ORIGINALITY_WORD_COUNT unique words is treated
+// as too short to meaningfully compare and is assumed original.
+//
+// Formula: if words.size < MIN_ORIGINALITY_WORD_COUNT → skip similarity, return isOriginal=true
+// Example: "BUY now good" → 3 words → skip check; "Tech earnings beat expectations strongly" → 5 words → run check
+//
+const MIN_ORIGINALITY_WORD_COUNT = 5;
+
 /**
  * Set the reasoning gate enforcement level.
  */
@@ -155,12 +196,12 @@ function recordReasoning(reasoning: string): void {
  */
 function checkOriginality(reasoning: string): { isOriginal: boolean; maxSimilarity: number } {
   const words = new Set(getFilteredWords(reasoning, 3));
-  if (words.size < 5) return { isOriginal: true, maxSimilarity: 0 };
+  if (words.size < MIN_ORIGINALITY_WORD_COUNT) return { isOriginal: true, maxSimilarity: 0 };
 
   let maxSimilarity = 0;
   for (const prev of recentReasonings) {
     const prevWords = new Set(getFilteredWords(prev, 3));
-    if (prevWords.size < 5) continue;
+    if (prevWords.size < MIN_ORIGINALITY_WORD_COUNT) continue;
 
     // Jaccard similarity
     let intersection = 0;
@@ -394,10 +435,10 @@ export function validateExternalSubmission(submission: Record<string, unknown>):
 
   // Check reasoning quality
   const reasoning = String(submission.reasoning ?? "");
-  if (reasoning.length < 50) {
+  if (reasoning.length < REASONING_WARN_LENGTH) {
     suggestions.push("Reasoning should be at least 50 characters for meaningful benchmark scoring");
   }
-  if (reasoning.length < 100) {
+  if (reasoning.length < REASONING_DETAIL_LENGTH) {
     suggestions.push("Longer, more detailed reasoning typically scores higher on coherence metrics");
   }
 
