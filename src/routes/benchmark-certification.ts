@@ -60,6 +60,60 @@ interface BenchmarkCertification {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Certification Validity Duration
+ *
+ * How long a certification remains valid after issuance.
+ * Used in the validUntil timestamp for issued certifications.
+ *
+ * Formula: CERT_VALID_UNTIL_MS = 7 days × 24h × 60min × 60s × 1000ms
+ * Example: cert issued 2026-01-01 → valid until 2026-01-08
+ */
+const CERT_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Full Certification Composite Score Weights (6-pillar formula)
+ *
+ * Used by the /certify endpoint which includes calibration data.
+ * Weights sum to 1.0: 0.20 + 0.15 + 0.10 + 0.10 + 0.10 + 0.35 = 1.00
+ *
+ * Formula: compositeScore = coherence×W_COHERENCE + halFree×W_HAL_FREE +
+ *   discipline×W_DISCIPLINE + confidence×W_CONFIDENCE + calibration×W_CALIBRATION +
+ *   baseline×W_BASELINE
+ *
+ * The 0.35 baseline weight (W_CERT_BASELINE_WEIGHT × W_CERT_BASELINE_VALUE) represents
+ * the floor contribution before all other signals are factored in.
+ */
+const CERT_WEIGHT_COHERENCE = 0.20;
+const CERT_WEIGHT_HAL_FREE = 0.15;
+const CERT_WEIGHT_DISCIPLINE = 0.10;
+const CERT_WEIGHT_CONFIDENCE = 0.10;
+const CERT_WEIGHT_CALIBRATION = 0.10;
+const CERT_BASELINE_SCORE = 0.5;
+const CERT_BASELINE_WEIGHT = 0.35;
+
+/**
+ * Leaderboard Composite Score Weights (4-pillar formula)
+ *
+ * Used by the /leaderboard-certified endpoint (no calibration data).
+ * Weights sum to 1.0: 0.35 + 0.25 + 0.20 + 0.20 = 1.00
+ *
+ * Formula: compositeScore = coherence×W_COHERENCE + halFree×W_HAL_FREE +
+ *   discipline×W_DISCIPLINE + confidence×W_CONFIDENCE
+ *
+ * Coherence gets highest weight (0.35) as the primary reasoning quality signal.
+ * Default confidence (LB_DEFAULT_CONFIDENCE) used when no avg confidence data.
+ */
+const LB_WEIGHT_COHERENCE = 0.35;
+const LB_WEIGHT_HAL_FREE = 0.25;
+const LB_WEIGHT_DISCIPLINE = 0.20;
+const LB_WEIGHT_CONFIDENCE = 0.20;
+const LB_DEFAULT_CONFIDENCE = 0.5;
+
+// ---------------------------------------------------------------------------
 // Certification Store
 // ---------------------------------------------------------------------------
 
@@ -132,8 +186,9 @@ benchmarkCertificationRoutes.get("/certify/:agentId", async (c) => {
 
     const halFree = 1 - hallucinationRate;
     const compositeScore = round3(
-      avgCoherence * 0.20 + halFree * 0.15 + disciplineRate * 0.10 +
-        avgConfidence * 0.10 + calibration.score * 0.10 + 0.5 * 0.35,
+      avgCoherence * CERT_WEIGHT_COHERENCE + halFree * CERT_WEIGHT_HAL_FREE +
+        disciplineRate * CERT_WEIGHT_DISCIPLINE + avgConfidence * CERT_WEIGHT_CONFIDENCE +
+        calibration.score * CERT_WEIGHT_CALIBRATION + CERT_BASELINE_SCORE * CERT_BASELINE_WEIGHT,
     );
 
     // Generate deterministic hash from metrics
@@ -164,7 +219,7 @@ benchmarkCertificationRoutes.get("/certify/:agentId", async (c) => {
       methodology: "MoltApp Benchmark v3: 6-pillar weighted composite scoring",
       version: "v3.0",
       issuedAt: new Date().toISOString(),
-      validUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      validUntil: new Date(Date.now() + CERT_VALIDITY_MS).toISOString(),
     };
 
     certifications.set(certHash, certification);
@@ -251,8 +306,9 @@ benchmarkCertificationRoutes.get("/leaderboard-certified", async (c) => {
         : 0;
 
       const compositeScore = round3(
-        avgCoherence * 0.35 + halFree * 0.25 + disciplineRate * 0.20 +
-          (Number(row?.avgConfidence) || 0.5) * 0.20,
+        avgCoherence * LB_WEIGHT_COHERENCE + halFree * LB_WEIGHT_HAL_FREE +
+          disciplineRate * LB_WEIGHT_DISCIPLINE +
+          (Number(row?.avgConfidence) || LB_DEFAULT_CONFIDENCE) * LB_WEIGHT_CONFIDENCE,
       );
 
       // Check for existing certification
