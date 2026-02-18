@@ -47,11 +47,29 @@ export interface VerificationResult {
 }
 
 // ---------------------------------------------------------------------------
-// State
+// Constants
 // ---------------------------------------------------------------------------
 
 const PROOF_VERSION = "1.0.0";
 const MAX_AUDIT_TRAIL = 500;
+
+/**
+ * SHA-256 hex digest length in characters.
+ *
+ * SHA-256 produces a 256-bit (32-byte) digest. Encoded as lowercase
+ * hexadecimal, that is exactly 64 characters (2 hex chars per byte).
+ *
+ * Used to validate that stored justification hashes have the correct format
+ * and were not truncated or corrupted. The regex /^[a-f0-9]{64}$/ matches
+ * exactly this length.
+ *
+ * Example: "a3f9z2..." → 64 hex characters total
+ */
+const SHA256_HEX_LENGTH = 64;
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
 /** Ordered audit trail of integrity proofs */
 const auditTrail: IntegrityProof[] = [];
@@ -131,10 +149,10 @@ export function verifyIntegrityProof(proof: IntegrityProof): VerificationResult 
     return { valid: false, merkleRootMatch: false, individualHashesValid: false, details, verifiedAt: new Date().toISOString() };
   }
 
-  // Step 2: Hash format (64-char lowercase hex)
-  const hex64 = /^[a-f0-9]{64}$/;
+  // Step 2: Hash format (SHA256_HEX_LENGTH-char lowercase hex)
+  const hexPattern = new RegExp(`^[a-f0-9]{${SHA256_HEX_LENGTH}}$`);
   const hashesValid = proof.justificationHashes.every(
-    (jh) => hex64.test(jh.hash) && typeof jh.id === "string" && jh.id.length > 0,
+    (jh) => hexPattern.test(jh.hash) && typeof jh.id === "string" && jh.id.length > 0,
   );
   details.push({ step: "Individual hash format validation", passed: hashesValid });
 
