@@ -158,6 +158,36 @@ export interface OrderManagerMetrics {
 }
 
 // ---------------------------------------------------------------------------
+// Percentage Conversion Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Multiplier to convert a decimal fraction to a percentage value.
+ *
+ * Used in stop-loss and take-profit calculations to express price movements
+ * as human-readable percentage values.
+ *
+ * Formula: decimalFraction × PERCENT_MULTIPLIER = percentage
+ * Example: (entryPrice - stopPrice) / entryPrice × 100 = loss %
+ *   - entryPrice = $100, stopPrice = $90 → (100-90)/100 × 100 = 10% loss
+ *   - entryPrice = $50, targetPrice = $60 → (60-50)/50 × 100 = 20% gain
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Divisor to convert a percentage value back to a decimal fraction.
+ *
+ * Used in trailing stop calculations to convert the user-supplied trailPercent
+ * (e.g. 5.0 meaning "5%") into a multiplier for price math.
+ *
+ * Formula: percentage / PERCENT_DIVISOR = decimalFraction
+ * Example: trailPercent=5 → 1 - 5/100 = 0.95 → stopPrice = highWaterMark × 0.95
+ *   - highWaterMark = $200, trailPercent = 5 → stopPrice = $200 × 0.95 = $190
+ *   - highWaterMark = $150, trailPercent = 10 → stopPrice = $150 × 0.90 = $135
+ */
+const PERCENT_DIVISOR = 100;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -277,7 +307,7 @@ export function placeStopLoss(params: {
 }): StopLossOrder {
   const lossPercent =
     params.entryPrice > 0
-      ? ((params.entryPrice - params.stopPrice) / params.entryPrice) * 100
+      ? ((params.entryPrice - params.stopPrice) / params.entryPrice) * PERCENT_MULTIPLIER
       : 0;
 
   const order: StopLossOrder = {
@@ -318,7 +348,7 @@ export function placeTrailingStop(params: {
 }): TrailingStopOrder {
   const currentPrice = getPrice(params.symbol)?.price ?? params.entryPrice;
   const highWaterMark = Math.max(currentPrice, params.entryPrice);
-  const currentStopPrice = highWaterMark * (1 - params.trailPercent / 100);
+  const currentStopPrice = highWaterMark * (1 - params.trailPercent / PERCENT_DIVISOR);
 
   const order: TrailingStopOrder = {
     orderId: generateOrderId(),
@@ -359,7 +389,7 @@ export function placeTakeProfit(params: {
 }): TakeProfitOrder {
   const profitPercent =
     params.entryPrice > 0
-      ? ((params.targetPrice - params.entryPrice) / params.entryPrice) * 100
+      ? ((params.targetPrice - params.entryPrice) / params.entryPrice) * PERCENT_MULTIPLIER
       : 0;
 
   const order: TakeProfitOrder = {
@@ -633,7 +663,7 @@ function evaluateOrder(order: Order, currentPrice: number): OrderTriggerResult |
       // Update high water mark if price increased
       if (currentPrice > order.highWaterMark) {
         order.highWaterMark = currentPrice;
-        order.currentStopPrice = currentPrice * (1 - order.trailPercent / 100);
+        order.currentStopPrice = currentPrice * (1 - order.trailPercent / PERCENT_DIVISOR);
         order.updatedAt = new Date().toISOString();
       }
 
