@@ -124,6 +124,19 @@ const COMPOSITE_WEIGHT_EDGE_CASES = 0.25;
 /** Weight for framing consistency in composite score (25% of total) */
 const COMPOSITE_WEIGHT_FRAMING = 0.25;
 
+/**
+ * Score Precision Rounding Multiplier
+ *
+ * Used for rounding the composite adversarial robustness score to 3 decimal places.
+ * Formula: Math.round(score * 1000) / 1000
+ *
+ * 3 decimal places chosen to distinguish scores like 0.742 vs 0.743 for fine-grained
+ * benchmark ranking while avoiding unnecessary floating-point noise beyond 3 decimals.
+ *
+ * Example: raw = 0.74255... → Math.round(0.74255 * 1000) / 1000 = 0.743
+ */
+const SCORE_PRECISION_MULTIPLIER = 1000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -532,8 +545,8 @@ export function analyzeAdversarialRobustness(
     (signalConflict.score * COMPOSITE_WEIGHT_SIGNAL_CONFLICT +
       anchoring.score * COMPOSITE_WEIGHT_ANCHORING +
       edgeCases.score * COMPOSITE_WEIGHT_EDGE_CASES +
-      framing.score * COMPOSITE_WEIGHT_FRAMING) * 1000
-  ) / 1000;
+      framing.score * COMPOSITE_WEIGHT_FRAMING) * SCORE_PRECISION_MULTIPLIER
+  ) / SCORE_PRECISION_MULTIPLIER;
 
   return {
     overallScore,

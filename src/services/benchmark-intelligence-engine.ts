@@ -98,6 +98,19 @@ const agentWindows = new Map<string, AgentMetricWindow>();
 const agentScores = new Map<string, V16BenchmarkScore>();
 const previousRanks = new Map<string, number>();
 
+/**
+ * Metric Window Size
+ *
+ * Maximum number of trades retained per agent in the scoring window.
+ * Older entries are evicted when the window is full (FIFO).
+ *
+ * 200 trades chosen as the retention limit:
+ * - Enough history to compute stable rolling averages (≥30 for CLT convergence)
+ * - Recent enough to reflect current agent behaviour (not stale strategies)
+ * - Bounded memory: 200 entries × ~15 arrays × 8 bytes ≈ 24 KB per agent
+ *
+ * Example: After 201st trade, the oldest entry is dropped from each metric array.
+ */
 const WINDOW_SIZE = 200;
 
 // ---------------------------------------------------------------------------
@@ -573,12 +586,12 @@ export function recordV16Metrics(
     pushCapped(w.regimeActions, {
       regime: metrics.regime,
       action: metrics.action,
-      success: metrics.outcome ?? (metrics.coherence > 0.5),
+      success: metrics.outcome ?? (metrics.coherence > META_COHERENCE_AMBIGUOUS_THRESHOLD),
     });
   }
 
   // Compute sentiment proxy from coherence signals
-  pushCapped(w.sentimentScores, metrics.coherence * 2 - 1);
+  pushCapped(w.sentimentScores, metrics.coherence * SENTIMENT_COHERENCE_MULTIPLIER - SENTIMENT_COHERENCE_OFFSET);
 }
 
 /**
