@@ -1335,11 +1335,11 @@ function determineOverallStyle(params: {
 
   // Primary style
   let primary: string;
-  if (dominant === contrarianScore && contrarianScore > 40) {
+  if (dominant === contrarianScore && contrarianScore > STYLE_PRIMARY_MIN_SCORE) {
     primary = "Contrarian";
-  } else if (dominant === momentumScore && momentumScore > 40) {
+  } else if (dominant === momentumScore && momentumScore > STYLE_PRIMARY_MIN_SCORE) {
     primary = "Momentum";
-  } else if (dominant === valueScore && valueScore > 40) {
+  } else if (dominant === valueScore && valueScore > STYLE_PRIMARY_MIN_SCORE) {
     primary = "Value";
   } else {
     primary = "Balanced";
@@ -1347,9 +1347,9 @@ function determineOverallStyle(params: {
 
   // Risk modifier
   let riskLabel: string;
-  if (riskAppetiteScore >= 70) {
+  if (riskAppetiteScore >= RISK_APPETITE_AGGRESSIVE_THRESHOLD) {
     riskLabel = "Aggressive";
-  } else if (riskAppetiteScore >= 40) {
+  } else if (riskAppetiteScore >= RISK_APPETITE_MODERATE_THRESHOLD) {
     riskLabel = "Moderate";
   } else {
     riskLabel = "Conservative";
@@ -1357,9 +1357,9 @@ function determineOverallStyle(params: {
 
   // Conviction modifier
   let convictionLabel: string;
-  if (avgConfidence >= 65) {
+  if (avgConfidence >= CONVICTION_LABEL_HIGH_THRESHOLD) {
     convictionLabel = "High-Conviction";
-  } else if (avgConfidence >= 45) {
+  } else if (avgConfidence >= CONVICTION_LABEL_MEASURED_THRESHOLD) {
     convictionLabel = "Measured";
   } else {
     convictionLabel = "Cautious";
@@ -1381,8 +1381,8 @@ function determineOverallStyle(params: {
   if (total > 0) {
     const buyRatio = buys / total;
     const sellRatio = sells / total;
-    if (buyRatio > 0.5) directionLabel = " (Bullish Bias)";
-    else if (sellRatio > 0.5) directionLabel = " (Bearish Bias)";
+    if (buyRatio > DIRECTIONAL_BIAS_BULLISH_THRESHOLD) directionLabel = " (Bullish Bias)";
+    else if (sellRatio > DIRECTIONAL_BIAS_BEARISH_THRESHOLD) directionLabel = " (Bearish Bias)";
   }
 
   return `${freqLabel} ${riskLabel} ${primary} — ${convictionLabel}${directionLabel}`;
