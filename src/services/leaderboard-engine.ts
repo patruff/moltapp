@@ -603,16 +603,16 @@ export function getLeaderboard(options?: {
     const compositeChange7d = avg7d - avg7dPrev;
 
     const direction: "improving" | "stable" | "declining" =
-      compositeChange7d > 0.03 ? "improving" :
-      compositeChange7d < -0.03 ? "declining" : "stable";
+      compositeChange7d > TREND_IMPROVING_THRESHOLD ? "improving" :
+      compositeChange7d < TREND_DECLINING_THRESHOLD ? "declining" : "stable";
 
     // Grade
-    const grade = avgComposite >= 0.95 ? "A+" : avgComposite >= 0.90 ? "A" :
-      avgComposite >= 0.85 ? "A-" : avgComposite >= 0.80 ? "B+" :
-      avgComposite >= 0.75 ? "B" : avgComposite >= 0.70 ? "B-" :
-      avgComposite >= 0.65 ? "C+" : avgComposite >= 0.60 ? "C" :
-      avgComposite >= 0.55 ? "C-" : avgComposite >= 0.50 ? "D+" :
-      avgComposite >= 0.45 ? "D" : avgComposite >= 0.40 ? "D-" : "F";
+    const grade = avgComposite >= GRADE_THRESHOLD_A_PLUS ? "A+" : avgComposite >= GRADE_THRESHOLD_A ? "A" :
+      avgComposite >= GRADE_THRESHOLD_A_MINUS ? "A-" : avgComposite >= GRADE_THRESHOLD_B_PLUS ? "B+" :
+      avgComposite >= GRADE_THRESHOLD_B ? "B" : avgComposite >= GRADE_THRESHOLD_B_MINUS ? "B-" :
+      avgComposite >= GRADE_THRESHOLD_C_PLUS ? "C+" : avgComposite >= GRADE_THRESHOLD_C ? "C" :
+      avgComposite >= GRADE_THRESHOLD_C_MINUS ? "C-" : avgComposite >= GRADE_THRESHOLD_D_PLUS ? "D+" :
+      avgComposite >= GRADE_THRESHOLD_D ? "D" : avgComposite >= GRADE_THRESHOLD_D_MINUS ? "D-" : "F";
 
     // Trades by time window
     const tradesLast24h = state.compositeScores.filter(
