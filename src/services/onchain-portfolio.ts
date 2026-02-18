@@ -68,6 +68,20 @@ const AGENT_INITIAL_CAPITAL = 50; // $50 USDC per agent
 /** Approximate SOL price in USD (for portfolio valuation) */
 const SOL_PRICE_USD = 200; // Conservative estimate, update as needed
 
+/**
+ * Multiplier for converting decimal fractions to percentages in P&L displays.
+ *
+ * Formula: percent = (value / basis - 1) × PERCENT_MULTIPLIER
+ * Example: (price - avgCost) / avgCost × 100 = unrealised P&L %
+ *
+ * Used for:
+ *   - unrealizedPnlPercent: position-level unrealised gain/loss %
+ *   - totalPnlPercent: portfolio-level total return %
+ *
+ * Change to 1000 for one-decimal-place basis-point display (rarely needed).
+ */
+const PERCENT_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Core Functions
 // ---------------------------------------------------------------------------
@@ -142,7 +156,7 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
     const value = holding.amount * price;
 
     const unrealizedPnl = avgCostBasis > 0 ? (price - avgCostBasis) * holding.amount : 0;
-    const unrealizedPnlPercent = avgCostBasis > 0 ? ((price - avgCostBasis) / avgCostBasis) * 100 : 0;
+    const unrealizedPnlPercent = avgCostBasis > 0 ? ((price - avgCostBasis) / avgCostBasis) * PERCENT_MULTIPLIER : 0;
 
     return {
       symbol: holding.symbol,
@@ -165,7 +179,7 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
   const positionsValue = positionList.reduce((sum, p) => sum + p.value, 0);
   const totalValue = cashBalance + positionsValue + solValueUsd;
   const totalPnl = totalValue - AGENT_INITIAL_CAPITAL;
-  const totalPnlPercent = AGENT_INITIAL_CAPITAL > 0 ? (totalPnl / AGENT_INITIAL_CAPITAL) * 100 : 0;
+  const totalPnlPercent = AGENT_INITIAL_CAPITAL > 0 ? (totalPnl / AGENT_INITIAL_CAPITAL) * PERCENT_MULTIPLIER : 0;
 
   return {
     agentId,
