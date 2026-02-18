@@ -23,6 +23,49 @@ import {
 import { parseQueryInt } from "../lib/query-params.ts";
 import { errorMessage } from "../lib/errors.ts";
 
+// ---------------------------------------------------------------------------
+// Route Display & Default Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default hours window for whale alert queries (24 hours).
+ * Used in the dashboard and /alerts endpoints as the default lookback period.
+ * Range: 1–720 hours (1 hour to 30 days).
+ */
+const DEFAULT_ALERT_HOURS = 24;
+
+/**
+ * Default hours window for smart money flow analysis (168 hours = 7 days).
+ * Flow analysis needs a longer window than alerts to detect capital movement trends.
+ * Used in /flow and /flow/sectors endpoints.
+ * Range: 1–720 hours.
+ */
+const DEFAULT_FLOW_HOURS = 168;
+
+/**
+ * Minimum confidence threshold for high-conviction trade detection (75%).
+ * Trades at or above this confidence level are classified as "high conviction".
+ * Used in both the dashboard summary (hardcoded call) and the /conviction endpoint default.
+ * Range: 50–100 (parseQueryInt enforces bounds).
+ */
+const DEFAULT_MIN_CONVICTION_CONFIDENCE = 75;
+
+/**
+ * Number of top alerts shown in the dashboard summary response.
+ * Limits the dashboard to the most critical alerts rather than flooding the response.
+ * Full alert list available via GET /whales/alerts.
+ * Example: 20 alerts exist → dashboard shows top 5 most recent/severe.
+ */
+const DASHBOARD_TOP_ALERTS_LIMIT = 5;
+
+/**
+ * Number of top conviction trades shown in the dashboard summary response.
+ * Limits dashboard to highest-confidence trades rather than the full conviction list.
+ * Full list available via GET /whales/conviction.
+ * Example: 12 high-conviction trades → dashboard shows top 5.
+ */
+const DASHBOARD_TOP_CONVICTION_LIMIT = 5;
+
 export const whaleRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -31,11 +74,11 @@ export const whaleRoutes = new Hono();
 
 whaleRoutes.get("/", async (c) => {
   try {
-    const hours = parseQueryInt(c.req.query("hours"), 24, 1, 720);
+    const hours = parseQueryInt(c.req.query("hours"), DEFAULT_ALERT_HOURS, 1, 720);
 
     const [alerts, conviction, heatmap] = await Promise.all([
       getWhaleAlerts(hours),
-      getConvictionTracker(75),
+      getConvictionTracker(DEFAULT_MIN_CONVICTION_CONFIDENCE),
       getPositionHeatmap(),
     ]);
 
@@ -51,8 +94,8 @@ whaleRoutes.get("/", async (c) => {
         mostActiveAgent: alerts.mostActiveWhale?.agentName ?? null,
         summary: alerts.summary,
       },
-      topAlerts: alerts.alerts.slice(0, 5),
-      topConvictionTrades: conviction.highConvictionTrades.slice(0, 5),
+      topAlerts: alerts.alerts.slice(0, DASHBOARD_TOP_ALERTS_LIMIT),
+      topConvictionTrades: conviction.highConvictionTrades.slice(0, DASHBOARD_TOP_CONVICTION_LIMIT),
       generatedAt: new Date().toISOString(),
       description: "AI Agent Whale Tracker — monitoring large position changes, conviction spikes, and smart money flows.",
     });
@@ -77,7 +120,7 @@ whaleRoutes.get("/alerts", async (c) => {
   try {
     const typeFilter = c.req.query("type");
     const severityFilter = c.req.query("severity");
-    const hours = parseQueryInt(c.req.query("hours"), 24, 1, 720);
+    const hours = parseQueryInt(c.req.query("hours"), DEFAULT_ALERT_HOURS, 1, 720);
 
     const activity = await getWhaleAlerts(hours);
     let alerts = activity.alerts;
@@ -123,7 +166,7 @@ whaleRoutes.get("/alerts", async (c) => {
 
 whaleRoutes.get("/conviction", async (c) => {
   try {
-    const minConfidence = parseQueryInt(c.req.query("min_confidence"), 75, 50, 100);
+    const minConfidence = parseQueryInt(c.req.query("min_confidence"), DEFAULT_MIN_CONVICTION_CONFIDENCE, 50, 100);
 
     const tracker = await getConvictionTracker(minConfidence);
 
@@ -175,7 +218,7 @@ whaleRoutes.get("/heatmap", async (c) => {
 
 whaleRoutes.get("/flow", async (c) => {
   try {
-    const hours = parseQueryInt(c.req.query("hours"), 168, 1, 720);
+    const hours = parseQueryInt(c.req.query("hours"), DEFAULT_FLOW_HOURS, 1, 720);
 
     const flow = await getSmartMoneyFlow(hours);
 
@@ -202,7 +245,7 @@ whaleRoutes.get("/flow", async (c) => {
 
 whaleRoutes.get("/flow/sectors", async (c) => {
   try {
-    const hours = parseQueryInt(c.req.query("hours"), 168, 1, 720);
+    const hours = parseQueryInt(c.req.query("hours"), DEFAULT_FLOW_HOURS, 1, 720);
 
     const flow = await getSmartMoneyFlow(hours);
 
