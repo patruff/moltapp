@@ -105,6 +105,34 @@ export interface DecisionQualityReport {
 const DEFAULT_QUALITY_SCORE = 0.5;
 
 // ---------------------------------------------------------------------------
+// Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of top-scoring quality dimensions shown as agent strengths.
+ *
+ * Dimensions are sorted descending by score; the first N are "strengths".
+ * Value of 2 shows the two best dimensions without overwhelming the report.
+ * Increasing to 3 gives more detail at the cost of longer output.
+ *
+ * Example: Agent scores [Tool Use: 0.85, Integrity: 0.80, Calibration: 0.65, ...]
+ *   → strengths = ["Tool Use (85%)", "Integrity (80%)"]
+ */
+const TOP_STRENGTHS_DISPLAY_LIMIT = 2;
+
+/**
+ * Number of lowest-scoring quality dimensions shown as agent weaknesses.
+ *
+ * Dimensions are sorted descending by score; the last N are "weaknesses".
+ * Value of 2 surfaces the two worst dimensions for targeted improvement.
+ * Mirrors TOP_STRENGTHS_DISPLAY_LIMIT so the report is symmetric.
+ *
+ * Example: Agent scores [..., Memory: 0.45, Accountability: 0.40]
+ *   → weaknesses = ["Accountability (40%)", "Memory (45%)"]
+ */
+const TOP_WEAKNESSES_DISPLAY_LIMIT = 2;
+
+// ---------------------------------------------------------------------------
 // Weight Configuration
 // ---------------------------------------------------------------------------
 
@@ -233,8 +261,8 @@ export async function generateDecisionQualityReport(
 
   // Sort by score descending for strengths
   const sorted = [...dimensionScores].sort((a, b) => b.score - a.score);
-  const strengths = sorted.slice(0, 2).map((d) => `${d.name} (${(d.score * 100).toFixed(0)}%)`);
-  const weaknesses = sorted.slice(-2).reverse().map((d) => `${d.name} (${(d.score * 100).toFixed(0)}%)`);
+  const strengths = sorted.slice(0, TOP_STRENGTHS_DISPLAY_LIMIT).map((d) => `${d.name} (${(d.score * 100).toFixed(0)}%)`);
+  const weaknesses = sorted.slice(-TOP_WEAKNESSES_DISPLAY_LIMIT).reverse().map((d) => `${d.name} (${(d.score * 100).toFixed(0)}%)`);
 
   return {
     agentId,

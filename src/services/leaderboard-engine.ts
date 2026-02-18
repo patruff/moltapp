@@ -712,7 +712,7 @@ export function getAgentLeaderboardDetail(agentId: string): {
 
   return {
     state,
-    recentScores: state.compositeScores.slice(-50),
+    recentScores: state.compositeScores.slice(-AGENT_DETAIL_RECENT_SCORES_LIMIT),
     percentileRank,
   };
 }
