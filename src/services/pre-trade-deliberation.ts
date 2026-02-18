@@ -124,6 +124,36 @@ const REVISION_POSITION_REDUCTION_PARTIAL = 0.85;
 /** Confidence difference > 20% between agreeing agents = "confidence differs" note in feedback */
 const CRITIQUE_SIGNIFICANT_CONFIDENCE_DIFF = 20;
 
+/**
+ * Key Argument Extraction Parameters
+ *
+ * These control how agent reasoning text is parsed into key arguments
+ * for deliberation proposals. Arguments are extracted by splitting
+ * reasoning into sentences and taking the most substantive ones.
+ */
+
+/** Minimum characters a sentence must have to be included as a key argument (filters out fragments) */
+const KEY_ARGUMENT_MIN_SENTENCE_LENGTH = 10;
+
+/** Maximum number of key arguments extracted from reasoning text per proposal */
+const KEY_ARGUMENTS_MAX_COUNT = 3;
+
+/** Maximum characters of reasoning shown as fallback when no sentences pass the length filter */
+const KEY_ARGUMENT_FALLBACK_MAX_CHARS = 200;
+
+/**
+ * Statistics Display & Revision Rate Constants
+ *
+ * These control how deliberation statistics are aggregated and
+ * displayed in the getDeliberationStats API response.
+ */
+
+/** Number of recent deliberations shown in getDeliberationStats summary (most recent N rounds) */
+const RECENT_DELIBERATIONS_DISPLAY_LIMIT = 20;
+
+/** Multiplier to convert fractional revision rate to percentage (0.67 → 67%) */
+const REVISION_RATE_PERCENT_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -329,15 +359,15 @@ function extractKeyArguments(reasoning: string): string[] {
   const sentences = reasoning
     .split(/[.!?]+/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 10);
+    .filter((s) => s.length > KEY_ARGUMENT_MIN_SENTENCE_LENGTH);
 
-  // Take up to 3 key arguments
-  for (const sentence of sentences.slice(0, 3)) {
+  // Take up to KEY_ARGUMENTS_MAX_COUNT key arguments
+  for (const sentence of sentences.slice(0, KEY_ARGUMENTS_MAX_COUNT)) {
     args.push(sentence);
   }
 
   if (args.length === 0) {
-    args.push(reasoning.slice(0, 200));
+    args.push(reasoning.slice(0, KEY_ARGUMENT_FALLBACK_MAX_CHARS));
   }
 
   return args;
@@ -819,10 +849,10 @@ export function getDeliberationMetrics(): DeliberationMetrics {
 
   const revisionRate =
     totalAgentDecisions > 0
-      ? Math.round((totalRevisions / totalAgentDecisions) * 100)
+      ? Math.round((totalRevisions / totalAgentDecisions) * REVISION_RATE_PERCENT_MULTIPLIER)
       : 0;
 
-  const recentDeliberations = deliberationHistory.slice(-20).reverse().map((d) => ({
+  const recentDeliberations = deliberationHistory.slice(-RECENT_DELIBERATIONS_DISPLAY_LIMIT).reverse().map((d) => ({
     deliberationId: d.deliberationId,
     roundId: d.roundId,
     consensus: d.consensus.type,
