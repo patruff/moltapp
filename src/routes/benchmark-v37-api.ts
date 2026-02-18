@@ -44,6 +44,7 @@ import {
   REASONING_DISPLAY_LENGTH,
   REASONING_PREVIEW_LENGTH,
   TOP_CORRELATIONS_LIMIT,
+  EXPORT_TRADES_LIMIT,
 } from "../lib/display-constants.ts";
 
 export const benchmarkV37ApiRoutes = new Hono();
@@ -248,14 +249,14 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
 
   const sorted = [...trades].sort((a, b) => b.reasoningComposabilityScore - a.reasoningComposabilityScore);
 
-  const topTrades = sorted.slice(0, 5).map((t) => ({
+  const topTrades = sorted.slice(0, TOP_TRADES_LIMIT).map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
     composabilityScore: t.reasoningComposabilityScore,
     sourceQuality: t.sourceQualityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 300),
+    reasoning: t.reasoning.slice(0, REASONING_DISPLAY_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -265,7 +266,7 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
     action: t.action,
     composabilityScore: t.reasoningComposabilityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 200),
+    reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -331,7 +332,7 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
     distribution,
     noForesightCount: noForesight.length,
     strongForesightCount: strongForesight.length,
-    topTrades: sorted.slice(0, 5).map((t) => ({
+    topTrades: sorted.slice(0, TOP_TRADES_LIMIT).map((t) => ({
       tradeId: t.tradeId,
       symbol: t.symbol,
       action: t.action,
@@ -340,7 +341,7 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
       reasoningDepth: t.reasoningDepthScore,
       coherence: t.coherenceScore,
       overallGrade: t.overallGrade,
-      reasoning: t.reasoning.slice(0, 300),
+      reasoning: t.reasoning.slice(0, REASONING_DISPLAY_LENGTH),
       gradedAt: t.gradedAt,
     })),
     worstTrades: sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
@@ -351,7 +352,7 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
       confidence: t.confidence,
       reasoningDepth: t.reasoningDepthScore,
       overallGrade: t.overallGrade,
-      reasoning: t.reasoning.slice(0, 200),
+      reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
       gradedAt: t.gradedAt,
     })),
     interpretation: {
@@ -394,14 +395,14 @@ benchmarkV37ApiRoutes.get("/auditability/:agentId", (c) => {
 
   const sorted = [...trades].sort((a, b) => b.reasoningAuditabilityScore - a.reasoningAuditabilityScore);
 
-  const topTrades = sorted.slice(0, 5).map((t) => ({
+  const topTrades = sorted.slice(0, TOP_TRADES_LIMIT).map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
     auditabilityScore: t.reasoningAuditabilityScore,
     sourceQuality: t.sourceQualityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 300),
+    reasoning: t.reasoning.slice(0, REASONING_DISPLAY_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -411,7 +412,7 @@ benchmarkV37ApiRoutes.get("/auditability/:agentId", (c) => {
     action: t.action,
     auditabilityScore: t.reasoningAuditabilityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 200),
+    reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -477,7 +478,7 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
     distribution,
     noExitPlanCount: noExitPlan.length,
     strongExitPlanCount: strongExitPlan.length,
-    topTrades: sorted.slice(0, 5).map((t) => ({
+    topTrades: sorted.slice(0, TOP_TRADES_LIMIT).map((t) => ({
       tradeId: t.tradeId,
       symbol: t.symbol,
       action: t.action,
@@ -486,7 +487,7 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
       reasoningDepth: t.reasoningDepthScore,
       coherence: t.coherenceScore,
       overallGrade: t.overallGrade,
-      reasoning: t.reasoning.slice(0, 300),
+      reasoning: t.reasoning.slice(0, REASONING_DISPLAY_LENGTH),
       gradedAt: t.gradedAt,
     })),
     worstTrades: sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
@@ -497,7 +498,7 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
       confidence: t.confidence,
       reasoningDepth: t.reasoningDepthScore,
       overallGrade: t.overallGrade,
-      reasoning: t.reasoning.slice(0, 200),
+      reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
       gradedAt: t.gradedAt,
     })),
     interpretation: {
@@ -631,7 +632,7 @@ benchmarkV37ApiRoutes.get("/consensus", (c) => {
 // ---------------------------------------------------------------------------
 
 benchmarkV37ApiRoutes.get("/export/jsonl", (c) => {
-  const trades = getTradeGrades(2000);
+  const trades = getTradeGrades(EXPORT_TRADES_LIMIT);
   const lines = trades.map((t) => JSON.stringify({
     trade_id: t.tradeId,
     agent_id: t.agentId,
@@ -787,11 +788,11 @@ benchmarkV37ApiRoutes.get("/weight-analysis", (c) => {
               : "strongly inversely correlated with profitability",
     })),
     summary: {
-      mostPredictive: positiveCorrelations.slice(0, 5).map((d) => ({
+      mostPredictive: positiveCorrelations.slice(0, TOP_CORRELATIONS_LIMIT).map((d) => ({
         dimension: d.dimension,
         correlation: d.correlation,
       })),
-      leastPredictive: negativeCorrelations.slice(-5).reverse().map((d) => ({
+      leastPredictive: negativeCorrelations.slice(-TOP_CORRELATIONS_LIMIT).reverse().map((d) => ({
         dimension: d.dimension,
         correlation: d.correlation,
       })),

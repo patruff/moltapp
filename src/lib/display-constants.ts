@@ -166,3 +166,18 @@ export const SIGNAL_HISTORY_LIMIT = 12;
  * Maximum agents shown in consensus analysis.
  */
 export const CONSENSUS_AGENTS_LIMIT = 13;
+
+/**
+ * EXPORT_TRADES_LIMIT = 2000
+ *
+ * Maximum trade grades fetched for JSONL/CSV export endpoints.
+ *
+ * 2000 trades covers roughly 3-6 months of active trading at typical
+ * round frequencies (~10-20 trades per round, ~30 rounds per month).
+ * Large enough for meaningful ML dataset exports while preventing
+ * runaway memory allocation in the benchmark engine export path.
+ *
+ * Note: the v37-benchmark-engine also caps its internal store at 2000
+ * entries — this constant aligns the API fetch limit with that cap.
+ */
+export const EXPORT_TRADES_LIMIT = 2000;
