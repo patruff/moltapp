@@ -154,6 +154,20 @@ const RECENT_DELIBERATIONS_DISPLAY_LIMIT = 20;
 /** Multiplier to convert fractional revision rate to percentage (0.67 → 67%) */
 const REVISION_RATE_PERCENT_MULTIPLIER = 100;
 
+/**
+ * Position Quantity Rounding Precision
+ *
+ * Controls how many decimal places are kept when reducing position size
+ * during deliberation. Uses Math.floor(qty * MULTIPLIER) / MULTIPLIER
+ * to truncate (not round) to avoid oversizing a reduced position.
+ *
+ * Formula: Math.floor(quantity × 100) / 100 = 2 decimal places
+ * Example: quantity=1.2345 → Math.floor(123.45) / 100 = 1.23
+ *
+ * Change to 10 for 1 decimal place, 1000 for 3 decimal places.
+ */
+const QUANTITY_ROUNDING_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -612,13 +626,13 @@ function applyRevisions(
     ) {
       const reductionFactor = disagreements.length > 0 ? REVISION_POSITION_REDUCTION_DISAGREEMENT : REVISION_POSITION_REDUCTION_PARTIAL;
       const newQuantity =
-        Math.floor(revisedDecision.quantity * reductionFactor * 100) / 100;
+        Math.floor(revisedDecision.quantity * reductionFactor * QUANTITY_ROUNDING_MULTIPLIER) / QUANTITY_ROUNDING_MULTIPLIER;
       if (newQuantity !== revisedDecision.quantity) {
         revisedDecision = {
           ...revisedDecision,
           quantity: newQuantity,
           reasoning:
-            `[DELIBERATION: Position sized reduced by ${Math.round((1 - reductionFactor) * 100)}% due to peer skepticism] ` +
+            `[DELIBERATION: Position sized reduced by ${Math.round((1 - reductionFactor) * REVISION_RATE_PERCENT_MULTIPLIER)}% due to peer skepticism] ` +
             revisedDecision.reasoning,
         };
         if (!didRevise) {
@@ -679,7 +693,7 @@ function computeConsensus(revisions: RevisedDecision[]): ConsensusResult {
   }
 
   // Agreement score (0-100)
-  const agreementScore = Math.round((dominantCount / totalAgents) * 100);
+  const agreementScore = Math.round((dominantCount / totalAgents) * REVISION_RATE_PERCENT_MULTIPLIER);
 
   // Build summary
   const actionSummary = decisions
