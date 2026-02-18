@@ -292,6 +292,37 @@ const TREND_WINDOW_MIN_SIZE = 3;
  */
 const INTENT_CONSISTENCY_COHERENCE_THRESHOLD = 0.5;
 
+// ---------------------------------------------------------------------------
+// Percentage Display Precision Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Percentage Conversion Multiplier
+ *
+ * Multiplies a 0-1 decimal score by 100 to convert to percentage display format.
+ * All five profiler dimensions (conviction, risk awareness, market sensitivity,
+ * adaptability, information utilization) produce scores in [0, 1] range which
+ * are displayed as percentages in narrative strings.
+ *
+ * Formula: (score × SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES) + "%"
+ * Example: score=0.678 → (0.678 × 100).toFixed(1) → "67.8%"
+ *
+ * Tuning impact: Constant value; changing would require matching changes to
+ * the score computation range (currently always [0, 1]).
+ */
+const SCORE_TO_PERCENT_MULTIPLIER = 100;
+
+/**
+ * Score Display Decimal Places
+ *
+ * Number of decimal places shown when formatting profiler scores as percentages.
+ * Value of 1 produces one decimal place (e.g., "67.8%", "100.0%").
+ *
+ * Tuning impact: Change to 0 for whole-number percentages (e.g., "68%") or
+ * 2 for higher precision (e.g., "67.80%").
+ */
+const SCORE_DISPLAY_DECIMAL_PLACES = 1;
+
 /** Keywords that signal risk-aware reasoning. */
 const RISK_KEYWORDS = [
   "hedge",
@@ -486,7 +517,7 @@ function scoreConvictionConsistency(trades: TradeRecord[]): StrategyDimension {
     evidence:
       `${highConfActive} high-confidence active trades, ` +
       `${lowConfHold} prudent low-confidence holds out of ${trades.length} total. ` +
-      `Alignment score: ${(score * 100).toFixed(1)}%`,
+      `Alignment score: ${(score * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}%`,
     trendDirection: trend,
   };
 }
@@ -540,7 +571,7 @@ function scoreRiskAwareness(trades: TradeRecord[]): StrategyDimension {
     evidence:
       `${tradesWithRisk}/${trades.length} trades mention risk concepts. ` +
       `${totalUniqueKeywords.size}/${RISK_KEYWORDS.length} unique risk keywords detected. ` +
-      `Depth score: ${(score * 100).toFixed(1)}%`,
+      `Depth score: ${(score * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}%`,
     trendDirection: trend,
   };
 }
@@ -590,7 +621,7 @@ function scoreMarketSensitivity(trades: TradeRecord[]): StrategyDimension {
     score: clamp(score, 0, 1),
     evidence:
       `${highSensitivity}/${trades.length} trades show strong market data engagement. ` +
-      `Average sensitivity: ${(score * 100).toFixed(1)}%`,
+      `Average sensitivity: ${(score * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}%`,
     trendDirection: trend,
   };
 }
@@ -669,8 +700,8 @@ function scoreStrategicAdaptability(trades: TradeRecord[]): StrategyDimension {
     name: "strategic_adaptability",
     score: clamp(combinedScore, 0, 1),
     evidence:
-      `Intent distribution shift: ${(divergence * 100).toFixed(1)}% divergence between halves. ` +
-      `Confidence shift: ${(confShift * 100).toFixed(1)}%. ` +
+      `Intent distribution shift: ${(divergence * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}% divergence between halves. ` +
+      `Confidence shift: ${(confShift * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}%. ` +
       `Unique intents: first half ${distFirst.size}, second half ${distSecond.size}`,
     trendDirection: trend,
   };
@@ -734,7 +765,7 @@ function scoreInformationUtilization(trades: TradeRecord[]): StrategyDimension {
     score: clamp(score, 0, 1),
     evidence:
       `${globalSourceTypes.size}/${KNOWN_SOURCE_TYPES.length} source types used across all trades. ` +
-      `Per-trade average: ${(score * 100).toFixed(1)}% utilization. ` +
+      `Per-trade average: ${(score * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DISPLAY_DECIMAL_PLACES)}% utilization. ` +
       `Types seen: ${[...globalSourceTypes].sort().join(", ") || "none"}`,
     trendDirection: trend,
   };
