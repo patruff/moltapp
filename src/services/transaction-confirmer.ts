@@ -156,6 +156,40 @@ const MAX_DURATIONS = 500;
  */
 const RECENT_DISPLAY_LIMIT = 20;
 
+/**
+ * Signature Display Truncation Constants
+ *
+ * Transaction signatures (base-58 encoded, typically 87-88 chars) are truncated
+ * in log output to keep lines readable. The format produced is:
+ *   `<first SIG_DISPLAY_CHARS chars>...<last SIG_DISPLAY_CHARS chars>`
+ * e.g. "5J3mBbA...K8rQz2P"
+ *
+ * SIG_TRUNCATION_MIN_LENGTH: Only truncate signatures longer than this. Shorter
+ *   signatures (e.g., test stubs) are shown in full.
+ * SIG_DISPLAY_CHARS: Number of characters shown at each end of the truncated
+ *   signature. Both start and end use the same value for visual symmetry.
+ *
+ * Tuning impact: Increase SIG_DISPLAY_CHARS from 8 to 12 for more unique prefix/
+ *   suffix in logs (reduces chance of collision in visual scanning).
+ */
+const SIG_TRUNCATION_MIN_LENGTH = 16;
+const SIG_DISPLAY_CHARS = 8;
+
+/**
+ * Absolute Maximum Slippage Cap (Basis Points)
+ *
+ * Hard upper bound when calling setMaxSlippage(). No matter what value is passed
+ * in, the configured max slippage is clamped to [0, MAX_SLIPPAGE_BPS_ABSOLUTE].
+ * 10 000 bps = 100% slippage — allowing more than that would be nonsensical since
+ * it would mean accepting a complete loss of the quoted output amount.
+ *
+ * The floor of 0 ensures the threshold cannot be set to a negative value (which
+ * would make every trade appear as a slippage violation).
+ *
+ * Example: setMaxSlippage(15000) → configuredMaxSlippageBps = 10 000 bps (capped)
+ */
+const MAX_SLIPPAGE_BPS_ABSOLUTE = 10_000;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -170,7 +204,9 @@ function getSolanaRpc() {
 }
 
 function truncateSig(sig: string): string {
-  return sig.length > 16 ? `${sig.slice(0, 8)}...${sig.slice(-8)}` : sig;
+  return sig.length > SIG_TRUNCATION_MIN_LENGTH
+    ? `${sig.slice(0, SIG_DISPLAY_CHARS)}...${sig.slice(-SIG_DISPLAY_CHARS)}`
+    : sig;
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +479,7 @@ export function validateSlippage(params: {
 let configuredMaxSlippageBps = DEFAULT_MAX_SLIPPAGE_BPS;
 
 export function setMaxSlippage(bps: number): void {
-  configuredMaxSlippageBps = Math.max(0, Math.min(10000, bps));
+  configuredMaxSlippageBps = Math.max(0, Math.min(MAX_SLIPPAGE_BPS_ABSOLUTE, bps));
   console.log(`[TxConfirmer] Max slippage set to ${configuredMaxSlippageBps}bps`);
 }
 
