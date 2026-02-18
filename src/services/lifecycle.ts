@@ -166,6 +166,42 @@ const SHUTDOWN_HOOK_TIMEOUT_MS = 10_000;
  */
 const MEMORY_USAGE_DEGRADED_THRESHOLD_PERCENT = 90;
 
+/**
+ * Memory Unit Conversion
+ *
+ * Used when converting raw Node.js process.memoryUsage() byte counts to
+ * human-readable megabytes for health check responses and dashboards.
+ *
+ * Formula: bytes / BYTES_PER_MB / BYTES_PER_MB = megabytes
+ * Example: 52,428,800 bytes / 1024 / 1024 = 50 MB
+ *
+ * Note: 1 MB = 1024 KiB = 1024 × 1024 bytes = 1,048,576 bytes.
+ * The division is applied twice: first bytes→KiB, then KiB→MiB.
+ */
+const BYTES_PER_MB = 1024;
+
+/**
+ * Percentage Multiplier
+ *
+ * Converts a decimal fraction (0–1) to an integer percentage (0–100).
+ * Used when computing heap usage percent from heapUsed/heapTotal ratio.
+ *
+ * Formula: Math.round((heapUsedMB / heapTotalMB) * PERCENT_MULTIPLIER)
+ * Example: 0.72 × 100 = 72%
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Shutdown Drain Check Interval
+ *
+ * How often the graceful shutdown loop polls in-flight request count
+ * while waiting for active requests to drain before closing connections.
+ *
+ * (1 second = frequent enough to log progress without busy-waiting;
+ *  the loop is bounded by SHUTDOWN_DRAIN_TIMEOUT_MS = 30 s)
+ */
+const SHUTDOWN_DRAIN_CHECK_INTERVAL_MS = 1000;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -275,11 +311,13 @@ export async function deepHealthCheck(): Promise<DeepHealthResult> {
 
   // Memory usage
   const mem = process.memoryUsage();
-  const heapUsedMB = Math.round(mem.heapUsed / 1024 / 1024);
-  const heapTotalMB = Math.round(mem.heapTotal / 1024 / 1024);
-  const rssMB = Math.round(mem.rss / 1024 / 1024);
+  const heapUsedMB = Math.round(mem.heapUsed / BYTES_PER_MB / BYTES_PER_MB);
+  const heapTotalMB = Math.round(mem.heapTotal / BYTES_PER_MB / BYTES_PER_MB);
+  const rssMB = Math.round(mem.rss / BYTES_PER_MB / BYTES_PER_MB);
   const usagePercent =
-    heapTotalMB > 0 ? Math.round((heapUsedMB / heapTotalMB) * 100) : 0;
+    heapTotalMB > 0
+      ? Math.round((heapUsedMB / heapTotalMB) * PERCENT_MULTIPLIER)
+      : 0;
 
   // Determine overall status
   const hasUnhealthy = dependencies.some((d) => d.status === "unhealthy");
@@ -547,7 +585,9 @@ export async function gracefulShutdown(signal: string): Promise<void> {
     console.log(
       `[Lifecycle] Waiting for ${inFlightRequests} in-flight requests to complete...`,
     );
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) =>
+      setTimeout(resolve, SHUTDOWN_DRAIN_CHECK_INTERVAL_MS),
+    );
   }
 
   if (inFlightRequests > 0) {

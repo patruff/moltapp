@@ -233,6 +233,19 @@ const PERCENTILE_P99_DECIMAL = 0.99;
 
 const startedAt = Date.now();
 
+/**
+ * Memory Unit Conversion
+ *
+ * Converts raw Node.js process.memoryUsage() byte values to megabytes for
+ * the system health metrics JSON response.
+ *
+ * Formula: bytes / BYTES_PER_MB / BYTES_PER_MB = megabytes
+ * Example: 52,428,800 bytes / 1024 / 1024 = 50 MB
+ *
+ * Division applied twice: bytes→KiB (÷1024), KiB→MiB (÷1024).
+ */
+const BYTES_PER_MB = 1024;
+
 /** Rolling latency window for percentile calculations */
 const latencyWindow: number[] = [];
 const MAX_LATENCY_WINDOW = 1000;
@@ -287,7 +300,7 @@ function collectSystemMetrics(): SystemMetrics {
   return {
     timestamp: new Date().toISOString(),
     uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
-    memoryUsageMb: Math.round(memUsage.heapUsed / 1024 / 1024),
+    memoryUsageMb: Math.round(memUsage.heapUsed / BYTES_PER_MB / BYTES_PER_MB),
     nodeVersion: process.version,
     tradingMode: process.env.TRADING_MODE ?? "paper",
     environment: process.env.NODE_ENV ?? "development",
