@@ -421,6 +421,59 @@ const SNAPSHOT_RECENT_OUTCOMES_WINDOW = 10;
 /** Minimum trades per agent required for inclusion in system-wide metrics (3+ for basic statistics) */
 const METRICS_MIN_TRADES_FOR_AGGREGATION = 3;
 
+/**
+ * Pattern Confidence Score Constants
+ *
+ * These are the patternConfidence values assigned when a specific learning pattern
+ * is created. patternConfidence (0–100) represents how confident the system is in
+ * the pattern — higher values make it more likely to appear in agent prompts
+ * (PROMPT_PATTERN_CONFIDENCE_THRESHOLD = 60 is the inclusion cutoff).
+ *
+ * Values are set conservatively above the 60 threshold to ensure relevant
+ * behavioral warnings reach agents without overwhelming them with noise.
+ */
+
+/**
+ * Pattern confidence for underconfidence pattern (75).
+ *
+ * Assigned when an agent repeatedly wins with low-confidence calls.
+ * 75 is moderately high — underconfidence patterns are reliable signals
+ * that the agent is leaving edge on the table.
+ * Example: 4 low-confidence (≤40%) trades were correct → confidence = 75.
+ */
+const PATTERN_CONFIDENCE_UNDERCONFIDENCE = 75;
+
+/**
+ * Pattern confidence for losing-streak pattern (70).
+ *
+ * Assigned when an agent hits PATTERN_LOSING_STREAK_THRESHOLD (4) consecutive losses.
+ * Slightly lower than underconfidence (75) because cold streaks may be transient noise
+ * rather than a systematic edge problem.
+ * Example: 4 consecutive wrong predictions → confidence = 70.
+ */
+const PATTERN_CONFIDENCE_LOSING_STREAK = 70;
+
+/**
+ * Placeholder avgPnlPercent for losing-streak pattern (−2%).
+ *
+ * The losing streak pattern does not track a precise average P&L (it is a
+ * directional count, not a dollar figure). −2 is a conservative sentinel value
+ * indicating mild expected loss per trade during a cold streak — enough to
+ * signal caution without overstating the downside.
+ */
+const PATTERN_LOSING_STREAK_AVG_PNL = -2;
+
+/**
+ * Pattern confidence for buy-vs-sell accuracy differential pattern (65).
+ *
+ * Assigned when an agent shows a statistically meaningful accuracy gap between
+ * buying and selling (PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD = 0.20).
+ * Lowest of the three pattern confidence values because the gap could reflect
+ * market conditions rather than a permanent structural edge.
+ * Example: buy accuracy 70% vs sell accuracy 48% → confidence = 65.
+ */
+const PATTERN_CONFIDENCE_BUY_SELL_DIFFERENTIAL = 65;
+
 // ---------------------------------------------------------------------------
 // Core Analysis
 // ---------------------------------------------------------------------------
@@ -583,7 +636,7 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
     const avgGain = averageByKey(lowConfRight, 'pnlPercent');
     patterns.push(createPattern(agentId, "underconfident",
       `Underconfidence detected: ${lowConfRight.length} low-confidence (≤${CALIBRATION_LOW_CONFIDENCE_THRESHOLD}%) trades were correct, avg gain +${avgGain.toFixed(2)}%. You may be underestimating edge on some setups.`,
-      lowConfRight.length, avgGain, 75,
+      lowConfRight.length, avgGain, PATTERN_CONFIDENCE_UNDERCONFIDENCE,
       [...new Set(lowConfRight.map((o) => o.symbol))], now,
     ));
   }
@@ -613,7 +666,7 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
   if (maxLossStreak >= PATTERN_LOSING_STREAK_THRESHOLD) {
     patterns.push(createPattern(agentId, "losing_setup",
       `Extended losing streak detected: ${maxLossStreak} consecutive wrong predictions. Consider reducing position sizes during cold streaks.`,
-      maxLossStreak, -2, 70, [], now,
+      maxLossStreak, PATTERN_LOSING_STREAK_AVG_PNL, PATTERN_CONFIDENCE_LOSING_STREAK, [], now,
     ));
   }
 
@@ -630,12 +683,12 @@ export function discoverPatterns(agentId: string): LearningPattern[] {
     if (buyAccuracy > sellAccuracy + PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD) {
       patterns.push(createPattern(agentId, "winning_setup",
         `Better at buying (${(buyAccuracy * 100).toFixed(0)}%) than selling (${(sellAccuracy * 100).toFixed(0)}%). Consider focusing on long positions.`,
-        buyOutcomes.length + sellOutcomes.length, 0, 65, [], now,
+        buyOutcomes.length + sellOutcomes.length, 0, PATTERN_CONFIDENCE_BUY_SELL_DIFFERENTIAL, [], now,
       ));
     } else if (sellAccuracy > buyAccuracy + PATTERN_ACCURACY_DIFFERENTIAL_THRESHOLD) {
       patterns.push(createPattern(agentId, "winning_setup",
         `Better at selling (${(sellAccuracy * 100).toFixed(0)}%) than buying (${(buyAccuracy * 100).toFixed(0)}%). Consider focusing on short/exit timing.`,
-        buyOutcomes.length + sellOutcomes.length, 0, 65, [], now,
+        buyOutcomes.length + sellOutcomes.length, 0, PATTERN_CONFIDENCE_BUY_SELL_DIFFERENTIAL, [], now,
       ));
     }
   }
