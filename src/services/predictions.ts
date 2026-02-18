@@ -1378,11 +1378,11 @@ export async function getMarketOdds(predictionId: string) {
   // Real-time recalculation
   const liveOdds = calculateDynamicOdds(forPool, againstPool);
 
-  // Implied probabilities
+  // Implied probabilities: (1 / decimalOdds) * 100 gives a 0-100 percentage
   const impliedProbFor =
-    liveOdds.oddsFor > 0 ? (1 / liveOdds.oddsFor) * 100 : 50;
+    liveOdds.oddsFor > 0 ? (1 / liveOdds.oddsFor) * CALIBRATION_SCORE_MULTIPLIER : EVEN_SPLIT_PERCENT;
   const impliedProbAgainst =
-    liveOdds.oddsAgainst > 0 ? (1 / liveOdds.oddsAgainst) * 100 : 50;
+    liveOdds.oddsAgainst > 0 ? (1 / liveOdds.oddsAgainst) * CALIBRATION_SCORE_MULTIPLIER : EVEN_SPLIT_PERCENT;
 
   return {
     predictionId,
@@ -1392,19 +1392,20 @@ export async function getMarketOdds(predictionId: string) {
       for: forPool,
       against: againstPool,
       forPercent:
-        totalPool > 0 ? roundTo((forPool / totalPool) * 100, 2) : 50,
+        totalPool > 0 ? roundTo((forPool / totalPool) * CALIBRATION_SCORE_MULTIPLIER, 2) : EVEN_SPLIT_PERCENT,
       againstPercent:
         totalPool > 0
-          ? roundTo((againstPool / totalPool) * 100, 2)
-          : 50,
+          ? roundTo((againstPool / totalPool) * CALIBRATION_SCORE_MULTIPLIER, 2)
+          : EVEN_SPLIT_PERCENT,
     },
     odds: {
       for: liveOdds.oddsFor,
       against: liveOdds.oddsAgainst,
     },
     impliedProbability: {
-      forPercent: roundTo(impliedProbFor * 100, 2),
-      againstPercent: roundTo(impliedProbAgainst * 100, 2),
+      // impliedProbFor is already 0-100 (percentage), so no further multiplication needed
+      forPercent: roundTo(impliedProbFor, 2),
+      againstPercent: roundTo(impliedProbAgainst, 2),
     },
     totalBets: market.totalBets,
   };
@@ -1476,7 +1477,7 @@ export async function getPredictionHistory(
   limit: number = 20,
   offset: number = 0,
 ) {
-  const safeLimit = Math.min(100, Math.max(1, limit));
+  const safeLimit = Math.min(MAX_QUERY_LIMIT, Math.max(1, limit));
   const safeOffset = Math.max(0, offset);
 
   // Build conditions
