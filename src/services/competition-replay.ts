@@ -977,17 +977,17 @@ function buildAgentArc(agentId: string, allEvents: CompetitionEvent[]): AgentArc
   // Defining moments: highest impact events for this agent
   const definingMoments = agentEvents
     .filter((e) => e.type === "lead_change" || e.type === "circuit_breaker" || e.type === "milestone")
-    .slice(0, 5);
+    .slice(0, DEFINING_MOMENTS_DEFAULT_LIMIT);
 
   // If not enough defining moments from special events, add high-delta trades
-  if (definingMoments.length < 3) {
+  if (definingMoments.length < DEFINING_MOMENTS_MIN_COUNT) {
     const highImpactTrades = trades
       .filter((e) => {
         const delta = e.details.pnlDelta as number | undefined;
-        return delta !== undefined && Math.abs(delta) > 0.5;
+        return delta !== undefined && Math.abs(delta) > DEFINING_MOMENTS_MIN_PNL_DELTA;
       })
       .sort((a, b) => Math.abs((b.details.pnlDelta as number) ?? 0) - Math.abs((a.details.pnlDelta as number) ?? 0))
-      .slice(0, 3 - definingMoments.length);
+      .slice(0, DEFINING_MOMENTS_MIN_COUNT - definingMoments.length);
     definingMoments.push(...highImpactTrades);
   }
 
