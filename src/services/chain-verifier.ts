@@ -126,6 +126,67 @@ const BASE_DELAY_MS = 1000;
  */
 const RETRY_JITTER_MAX_MS = 500;
 
+/**
+ * Number of characters shown at the start of a signature or wallet address in log
+ * messages, producing a short human-readable prefix like "5J3mBbA...".
+ *
+ * Purpose: Solana signatures are 88-character base58 strings and wallet addresses are
+ * 44 characters — both are far too long for log lines.  Showing only the first 8
+ * characters provides enough entropy to distinguish entries at a glance while keeping
+ * logs concise.
+ *
+ * Examples:
+ * - Signature "5J3mBbAx...K8rQz2Py" → "5J3mBbAx..."  (8 chars + "...")
+ * - Wallet   "7xK9mD3q...uF5vL1Np" → "7xK9mD3q..."  (8 chars + "...")
+ *
+ * Used in:
+ * - getSignatureStatuses log label (verifyTransaction)
+ * - getTransaction log label (getTransactionDetails)
+ * - getBalance log label (getOnChainBalance)
+ */
+const DISPLAY_TRUNCATION_CHARS = 8;
+
+/**
+ * Number of lamports in one SOL: 1 SOL = 1,000,000,000 lamports (10^9).
+ *
+ * Purpose: Converts raw lamport balances returned by the Solana RPC into human-readable
+ * SOL amounts.  The same factor controls the `.toFixed()` display precision so both
+ * the divisor and the decimal-place count stay in sync.
+ *
+ * Formula: solAmount = lamports / SOL_LAMPORTS_PER_SOL
+ * Example: 500_000_000 lamports / 1_000_000_000 = 0.5 SOL
+ *
+ * Used in:
+ * - getTransactionDetails (fee → feeSol)
+ * - getOnChainBalance    (solBalance → solBalanceFormatted)
+ */
+const SOL_LAMPORTS_PER_SOL = 1_000_000_000;
+
+/**
+ * Number of decimal places used when displaying SOL amounts as strings.
+ *
+ * Must match the exponent of SOL_LAMPORTS_PER_SOL (10^9 → 9 decimals) so that
+ * the formatted string shows full lamport precision without scientific notation.
+ *
+ * Example: (500_000_000 / 1e9).toFixed(SOL_DISPLAY_DECIMALS) → "0.500000000"
+ */
+const SOL_DISPLAY_DECIMALS = 9;
+
+/**
+ * Milliseconds to wait between sequential transaction verifications in
+ * batchVerifyRound(), preventing RPC rate-limit errors when verifying a full
+ * trading round.
+ *
+ * Purpose: Solana public RPC nodes throttle rapid sequential requests.  A short
+ * pause between verifications is enough to stay well below typical rate limits
+ * (usually 100 req/s) while keeping batch verification fast.
+ *
+ * Trade-off: 200ms × N transactions = total batch time.  For a round with 9
+ * trades (3 agents × 3 decisions) the delay adds ~1.6 s to the verification.
+ * Increase to 500ms if seeing 429 responses; decrease to 50ms on a private RPC.
+ */
+const BATCH_VERIFY_INTER_TX_DELAY_MS = 200;
+
 // Cache for RPC client
 let rpcClient: ReturnType<typeof createSolanaRpc> | null = null;
 
@@ -199,7 +260,7 @@ export async function verifyTransaction(signature: string): Promise<TransactionV
     // Get signature status
     const statusResponse = await withRetry(
       () => rpc.getSignatureStatuses([signature as unknown as Parameters<typeof rpc.getSignatureStatuses>[0][0]]).send(),
-      `getSignatureStatuses(${signature.slice(0, 8)}...)`,
+      `getSignatureStatuses(${signature.slice(0, DISPLAY_TRUNCATION_CHARS)}...)`,
     );
 
     const status = statusResponse.value[0];
@@ -246,7 +307,7 @@ export async function getTransactionDetails(signature: string): Promise<Transact
           encoding: "json" as const,
           maxSupportedTransactionVersion: 0,
         }).send(),
-      `getTransaction(${signature.slice(0, 8)}...)`,
+      `getTransaction(${signature.slice(0, DISPLAY_TRUNCATION_CHARS)}...)`,
     );
 
     if (!tx) return null;
@@ -274,7 +335,7 @@ export async function getTransactionDetails(signature: string): Promise<Transact
       blockTime: tx.blockTime ? Number(tx.blockTime) : null,
       success: !meta?.err,
       fee,
-      feeSol: (fee / 1_000_000_000).toFixed(9),
+      feeSol: (fee / SOL_LAMPORTS_PER_SOL).toFixed(SOL_DISPLAY_DECIMALS),
       signers: accountKeys.slice(0, (message as { header?: { numRequiredSignatures?: number } }).header?.numRequiredSignatures ?? 1),
       programIds: Array.from(programIds),
       preBalances: (meta?.preBalances ?? []).map(Number),
@@ -299,7 +360,7 @@ export async function getOnChainBalance(walletAddress: string): Promise<OnChainB
   // Get SOL balance
   const solResponse = await withRetry(
     () => rpc.getBalance(address(walletAddress)).send(),
-    `getBalance(${walletAddress.slice(0, 8)}...)`,
+    `getBalance(${walletAddress.slice(0, DISPLAY_TRUNCATION_CHARS)}...)`,
   );
 
   const solBalance = Number(solResponse.value);
@@ -355,7 +416,7 @@ export async function getOnChainBalance(walletAddress: string): Promise<OnChainB
   return {
     address: walletAddress,
     solBalance,
-    solBalanceFormatted: `${(solBalance / 1_000_000_000).toFixed(9)} SOL`,
+    solBalanceFormatted: `${(solBalance / SOL_LAMPORTS_PER_SOL).toFixed(SOL_DISPLAY_DECIMALS)} SOL`,
     tokenBalances,
     explorerUrl: `${EXPLORER_BASE}/address/${walletAddress}${cluster}`,
     verifiedAt: new Date().toISOString(),
@@ -378,7 +439,7 @@ export async function batchVerifyRound(
 
     // Small delay between verifications
     if (signatures.indexOf(sig) < signatures.length - 1) {
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, BATCH_VERIFY_INTER_TX_DELAY_MS));
     }
   }
 
