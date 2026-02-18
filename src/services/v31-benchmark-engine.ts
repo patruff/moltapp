@@ -571,7 +571,7 @@ export function gradeTrade(input: {
   const subScores = [
     input.coherenceScore * COHERENCE_SCORE_PERCENT_MULTIPLIER,
     (1 - Math.min(1, input.hallucinationFlags.length * HALLUCINATION_PENALTY_MULTIPLIER)) * COHERENCE_SCORE_PERCENT_MULTIPLIER,
-    input.disciplinePassed ? 90 : 30,
+    input.disciplinePassed ? DISCIPLINE_SCORE_PASSED : DISCIPLINE_SCORE_FAILED,
     reasoningDepthScore,
     sourceQualityScore,
     logicalConsistencyScore,
