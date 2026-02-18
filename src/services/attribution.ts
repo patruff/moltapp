@@ -132,6 +132,31 @@ const FACTOR_CONFIDENCE_MAX_TRADES = 30; // 30 trades = 100% confidence in facto
 const FACTOR_CONFIDENCE_MULTIPLIER = 100; // Percentage multiplier for confidence calculation
 
 /**
+ * Factor Loading Scale
+ *
+ * Multiplier converting normalized factor score fractions to the −100…+100
+ * loading scale reported in multi-factor exposure analysis.
+ *
+ * Formula: loading = clamp(Math.round((score / count) × FACTOR_LOADING_SCALE),
+ *                           −FACTOR_LOADING_SCALE, +FACTOR_LOADING_SCALE)
+ *
+ * Example: score=3, count=4 → 3/4 = 0.75 → round(0.75 × 100) = 75 → loading = +75
+ *
+ * Range: −100 (pure anti-factor) … 0 (neutral) … +100 (pure factor tilt)
+ *
+ * Tuning: Changing this value would rescale all factor loadings in API responses.
+ * The clamp bounds (min/max) are derived from this constant to stay consistent.
+ */
+const FACTOR_LOADING_SCALE = 100;
+
+/**
+ * Factor loading clamp bounds.
+ * Derived from FACTOR_LOADING_SCALE to ensure consistent min/max across all factors.
+ */
+const FACTOR_LOADING_MIN = -FACTOR_LOADING_SCALE;
+const FACTOR_LOADING_MAX = FACTOR_LOADING_SCALE;
+
+/**
  * Factor tilt narrative thresholds for style classification.
  * Determines when factor loading is strong enough to define agent style.
  */
@@ -602,7 +627,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     else if (d.action === "sell" && market.change24h > MARKET_DIRECTION_BULLISH_THRESHOLD) momentumScore += FACTOR_SCORE_SELL_MISMATCH;
   }
   const momentumLoading = momentumCount > 0
-    ? clamp(Math.round((momentumScore / momentumCount) * 100), -100, 100)
+    ? clamp(Math.round((momentumScore / momentumCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   // --- Value Factor ---
@@ -626,7 +651,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     else if (d.action === "sell" && relativePrice < 1) valueScore -= 1;
   }
   const valueLoading = valueCount > 0
-    ? clamp(Math.round((valueScore / valueCount) * 100), -100, 100)
+    ? clamp(Math.round((valueScore / valueCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   // --- Size Factor ---
@@ -643,7 +668,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     }
   }
   const sizeLoading = sizeCount > 0
-    ? clamp(Math.round((sizeScore / sizeCount) * 100), -100, 100)
+    ? clamp(Math.round((sizeScore / sizeCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   // --- Volatility Factor ---
@@ -660,7 +685,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     }
   }
   const volatilityLoading = volCount > 0
-    ? clamp(Math.round((volScore / volCount) * 100), -100, 100)
+    ? clamp(Math.round((volScore / volCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   // --- Quality Factor ---
@@ -677,7 +702,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     }
   }
   const qualityLoading = qualityCount > 0
-    ? clamp(Math.round((qualityScore / qualityCount) * 100), -100, 100)
+    ? clamp(Math.round((qualityScore / qualityCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   // --- Crypto Factor ---
@@ -692,7 +717,7 @@ export async function getFactorExposure(agentId: string): Promise<FactorExposure
     }
   }
   const cryptoLoading = cryptoCount > 0
-    ? clamp(Math.round((cryptoScore / cryptoCount) * 100), -100, 100)
+    ? clamp(Math.round((cryptoScore / cryptoCount) * FACTOR_LOADING_SCALE), FACTOR_LOADING_MIN, FACTOR_LOADING_MAX)
     : 0;
 
   const factors: FactorLoading[] = [
