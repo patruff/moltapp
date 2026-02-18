@@ -177,6 +177,31 @@ const MAX_HISTORY = 50;
  */
 const COST_PER_MESSAGE_USD = 0.01;
 
+/**
+ * Agreement Score Calculation
+ *
+ * Converts majority vote fraction to a 0-100 integer agreement score.
+ * Formula: Math.round((majorityCount / totalVotes) * AGREEMENT_SCORE_MULTIPLIER)
+ * Example: 2 of 3 agents agree → Math.round(0.667 * 100) = 67
+ * Example: 3 of 3 agents agree → Math.round(1.0 * 100) = 100 (unanimous)
+ *
+ * @default 100 - Standard percentage scale (0 = no agreement, 100 = unanimous)
+ */
+const AGREEMENT_SCORE_MULTIPLIER = 100;
+
+/**
+ * Cost Display Precision
+ *
+ * Rounding multiplier for 2-decimal-place USD cost display.
+ * Formula: Math.round(rawCost * COST_PRECISION_MULTIPLIER) / COST_PRECISION_MULTIPLIER
+ * Example: rawCost = 0.123 → Math.round(0.123 * 100) / 100 = 0.12
+ * Example: rawCost = 0.057 → Math.round(0.057 * 100) / 100 = 0.06
+ *
+ * Displays LLM meeting costs to the nearest cent for readability.
+ * @default 100 - 2 decimal places ($0.01 precision)
+ */
+const COST_PRECISION_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // In-Memory Storage
 // ---------------------------------------------------------------------------
@@ -554,7 +579,7 @@ function computeConsensus(
   }
 
   const [majorityAction, majoritySymbol] = majorityKey.split(":");
-  const agreementScore = Math.round((majorityCount / votes.length) * 100);
+  const agreementScore = Math.round((majorityCount / votes.length) * AGREEMENT_SCORE_MULTIPLIER);
 
   // Determine type
   let type: "unanimous" | "majority" | "split";
@@ -656,5 +681,5 @@ function findKeyDiscrepancies(
 
 function estimateCost(messageCount: number): number {
   // Rough estimate based on typical LLM call costs for short responses
-  return Math.round(messageCount * COST_PER_MESSAGE_USD * 100) / 100;
+  return Math.round(messageCount * COST_PER_MESSAGE_USD * COST_PRECISION_MULTIPLIER) / COST_PRECISION_MULTIPLIER;
 }
