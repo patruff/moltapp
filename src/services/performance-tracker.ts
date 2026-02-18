@@ -228,6 +228,14 @@ const RECENT_DECISION_WINDOW_MS = 24 * 60 * 60 * 1000;
  */
 const PRICE_CACHE_TTL = 30_000;
 
+/**
+ * Price Fetch Timeout
+ *
+ * AbortSignal timeout for Jupiter price API requests.
+ * 10 seconds allows for transient network delays without blocking indefinitely.
+ */
+const PRICE_FETCH_TIMEOUT_MS = 10_000;
+
 // ---------------------------------------------------------------------------
 // Core Performance Computation
 // ---------------------------------------------------------------------------
@@ -432,7 +440,7 @@ function calculateRealizedPnl(
           totalRealized += matched * (price - oldest.price);
           oldest.qty -= matched;
           remaining -= matched;
-          if (oldest.qty <= 0.000000001) {
+          if (oldest.qty <= DUST_QUANTITY_THRESHOLD) {
             buyQueue.shift();
           }
         }
@@ -535,8 +543,8 @@ function computeRiskMetrics(
     : null;
 
   // Value at Risk (95% confidence, parametric)
-  const valueAtRisk95 = dailyReturns.length >= 5
-    ? -(avgDailyReturn - 1.645 * dailyVol) * INITIAL_CAPITAL
+  const valueAtRisk95 = dailyReturns.length >= VAR_MIN_DAILY_RETURNS
+    ? -(avgDailyReturn - VAR_Z_SCORE_95_PERCENTILE * dailyVol) * INITIAL_CAPITAL
     : null;
 
   return {
@@ -624,7 +632,7 @@ function analyzeSellTrades(
 
     if (relatedBuy) {
       holdTimes.push(
-        (sell.createdAt.getTime() - relatedBuy.createdAt.getTime()) / 3_600_000,
+        (sell.createdAt.getTime() - relatedBuy.createdAt.getTime()) / MS_PER_HOUR,
       );
     }
   }
@@ -717,7 +725,7 @@ function computeStockPerformance(
         tradePnl += matched * (price - oldest.price);
         oldest.qty -= matched;
         remaining -= matched;
-        if (oldest.qty <= 0.000000001) queue.shift();
+        if (oldest.qty <= DUST_QUANTITY_THRESHOLD) queue.shift();
       }
       perf.realizedPnl += tradePnl;
 
@@ -934,7 +942,7 @@ async function fetchCurrentPrices(): Promise<Map<string, number>> {
 
     const resp = await fetch(
       `https://api.jup.ag/price/v3?ids=${ids}`,
-      { headers, signal: AbortSignal.timeout(10000) },
+      { headers, signal: AbortSignal.timeout(PRICE_FETCH_TIMEOUT_MS) },
     );
 
     if (resp.ok) {
