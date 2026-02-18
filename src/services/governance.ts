@@ -170,6 +170,20 @@ const MS_PER_HOUR = 60 * 60 * 1000;
  */
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * Default Proposals Query Limit
+ *
+ * Maximum number of proposals returned by getProposals() when no limit is
+ * specified by the caller.
+ *
+ * Formula: filtered.slice(0, DEFAULT_PROPOSALS_QUERY_LIMIT) = most recent N proposals
+ * Example: 20 total proposals → returns most recent 50 (or all 20 if fewer exist)
+ *
+ * Balances response payload size against completeness of governance history.
+ * Most governance dashboards only need to show recent proposals to users.
+ */
+const DEFAULT_PROPOSALS_QUERY_LIMIT = 50;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -600,7 +614,7 @@ export function castVote(params: {
   const voter = configs.find((c) => c.agentId === params.agentId);
 
   // Voting power based on number of agents (equal weight for now)
-  const votingPower = Math.round(100 / clamp(configs.length, 1, Infinity));
+  const votingPower = Math.round(VOTING_POWER_EQUAL_DISTRIBUTION / clamp(configs.length, 1, Infinity));
 
   const vote: Vote = {
     agentId: params.agentId,
@@ -637,7 +651,7 @@ export function castVote(params: {
 
   // Auto-resolve if quorum reached
   if (quorumReached) {
-    const forPercent = totalFor / (totalFor + totalAgainst || 1) * 100;
+    const forPercent = totalFor / (totalFor + totalAgainst || 1) * PERCENT_MULTIPLIER;
     if (forPercent >= proposal.votingPower.passingThreshold) {
       proposal.status = "passed";
     } else {
@@ -709,7 +723,7 @@ export function getProposals(filters?: {
     );
   }
 
-  const limit = filters?.limit ?? 50;
+  const limit = filters?.limit ?? DEFAULT_PROPOSALS_QUERY_LIMIT;
   return filtered.slice(0, limit).sort(
     (a, b) =>
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -749,7 +763,7 @@ export function getGovernanceStats(): GovernanceStats {
   const participationRates = proposals.map((p) => {
     const configs = getAgentConfigs();
     return configs.length > 0
-      ? (p.votes.length / configs.length) * 100
+      ? (p.votes.length / configs.length) * PERCENT_MULTIPLIER
       : 0;
   });
   const averageParticipation =
