@@ -38,15 +38,15 @@ const HIGH_CONFIDENCE_CONVICTION_THRESHOLD = 70;
  * Trading Calendar Assumptions for Annualization
  *
  * Risk metrics (Sharpe, Sortino) are annualized using these assumptions:
- * - 250 trading days per year (standard market convention)
+ * - 252 trading days per year (NYSE standard)
  * - 12 rounds per trading day (MoltApp's trading frequency)
- * Total: 3000 annualized periods per year
+ * Total: 3024 annualized periods per year
  *
  * Why these values:
- * - 250 days: NYSE standard (365 days - weekends - holidays ≈ 252)
+ * - 252 days: NYSE standard (365 calendar days - 104 weekend days - 9 holidays = 252)
  * - 12 rounds/day: MoltApp benchmark executes hourly during market hours
  */
-const TRADING_DAYS_PER_YEAR = 250;
+const TRADING_DAYS_PER_YEAR = 252;
 const ROUNDS_PER_TRADING_DAY = 12;
 
 /**
