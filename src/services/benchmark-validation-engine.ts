@@ -246,6 +246,7 @@ const MAX_CONFIDENCE_HISTORY = 100; // Max confidence records per agent for cali
 const MIN_CONFIDENCE_HISTORY_FOR_STATS = 5; // Min records before computing stats
 const SUGGESTIONS_DISPLAY_LIMIT = 5; // Max suggestions shown in validation result
 const COMMON_ISSUES_DISPLAY_LIMIT = 10; // Max common issues in dataset quality report
+const STRUCTURAL_MIN_REASONING_LENGTH = 10; // Min characters for reasoning field to be considered non-empty
 
 // ---------------------------------------------------------------------------
 // Per-agent calibration history (in-memory sliding window)
@@ -449,7 +450,7 @@ function validateStructure(decision: TradingDecision, issues: ValidationIssue[])
     score -= PENALTY_MISSING_SYMBOL;
   }
 
-  if (!decision.reasoning || decision.reasoning.length < 10) {
+  if (!decision.reasoning || decision.reasoning.length < STRUCTURAL_MIN_REASONING_LENGTH) {
     issues.push({ severity: "error", dimension: "structural_validity", message: "Missing or too-short reasoning" });
     score -= PENALTY_MISSING_REASONING;
   }
@@ -651,48 +652,48 @@ function validateConfidenceCalibration(
   suggestions: string[],
 ): number {
   const stats = getConfidenceStats(agentId);
-  let score = 0.7; // Default good score
+  let score = CALIBRATION_BASE_SCORE;
 
   // If we have enough history, check for anomalies
-  if (stats.count >= 10) {
+  if (stats.count >= CALIBRATION_MIN_HISTORY) {
     const zScore = Math.abs(confidence - stats.mean) / Math.max(0.01, stats.stdDev);
 
-    if (zScore > 3) {
+    if (zScore > CALIBRATION_Z_SCORE_EXTREME) {
       issues.push({
         severity: "warning",
         dimension: "confidence_calibration",
         message: `Confidence ${(confidence * 100).toFixed(0)}% is ${zScore.toFixed(1)} standard deviations from agent's mean of ${(stats.mean * 100).toFixed(0)}%`,
       });
-      score -= 0.3;
-    } else if (zScore > 2) {
+      score -= CALIBRATION_Z_EXTREME_PENALTY;
+    } else if (zScore > CALIBRATION_Z_SCORE_NOTABLE) {
       issues.push({
         severity: "info",
         dimension: "confidence_calibration",
         message: `Confidence is notably different from agent's historical average`,
       });
-      score -= 0.1;
+      score -= CALIBRATION_Z_NOTABLE_PENALTY;
     }
   }
 
   // Very high confidence on hold actions is suspicious
-  if (decision.action === "hold" && confidence > 0.9) {
+  if (decision.action === "hold" && confidence > CALIBRATION_HIGH_CONF_HOLD_THRESHOLD) {
     issues.push({
       severity: "info",
       dimension: "confidence_calibration",
       message: "Very high confidence (>90%) on a hold action — consider why confidence is so high if no trade is being made",
     });
-    score -= 0.1;
+    score -= CALIBRATION_HIGH_CONF_HOLD_PENALTY;
   }
 
   // Very low confidence on aggressive actions
-  if (decision.action !== "hold" && confidence < 0.2) {
+  if (decision.action !== "hold" && confidence < CALIBRATION_LOW_CONF_TRADE_THRESHOLD) {
     issues.push({
       severity: "warning",
       dimension: "confidence_calibration",
       message: "Trading with very low confidence (<20%) — consider whether this trade should be a hold instead",
     });
     suggestions.push("Low-confidence trades should include strong reasoning for why the trade is being taken despite uncertainty");
-    score -= 0.2;
+    score -= CALIBRATION_LOW_CONF_TRADE_PENALTY;
   }
 
   return clamp(score, 0, 1);
@@ -834,7 +835,7 @@ export function validateDatasetBatch(
   const commonIssues = Array.from(issueCount.entries())
     .map(([message, count]) => ({ message, count }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
+    .slice(0, COMMON_ISSUES_DISPLAY_LIMIT);
 
   // Dimension averages
   const dimensionSums = new Map<string, { sum: number; count: number }>();
