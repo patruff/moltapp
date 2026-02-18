@@ -26,6 +26,66 @@ import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 import { clamp, findMax, findMin } from "../lib/math-utils.ts";
 
+// ---------------------------------------------------------------------------
+// Backtest Route Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * ISO date string slice length to extract YYYY-MM-DD format.
+ * new Date().toISOString() produces "2025-01-23T10:30:00.000Z";
+ * slicing 10 characters gives "2025-01-23" (date only, no time component).
+ * Used for startDate/endDate parameters passed to backtesting service.
+ */
+const ISO_DATE_SLICE_LENGTH = 10;
+
+/**
+ * Milliseconds per calendar day.
+ * Formula: 24 hours × 60 minutes × 60 seconds × 1000 ms = 86,400,000 ms.
+ * Used to compute startDate from: Date.now() - days × MS_PER_DAY.
+ * Example: 90 days × 86,400,000 = 7,776,000,000 ms = 90 days ago.
+ */
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Default number of days for backtest lookback window.
+ * 90 days (~3 months) balances statistical significance with recency.
+ * Agents trade ~2x per day, so 90 days = ~180 decision data points.
+ */
+const BACKTEST_DEFAULT_DAYS = 90;
+
+/**
+ * Minimum allowed backtest lookback period in days.
+ * 7 days (1 week) is the minimum for any meaningful performance analysis.
+ * Shorter periods have too few trades for reliable Sharpe/win-rate calculations.
+ */
+const BACKTEST_MIN_DAYS = 7;
+
+/**
+ * Maximum allowed backtest lookback period in days.
+ * 365 days (1 year) caps API query cost and prevents excessive data aggregation.
+ * Beyond 1 year, agent strategy drift makes historical comparison less meaningful.
+ */
+const BACKTEST_MAX_DAYS = 365;
+
+/**
+ * Default initial capital for backtest simulation in USD.
+ * $10,000 is a standard retail investor starting portfolio size.
+ * Matches BENCHMARK_INITIAL_PORTFOLIO_VALUE used in benchmark-tracker.ts.
+ */
+const BACKTEST_DEFAULT_CAPITAL = 10_000;
+
+/**
+ * Minimum allowed initial capital for backtest simulation in USD.
+ * $1,000 floor ensures position sizing math doesn't produce sub-cent amounts.
+ */
+const BACKTEST_MIN_CAPITAL = 1_000;
+
+/**
+ * Maximum allowed initial capital for backtest simulation in USD.
+ * $1,000,000 cap prevents unrealistically large portfolios that skew metrics.
+ */
+const BACKTEST_MAX_CAPITAL = 1_000_000;
+
 export const backtestRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -34,7 +94,7 @@ export const backtestRoutes = new Hono();
 
 backtestRoutes.get("/compare", async (c) => {
   try {
-    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
+    const days = parseQueryInt(c.req.query("days"), BACKTEST_DEFAULT_DAYS, BACKTEST_MIN_DAYS, BACKTEST_MAX_DAYS);
 
     const comparison = await getBacktestComparison();
 
@@ -76,12 +136,14 @@ backtestRoutes.get("/:agentId", async (c) => {
   }
 
   try {
-    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
+    const days = parseQueryInt(c.req.query("days"), BACKTEST_DEFAULT_DAYS, BACKTEST_MIN_DAYS, BACKTEST_MAX_DAYS);
     const capitalStr = c.req.query("capital");
-    const capital = capitalStr ? clamp(parseFloat(capitalStr) || 10000, 1000, 1000000) : 10000;
+    const capital = capitalStr
+      ? clamp(parseFloat(capitalStr) || BACKTEST_DEFAULT_CAPITAL, BACKTEST_MIN_CAPITAL, BACKTEST_MAX_CAPITAL)
+      : BACKTEST_DEFAULT_CAPITAL;
 
-    const endDate = new Date().toISOString().slice(0, 10);
-    const startDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const endDate = new Date().toISOString().slice(0, ISO_DATE_SLICE_LENGTH);
+    const startDate = new Date(Date.now() - days * MS_PER_DAY).toISOString().slice(0, ISO_DATE_SLICE_LENGTH);
 
     const result = await runBacktest({
       agentId,
@@ -123,7 +185,7 @@ backtestRoutes.get("/:agentId/equity", async (c) => {
   }
 
   try {
-    const days = parseQueryInt(c.req.query("days"), 90, 7, 365);
+    const days = parseQueryInt(c.req.query("days"), BACKTEST_DEFAULT_DAYS, BACKTEST_MIN_DAYS, BACKTEST_MAX_DAYS);
 
     const curve = await generateEquityCurve(agentId, days);
 
@@ -133,9 +195,9 @@ backtestRoutes.get("/:agentId/equity", async (c) => {
       equityCurve: curve,
       dataPoints: curve.length,
       period: `${days} days`,
-      startEquity: curve.length > 0 ? curve[0].equity : 10000,
-      endEquity: curve.length > 0 ? curve[curve.length - 1].equity : 10000,
-      peakEquity: findMax(curve, 'equity')?.equity ?? 10000,
+      startEquity: curve.length > 0 ? curve[0].equity : BACKTEST_DEFAULT_CAPITAL,
+      endEquity: curve.length > 0 ? curve[curve.length - 1].equity : BACKTEST_DEFAULT_CAPITAL,
+      peakEquity: findMax(curve, 'equity')?.equity ?? BACKTEST_DEFAULT_CAPITAL,
       maxDrawdown: findMin(curve, 'drawdown')?.drawdown ?? 0,
     });
   } catch (error) {
