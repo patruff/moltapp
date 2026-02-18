@@ -739,13 +739,13 @@ export function computeV28Composite(dimensions: {
       : 0;
 
   let grade: string;
-  if (composite >= 90) grade = "S";
-  else if (composite >= 85) grade = "A+";
-  else if (composite >= 80) grade = "A";
-  else if (composite >= 70) grade = "B+";
-  else if (composite >= 60) grade = "B";
-  else if (composite >= 50) grade = "C";
-  else if (composite >= 35) grade = "D";
+  if (composite >= V28_GRADE_THRESHOLD_S) grade = "S";
+  else if (composite >= V28_GRADE_THRESHOLD_A_PLUS) grade = "A+";
+  else if (composite >= V28_GRADE_THRESHOLD_A) grade = "A";
+  else if (composite >= V28_GRADE_THRESHOLD_B_PLUS) grade = "B+";
+  else if (composite >= V28_GRADE_THRESHOLD_B) grade = "B";
+  else if (composite >= V28_GRADE_THRESHOLD_C) grade = "C";
+  else if (composite >= V28_GRADE_THRESHOLD_D) grade = "D";
   else grade = "F";
 
   return { composite, grade };
