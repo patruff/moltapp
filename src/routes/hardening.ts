@@ -76,6 +76,22 @@ import {
 } from "../services/structured-logger.ts";
 
 // ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum consecutive Jupiter API failures before the system is considered unhealthy.
+ *
+ * When getJupiterFailureCount() reaches this threshold, the jupiter-health endpoint
+ * reports healthy: false and the /system-status endpoint reflects an unhealthy Jupiter
+ * integration. Operators should investigate and may trigger an emergency halt.
+ *
+ * Used in two places (jupiter-health + system-status) — single source of truth prevents
+ * one endpoint drifting out of sync with the other.
+ */
+const JUPITER_MAX_CONSECUTIVE_FAILURES = 3;
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -177,7 +193,7 @@ hardeningRoutes.get("/market-freshness", (c) => {
 hardeningRoutes.get("/jupiter-health", (c) => {
   return c.json({
     consecutiveFailures: getJupiterFailureCount(),
-    healthy: getJupiterFailureCount() < 3,
+    healthy: getJupiterFailureCount() < JUPITER_MAX_CONSECUTIVE_FAILURES,
   });
 });
 
@@ -349,7 +365,7 @@ hardeningRoutes.get("/dashboard", (c) => {
     marketFreshness: checkMarketDataFreshness(),
     jupiter: {
       consecutiveFailures: getJupiterFailureCount(),
-      healthy: getJupiterFailureCount() < 3,
+      healthy: getJupiterFailureCount() < JUPITER_MAX_CONSECUTIVE_FAILURES,
     },
   });
 });
