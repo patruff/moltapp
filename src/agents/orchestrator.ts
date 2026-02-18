@@ -517,6 +517,83 @@ const COHERENCE_GRADE_B_THRESHOLD_AUDIT = 0.6;
 const gradeFromCoherence = (score: number): string =>
   score >= COHERENCE_GRADE_A_THRESHOLD ? "A" : score >= COHERENCE_GRADE_B_THRESHOLD_AUDIT ? "B" : "C";
 
+// ---------------------------------------------------------------------------
+// Market Movers Display Constants
+// ---------------------------------------------------------------------------
+// Controls how many stocks appear in the "significant movers" context block
+// injected into each agent's market briefing before the tool-calling loop.
+// A stock qualifies as a mover if its 24h change exceeds the threshold.
+//
+// Tuning guide:
+//   - Raising TOP_MOVERS_CHANGE_THRESHOLD (e.g. 5) shows only major moves,
+//     reducing noise; lowering it (e.g. 2) adds smaller moves for more context.
+//   - TOP_MOVERS_DISPLAY_LIMIT caps the list to prevent context window bloat.
+
+/** Minimum absolute 24h price change (%) for a stock to appear as a "mover" */
+const TOP_MOVERS_CHANGE_THRESHOLD = 3;
+
+/**
+ * Maximum number of top-moving stocks shown in each agent's market briefing.
+ * Stocks are sorted by |change24h| descending and truncated to this limit.
+ * Example: 12 stocks exceed 3% → show top 10 by magnitude.
+ */
+const TOP_MOVERS_DISPLAY_LIMIT = 10;
+
+// ---------------------------------------------------------------------------
+// SSE Event Text Preview Length
+// ---------------------------------------------------------------------------
+// Reasoning, narrative, and summary strings are long; slicing them before
+// emitting SSE events keeps payloads small for streaming to the browser.
+//
+// 200 characters is enough to convey the gist of a decision rationale
+// without inflating the event payload (typical full reasoning is 300-800 chars).
+
+/**
+ * Maximum characters of reasoning/narrative/summary text in SSE event payloads.
+ * Applied to: trade_reasoning.reasoningPreview, battle_completed.narrativePreview,
+ * and reasoning_compared.summary before emission.
+ */
+const EVENT_TEXT_PREVIEW_LENGTH = 200;
+
+// ---------------------------------------------------------------------------
+// Ledger Hash Display Length & Reasoning Fingerprint Length
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of hex characters shown when logging the ledger entry hash.
+ * 12 hex chars = 48 bits of the SHA-256 hash — sufficient for unique log
+ * identification without cluttering the console output.
+ * Example: "5a3f8c2b9e1d..." (full 64 chars → display first 12 + "...")
+ */
+const LEDGER_HASH_DISPLAY_LENGTH = 12;
+
+/**
+ * Characters kept from the sanitised reasoning string to form a stable
+ * fingerprint for cross-session memory deduplication.
+ * Reasoning is lowercased and stripped of non-alphanumeric chars before slicing,
+ * so 50 characters from the start captures the core of the decision intent
+ * without false collisions from punctuation variation.
+ */
+const REASONING_FINGERPRINT_LENGTH = 50;
+
+// ---------------------------------------------------------------------------
+// Agent Stats Display Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum recent decisions returned by getAgentStats().
+ * The caller (API route) can paginate further; this caps the default payload
+ * to avoid returning thousands of decisions in a single stats call.
+ */
+const RECENT_DECISIONS_DISPLAY_LIMIT = 10;
+
+/**
+ * Precision multiplier for displaying average confidence in agent stats.
+ * Formula: Math.round(avgConfidence × MULTIPLIER) / MULTIPLIER → 1 decimal place.
+ * Example: avgConfidence = 73.667 → Math.round(73.667 × 10) / 10 = 73.7
+ */
+const AGENT_STATS_CONFIDENCE_PRECISION = 10;
+
 export async function getMarketData(): Promise<MarketData[]> {
   // Check cache first
   const now = Date.now();
@@ -906,11 +983,11 @@ async function executeTradingRound(
     }
   }
 
-  // Step 3.5: Pre-compute movers list (stocks with >3% absolute change)
+  // Step 3.5: Pre-compute movers list (stocks with >TOP_MOVERS_CHANGE_THRESHOLD% absolute change)
   const movers = marketData
-    .filter((d) => d.change24h !== null && Math.abs(d.change24h) > 3)
+    .filter((d) => d.change24h !== null && Math.abs(d.change24h) > TOP_MOVERS_CHANGE_THRESHOLD)
     .sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0))
-    .slice(0, 10)
+    .slice(0, TOP_MOVERS_DISPLAY_LIMIT)
     .map((d) => ({
       symbol: d.symbol,
       name: d.name,
@@ -1264,7 +1341,7 @@ async function executeTradingRound(
             symbol: decision.symbol,
             confidence: normalizedConf,
             intent,
-            reasoningPreview: decision.reasoning.slice(0, 200),
+            reasoningPreview: decision.reasoning.slice(0, EVENT_TEXT_PREVIEW_LENGTH),
           }, agent.agentId);
 
           emitBenchmarkEvent("coherence_scored", {
@@ -1926,7 +2003,7 @@ async function executeTradingRound(
         compositeA: battle.compositeScoreA,
         compositeB: battle.compositeScoreB,
         highlight: battle.highlight,
-        narrativePreview: battle.narrative.slice(0, 200),
+        narrativePreview: battle.narrative.slice(0, EVENT_TEXT_PREVIEW_LENGTH),
       }, battle.overallWinner ?? undefined);
     }
 
@@ -1945,7 +2022,7 @@ async function executeTradingRound(
         winner: comp.winner,
         scoreA: comp.agentAScore,
         scoreB: comp.agentBScore,
-        summary: comp.summary.slice(0, 200),
+        summary: comp.summary.slice(0, EVENT_TEXT_PREVIEW_LENGTH),
       });
     }
 
@@ -2433,7 +2510,7 @@ async function executeTradingRound(
       );
 
       console.log(
-        `[Orchestrator] v17 ${r.agentId}: ledger=${ledgerEntry.entryHash.slice(0, 12)}..., genome=${genomePillarScore.toFixed(2)}`,
+        `[Orchestrator] v17 ${r.agentId}: ledger=${ledgerEntry.entryHash.slice(0, LEDGER_HASH_DISPLAY_LENGTH)}..., genome=${genomePillarScore.toFixed(2)}`,
       );
     }
 
@@ -2522,7 +2599,7 @@ async function executeTradingRound(
       const fingerprint = r.decision.reasoning
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "")
-        .slice(0, 50);
+        .slice(0, REASONING_FINGERPRINT_LENGTH);
 
       recordMemoryEntry({
         agentId: r.agentId,
@@ -3329,10 +3406,10 @@ export async function getAgentStats(agentId: string) {
       buyCount: buyDecisions.length,
       sellCount: sellDecisions.length,
       holdCount: holdDecisions.length,
-      averageConfidence: Math.round(avgConfidence * 10) / 10,
+      averageConfidence: Math.round(avgConfidence * AGENT_STATS_CONFIDENCE_PRECISION) / AGENT_STATS_CONFIDENCE_PRECISION,
       favoriteStock,
       lastDecision: decisions[0] ?? null,
-      recentDecisions: decisions.slice(0, 10),
+      recentDecisions: decisions.slice(0, RECENT_DECISIONS_DISPLAY_LIMIT),
     };
   } catch (error) {
     console.error(`[Orchestrator] Failed to get stats for ${agentId}:`, error);
