@@ -121,6 +121,41 @@ const REASONING_SCORE_INTENT_FIELD = 0.15;
  */
 const REASONING_SCORE_OUTCOME_BONUS = 0.05;
 
+// ---------------------------------------------------------------------------
+// Metrics Display Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of top reject reasons to return in getReasoningGateMetrics().
+ *
+ * Controls how many of the most common rejection categories are surfaced in
+ * the monitoring response. For example, if 15 distinct rejection reasons have
+ * been recorded, only the top 10 by count are returned.
+ *
+ * Increase to see more granular rejection reason breakdown in dashboards.
+ * Decrease to keep metrics payloads compact.
+ *
+ * Example: 10 reasons → { "Missing reasoning field": 42, "Missing confidence field": 31, ... }
+ */
+const TOP_REJECT_REASONS_LIMIT = 10;
+
+/**
+ * Pass rate percentage precision constants.
+ *
+ * Formula: Math.round(fraction × MULTIPLIER) / DIVISOR = 2-decimal percentage
+ * Example: 0.8333... → Math.round(0.8333 × 10000) / 100 = 83.33%
+ *
+ * The MULTIPLIER × (1 / DIVISOR) pair determines decimal precision:
+ *   - 10000 / 100  → 2 decimal places (83.33%)
+ *   - 1000 / 10    → 2 decimal places (83.33%) — alternative
+ *   - 100 / 1      → 0 decimal places (83%)
+ *
+ * 2 decimal places is the standard for pass-rate monitoring dashboards
+ * (matches SLA reporting conventions like "99.99% uptime").
+ */
+const PASS_RATE_PRECISION_MULTIPLIER = 10000;
+const PASS_RATE_PRECISION_DIVISOR = 100;
+
 let enforcementLevel: ReasoningEnforcementLevel = "warn";
 
 /** Set the global reasoning enforcement level */
@@ -161,7 +196,7 @@ const metrics: ReasoningGateMetrics = {
 export function getReasoningGateMetrics() {
   const topRejectReasons = Array.from(metrics.rejectReasons.entries())
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
+    .slice(0, TOP_REJECT_REASONS_LIMIT)
     .map(([reason, count]) => ({ reason, count }));
 
   return {
@@ -171,7 +206,7 @@ export function getReasoningGateMetrics() {
     totalWarned: metrics.totalWarned,
     totalRejected: metrics.totalRejected,
     passRate: metrics.totalChecked > 0
-      ? Math.round((metrics.totalPassed / metrics.totalChecked) * 10000) / 100
+      ? Math.round((metrics.totalPassed / metrics.totalChecked) * PASS_RATE_PRECISION_MULTIPLIER) / PASS_RATE_PRECISION_DIVISOR
       : 100,
     avgReasoningLength: Math.round(metrics.avgReasoningLength),
     topRejectReasons,
