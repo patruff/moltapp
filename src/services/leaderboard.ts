@@ -52,6 +52,37 @@ const DECIMAL_PRECISION_CURRENCY = 2;
  */
 const DECIMAL_PRECISION_SLIPPAGE = 1;
 
+/**
+ * Leaderboard cache time-to-live in milliseconds (2 minutes).
+ *
+ * Controls how stale cached leaderboard data can get before forcing a refresh.
+ * Short TTL keeps rankings accurate during live demo while preventing
+ * thundering herd from simultaneous requests.
+ *
+ * Formula: requests within LEADERBOARD_CACHE_TTL_MS reuse cached data.
+ * Example: 2 min cache → at most 30 refreshes/hour regardless of request rate.
+ *
+ * Trade-offs:
+ * - Lower (30s): More accurate rankings, higher DB query load
+ * - Higher (5min): Less accurate rankings, lower DB query load
+ */
+const LEADERBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
+
+/**
+ * Maximum number of top positions to include per agent in leaderboard entries.
+ *
+ * Controls how many of an agent's largest holdings are shown in the
+ * leaderboard API response. Positions are sorted by value descending,
+ * so the top N positions by dollar value are returned.
+ *
+ * Example: Agent holds AAPL ($30), TSLA ($15), MSFT ($10), NVDA ($8), AMZN ($5), GOOG ($3)
+ * → Returns top 5: [AAPL, TSLA, MSFT, NVDA, AMZN]
+ *
+ * Increasing this limit provides richer portfolio snapshots but grows
+ * API response size proportionally with agent count.
+ */
+const TOP_POSITIONS_DISPLAY_LIMIT = 5;
+
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
 type TradeRow = typeof trades.$inferSelect;
@@ -113,7 +144,7 @@ export interface LeaderboardData {
 // Cache (module-level singleton)
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes — short for live demo
+const CACHE_TTL_MS = LEADERBOARD_CACHE_TTL_MS;
 let cache: LeaderboardData | null = null;
 let refreshPromise: Promise<void> | null = null;
 
@@ -309,9 +340,9 @@ async function refreshLeaderboard(): Promise<void> {
       }
     }
 
-    // Sort positions by value descending, get top 5
+    // Sort positions by value descending, get top N
     positionSummaries.sort((a, b) => b.value - a.value);
-    const topPositions = positionSummaries.slice(0, 5);
+    const topPositions = positionSummaries.slice(0, TOP_POSITIONS_DISPLAY_LIMIT);
 
     // Get most recent active thesis for this agent
     const agentThesesList = thesesByAgent.get(agent.id) ?? [];
