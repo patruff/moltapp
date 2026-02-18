@@ -13,6 +13,9 @@ import { getStockBySymbol } from "./stocks.ts";
 import {
   USDC_MINT_MAINNET,
   USDC_MINT_DEVNET,
+  SOL_DECIMALS,
+  USDC_DECIMALS,
+  SOL_LAMPORTS_PER_SOL,
 } from "../config/constants.ts";
 import { env } from "../config/env.ts";
 import {
@@ -330,7 +333,7 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
   if (usdcAmount.decimalPlaces() > 6) {
     throw new Error("invalid_amount: usdcAmount has more than 6 decimal places");
   }
-  const usdcRawAmount = usdcAmount.mul(1e6).toFixed(0);
+  const usdcRawAmount = usdcAmount.mul(10 ** USDC_DECIMALS).toFixed(0);
 
   // 4. Balance checks
   const [solBalance, usdcBalance] = await Promise.all([
@@ -340,14 +343,14 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
 
   if (solBalance < MIN_SOL_FOR_FEES) {
     throw new Error(
-      `insufficient_sol_for_fees: need at least 0.01 SOL, have ${new Decimal(solBalance.toString()).div(1e9).toFixed(9)} SOL`
+      `insufficient_sol_for_fees: need at least 0.01 SOL, have ${new Decimal(solBalance.toString()).div(SOL_LAMPORTS_PER_SOL).toFixed(SOL_DECIMALS)} SOL`
     );
   }
 
   const rawUsdcNeeded = BigInt(usdcRawAmount);
   if (usdcBalance < rawUsdcNeeded) {
     throw new Error(
-      `insufficient_usdc_balance: need ${usdcAmount.toFixed(6)} USDC, have ${new Decimal(usdcBalance.toString()).div(1e6).toFixed(6)} USDC`
+      `insufficient_usdc_balance: need ${usdcAmount.toFixed(USDC_DECIMALS)} USDC, have ${new Decimal(usdcBalance.toString()).div(10 ** USDC_DECIMALS).toFixed(USDC_DECIMALS)} USDC`
     );
   }
 
@@ -366,7 +369,7 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
     side: "buy",
     inputAmountRaw: order.inAmount,
     outputAmountRaw: order.outAmount,
-    inputDecimals: 6, // USDC
+    inputDecimals: USDC_DECIMALS, // USDC
     outputDecimals: stock.decimals,
   });
   if (!slippage.ok) {
@@ -401,9 +404,9 @@ export async function executeBuy(req: TradeRequest): Promise<TradeResult> {
       side: "buy",
       stockMintAddress: stock.mintAddress,
       stockSymbol: stock.symbol,
-      stockQuantity: stockQuantity.toFixed(9),
-      usdcAmount: usdcSpent.toFixed(6),
-      pricePerToken: pricePerToken.toFixed(6),
+      stockQuantity: stockQuantity.toFixed(SOL_DECIMALS),
+      usdcAmount: usdcSpent.toFixed(USDC_DECIMALS),
+      pricePerToken: pricePerToken.toFixed(USDC_DECIMALS),
       txSignature: result.signature,
       jupiterRouteInfo: {
         requestId: order.requestId,
@@ -543,7 +546,7 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
   const solBalance = await checkSolBalance(wallet.publicKey);
   if (solBalance < MIN_SOL_FOR_FEES) {
     throw new Error(
-      `insufficient_sol_for_fees: need at least 0.01 SOL, have ${new Decimal(solBalance.toString()).div(1e9).toFixed(9)} SOL`
+      `insufficient_sol_for_fees: need at least 0.01 SOL, have ${new Decimal(solBalance.toString()).div(SOL_LAMPORTS_PER_SOL).toFixed(SOL_DECIMALS)} SOL`
     );
   }
 
@@ -555,7 +558,7 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
     inputAmountRaw: order.inAmount,
     outputAmountRaw: order.outAmount,
     inputDecimals: stock.decimals, // selling stock tokens
-    outputDecimals: 6, // receiving USDC
+    outputDecimals: USDC_DECIMALS, // receiving USDC
   });
   if (!slippage.ok) {
     throw new Error(
@@ -576,7 +579,7 @@ export async function executeSell(req: TradeRequest): Promise<TradeResult> {
   // 9. Calculate trade details
   const usdcReceived = new Decimal(
     result.outputAmountResult || order.outAmount
-  ).div(1e6);
+  ).div(10 ** USDC_DECIMALS);
   const pricePerToken = usdcReceived.div(sellQuantity);
 
   // 10. Record trade in DB
