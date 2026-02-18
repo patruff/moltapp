@@ -544,6 +544,29 @@ const SYNTHETIC_FALLBACK_PRICE = 100;
  */
 const VOLUME_LOOKBACK_DAYS = 7;
 
+/**
+ * Signal strength maximum value: 100.
+ *
+ * All signal strength scores are clamped to [0, 100] scale.
+ * Used in Math.min(SIGNAL_STRENGTH_MAX, ...) to cap computed strength values.
+ *
+ * Example: RSI oversold strength = min(100, round((30 - rsi) × 3))
+ *   → rsi=10 → min(100, round(20×3)) = min(100, 60) = 60
+ *   → rsi=1  → min(100, round(29×3)) = min(100, 87) = 87 (not 90, still capped)
+ */
+const SIGNAL_STRENGTH_MAX = 100;
+
+/**
+ * Consensus divergence display threshold: 50.
+ *
+ * Used as the threshold field when generating agent_divergence signals.
+ * Represents the 50% agreement midpoint — below this indicates active split.
+ * Separate from CONSENSUS_AGREEMENT_THRESHOLD (80%) which triggers consensus.
+ *
+ * Example: agreementRate=40% → threshold=50 shows "below consensus midpoint"
+ */
+const CONSENSUS_DIVERGENCE_THRESHOLD = 50;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -943,10 +966,10 @@ function generateStockSignals(
       symbol,
       type: "rsi_oversold",
       direction: "bullish",
-      strength: Math.min(100, Math.round((30 - indicators.rsi) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
+      strength: Math.min(SIGNAL_STRENGTH_MAX, Math.round((RSI_OVERSOLD_THRESHOLD - indicators.rsi) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
       indicator: "RSI",
       value: indicators.rsi,
-      threshold: 30,
+      threshold: RSI_OVERSOLD_THRESHOLD,
       description: `${symbol} RSI at ${indicators.rsi.toFixed(INDICATOR_DISPLAY_PRECISION)} — oversold territory. Potential bounce opportunity.`,
       timeframe: "1d",
       generatedAt: now.toISOString(),
@@ -958,10 +981,10 @@ function generateStockSignals(
       symbol,
       type: "rsi_overbought",
       direction: "bearish",
-      strength: Math.min(100, Math.round((indicators.rsi - 70) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
+      strength: Math.min(SIGNAL_STRENGTH_MAX, Math.round((indicators.rsi - RSI_OVERBOUGHT_THRESHOLD) * SIGNAL_RSI_STRENGTH_MULTIPLIER)),
       indicator: "RSI",
       value: indicators.rsi,
-      threshold: 70,
+      threshold: RSI_OVERBOUGHT_THRESHOLD,
       description: `${symbol} RSI at ${indicators.rsi.toFixed(INDICATOR_DISPLAY_PRECISION)} — overbought territory. Potential pullback ahead.`,
       timeframe: "1d",
       generatedAt: now.toISOString(),
@@ -977,7 +1000,7 @@ function generateStockSignals(
       type: "macd_crossover",
       direction: "bullish",
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(Math.abs(indicators.macd.histogram) * SIGNAL_MACD_STRENGTH_MULTIPLIER),
       ),
       indicator: "MACD",
@@ -995,7 +1018,7 @@ function generateStockSignals(
       type: "macd_crossunder",
       direction: "bearish",
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(Math.abs(indicators.macd.histogram) * SIGNAL_MACD_STRENGTH_MULTIPLIER),
       ),
       indicator: "MACD",
@@ -1016,12 +1039,12 @@ function generateStockSignals(
       type: "bollinger_squeeze",
       direction: "neutral",
       strength: Math.min(
-        100,
-        Math.round((4 - indicators.bollingerBands.bandwidth) * SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER),
+        SIGNAL_STRENGTH_MAX,
+        Math.round((BOLLINGER_SQUEEZE_THRESHOLD - indicators.bollingerBands.bandwidth) * SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER),
       ),
       indicator: "Bollinger Bands",
       value: indicators.bollingerBands.bandwidth,
-      threshold: 4,
+      threshold: BOLLINGER_SQUEEZE_THRESHOLD,
       description: `${symbol} Bollinger Band squeeze — low volatility period. Breakout imminent.`,
       timeframe: "1d",
       generatedAt: now.toISOString(),
@@ -1040,7 +1063,7 @@ function generateStockSignals(
       type: "bollinger_breakout",
       direction: breakoutDir,
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(
           Math.abs(indicators.bollingerBands.percentB - 0.5) * PERCENTAGE_CONVERSION_MULTIPLIER,
         ),
@@ -1067,7 +1090,7 @@ function generateStockSignals(
       direction:
         indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(indicators.volumeProfile.ratio * SIGNAL_VOLUME_STRENGTH_MULTIPLIER),
       ),
       indicator: "Volume",
@@ -1091,7 +1114,7 @@ function generateStockSignals(
       type: "momentum_shift",
       direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(Math.abs(indicators.momentum.acceleration) * SIGNAL_MOMENTUM_STRENGTH_MULTIPLIER),
       ),
       indicator: "Momentum",
@@ -1112,7 +1135,7 @@ function generateStockSignals(
       type: "price_breakout",
       direction: indicators.momentum.shortTerm > 0 ? "bullish" : "bearish",
       strength: Math.min(
-        100,
+        SIGNAL_STRENGTH_MAX,
         Math.round(Math.abs(indicators.momentum.shortTerm) * SIGNAL_BREAKOUT_STRENGTH_MULTIPLIER),
       ),
       indicator: "Price Action",
@@ -1408,7 +1431,7 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
         strength: Math.round(c.consensusStrength),
         indicator: "Agent Consensus",
         value: c.agreementRate,
-        threshold: 80,
+        threshold: CONSENSUS_AGREEMENT_THRESHOLD,
         description: `All agents agree: ${c.consensusDirection} on ${c.symbol} (${c.agreementRate}% agreement, avg confidence ${c.averageConfidence}%)`,
         timeframe: "1h",
         generatedAt: now.toISOString(),
@@ -1425,7 +1448,7 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
         strength: Math.round(c.averageConfidence * 0.7),
         indicator: "Agent Divergence",
         value: c.agreementRate,
-        threshold: 50,
+        threshold: CONSENSUS_DIVERGENCE_THRESHOLD,
         description: `Agents split on ${c.symbol} — high-confidence disagreement suggests inflection point.`,
         timeframe: "1h",
         generatedAt: now.toISOString(),
@@ -1453,7 +1476,7 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
         strength: d.confidence,
         indicator: `${config?.name ?? d.agentId} High-Confidence`,
         value: d.confidence,
-        threshold: 85,
+        threshold: CONSENSUS_HIGH_CONFIDENCE_THRESHOLD,
         description: `${config?.name ?? d.agentId} made a ${d.confidence}% confidence ${d.action.toUpperCase()} on ${d.symbol}: "${d.reasoning.slice(0, SIGNAL_REASONING_TRUNCATION_LENGTH)}..."`,
         timeframe: "1h",
         generatedAt: d.createdAt.toISOString(),
