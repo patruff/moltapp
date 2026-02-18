@@ -464,6 +464,19 @@ const NEWS_GENERATION = {
   CORRELATION_STRONG_DISAGREEMENT: -0.3,
 } as const;
 
+/**
+ * Recent Decisions Display Limit
+ *
+ * Number of most-recent trade decisions used to compute the agent's
+ * "recent bias" score in getAgentSentimentProfile().  A short window (10)
+ * keeps the metric sensitive to recent behavioural shifts rather than
+ * averaging over the agent's entire history.
+ *
+ * Formula: recentBias = round((buyCount - sellCount) / recent.length × 100)
+ * Example: agent has 200 decisions → analyse the 10 most-recent for bias
+ */
+const RECENT_DECISIONS_DISPLAY_LIMIT = 10;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -1171,7 +1184,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
     const contrarianScore = comparisonCount > 0 ? Math.round((contrarianCount / comparisonCount) * 100) : 50;
 
     // Recent bias (last 10 decisions)
-    const recent = decisions.slice(0, 10);
+    const recent = decisions.slice(0, RECENT_DECISIONS_DISPLAY_LIMIT);
     let recentBiasSum = 0;
     for (const d of recent) {
       recentBiasSum += d.action === "buy" ? 1 : d.action === "sell" ? -1 : 0;

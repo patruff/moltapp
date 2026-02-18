@@ -460,6 +460,22 @@ const STREAK_DISCIPLINE_DEFAULT = 70;
 const STREAK_DISCIPLINE_PENALTY = 10;
 
 /**
+ * Recent Decisions Display Limit
+ *
+ * Number of most-recent trade decisions included in "recent accuracy" and
+ * "rating history" calculations.  Keeping the window small (10) ensures the
+ * metric reflects current performance rather than a long tail of stale trades.
+ *
+ * Used in:
+ *   - computePredictionAccuracy(): recent action slice + recentValidated cap
+ *   - buildRatingHistory(): history.slice(-10) for ELO/trust history
+ *
+ * Formula:  recentAccuracy = (recentCorrect / min(recent.length, 10)) × 100
+ * Example:  agent has 50 decisions → we analyse the 10 most-recent ones
+ */
+const RECENT_DECISIONS_DISPLAY_LIMIT = 10;
+
+/**
  * Volatility/Consistency Multipliers
  *
  * Scaling factors for confidence stability and time consistency calculations.
@@ -966,7 +982,7 @@ function calculatePredictionAccuracy(
       : 0;
 
   // Recent accuracy (last 10)
-  const recent = actionDecisions.slice(0, 10);
+  const recent = actionDecisions.slice(0, RECENT_DECISIONS_DISPLAY_LIMIT);
   let recentCorrect = 0;
   for (const d of recent) {
     const snapshot = d.marketSnapshot as Record<
@@ -984,7 +1000,7 @@ function calculatePredictionAccuracy(
     )
       recentCorrect++;
   }
-  const recentValidated = Math.min(recent.length, 10);
+  const recentValidated = Math.min(recent.length, RECENT_DECISIONS_DISPLAY_LIMIT);
   const recentAccuracy =
     recentValidated > 0 ? (recentCorrect / recentValidated) * 100 : 50;
 
@@ -1511,7 +1527,7 @@ function buildRatingHistory(
     }
   }
 
-  return history.slice(-10);
+  return history.slice(-RECENT_DECISIONS_DISPLAY_LIMIT);
 }
 
 function buildEmptyReputation(
