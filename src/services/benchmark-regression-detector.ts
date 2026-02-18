@@ -426,6 +426,46 @@ const STATUS_DEGRADED_ALERT_THRESHOLD = 1;
 const STATUS_WARNING_ALERT_THRESHOLD = 3;
 
 // ---------------------------------------------------------------------------
+// Percentage Display Precision Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Score-to-Percent Multiplier
+ *
+ * Multiplies a 0–1 decimal score by 100 to convert to percentage display format
+ * for all alert description strings.
+ *
+ * Formula: (score × SCORE_TO_PERCENT_MULTIPLIER).toFixed(N) + "%"
+ * Example: scoreDrift=0.178 → (0.178 × 100).toFixed(1) → "17.8%"
+ */
+const SCORE_TO_PERCENT_MULTIPLIER = 100;
+
+/**
+ * Score Drift Display Decimal Places
+ *
+ * Number of decimal places for displaying continuous score changes (drift and
+ * spread values) as percentages. Value of 1 preserves the fractional precision
+ * needed to communicate small inter-snapshot differences.
+ *
+ * Example: scoreDrift=0.178 → "17.8%" (not "18%")
+ * Tuning: Change to 0 for whole-number display, 2 for higher precision.
+ */
+const SCORE_DRIFT_DISPLAY_DECIMAL_PLACES = 1;
+
+/**
+ * Rate Display Decimal Places
+ *
+ * Number of decimal places for displaying rate percentages (coherence,
+ * hallucination, calibration, pillar scores) in alert descriptions.
+ * Value of 0 produces cleaner whole-number output since these rates are
+ * compared directionally (spiked, dropped, inflated) rather than precisely.
+ *
+ * Example: hallucinationRate=0.123 → "12%" (not "12.3%")
+ * Tuning: Change to 1 for one-decimal precision.
+ */
+const RATE_DISPLAY_DECIMAL_PLACES = 0;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -485,7 +525,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
       id: `reg_${Date.now()}_drift`,
       type: "scoring_drift",
       severity: scoreDrift > SCORING_DRIFT_HIGH_THRESHOLD ? "high" : "medium",
-      description: `Composite scores shifted by ${(scoreDrift * 100).toFixed(1)}% — may indicate scoring formula drift or data quality change`,
+      description: `Composite scores shifted by ${(scoreDrift * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DRIFT_DISPLAY_DECIMAL_PLACES)}% — may indicate scoring formula drift or data quality change`,
       metric: "avg_composite_score",
       expectedRange: [olderAvgScores - SCORING_DRIFT_EXPECTED_RANGE, olderAvgScores + SCORING_DRIFT_EXPECTED_RANGE],
       actualValue: recentAvgScores,
@@ -501,7 +541,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
       id: `reg_${Date.now()}_conv`,
       type: "agent_convergence",
       severity: recentSpread < AGENT_CONVERGENCE_HIGH_THRESHOLD ? "high" : "medium",
-      description: `Agent score spread is only ${(recentSpread * 100).toFixed(1)}% — benchmark is not differentiating agents well`,
+      description: `Agent score spread is only ${(recentSpread * SCORE_TO_PERCENT_MULTIPLIER).toFixed(SCORE_DRIFT_DISPLAY_DECIMAL_PLACES)}% — benchmark is not differentiating agents well`,
       metric: "agent_score_spread",
       expectedRange: [AGENT_SPREAD_MIN_EXPECTED, AGENT_SPREAD_MAX_EXPECTED],
       actualValue: recentSpread,
@@ -518,7 +558,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
       id: `reg_${Date.now()}_coh_inf`,
       type: "coherence_inflation",
       severity: "medium",
-      description: `Coherence scores inflated from ${(olderCoherence * 100).toFixed(0)}% to ${(recentCoherence * 100).toFixed(0)}% — agents may be gaming the coherence scorer`,
+      description: `Coherence scores inflated from ${(olderCoherence * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}% to ${(recentCoherence * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}% — agents may be gaming the coherence scorer`,
       metric: "avg_coherence",
       expectedRange: [COHERENCE_EXPECTED_MIN, COHERENCE_EXPECTED_MAX],
       actualValue: recentCoherence,
@@ -535,7 +575,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
       id: `reg_${Date.now()}_hall`,
       type: "hallucination_spike",
       severity: recentHallRate > HALLUCINATION_SPIKE_HIGH_THRESHOLD ? "high" : "medium",
-      description: `Hallucination rate spiked from ${(olderHallRate * 100).toFixed(0)}% to ${(recentHallRate * 100).toFixed(0)}%`,
+      description: `Hallucination rate spiked from ${(olderHallRate * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}% to ${(recentHallRate * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}%`,
       metric: "hallucination_rate",
       expectedRange: [0, HALLUCINATION_EXPECTED_MAX],
       actualValue: recentHallRate,
@@ -569,7 +609,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
       id: `reg_${Date.now()}_calib`,
       type: "calibration_decay",
       severity: recentCalib < CALIBRATION_DECAY_HIGH_THRESHOLD ? "high" : "medium",
-      description: `Calibration quality dropped from ${(olderCalib * 100).toFixed(0)}% to ${(recentCalib * 100).toFixed(0)}%`,
+      description: `Calibration quality dropped from ${(olderCalib * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}% to ${(recentCalib * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}%`,
       metric: "calibration_avg",
       expectedRange: [CALIBRATION_EXPECTED_MIN, CALIBRATION_EXPECTED_MAX],
       actualValue: recentCalib,
@@ -590,7 +630,7 @@ function detectRegressions(snapshot: BenchmarkHealthSnapshot): RegressionAlert[]
         id: `reg_${Date.now()}_imb`,
         type: "pillar_imbalance",
         severity: "low",
-        description: `Pillar scores vary widely: ${highest[0]}=${(highest[1] * 100).toFixed(0)}% vs ${lowest[0]}=${(lowest[1] * 100).toFixed(0)}%`,
+        description: `Pillar scores vary widely: ${highest[0]}=${(highest[1] * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}% vs ${lowest[0]}=${(lowest[1] * SCORE_TO_PERCENT_MULTIPLIER).toFixed(RATE_DISPLAY_DECIMAL_PLACES)}%`,
         metric: "pillar_std_dev",
         expectedRange: [0, PILLAR_BALANCE_EXPECTED_MAX],
         actualValue: pillarStdDev,
