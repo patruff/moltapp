@@ -18,9 +18,21 @@
  * TOP_TRADES_LIMIT = 5
  *
  * Maximum number of top trades shown in leaderboards and agent profiles.
- * Used for: best trades, worst trades, top positions.
+ * Used for: best trades, top positions.
  */
 export const TOP_TRADES_LIMIT = 5;
+
+/**
+ * WORST_TRADES_LIMIT = 3
+ *
+ * Maximum number of worst trades shown in agent analysis endpoints.
+ * Used for: worstTrades arrays in composability, foresight, auditability, reversibility analysis.
+ *
+ * Fewer worst trades shown than top trades (3 vs 5) because worst-trade analysis
+ * is a secondary signal — enough to illustrate failure modes without overwhelming.
+ * Formula: sorted.slice(-WORST_TRADES_LIMIT).reverse() = 3 worst trades in ascending order.
+ */
+export const WORST_TRADES_LIMIT = 3;
 
 /**
  * TOP_DIMENSIONS_LIMIT = 5

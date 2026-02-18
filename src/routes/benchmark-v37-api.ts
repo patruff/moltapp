@@ -38,6 +38,7 @@ import {
 import { countByCondition, round2 } from "../lib/math-utils.ts";
 import {
   TOP_TRADES_LIMIT,
+  WORST_TRADES_LIMIT,
   TOP_DIMENSIONS_LIMIT,
   WEAK_DIMENSIONS_LIMIT,
   REASONING_DISPLAY_LENGTH,
@@ -258,7 +259,7 @@ benchmarkV37ApiRoutes.get("/composability/:agentId", (c) => {
     gradedAt: t.gradedAt,
   }));
 
-  const worstTrades = sorted.slice(-3).reverse().map((t) => ({
+  const worstTrades = sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
@@ -342,7 +343,7 @@ benchmarkV37ApiRoutes.get("/foresight/:agentId", (c) => {
       reasoning: t.reasoning.slice(0, 300),
       gradedAt: t.gradedAt,
     })),
-    worstTrades: sorted.slice(-3).reverse().map((t) => ({
+    worstTrades: sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
       tradeId: t.tradeId,
       symbol: t.symbol,
       action: t.action,
@@ -404,7 +405,7 @@ benchmarkV37ApiRoutes.get("/auditability/:agentId", (c) => {
     gradedAt: t.gradedAt,
   }));
 
-  const worstTrades = sorted.slice(-3).reverse().map((t) => ({
+  const worstTrades = sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
@@ -488,7 +489,7 @@ benchmarkV37ApiRoutes.get("/reversibility/:agentId", (c) => {
       reasoning: t.reasoning.slice(0, 300),
       gradedAt: t.gradedAt,
     })),
-    worstTrades: sorted.slice(-3).reverse().map((t) => ({
+    worstTrades: sorted.slice(-WORST_TRADES_LIMIT).reverse().map((t) => ({
       tradeId: t.tradeId,
       symbol: t.symbol,
       action: t.action,
