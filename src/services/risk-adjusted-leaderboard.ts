@@ -226,6 +226,39 @@ const TIER_C_THRESHOLD = 20;
  * Uses negative slice index: series.trades.slice(-RECENT_TRADES_DISPLAY_LIMIT)
  */
 const RECENT_TRADES_DISPLAY_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
+// Fallback & Clamp Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default portfolio value used when no daily return data exists for an agent.
+ * $10,000 matches the standard benchmark initial portfolio value used across
+ * services (benchmark-tracker.ts: BENCHMARK_INITIAL_PORTFOLIO_VALUE = 10000).
+ * Appears in both computeLeaderboard() and createMinimalEntry().
+ */
+const DEFAULT_PORTFOLIO_VALUE = 10000;
+
+/**
+ * Default win rate assumed when an agent has no trade history yet.
+ * 50% = neutral assumption (no edge detected), equivalent to a coin flip.
+ * Used as the starting win rate until real trade outcomes are recorded.
+ * Appears in both calculateRiskMetrics() and createMinimalEntry().
+ */
+const DEFAULT_WIN_RATE = 50;
+
+/**
+ * Clamp bounds for ratio metrics (Sharpe, Sortino, Calmar, profit factor, payoff ratio).
+ * Raw ratios can be arbitrarily large (or -Infinity / +Infinity) when denominator
+ * approaches zero. Clamping to [-10, +10] keeps them finite and display-friendly
+ * while still capturing all practically meaningful values:
+ *   - Sharpe > 3 = exceptional (common SMA strategies rarely exceed 2)
+ *   - Sharpe < -5 = catastrophic loss (beyond typical worst-case scenarios)
+ * Values outside this range are extreme outliers that would distort the composite score.
+ */
+const RATIO_CLAMP_MIN = -10;
+const RATIO_CLAMP_MAX = 10;
+
 let cachedLeaderboard: RiskAdjustedLeaderboard | null = null;
 let lastComputedAt = 0;
 
@@ -355,7 +388,7 @@ function computeLeaderboard(): RiskAdjustedLeaderboard {
     const portfolioValue =
       series.dailyReturns.length > 0
         ? series.dailyReturns[series.dailyReturns.length - 1].portfolioValue
-        : 10000;
+        : DEFAULT_PORTFOLIO_VALUE;
 
     // Calculate composite score
     const breakdown = calculateScoreBreakdown(riskMetrics, totalReturnPercent);
@@ -453,7 +486,7 @@ function calculateRiskMetrics(
   const wins = trades.filter((t) => t.pnlPercent > 0);
   const losses = trades.filter((t) => t.pnlPercent <= 0);
   const winRate =
-    trades.length > 0 ? (wins.length / trades.length) * 100 : 50;
+    trades.length > 0 ? (wins.length / trades.length) * 100 : DEFAULT_WIN_RATE;
 
   const grossProfit = sumByKey(wins, "pnlAbsolute");
   const grossLoss = Math.abs(sumByKey(losses, "pnlAbsolute"));
@@ -499,7 +532,7 @@ function calculateMaxDrawdown(dailyReturns: DailyReturn[]): number {
 
 function clampRatio(value: number): number {
   if (!isFinite(value)) return 0;
-  return round2(Math.max(-10, Math.min(10, value)));
+  return round2(Math.max(RATIO_CLAMP_MIN, Math.min(RATIO_CLAMP_MAX, value)));
 }
 
 // ---------------------------------------------------------------------------
@@ -579,7 +612,7 @@ function createMinimalEntry(
   const portfolioValue =
     series.dailyReturns.length > 0
       ? series.dailyReturns[series.dailyReturns.length - 1].portfolioValue
-      : 10000;
+      : DEFAULT_PORTFOLIO_VALUE;
 
   return {
     rank: 0,
@@ -594,7 +627,7 @@ function createMinimalEntry(
       volatilityPercent: 0,
       downsideDeviation: 0,
       calmarRatio: 0,
-      winRate: 50,
+      winRate: DEFAULT_WIN_RATE,
       profitFactor: 0,
       payoffRatio: 0,
       tradingDays: series.dailyReturns.length,
