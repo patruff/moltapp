@@ -87,11 +87,41 @@ const STYLE_DRIFT_BEHAVIOR_CHANGE_THRESHOLD = 0.4;
 /**
  * Consensus Reporting Parameters
  *
- * Controls output limits for consensus history in generated reports.
+ * Controls output limits for consensus history in generated reports and
+ * the status endpoint's recent consensus window.
+ *
+ * CONSENSUS_HISTORY_DISPLAY_LIMIT: Maximum records in generateReport() output.
+ * Example: 500 consensus rounds tracked → report shows most recent 50.
+ *
+ * STATUS_RECENT_CONSENSUS_LIMIT: Most recent consensus records returned by
+ * getAnalyzerStatus() for lightweight polling (smaller than full report).
+ * Example: 500 consensus rounds tracked → status shows most recent 10.
  */
 
-/** Maximum consensus history records returned in report */
+/** Maximum consensus history records returned in generateReport() */
 const CONSENSUS_HISTORY_DISPLAY_LIMIT = 50;
+
+/** Most recent consensus records exposed via getAnalyzerStatus() */
+const STATUS_RECENT_CONSENSUS_LIMIT = 10;
+
+/**
+ * Sudden Behavior Change Detection Window
+ *
+ * Controls how many of the most recent decisions are compared against
+ * prior decisions when checking for abrupt trading style shifts.
+ *
+ * Formula: last N decisions vs preceding decisions → if trade rate delta
+ * exceeds STYLE_DRIFT_BEHAVIOR_CHANGE_THRESHOLD (0.4), drift alert fires.
+ *
+ * Example: window=5, recent 5 decisions have 80% trade rate vs prior 20%
+ * → delta=0.6 > 0.4 threshold → sudden behavior change flagged.
+ *
+ * Note: Requires at least STYLE_DRIFT_BEHAVIOR_CHANGE_MIN (15) total
+ * recent decisions before this check runs.
+ */
+
+/** Recent decision window size for sudden behavior change detection */
+const BEHAVIOR_CHANGE_RECENT_WINDOW = 5;
 
 /**
  * Insight Generation Thresholds
@@ -625,10 +655,10 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
     );
   }
 
-  // Check for sudden behavior changes (last 5 vs previous)
+  // Check for sudden behavior changes (last N vs previous)
   if (recent.length >= STYLE_DRIFT_BEHAVIOR_CHANGE_MIN) {
-    const last5 = recent.slice(-5);
-    const prev = recent.slice(0, -5);
+    const last5 = recent.slice(-BEHAVIOR_CHANGE_RECENT_WINDOW);
+    const prev = recent.slice(0, -BEHAVIOR_CHANGE_RECENT_WINDOW);
     const last5TradeRate =
       countByCondition(last5, (d) => d.action !== "hold") / last5.length;
     const prevTradeRate =
@@ -854,7 +884,7 @@ export function generateReport(periodDays = 7): CrossAgentReport {
     herdingAlerts: recentHerding,
     contrarianSignals: recentContrarian,
     styleDriftAlerts: recentDrift,
-    consensusHistory: consensusHistory.slice(-50),
+    consensusHistory: consensusHistory.slice(-CONSENSUS_HISTORY_DISPLAY_LIMIT),
     correlationMatrix: correlations,
     insights,
     stats: {
@@ -900,7 +930,7 @@ export function getAnalyzerStatus(): {
     herdingAlertCount: herdingAlerts.length,
     contrarianSignalCount: contrarianSignals.length,
     styleDriftAlertCount: styleDriftAlerts.length,
-    recentConsensus: [...consensusCache.values()].slice(-10),
+    recentConsensus: [...consensusCache.values()].slice(-STATUS_RECENT_CONSENSUS_LIMIT),
     correlationMatrix: computeCorrelationMatrix(),
   };
 }
