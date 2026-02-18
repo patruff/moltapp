@@ -1055,7 +1055,7 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
   }
   const marketTimingScore = timingTotal > 0
     ? round((timingHits / timingTotal) * 100, 1)
-    : 50;
+    : TIMING_SCORE_BASE;
 
   // --- Time-of-day performance ---
   const hourSlots = new Map<number, { decisions: number; totalConf: number; wins: number }>();
@@ -1140,10 +1140,10 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
     const normalizedReturn = (d.confidence - CONFIDENCE_NEUTRAL) / CONFIDENCE_NORMALIZATION_DIVISOR;
 
     let regime: string;
-    if (Math.abs(change) > 5) regime = "High Volatility";
-    else if (change > 2) regime = "Bull (>2% up)";
-    else if (change > 0) regime = "Mild Bull (0-2%)";
-    else if (change > -2) regime = "Mild Bear (0-2% down)";
+    if (Math.abs(change) > REGIME_HIGH_VOLATILITY_THRESHOLD) regime = "High Volatility";
+    else if (change > REGIME_BULL_STRONG_THRESHOLD) regime = "Bull (>2% up)";
+    else if (change > REGIME_MILD_BULL_THRESHOLD) regime = "Mild Bull (0-2%)";
+    else if (change > REGIME_BEAR_STRONG_THRESHOLD) regime = "Mild Bear (0-2% down)";
     else regime = "Bear (>2% down)";
 
     const entry = regimes[regime];
@@ -1165,10 +1165,10 @@ export async function getTimingAnalysis(agentId: string): Promise<TimingAnalysis
 
   // Overall timing grade
   let grade: string;
-  if (marketTimingScore >= 70) grade = "A";
-  else if (marketTimingScore >= 60) grade = "B";
-  else if (marketTimingScore >= 50) grade = "C";
-  else if (marketTimingScore >= 40) grade = "D";
+  if (marketTimingScore >= TIMING_GRADE_A_THRESHOLD) grade = "A";
+  else if (marketTimingScore >= TIMING_GRADE_B_THRESHOLD) grade = "B";
+  else if (marketTimingScore >= TIMING_GRADE_C_THRESHOLD) grade = "C";
+  else if (marketTimingScore >= TIMING_GRADE_D_THRESHOLD) grade = "D";
   else grade = "F";
 
   return {
