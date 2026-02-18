@@ -35,6 +35,61 @@ export const benchmarkV34ApiRoutes = new Hono();
 const startTime = Date.now();
 
 // ---------------------------------------------------------------------------
+// Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of top-scoring dimensions shown per agent in leaderboard / reasoning-profile.
+ * Helps researchers quickly spot each agent's standout strengths without scrolling
+ * through all 28 dimensions.
+ */
+const TOP_DIMENSIONS_DISPLAY_LIMIT = 5;
+
+/**
+ * Number of weakest dimensions shown per agent in leaderboard / reasoning-profile.
+ * Kept smaller than TOP_DIMENSIONS_DISPLAY_LIMIT (5) to draw attention to the most
+ * critical gaps without overwhelming the response with low-performing areas.
+ */
+const WEAKEST_DIMENSIONS_DISPLAY_LIMIT = 3;
+
+/**
+ * Maximum number of recent trade grades fetched when building per-agent
+ * traceability or adversarial-coherence analysis.  100 covers typical agent
+ * history while keeping response time fast; raise if agents accumulate >100 trades.
+ */
+const AGENT_ANALYSIS_TRADE_FETCH_LIMIT = 100;
+
+// ---------------------------------------------------------------------------
+// Reasoning Truncation Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Character limit for reasoning text shown in trade-grade listings and
+ * top-trade summaries.  300 chars captures the opening thesis sentence(s) —
+ * enough for researchers to understand the agent's primary argument without
+ * loading the full reasoning blob.
+ */
+const REASONING_PREVIEW_LENGTH = 300;
+
+/**
+ * Shorter character limit used for worst/fragile trade summaries where
+ * brevity is preferred.  200 chars gives a quick snippet showing where
+ * reasoning broke down without cluttering comparison tables.
+ */
+const REASONING_SNIPPET_LENGTH = 200;
+
+// ---------------------------------------------------------------------------
+// Export Fetch Limit
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of trade grades fetched for JSONL/CSV exports and the
+ * health-check trade count.  2000 covers typical benchmark dataset sizes;
+ * raise if the archive exceeds this before adding pagination.
+ */
+const EXPORT_MAX_TRADE_GRADES = 2000;
+
+// ---------------------------------------------------------------------------
 // GET /leaderboard — Ranked agents by 28-dimension composite score
 // ---------------------------------------------------------------------------
 
@@ -56,11 +111,11 @@ benchmarkV34ApiRoutes.get("/leaderboard", (c) => {
       roundsPlayed: s.roundsPlayed,
       topDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
+        .slice(0, TOP_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       weakestDimensions: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => a - b)
-        .slice(0, 3)
+        .slice(0, WEAKEST_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => ({ dimension: dim, score })),
       lastUpdated: s.lastUpdated,
     })),
@@ -88,7 +143,7 @@ benchmarkV34ApiRoutes.get("/trade-grades", (c) => {
       agentId: g.agentId,
       symbol: g.symbol,
       action: g.action,
-      reasoning: g.reasoning.slice(0, 300),
+      reasoning: g.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
       confidence: g.confidence,
       intent: g.intent,
       overallGrade: g.overallGrade,
@@ -209,7 +264,7 @@ benchmarkV34ApiRoutes.get("/dimensions", (c) => {
 
 benchmarkV34ApiRoutes.get("/traceability/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const trades = getTradeGradesByAgent(agentId, 100);
+  const trades = getTradeGradesByAgent(agentId, AGENT_ANALYSIS_TRADE_FETCH_LIMIT);
 
   if (trades.length === 0) {
     return c.json({
@@ -233,24 +288,24 @@ benchmarkV34ApiRoutes.get("/traceability/:agentId", (c) => {
   };
 
   const sorted = [...trades].sort((a, b) => b.reasoningTraceabilityScore - a.reasoningTraceabilityScore);
-  const topTrades = sorted.slice(0, 5).map((t) => ({
+  const topTrades = sorted.slice(0, TOP_DIMENSIONS_DISPLAY_LIMIT).map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
     traceabilityScore: t.reasoningTraceabilityScore,
     sourceQuality: t.sourceQualityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 300),
+    reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
-  const worstTrades = sorted.slice(-3).reverse().map((t) => ({
+  const worstTrades = sorted.slice(-WEAKEST_DIMENSIONS_DISPLAY_LIMIT).reverse().map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
     traceabilityScore: t.reasoningTraceabilityScore,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 200),
+    reasoning: t.reasoning.slice(0, REASONING_SNIPPET_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -277,7 +332,7 @@ benchmarkV34ApiRoutes.get("/traceability/:agentId", (c) => {
 
 benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
   const agentId = c.req.param("agentId");
-  const trades = getTradeGradesByAgent(agentId, 100);
+  const trades = getTradeGradesByAgent(agentId, AGENT_ANALYSIS_TRADE_FETCH_LIMIT);
 
   if (trades.length === 0) {
     return c.json({
@@ -302,7 +357,7 @@ benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
   const sorted = [...trades].sort((a, b) => b.adversarialCoherenceScore - a.adversarialCoherenceScore);
 
   // Most resilient trades (reasoning holds up under scrutiny)
-  const resilientTrades = sorted.slice(0, 5).map((t) => ({
+  const resilientTrades = sorted.slice(0, TOP_DIMENSIONS_DISPLAY_LIMIT).map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
@@ -310,12 +365,12 @@ benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
     coherenceScore: t.coherenceScore,
     confidence: t.confidence,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 300),
+    reasoning: t.reasoning.slice(0, REASONING_PREVIEW_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
   // Most fragile trades (reasoning crumbles under contrary evidence)
-  const fragileTrades = sorted.slice(-3).reverse().map((t) => ({
+  const fragileTrades = sorted.slice(-WEAKEST_DIMENSIONS_DISPLAY_LIMIT).reverse().map((t) => ({
     tradeId: t.tradeId,
     symbol: t.symbol,
     action: t.action,
@@ -323,7 +378,7 @@ benchmarkV34ApiRoutes.get("/adversarial/:agentId", (c) => {
     coherenceScore: t.coherenceScore,
     confidence: t.confidence,
     overallGrade: t.overallGrade,
-    reasoning: t.reasoning.slice(0, 200),
+    reasoning: t.reasoning.slice(0, REASONING_SNIPPET_LENGTH),
     gradedAt: t.gradedAt,
   }));
 
@@ -377,11 +432,11 @@ benchmarkV34ApiRoutes.get("/reasoning-profile", (c) => {
     strengthsAndWeaknesses: {
       strengths: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
+        .slice(0, WEAKEST_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => `${dim}: ${score}`),
       weaknesses: Object.entries(s.dimensions)
         .sort(([, a], [, b]) => a - b)
-        .slice(0, 3)
+        .slice(0, WEAKEST_DIMENSIONS_DISPLAY_LIMIT)
         .map(([dim, score]) => `${dim}: ${score}`),
     },
   }));
