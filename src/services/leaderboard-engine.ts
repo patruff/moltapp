@@ -228,6 +228,29 @@ const SNAPSHOT_HISTORY_DEFAULT_LIMIT = 20;
 const AGENT_DETAIL_RECENT_SCORES_LIMIT = 50;
 
 /**
+ * Glicko-2 Volatility Storage Precision
+ *
+ * Precision multiplier for rounding Glicko-2 volatility (sigma) to 4 decimal places.
+ * Formula: Math.round(sigma × GLICKO_VOLATILITY_PRECISION) / GLICKO_VOLATILITY_PRECISION
+ * Example: sigma = 0.123456 → stored as 0.1235 (4 decimal places)
+ *
+ * 4 decimal places (10000) is sufficient precision for sigma values which typically
+ * range 0.01–0.10. Finer precision (100000) would add noise without benefit.
+ */
+const GLICKO_VOLATILITY_PRECISION = 10000;
+
+/**
+ * Percentile Rank Multiplier
+ *
+ * Converts a fraction (0–1) to an integer percentile (0–100).
+ * Formula: Math.round(fraction × PERCENTILE_MULTIPLIER) = integer percentile
+ * Example: 0.73 × 100 → 73rd percentile
+ *
+ * Standard 0–100 scale used in all percentile displays.
+ */
+const PERCENTILE_MULTIPLIER = 100;
+
+/**
  * Sharpe Ratio Calculation
  */
 
@@ -513,7 +536,7 @@ function updateGlicko2(state: AgentState, score: number): void {
   // Update rating
   state.glickoRating = Math.round(state.glickoRating + ELO_K_FACTOR * delta / ELO_DIVISOR);
   state.glickoDeviation = Math.round(newPhi);
-  state.glickoVolatility = Math.round(newSigma * 10000) / 10000;
+  state.glickoVolatility = Math.round(newSigma * GLICKO_VOLATILITY_PRECISION) / GLICKO_VOLATILITY_PRECISION;
 }
 
 // ---------------------------------------------------------------------------
@@ -593,10 +616,10 @@ export function getLeaderboard(options?: {
 
     // Trades by time window
     const tradesLast24h = state.compositeScores.filter(
-      (s) => now - s.timestamp < 24 * 60 * 60 * 1000,
+      (s) => now - s.timestamp < TIME_WINDOW_24H_MS,
     ).length;
     const tradesLast7d = state.compositeScores.filter(
-      (s) => now - s.timestamp < 7 * 24 * 60 * 60 * 1000,
+      (s) => now - s.timestamp < TIME_WINDOW_7D_MS,
     ).length;
 
     entries.push({
@@ -707,7 +730,7 @@ export function getAgentLeaderboardDetail(agentId: string): {
     .map((s) => s.currentComposite);
   const belowCount = allComposites.filter((c) => c < state.currentComposite).length;
   const percentileRank = allComposites.length > 0
-    ? Math.round((belowCount / allComposites.length) * 100)
+    ? Math.round((belowCount / allComposites.length) * PERCENTILE_MULTIPLIER)
     : 50;
 
   return {
