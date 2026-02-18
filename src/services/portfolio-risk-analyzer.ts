@@ -541,6 +541,17 @@ const MAX_HISTORY_POINTS = 500;
 const returnHistory = new Map<string, number[]>();
 const MAX_RETURNS = 500;
 
+/**
+ * One-Decimal Display Precision
+ *
+ * Multiplier/divisor for rounding values to 1 decimal place in display output.
+ * Formula: Math.round(value × 10) / 10 → 1 decimal place (e.g., 73.4%)
+ *
+ * Used for: sector allocation percentages, position weights, drawdown duration hours.
+ * Example: 73.456 → Math.round(73.456 × 10) / 10 = Math.round(734.56) / 10 = 734 / 10 = 73.4
+ */
+const ONE_DECIMAL_PRECISION_MULTIPLIER = 10;
+
 // ---------------------------------------------------------------------------
 // Core Analysis
 // ---------------------------------------------------------------------------
@@ -732,7 +743,7 @@ function computeSectorConcentration(
     concentrations.push({
       sector,
       symbols: data.symbols,
-      allocation: Math.round(allocation * 10) / 10,
+      allocation: Math.round(allocation * ONE_DECIMAL_PRECISION_MULTIPLIER) / ONE_DECIMAL_PRECISION_MULTIPLIER,
       value: round2(data.value),
       hhiContribution: Math.round(hhiContribution),
     });
@@ -771,7 +782,7 @@ function computePositionRisk(
 
     return {
       symbol: pos.symbol,
-      weight: Math.round(weight * 10) / 10,
+      weight: Math.round(weight * ONE_DECIMAL_PRECISION_MULTIPLIER) / ONE_DECIMAL_PRECISION_MULTIPLIER,
       varContribution: round2(varContribution),
       volatility: stockVol,
       unrealizedPnl: 0, // Would need current price for real P&L
@@ -841,7 +852,7 @@ function computeDrawdownAnalysis(agentId: string, currentValue: number): Drawdow
       : 0,
     peakValue: round2(currentPeak),
     troughValue: round2(Math.min(maxDrawdownTrough, currentValue)),
-    drawdownDurationHours: Math.round(durationHours * 10) / 10,
+    drawdownDurationHours: Math.round(durationHours * ONE_DECIMAL_PRECISION_MULTIPLIER) / ONE_DECIMAL_PRECISION_MULTIPLIER,
     recovered: currentValue >= maxDrawdownPeak,
   };
 }
