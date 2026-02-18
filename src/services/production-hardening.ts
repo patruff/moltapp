@@ -229,6 +229,34 @@ const HEALTH_LAST_ROUND_AGE_CRITICAL_MINUTES = 90;
  */
 const HEALTH_LAST_ROUND_AGE_WARN_MINUTES = 45;
 
+/**
+ * Real Price Percentage Display Precision
+ *
+ * Controls the number of decimal places shown when displaying the percentage
+ * of stocks with real (non-mock) prices in market data freshness checks.
+ *
+ * Formula: Math.round(realPercent * REAL_PRICE_PERCENT_PRECISION) / REAL_PRICE_PERCENT_PRECISION
+ * Example: realPercent = 0.6667 → Math.round(66.67) / 10 = 66.7%
+ *
+ * Value: 10 (1 decimal place — enough for percentage readability)
+ * Impact: Display-only; does not affect safety threshold comparisons
+ * Tuning: Change to 100 for 2 decimal places (e.g., 66.67%), 1 for integer (e.g., 67%)
+ */
+const REAL_PRICE_PERCENT_PRECISION = 10;
+
+/**
+ * Milliseconds per Minute
+ *
+ * Converts millisecond timestamps to minutes for health check age display.
+ *
+ * Formula: ageMs / MS_PER_MINUTE = ageMinutes
+ * Example: 3,600,000 ms / 60,000 = 60 minutes
+ *
+ * Value: 60,000 (60 seconds × 1,000 ms/s)
+ * Impact: Used only for display (Math.round(ageMinutes) in health status messages)
+ */
+const MS_PER_MINUTE = 60_000;
+
 let timeoutConfig: AgentTimeoutConfig = { ...DEFAULT_TIMEOUT_CONFIG };
 
 // ---------------------------------------------------------------------------
@@ -399,7 +427,7 @@ export function checkMarketDataFreshness(): MarketDataFreshness {
     maxAgeSeconds: MAX_MARKET_DATA_AGE_SECONDS,
     realPriceCount: lastRealPriceCount,
     totalStocks: lastTotalStockCount,
-    realPricePercent: Math.round(realPercent * 10) / 10,
+    realPricePercent: Math.round(realPercent * REAL_PRICE_PERCENT_PRECISION) / REAL_PRICE_PERCENT_PRECISION,
   };
 }
 
@@ -494,7 +522,7 @@ export function checkHealth(): HealthStatus {
   if (metrics.lastSuccessfulRound) {
     const ageMs =
       Date.now() - new Date(metrics.lastSuccessfulRound).getTime();
-    const ageMinutes = ageMs / 60_000;
+    const ageMinutes = ageMs / MS_PER_MINUTE;
     checks.push({
       name: "last_successful_round",
       status:
