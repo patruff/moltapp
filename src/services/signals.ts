@@ -1105,7 +1105,7 @@ function generateStockSignals(
 
   // Momentum shift
   if (
-    Math.abs(indicators.momentum.acceleration) > 2 &&
+    Math.abs(indicators.momentum.acceleration) > MOMENTUM_ACCELERATION_THRESHOLD &&
     indicators.momentum.shortTerm * indicators.momentum.mediumTerm < 0
   ) {
     signals.push({
@@ -1128,7 +1128,7 @@ function generateStockSignals(
   }
 
   // Price breakout (strong directional move)
-  if (Math.abs(indicators.momentum.shortTerm) > 3) {
+  if (Math.abs(indicators.momentum.shortTerm) > MOMENTUM_BREAKOUT_THRESHOLD) {
     signals.push({
       id: signalId(),
       symbol,
@@ -1161,31 +1161,31 @@ function computeOverallSignal(
   let score = 0;
 
   // RSI contribution (-2 to +2)
-  if (rsi < 20) score += 2;
-  else if (rsi < 30) score += 1;
-  else if (rsi > 80) score -= 2;
-  else if (rsi > 70) score -= 1;
+  if (rsi < RSI_EXTREME_OVERSOLD) score += OVERALL_RSI_EXTREME_OVERSOLD_SCORE;
+  else if (rsi < RSI_OVERSOLD_THRESHOLD) score += OVERALL_RSI_OVERSOLD_SCORE;
+  else if (rsi > RSI_EXTREME_OVERBOUGHT) score += OVERALL_RSI_EXTREME_OVERBOUGHT_SCORE;
+  else if (rsi > RSI_OVERBOUGHT_THRESHOLD) score += OVERALL_RSI_OVERBOUGHT_SCORE;
 
   // MACD contribution (-1 to +1)
-  if (macd.crossover === "bullish") score += 1;
-  else if (macd.crossover === "bearish") score -= 1;
-  if (macd.histogram > 0) score += 0.5;
-  else if (macd.histogram < 0) score -= 0.5;
+  if (macd.crossover === "bullish") score += OVERALL_MACD_CROSSOVER_SCORE;
+  else if (macd.crossover === "bearish") score -= OVERALL_MACD_CROSSOVER_SCORE;
+  if (macd.histogram > 0) score += OVERALL_MACD_HISTOGRAM_SCORE;
+  else if (macd.histogram < 0) score -= OVERALL_MACD_HISTOGRAM_SCORE;
 
   // Bollinger contribution (-1 to +1)
-  if (bollinger.percentB < 0.1) score += 1;
-  else if (bollinger.percentB > 0.9) score -= 1;
+  if (bollinger.percentB < BOLLINGER_PERCENT_B_NEAR_LOWER) score += OVERALL_BOLLINGER_SCORE;
+  else if (bollinger.percentB > BOLLINGER_PERCENT_B_NEAR_UPPER) score -= OVERALL_BOLLINGER_SCORE;
 
   // Momentum contribution (-1.5 to +1.5)
-  if (momentum.shortTerm > 2) score += 1;
-  else if (momentum.shortTerm < -2) score -= 1;
-  if (momentum.acceleration > 1) score += 0.5;
-  else if (momentum.acceleration < -1) score -= 0.5;
+  if (momentum.shortTerm > MOMENTUM_SIGNAL_THRESHOLD) score += OVERALL_MOMENTUM_SCORE;
+  else if (momentum.shortTerm < -MOMENTUM_SIGNAL_THRESHOLD) score -= OVERALL_MOMENTUM_SCORE;
+  if (momentum.acceleration > MOMENTUM_ACCELERATION_SIGNAL) score += OVERALL_MOMENTUM_ACCELERATION_SCORE;
+  else if (momentum.acceleration < -MOMENTUM_ACCELERATION_SIGNAL) score -= OVERALL_MOMENTUM_ACCELERATION_SCORE;
 
-  if (score >= 3) return "strong_buy";
-  if (score >= 1.5) return "buy";
-  if (score <= -3) return "strong_sell";
-  if (score <= -1.5) return "sell";
+  if (score >= OVERALL_SIGNAL_STRONG_BUY) return "strong_buy";
+  if (score >= OVERALL_SIGNAL_BUY) return "buy";
+  if (score <= OVERALL_SIGNAL_STRONG_SELL) return "strong_sell";
+  if (score <= OVERALL_SIGNAL_SELL) return "sell";
   return "neutral";
 }
 
