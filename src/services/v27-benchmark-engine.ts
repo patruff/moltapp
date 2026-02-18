@@ -643,6 +643,36 @@ export function analyzeCrossRoundLearning(
 // ---------------------------------------------------------------------------
 
 /**
+ * Grade Threshold Constants
+ *
+ * Letter grade boundaries for the v27 composite score (0-100 scale).
+ * An agent receives the highest grade whose threshold it meets or exceeds.
+ *
+ * Grade scale (descending):
+ *   S  = composite >= GRADE_THRESHOLD_S    (≥90 — elite performance)
+ *   A+ = composite >= GRADE_THRESHOLD_A_PLUS (≥85 — excellent)
+ *   A  = composite >= GRADE_THRESHOLD_A    (≥80 — strong)
+ *   B+ = composite >= GRADE_THRESHOLD_B_PLUS (≥70 — above average)
+ *   B  = composite >= GRADE_THRESHOLD_B    (≥60 — average)
+ *   C  = composite >= GRADE_THRESHOLD_C    (≥50 — below average)
+ *   D  = composite >= GRADE_THRESHOLD_D    (≥35 — poor)
+ *   F  = composite <  GRADE_THRESHOLD_D    (<35 — failing)
+ *
+ * Example: composite=73 → B+ (73 ≥ 70 but < 80)
+ * Example: composite=91 → S (91 ≥ 90)
+ *
+ * These grades are displayed in agent leaderboards and profiles, and
+ * influence marketplace trust signals and capital allocation decisions.
+ */
+const GRADE_THRESHOLD_S = 90;
+const GRADE_THRESHOLD_A_PLUS = 85;
+const GRADE_THRESHOLD_A = 80;
+const GRADE_THRESHOLD_B_PLUS = 70;
+const GRADE_THRESHOLD_B = 60;
+const GRADE_THRESHOLD_C = 50;
+const GRADE_THRESHOLD_D = 35;
+
+/**
  * Dimension weights for the v27 composite score.
  * Total weight = 100; composite = sum(dimension * weight) / sum(weights) * 100.
  */
@@ -700,19 +730,19 @@ export function computeV27Composite(dimensions: {
       : 0;
 
   let grade: string;
-  if (composite >= 90) {
+  if (composite >= GRADE_THRESHOLD_S) {
     grade = "S";
-  } else if (composite >= 85) {
+  } else if (composite >= GRADE_THRESHOLD_A_PLUS) {
     grade = "A+";
-  } else if (composite >= 80) {
+  } else if (composite >= GRADE_THRESHOLD_A) {
     grade = "A";
-  } else if (composite >= 70) {
+  } else if (composite >= GRADE_THRESHOLD_B_PLUS) {
     grade = "B+";
-  } else if (composite >= 60) {
+  } else if (composite >= GRADE_THRESHOLD_B) {
     grade = "B";
-  } else if (composite >= 50) {
+  } else if (composite >= GRADE_THRESHOLD_C) {
     grade = "C";
-  } else if (composite >= 35) {
+  } else if (composite >= GRADE_THRESHOLD_D) {
     grade = "D";
   } else {
     grade = "F";
