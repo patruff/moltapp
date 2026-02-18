@@ -36,6 +36,51 @@ import {
   getReasoningGateMetrics,
 } from "../middleware/reasoning-gate.ts";
 
+// ---------------------------------------------------------------------------
+// Benchmark Calculation Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Composite score weights — must sum to 1.0.
+ * Formula: composite = coherence×0.35 + halFree×0.25 + discipline×0.20 + confidence×0.20
+ * Coherence has highest weight (0.35) as primary reasoning quality signal.
+ */
+const COMPOSITE_WEIGHT_COHERENCE = 0.35;
+const COMPOSITE_WEIGHT_HAL_FREE = 0.25;
+const COMPOSITE_WEIGHT_DISCIPLINE = 0.2;
+const COMPOSITE_WEIGHT_CONFIDENCE = 0.2;
+
+/**
+ * Fallback confidence value when no trades have been recorded yet.
+ * 0.5 = neutral/uncertain (midpoint of 0–1 scale).
+ */
+const CONFIDENCE_FALLBACK = 0.5;
+
+/**
+ * 2-decimal rounding: Math.round(v * 100) / 100 → e.g. 0.8317 → 0.83
+ * Used for coherence scores and composite scores displayed on the leaderboard.
+ */
+const SCORE_PRECISION_MULTIPLIER = 100;
+
+/**
+ * Basis-points-to-percent conversion: multiply ratio by 10000, divide by 100.
+ * Equivalent to multiplying by 100 then rounding to 2 decimal places.
+ * Used for hallucination rate and discipline rate (e.g. 0.0123 → 1.23%).
+ */
+const BPS_TO_PERCENT_MULTIPLIER = 10000;
+const BPS_TO_PERCENT_DIVISOR = 100;
+
+/**
+ * Simple percent conversion: ratio × 100 → integer percentage.
+ * Used for quality-gate pass rate and win rate (e.g. 0.75 → 75).
+ */
+const PERCENT_MULTIPLIER = 100;
+
+/**
+ * Number of recent reasoning entries shown in the brain feed ticker.
+ */
+const BRAIN_FEED_LIMIT = 6;
+
 export const benchmarkLiveRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -66,16 +111,16 @@ benchmarkLiveRoutes.get("/data", async (c) => {
 
       const row = stats[0];
       const total = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 100) / 100;
-      const halRate = total > 0 ? Math.round((Number(row?.hallucinationCount) / total) * 10000) / 100 : 0;
-      const discRate = total > 0 ? Math.round((Number(row?.disciplinePassCount) / total) * 10000) / 100 : 0;
-      const avgConf = Math.round((Number(row?.avgConfidence) || 0.5) * 100) / 100;
+      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER;
+      const halRate = total > 0 ? Math.round((Number(row?.hallucinationCount) / total) * BPS_TO_PERCENT_MULTIPLIER) / BPS_TO_PERCENT_DIVISOR : 0;
+      const discRate = total > 0 ? Math.round((Number(row?.disciplinePassCount) / total) * BPS_TO_PERCENT_MULTIPLIER) / BPS_TO_PERCENT_DIVISOR : 0;
+      const avgConf = Math.round((Number(row?.avgConfidence) || CONFIDENCE_FALLBACK) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER;
 
-      const halFree = 1 - halRate / 100;
-      const disc = discRate / 100;
+      const halFree = 1 - halRate / PERCENT_MULTIPLIER;
+      const disc = discRate / PERCENT_MULTIPLIER;
       const composite = Math.round(
-        (avgCoherence * 0.35 + halFree * 0.25 + disc * 0.2 + avgConf * 0.2) * 100,
-      ) / 100;
+        (avgCoherence * COMPOSITE_WEIGHT_COHERENCE + halFree * COMPOSITE_WEIGHT_HAL_FREE + disc * COMPOSITE_WEIGHT_DISCIPLINE + avgConf * COMPOSITE_WEIGHT_CONFIDENCE) * SCORE_PRECISION_MULTIPLIER,
+      ) / SCORE_PRECISION_MULTIPLIER;
 
       const deepStat = deepStats.find((d) => d.agentId === agent.agentId);
 
@@ -130,11 +175,11 @@ benchmarkLiveRoutes.get("/data", async (c) => {
     leaderboard,
     stats: {
       qualityGatePassRate: qualityGate.totalChecked > 0
-        ? Math.round((qualityGate.totalPassed / qualityGate.totalChecked) * 100) : 100,
+        ? Math.round((qualityGate.totalPassed / qualityGate.totalChecked) * PERCENT_MULTIPLIER) : PERCENT_MULTIPLIER,
       totalTradesAnalyzed: qualityGate.totalChecked,
       outcomesTracked: outcomes.totalTracked,
       winRate: outcomes.totalTracked > 0
-        ? Math.round((outcomes.profitCount / outcomes.totalTracked) * 100) : 0,
+        ? Math.round((outcomes.profitCount / outcomes.totalTracked) * PERCENT_MULTIPLIER) : 0,
       calibrationScore: calibration.score,
       reasoningGate: gateMetrics,
     },
@@ -174,16 +219,16 @@ benchmarkLiveRoutes.get("/", async (c) => {
 
       const row = stats[0];
       const total = Number(row?.totalTrades ?? 0);
-      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * 100) / 100;
-      const halRate = total > 0 ? Number(row?.hallucinationCount) / total * 100 : 0;
-      const discRate = total > 0 ? Number(row?.disciplinePassCount) / total * 100 : 0;
-      const avgConf = Math.round((Number(row?.avgConfidence) || 0.5) * 100);
+      const avgCoherence = Math.round((Number(row?.avgCoherence) || 0) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER;
+      const halRate = total > 0 ? Number(row?.hallucinationCount) / total * PERCENT_MULTIPLIER : 0;
+      const discRate = total > 0 ? Number(row?.disciplinePassCount) / total * PERCENT_MULTIPLIER : 0;
+      const avgConf = Math.round((Number(row?.avgConfidence) || CONFIDENCE_FALLBACK) * PERCENT_MULTIPLIER);
 
-      const halFree = 1 - halRate / 100;
-      const disc = discRate / 100;
+      const halFree = 1 - halRate / PERCENT_MULTIPLIER;
+      const disc = discRate / PERCENT_MULTIPLIER;
       const composite = Math.round(
-        (avgCoherence * 0.35 + halFree * 0.25 + disc * 0.2 + (avgConf / 100) * 0.2) * 100,
-      ) / 100;
+        (avgCoherence * COMPOSITE_WEIGHT_COHERENCE + halFree * COMPOSITE_WEIGHT_HAL_FREE + disc * COMPOSITE_WEIGHT_DISCIPLINE + (avgConf / PERCENT_MULTIPLIER) * COMPOSITE_WEIGHT_CONFIDENCE) * SCORE_PRECISION_MULTIPLIER,
+      ) / SCORE_PRECISION_MULTIPLIER;
 
       rows.push({
         rank: 0, name: agent.name, model: agent.model, provider: agent.provider,
@@ -220,13 +265,13 @@ benchmarkLiveRoutes.get("/", async (c) => {
       })
       .from(tradeJustifications)
       .orderBy(desc(tradeJustifications.timestamp))
-      .limit(6);
+      .limit(BRAIN_FEED_LIMIT);
   } catch { /* DB unavailable */ }
 
   const qgPassRate = qualityGate.totalChecked > 0
-    ? Math.round((qualityGate.totalPassed / qualityGate.totalChecked) * 100) : 100;
+    ? Math.round((qualityGate.totalPassed / qualityGate.totalChecked) * PERCENT_MULTIPLIER) : PERCENT_MULTIPLIER;
   const winRate = outcomes.totalTracked > 0
-    ? Math.round((outcomes.profitCount / outcomes.totalTracked) * 100) : 0;
+    ? Math.round((outcomes.profitCount / outcomes.totalTracked) * PERCENT_MULTIPLIER) : 0;
 
   const leaderboardHtml = rows.map((r) => `
     <tr>
