@@ -193,6 +193,34 @@ const RECENT_EVENTS_STATS_LIMIT = 20;
  */
 const DEFAULT_QUERY_RESULT_LIMIT = 50;
 
+/**
+ * Random Bytes Length Constants
+ */
+
+/**
+ * Byte length for random ID suffix generation: 4 bytes = 8 hex characters.
+ *
+ * Used to create unique short suffixes for subscription, event, and delivery IDs.
+ * Format: `{prefix}_{timestamp}_{randomBytes(ID_RANDOM_BYTES).toString("hex")}`
+ * Example: "sub_1738540800000_a3f9z2b1" (8-char hex suffix)
+ *
+ * 4 bytes = 2^32 = ~4.3 billion combinations — sufficient for ID uniqueness
+ * when combined with a millisecond timestamp prefix.
+ */
+const ID_RANDOM_BYTES = 4;
+
+/**
+ * Byte length for webhook HMAC secret generation: 32 bytes = 64 hex characters.
+ *
+ * Each subscription receives a cryptographically random 256-bit secret at
+ * registration. Subscribers use this secret to verify webhook authenticity:
+ *   HMAC-SHA256(secret, payload) → X-MoltApp-Signature header
+ *
+ * 32 bytes = 256 bits = meets NIST SP 800-107 recommendation for HMAC-SHA256
+ * secret length. Shorter secrets reduce security margin; longer adds no benefit.
+ */
+const SECRET_RANDOM_BYTES = 32;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -236,8 +264,8 @@ export function createSubscription(params: {
     throw new Error("no_events: at least one event type is required");
   }
 
-  const id = `sub_${Date.now()}_${randomBytes(4).toString("hex")}`;
-  const secret = randomBytes(32).toString("hex");
+  const id = `sub_${Date.now()}_${randomBytes(ID_RANDOM_BYTES).toString("hex")}`;
+  const secret = randomBytes(SECRET_RANDOM_BYTES).toString("hex");
 
   const subscription: WebhookSubscription = {
     id,
@@ -325,7 +353,7 @@ export function emitAlert(
   metadata: Omit<AlertEvent["metadata"], "severity"> & { severity?: "info" | "warning" | "critical" },
 ): AlertEvent {
   const event: AlertEvent = {
-    id: `evt_${Date.now()}_${randomBytes(4).toString("hex")}`,
+    id: `evt_${Date.now()}_${randomBytes(ID_RANDOM_BYTES).toString("hex")}`,
     type,
     timestamp: new Date().toISOString(),
     data,
@@ -491,7 +519,7 @@ async function deliverWebhook(
   }
 
   const delivery: WebhookDelivery = {
-    id: `dlv_${Date.now()}_${randomBytes(4).toString("hex")}`,
+    id: `dlv_${Date.now()}_${randomBytes(ID_RANDOM_BYTES).toString("hex")}`,
     subscriptionId: sub.id,
     eventId: event.id,
     url: sub.url,
