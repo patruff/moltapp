@@ -552,6 +552,58 @@ const MAX_RETURNS = 500;
  */
 const ONE_DECIMAL_PRECISION_MULTIPLIER = 10;
 
+/**
+ * Two-Decimal Display Precision
+ *
+ * Multiplier/divisor for rounding percent values to 2 decimal places.
+ * Formula: Math.round(fraction × 10000) / 100 → 2 decimal percentage (e.g., 83.33%)
+ *
+ * How it works:
+ *   - Multiply by 10000: shifts fraction to 4-decimal integer range
+ *   - Math.round: snaps to nearest integer
+ *   - Divide by 100: scales back to 2-decimal percentage
+ *
+ * Example: 0.8333 → Math.round(0.8333 × 10000) / 100 = Math.round(8333) / 100 = 83.33%
+ *
+ * Used for: drawdown percentages (currentDrawdownPercent, maxDrawdownPercent),
+ *           stress test portfolio impact percentages.
+ */
+const TWO_DECIMAL_PRECISION_MULTIPLIER = 10_000;
+const TWO_DECIMAL_PRECISION_DIVISOR = 100;
+
+/**
+ * Milliseconds Per Hour
+ *
+ * Converts a duration in milliseconds to hours for human-readable drawdown duration display.
+ * Formula: durationMs / MS_PER_HOUR = durationHours
+ *
+ * Value: 60 minutes × 60 seconds × 1000 milliseconds = 3,600,000 ms/hr
+ * Example: 7,200,000 ms / 3,600,000 = 2.0 hours of drawdown duration
+ */
+const MS_PER_HOUR = 3_600_000;
+
+/**
+ * Recent Trades Query Limit
+ *
+ * Maximum number of recent trades fetched from the database for VaR/return calculation.
+ * 100 trades provides ~2-4 weeks of history for a typical agent (20-40 trades/week),
+ * sufficient for historical simulation VaR while keeping DB query lightweight.
+ *
+ * Formula: orderBy(desc(createdAt)).limit(RECENT_TRADES_LIMIT) = most recent 100 trades
+ */
+const RECENT_TRADES_LIMIT = 100;
+
+/**
+ * Minimum Position Impact (USD) for Stress Test Reporting
+ *
+ * Positions whose stress-test dollar impact is below this threshold are omitted
+ * from the affectedPositions list to reduce noise in stress test reports.
+ * $1 filters out dust positions while retaining any meaningful exposure.
+ *
+ * Formula: Math.abs(posImpact) > MIN_POSITION_IMPACT_USD → include in affected list
+ */
+const MIN_POSITION_IMPACT_USD = 1;
+
 // ---------------------------------------------------------------------------
 // Core Analysis
 // ---------------------------------------------------------------------------
@@ -580,7 +632,7 @@ export async function analyzePortfolioRisk(
     .from(trades)
     .where(eq(trades.agentId, agentId))
     .orderBy(desc(trades.createdAt))
-    .limit(100);
+    .limit(RECENT_TRADES_LIMIT);
 
   // Record portfolio value for history
   recordPortfolioValue(agentId, portfolioValue);
@@ -839,16 +891,16 @@ function computeDrawdownAnalysis(agentId: string, currentValue: number): Drawdow
   const maxDrawdownFinal = Math.max(maxDrawdown, currentDrawdown);
 
   const durationMs = Date.now() - drawdownStartTime;
-  const durationHours = durationMs / 3_600_000;
+  const durationHours = durationMs / MS_PER_HOUR;
 
   return {
     currentDrawdown: round2(currentDrawdown),
     currentDrawdownPercent: currentPeak > 0
-      ? Math.round((currentDrawdown / currentPeak) * 10000) / 100
+      ? Math.round((currentDrawdown / currentPeak) * TWO_DECIMAL_PRECISION_MULTIPLIER) / TWO_DECIMAL_PRECISION_DIVISOR
       : 0,
     maxDrawdown: round2(maxDrawdownFinal),
     maxDrawdownPercent: maxDrawdownPeak > 0
-      ? Math.round((maxDrawdownFinal / maxDrawdownPeak) * 10000) / 100
+      ? Math.round((maxDrawdownFinal / maxDrawdownPeak) * TWO_DECIMAL_PRECISION_MULTIPLIER) / TWO_DECIMAL_PRECISION_DIVISOR
       : 0,
     peakValue: round2(currentPeak),
     troughValue: round2(Math.min(maxDrawdownTrough, currentValue)),
@@ -883,7 +935,7 @@ function runStressTests(
       const posImpact = posValue * (shockPercent / 100);
       totalImpact += posImpact;
 
-      if (Math.abs(posImpact) > 1) {
+      if (Math.abs(posImpact) > MIN_POSITION_IMPACT_USD) {
         affected.push({
           symbol: pos.symbol,
           impact: round2(posImpact),
@@ -896,7 +948,7 @@ function runStressTests(
       description: scenario.description,
       portfolioImpact: round2(totalImpact),
       portfolioImpactPercent: portfolioValue > 0
-        ? Math.round((totalImpact / portfolioValue) * 10000) / 100
+        ? Math.round((totalImpact / portfolioValue) * TWO_DECIMAL_PRECISION_MULTIPLIER) / TWO_DECIMAL_PRECISION_DIVISOR
         : 0,
       newPortfolioValue: round2(portfolioValue + totalImpact),
       affectedPositions: affected.sort(
