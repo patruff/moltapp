@@ -15,11 +15,67 @@ import { Keypair, VersionedTransaction } from "@solana/web3.js";
 const JUPITER_TIMEOUT_RETRY_DELAY_MS = 2000;
 
 /**
+ * Jupiter execute response code indicating a server-side timeout.
+ * When this code is received, the request is retried once after
+ * JUPITER_TIMEOUT_RETRY_DELAY_MS milliseconds.
+ */
+const JUPITER_TIMEOUT_ERROR_CODE = -1006;
+
+/**
  * Maximum number of token mint addresses per Jupiter Price API V3 request.
  * The Jupiter Price API enforces a 50-mint limit per query; batching is
  * required when fetching prices for more than 50 tokens at once.
  */
 const JUPITER_PRICE_API_BATCH_SIZE = 50;
+
+// ---------------------------------------------------------------------------
+// Solana Wire Format Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Threshold for compact-u16 single-byte encoding in Solana wire format.
+ * Values 0–127 (< 0x80) fit in a single byte; values 128–16383 require
+ * two bytes. Used to parse the number-of-signers prefix in a versioned
+ * transaction.
+ *
+ * Reference: https://docs.solana.com/developing/programming-model/transactions#compact-u16
+ */
+const COMPACT_U16_SINGLE_BYTE_MAX = 0x80; // 128
+
+/**
+ * Bitmask to extract the 7-bit payload from the first byte of a two-byte
+ * compact-u16. The high bit (0x80) is a continuation flag; the remaining
+ * 7 bits carry the low-order value.
+ *
+ * Example: 0xA3 (163) → 0xA3 & 0x7f = 0x23 (35) low-order bits.
+ */
+const COMPACT_U16_LOW_BITS_MASK = 0x7f; // 127
+
+/**
+ * Bit shift applied to the second byte of a two-byte compact-u16 before
+ * OR-ing with the masked first byte.  The first byte holds 7 low-order bits,
+ * so the second byte contributes bits 7 and above.
+ *
+ * Example: first byte = 0x81 → low bits = 1; second byte = 0x01 → 1 << 7 = 128;
+ * combined = 1 | 128 = 129.
+ */
+const COMPACT_U16_HIGH_BITS_SHIFT = 7;
+
+/**
+ * Byte mask applied to the second compact-u16 byte to isolate its 8-bit
+ * value before shifting.  Always 0xff (no-op for unsigned bytes, but makes
+ * intent explicit when working with signed JavaScript numbers).
+ */
+const COMPACT_U16_SECOND_BYTE_MASK = 0xff; // 255
+
+/**
+ * Length in bytes of a single Ed25519 signature on Solana.
+ * Each signer occupies exactly 64 bytes in the signatures section of a
+ * versioned transaction wire format.
+ *
+ * Reference: https://docs.solana.com/developing/programming-model/transactions#signatures
+ */
+const SOLANA_SIGNATURE_BYTES = 64;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -124,17 +180,19 @@ export async function signJupiterTransaction(
   let compactLen: number; // bytes consumed by the compact-u16
 
   const firstByte = txBytes[0];
-  if (firstByte < 0x80) {
+  if (firstByte < COMPACT_U16_SINGLE_BYTE_MAX) {
     numSigners = firstByte;
     compactLen = 1;
   } else {
     // Two-byte compact-u16 (value 128–16383)
-    numSigners = (firstByte & 0x7f) | ((txBytes[1] & 0xff) << 7);
+    numSigners =
+      (firstByte & COMPACT_U16_LOW_BITS_MASK) |
+      ((txBytes[1] & COMPACT_U16_SECOND_BYTE_MASK) << COMPACT_U16_HIGH_BITS_SHIFT);
     compactLen = 2;
   }
 
   const signaturesOffset = compactLen;
-  const messageOffset = signaturesOffset + numSigners * 64;
+  const messageOffset = signaturesOffset + numSigners * SOLANA_SIGNATURE_BYTES;
   const messageBytes = txBytes.subarray(messageOffset);
 
   // --- Sign with Turnkey ---
@@ -146,7 +204,7 @@ export async function signJupiterTransaction(
 
   // --- Inject signature into the first slot ---
   const signedTx = Buffer.from(txBytes);
-  Buffer.from(signature).copy(signedTx, signaturesOffset, 0, 64);
+  Buffer.from(signature).copy(signedTx, signaturesOffset, 0, SOLANA_SIGNATURE_BYTES);
 
   return signedTx.toString("base64");
 }
@@ -214,8 +272,8 @@ export async function executeOrder(params: {
 
   let result = await doRequest();
 
-  // Retry once on timeout (-1006)
-  if (result.code === -1006) {
+  // Retry once on timeout (JUPITER_TIMEOUT_ERROR_CODE = -1006)
+  if (result.code === JUPITER_TIMEOUT_ERROR_CODE) {
     await sleep(JUPITER_TIMEOUT_RETRY_DELAY_MS);
     result = await doRequest();
   }
