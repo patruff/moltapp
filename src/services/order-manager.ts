@@ -187,6 +187,22 @@ const PERCENT_MULTIPLIER = 100;
  */
 const PERCENT_DIVISOR = 100;
 
+/**
+ * Default number of orders returned by getOrderHistory when no limit is specified.
+ *
+ * Controls how many recent completed/cancelled/expired orders are returned in
+ * API responses when agents or the UI query order history without an explicit
+ * limit parameter.
+ *
+ * Balancing act: too small misses useful history, too large bloats API responses.
+ * 50 orders covers roughly 1-2 full trading rounds worth of activity per agent,
+ * which is enough context without excessive payload size.
+ *
+ * Formula: orderHistory.slice(-DEFAULT_HISTORY_QUERY_LIMIT) = most recent N orders
+ * Example: 200 archived orders → returns last 50 (indices 150-199)
+ */
+const DEFAULT_HISTORY_QUERY_LIMIT = 50;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -537,7 +553,7 @@ export function getAllOrders(): Order[] {
 /**
  * Get order history (triggered/filled/cancelled/expired).
  */
-export function getOrderHistory(limit = 50): Order[] {
+export function getOrderHistory(limit = DEFAULT_HISTORY_QUERY_LIMIT): Order[] {
   return orderHistory.slice(-limit);
 }
 
