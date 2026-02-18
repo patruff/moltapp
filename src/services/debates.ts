@@ -293,6 +293,58 @@ const CONVICTION_PRECISION_MULTIPLIER = 10;
 const CONVICTION_PRECISION_DIVISOR = 10;
 
 // ---------------------------------------------------------------------------
+// Database Query Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Recent Decisions Per Agent for Market Outlook
+ *
+ * Maximum agent decisions fetched per agent when building the market outlook
+ * summary (10). Covers roughly 1-2 recent trading rounds per agent.
+ *
+ * Example: 3 agents × 10 decisions each = 30 rows scanned for outlook symbols.
+ *
+ * Tuning impact: Increase to 20 for broader historical coverage in outlook.
+ */
+const OUTLOOK_DECISIONS_PER_AGENT = 10;
+
+/**
+ * Recent Decisions for Debate Discovery
+ *
+ * Maximum total decisions fetched when scanning for recent debate opportunities
+ * (200). Scans across all agents and rounds to find disagreements.
+ *
+ * Example: 200 decisions ÷ 3 agents ÷ 3 rounds ≈ 22 decisions per round.
+ *
+ * Tuning impact: Increase to 300 for deeper disagreement history scanning.
+ */
+const DEBATE_DISCOVERY_DECISIONS_LIMIT = 200;
+
+/**
+ * Recent Decisions Per Agent for Stance Analysis
+ *
+ * Maximum decisions fetched per agent when computing stance classification
+ * (bullish/bearish/neutral) for debate participants (20).
+ *
+ * Example: 20 decisions → 12 buys, 8 sells = 60% buy rate → "Strongly Bullish"
+ *
+ * Tuning impact: Increase to 30 for more stable stance classification.
+ */
+const STANCE_DECISIONS_PER_AGENT = 20;
+
+/**
+ * Decisions Fetched for Contrarianism Score Analysis
+ *
+ * Maximum total decisions fetched when computing an agent's contrarianism
+ * score (500). Needs broad sample to find rounds where agent went against majority.
+ *
+ * Example: 500 decisions ÷ 3 agents ÷ 30 rounds ≈ 5-6 decisions per round.
+ *
+ * Tuning impact: Decrease to 300 for faster contrarianism queries.
+ */
+const CONTRARIANISM_DECISIONS_LIMIT = 500;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -988,7 +1040,7 @@ export async function getActiveDebates(): Promise<ActiveDebateTopic[]> {
       .from(agentDecisions)
       .where(eq(agentDecisions.agentId, config.agentId))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(10);
+      .limit(OUTLOOK_DECISIONS_PER_AGENT);
 
     // Track latest decision per symbol for this agent
     const seenSymbols = new Set<string>();
@@ -1100,7 +1152,7 @@ export async function getDebateHistory(): Promise<
     .select()
     .from(agentDecisions)
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(200);
+    .limit(DEBATE_DISCOVERY_DECISIONS_LIMIT);
 
   // Group by roundId to find rounds where agents disagreed
   const roundMap = new Map<string, DecisionRow[]>();
@@ -1228,7 +1280,7 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
       .from(agentDecisions)
       .where(eq(agentDecisions.agentId, config.agentId))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(20);
+      .limit(STANCE_DECISIONS_PER_AGENT);
 
     if (decisions.length === 0) continue;
 
@@ -1384,7 +1436,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     .select()
     .from(agentDecisions)
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(500);
+    .limit(CONTRARIANISM_DECISIONS_LIMIT);
 
   const agentDecisionsList = allDecisions.filter((d: DecisionRow) => d.agentId === agentId);
 
