@@ -111,6 +111,21 @@ const PILLAR_SCORE_EVIDENCE_WEIGHT = 0.3; // Weight for average step evidence (3
 const PILLAR_SCORE_DEFECT_WEIGHT = 0.3; // Weight for defect-free rate (30%)
 const PILLAR_SCORE_DEFAULT = 0.5; // Default pillar score when no validation history exists
 
+/**
+ * Score Display Precision Rounding
+ *
+ * Controls the number of decimal places shown in chain quality scores,
+ * pillar scores, and aggregated validation statistics.
+ *
+ * Formula: Math.round(value * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER
+ * Example: 0.83333 → Math.round(0.83333 * 100) / 100 → 0.83
+ *
+ * Value of 100 = 2 decimal places (e.g., 0.83, 0.67, 1.00).
+ * Used for: chain quality score, pillar score, avgQuality, avgDefectsPerChain.
+ * Changing to 1000 would show 3 decimal places (e.g., 0.833).
+ */
+const SCORE_PRECISION_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -800,7 +815,7 @@ function computeChainQualityScore(
     score -= defect.severity > CHAIN_QUALITY_MAJOR_DEFECT_SEVERITY_THRESHOLD ? CHAIN_QUALITY_MAJOR_DEFECT_PENALTY : CHAIN_QUALITY_MINOR_DEFECT_PENALTY;
   }
 
-  return Math.round(clamp(score, 0, 1) * 100) / 100;
+  return Math.round(clamp(score, 0, 1) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER;
 }
 
 // ---------------------------------------------------------------------------
@@ -890,7 +905,7 @@ export function getChainValidationPillarScore(agentId: string): number {
   const defectRate = totalSteps > 0 ? Math.min(1, totalDefects / totalSteps) : 0;
 
   const pillarScore = avgQuality * PILLAR_SCORE_QUALITY_WEIGHT + avgEvidence * PILLAR_SCORE_EVIDENCE_WEIGHT + (1 - defectRate) * PILLAR_SCORE_DEFECT_WEIGHT;
-  return Math.round(clamp(pillarScore, 0, 1) * 100) / 100;
+  return Math.round(clamp(pillarScore, 0, 1) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER;
 }
 
 /**
@@ -961,10 +976,10 @@ export function getChainStats(): {
   return {
     totalValidations,
     avgQuality: totalValidations > 0
-      ? Math.round((qualitySum / totalValidations) * 100) / 100
+      ? Math.round((qualitySum / totalValidations) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER
       : 0,
     avgDefectsPerChain: totalValidations > 0
-      ? Math.round((defectSum / totalValidations) * 100) / 100
+      ? Math.round((defectSum / totalValidations) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_MULTIPLIER
       : 0,
     defectDistribution,
   };
