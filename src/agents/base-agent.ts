@@ -261,6 +261,32 @@ const RESEARCH_BRIEF_MAX_LENGTH = 6000;
  */
 const LLM_ERROR_PREVIEW_LENGTH = 200;
 
+// ---------------------------------------------------------------------------
+// Decision Parsing Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default confidence score when the LLM omits or provides a non-numeric value.
+ * Neutral midpoint (50/100) signals uncertainty without biasing toward high or low.
+ * @example LLM returns `{"action":"buy","symbol":"AAPLx"}` (no confidence field)
+ *   → confidence defaults to CONFIDENCE_DEFAULT (50) = neutral / uncertain
+ */
+const CONFIDENCE_DEFAULT = 50;
+
+/**
+ * Minimum valid confidence score (inclusive).
+ * Ensures clamped output stays within the 0-100 scale expected by benchmark scoring.
+ */
+const CONFIDENCE_MIN = 0;
+
+/**
+ * Maximum valid confidence score (inclusive).
+ * Ensures clamped output stays within the 0-100 scale expected by benchmark scoring.
+ * Formula: Math.max(CONFIDENCE_MIN, Math.min(CONFIDENCE_MAX, parsed.confidence))
+ * @example confidence = 120 → clamped to CONFIDENCE_MAX (100)
+ */
+const CONFIDENCE_MAX = 100;
+
 /** Minimal system prompt for the research phase (~80 tokens) */
 const RESEARCH_SYSTEM_PROMPT = `You are a trading research assistant. Gather market data using the available tools. Steps:
 1. Check portfolio positions and active theses (get_portfolio, get_active_theses)
@@ -597,9 +623,9 @@ export abstract class BaseTradingAgent {
       parsed.quantity = 0;
     }
     if (typeof parsed.confidence !== "number") {
-      parsed.confidence = 50;
+      parsed.confidence = CONFIDENCE_DEFAULT;
     }
-    parsed.confidence = Math.max(0, Math.min(100, parsed.confidence));
+    parsed.confidence = Math.max(CONFIDENCE_MIN, Math.min(CONFIDENCE_MAX, parsed.confidence));
 
     if (!parsed.reasoning || typeof parsed.reasoning !== "string") {
       parsed.reasoning = "No reasoning provided";
