@@ -1022,7 +1022,7 @@ export async function getStrategyBreakdown(agentId: string): Promise<StrategyPro
       highConviction,
       mediumConviction,
       lowConviction,
-      avgConfidence: Math.round(avgConfidence * 10) / 10,
+      avgConfidence: Math.round(avgConfidence * SINGLE_DECIMAL_MULTIPLIER) / SINGLE_DECIMAL_MULTIPLIER,
     },
     sectorPreferences,
     timeOfDayPreference,
@@ -1079,7 +1079,7 @@ export async function getHistoricalPerformance(
       agentId,
       startDate: startStr,
       endDate: endStr,
-      initialCapital: 10000,
+      initialCapital: DEFAULT_INITIAL_CAPITAL,
     });
 
     return {
@@ -1232,7 +1232,7 @@ function computeBacktestMetrics(
   return {
     sharpeRatio,
     sortinoRatio,
-    maxDrawdown: Math.round(maxDrawdown * 10000) / 10000,
+    maxDrawdown: Math.round(maxDrawdown * BASIS_POINT_RAW_MULTIPLIER) / BASIS_POINT_RAW_MULTIPLIER,
     maxDrawdownPercent,
     winRate,
     profitFactor: profitFactor === Infinity ? 999.99 : profitFactor,
@@ -1244,7 +1244,7 @@ function computeBacktestMetrics(
     winningTrades,
     losingTrades,
     calmarRatio,
-    volatility: Math.round(annualizedVol * 10000) / 100,
+    volatility: Math.round(annualizedVol * BASIS_POINT_PERCENT_MULTIPLIER) / PERCENT_DIVISOR,
     valueAtRisk95,
   };
 }
