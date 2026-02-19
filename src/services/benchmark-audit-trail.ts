@@ -85,12 +85,61 @@ export interface AuditSummary {
 }
 
 // ---------------------------------------------------------------------------
+// Audit Trail Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum entries retained in the in-memory audit log.
+ * When exceeded, oldest entries are trimmed to this limit.
+ * 5 000 entries covers roughly a week of continuous trading at
+ * several rounds per hour before trimming begins.
+ */
+const MAX_AUDIT_ENTRIES = 5000;
+
+/**
+ * Default page size for queryAudit() when the caller omits `limit`.
+ * Balances API response size with useful context — 50 entries spans
+ * roughly one trading day of events per agent.
+ */
+const DEFAULT_QUERY_LIMIT = 50;
+
+/**
+ * Number of recent "critical" entries shown in getAuditSummary().
+ * Keeps the summary payload small while surfacing the most actionable alerts.
+ * Example: 5 critical entries = last ~5 hallucination or chain-integrity events.
+ */
+const RECENT_CRITICAL_DISPLAY_LIMIT = 5;
+
+/**
+ * Minimum hallucination flag count that escalates severity from "warning" to "critical".
+ * A single or pair of flags is a warning; 3+ flags indicates a systematic problem.
+ * Formula: flags.length > HALLUCINATION_CRITICAL_FLAG_THRESHOLD → severity = "critical"
+ * Example: 2 flags = warning, 3 flags = critical.
+ */
+const HALLUCINATION_CRITICAL_FLAG_THRESHOLD = 2;
+
+/**
+ * Decimal places used when formatting composite/quality scores in audit log messages.
+ * 3 decimal places (e.g. 0.847) gives enough precision to distinguish close scores
+ * without creating noise in human-readable descriptions.
+ * Formula: score.toFixed(SCORE_DISPLAY_DECIMALS) → "0.847"
+ */
+const SCORE_DISPLAY_DECIMALS = 3;
+
+/**
+ * Multiplier for converting a decimal rate (0–1) to a percentage integer (0–100).
+ * Used when formatting disagreement rates and pass rates in audit descriptions.
+ * Formula: Math.round(rate × PERCENT_MULTIPLIER) → integer percent
+ * Example: 0.333 × 100 = 33.3 → toFixed(0) → "33%"
+ */
+const PERCENT_MULTIPLIER = 100;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
 const auditLog: AuditEntry[] = [];
 let auditIndex = 0;
-const MAX_AUDIT_ENTRIES = 5000;
 
 // ---------------------------------------------------------------------------
 // Core Operations
@@ -154,7 +203,7 @@ export function auditScoring(
 ): AuditEntry {
   return recordAudit(
     "scoring",
-    `Agent ${agentId} scored composite=${scores.composite?.toFixed(3) ?? "N/A"}, grade=${grade}`,
+    `Agent ${agentId} scored composite=${scores.composite?.toFixed(SCORE_DISPLAY_DECIMALS) ?? "N/A"}, grade=${grade}`,
     { scores, grade },
     { agentId, roundId, tags: ["composite-score", `grade-${grade}`] },
   );
@@ -206,7 +255,7 @@ export function auditQualityGate(
 ): AuditEntry {
   return recordAudit(
     "quality",
-    `Quality gate ${passed ? "PASSED" : "REJECTED"} for ${agentId}: score=${score.toFixed(3)}, threshold=${threshold}`,
+    `Quality gate ${passed ? "PASSED" : "REJECTED"} for ${agentId}: score=${score.toFixed(SCORE_DISPLAY_DECIMALS)}, threshold=${threshold}`,
     { passed, score, threshold, rejectionReasons },
     {
       agentId,
@@ -247,7 +296,7 @@ export function auditPeerReview(
 ): AuditEntry {
   return recordAudit(
     "review",
-    `Peer review: ${reviewCount} reviews, ${(disagreementRate * 100).toFixed(0)}% disagreement, best=${bestAgent ?? "none"}`,
+    `Peer review: ${reviewCount} reviews, ${(disagreementRate * PERCENT_MULTIPLIER).toFixed(0)}% disagreement, best=${bestAgent ?? "none"}`,
     { reviewCount, bestAgent, disagreementRate },
     { roundId, tags: ["peer-review"] },
   );
@@ -269,7 +318,7 @@ export function auditHallucination(
     {
       agentId,
       roundId,
-      severity: flags.length > 2 ? "critical" : "warning",
+      severity: flags.length > HALLUCINATION_CRITICAL_FLAG_THRESHOLD ? "critical" : "warning",
       tags: ["hallucination"],
     },
   );
@@ -285,7 +334,7 @@ export function auditExternalSubmission(
 ): AuditEntry {
   return recordAudit(
     "agent",
-    `External submission ${submissionId} by ${agentId}: score=${score.toFixed(3)}`,
+    `External submission ${submissionId} by ${agentId}: score=${score.toFixed(SCORE_DISPLAY_DECIMALS)}`,
     { submissionId, score },
     { agentId, tags: ["external-submission"] },
   );
@@ -328,7 +377,7 @@ export function queryAudit(options: AuditQueryOptions = {}): {
 
   const total = filtered.length;
   const offset = options.offset ?? 0;
-  const limit = options.limit ?? 50;
+  const limit = options.limit ?? DEFAULT_QUERY_LIMIT;
 
   // Return newest first
   const entries = filtered.slice().reverse().slice(offset, offset + limit);
@@ -354,7 +403,7 @@ export function getAuditSummary(): AuditSummary {
 
   const recentCritical = auditLog
     .filter((e) => e.severity === "critical")
-    .slice(-5)
+    .slice(-RECENT_CRITICAL_DISPLAY_LIMIT)
     .reverse();
 
   return {
