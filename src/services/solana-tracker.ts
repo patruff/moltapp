@@ -121,6 +121,22 @@ const RETRY_JITTER_FACTOR = 0.3;
 const WATCH_POLL_SIGNATURE_LIMIT = 10;
 
 /**
+ * Address Display Truncation
+ *
+ * Solana addresses are 32-44 character base-58 strings. Showing the full address
+ * in every log line is noisy and hard to scan. We truncate to the first N characters
+ * followed by "..." for brevity while still providing enough context to identify
+ * the wallet/program in logs.
+ *
+ * Format produced: "7xK9mD3q..." (8 chars + ellipsis = 11 chars total)
+ * Example: "7xK9mD3qYpRsZ2Lf..." becomes "7xK9mD3q..."
+ *
+ * Value of 8 is long enough to distinguish addresses visually while short enough
+ * to keep log lines readable. Matches the pattern used in finance-service.ts.
+ */
+const ADDRESS_DISPLAY_LENGTH = 8;
+
+/**
  * Solana Conversion Constants
  */
 
@@ -284,7 +300,7 @@ export async function getBalance(
       .getBalance(address(walletAddress))
       .send();
     return response.value;
-  }, `getBalance(${walletAddress.slice(0, 8)}...)`);
+  }, `getBalance(${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}...)`);
 
   return {
     sol: Number(result) / LAMPORTS_PER_SOL,
@@ -318,7 +334,7 @@ export async function getTokenBalances(
           )
           .send();
         return response.value;
-      }, `getTokenAccounts(${walletAddress.slice(0, 8)}..., ${programId.slice(0, 8)}...)`);
+      }, `getTokenAccounts(${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}..., ${programId.slice(0, ADDRESS_DISPLAY_LENGTH)}...)`);
 
       for (const account of accounts) {
         const parsed = account.account.data as unknown as {
@@ -354,7 +370,7 @@ export async function getTokenBalances(
       }
     } catch (err) {
       console.warn(
-        `[SolanaTracker] Failed to fetch token accounts for program ${programId.slice(0, 8)}...: ${errorMessage(err)}`,
+        `[SolanaTracker] Failed to fetch token accounts for program ${programId.slice(0, ADDRESS_DISPLAY_LENGTH)}...: ${errorMessage(err)}`,
       );
     }
   }
@@ -398,7 +414,7 @@ export async function getRecentTransactions(
       })
       .send();
     return response;
-  }, `getRecentTransactions(${walletAddress.slice(0, 8)}...)`);
+  }, `getRecentTransactions(${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}...)`);
 
   return signatures.map((sig) => ({
     signature: sig.signature as unknown as string,
@@ -452,7 +468,7 @@ export function watchWallet(
           .getSignaturesForAddress(address(walletAddress), opts)
           .send();
         return response;
-      }, `watchPoll(${walletAddress.slice(0, 8)}...)`);
+      }, `watchPoll(${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}...)`);
 
       if (signatures.length > 0) {
         const newTxs: TransactionInfo[] = signatures.map((sig) => ({
@@ -472,7 +488,7 @@ export function watchWallet(
       }
     } catch (err) {
       console.error(
-        `[SolanaTracker] Watch poll failed for ${walletAddress.slice(0, 8)}...: ${errorMessage(err)}`,
+        `[SolanaTracker] Watch poll failed for ${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}...: ${errorMessage(err)}`,
       );
     } finally {
       isPolling = false;
@@ -492,7 +508,7 @@ export function watchWallet(
       clearInterval(intervalId);
       activeWatchers.delete(walletAddress);
       console.log(
-        `[SolanaTracker] Stopped watching ${walletAddress.slice(0, 8)}...`,
+        `[SolanaTracker] Stopped watching ${walletAddress.slice(0, ADDRESS_DISPLAY_LENGTH)}...`,
       );
     },
   };
@@ -507,7 +523,7 @@ export function watchWallet(
 export function stopAllWatchers(): void {
   for (const [addr, watcher] of activeWatchers) {
     clearInterval(watcher.intervalId);
-    console.log(`[SolanaTracker] Stopped watching ${addr.slice(0, 8)}...`);
+    console.log(`[SolanaTracker] Stopped watching ${addr.slice(0, ADDRESS_DISPLAY_LENGTH)}...`);
   }
   activeWatchers.clear();
 }
