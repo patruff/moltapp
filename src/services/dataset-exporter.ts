@@ -121,6 +121,21 @@ const DATASET_CARD_LEADERBOARD_LIMIT = 10;
  */
 const STATS_ROUNDING_MULTIPLIER = 100;
 
+/**
+ * HuggingFace dataset size category thresholds for the dataset card README.
+ *
+ * HuggingFace uses standardized size_categories tags to help users understand
+ * dataset scale at a glance. The three tiers are:
+ *   - n<1K:       fewer than 1,000 examples   (early benchmark, limited data)
+ *   - 1K<n<10K:   1,000 – 9,999 examples      (typical after 1–2 months live)
+ *   - 10K<n<100K: 10,000 – 99,999 examples    (mature benchmark, long history)
+ *
+ * These match HuggingFace's official size_categories vocabulary:
+ * https://huggingface.co/docs/datasets/package_reference/builder_classes#datasets.SplitInfo
+ */
+const DATASET_SIZE_SMALL_MAX = 1000;
+const DATASET_SIZE_MEDIUM_MAX = 10000;
+
 // ---------------------------------------------------------------------------
 // Dataset Generation
 // ---------------------------------------------------------------------------
@@ -324,7 +339,7 @@ tags:
   - coherence
 pretty_name: "MoltApp: Agentic Stock Trading Benchmark"
 size_categories:
-  - ${stats.totalRows < 1000 ? "n<1K" : stats.totalRows < 10000 ? "1K<n<10K" : "10K<n<100K"}
+  - ${stats.totalRows < DATASET_SIZE_SMALL_MAX ? "n<1K" : stats.totalRows < DATASET_SIZE_MEDIUM_MAX ? "1K<n<10K" : "10K<n<100K"}
 ---
 
 # MoltApp: Agentic Stock Trading Benchmark v7
