@@ -203,6 +203,22 @@ const COLLECTIVE_MOMENTUM_HOURS = 48;
 const MAX_DECISIONS_FETCH_LIMIT = 200;
 
 /**
+ * Default number of recent decisions to fetch per symbol for consensus analysis.
+ *
+ * Used in fetchSymbolDecisions() which feeds consensus detection, contrarian
+ * alerts, and symbol agreement matrix calculations.
+ *
+ * 50 decisions covers roughly 2-3 trading rounds per symbol (each round has
+ * 3 agents × ~8 symbols = ~24 decisions per round). Increasing to 100 would
+ * give deeper history for accuracy estimates; decreasing to 25 would speed up
+ * consensus detection at the cost of less historical context.
+ *
+ * Example: With 3 agents and 50 decisions, consensus analysis covers ~17 rounds
+ * of data per symbol, sufficient for reliable win-rate estimation.
+ */
+const SYMBOL_DECISIONS_QUERY_LIMIT = 50;
+
+/**
  * Agreement Matrix Simulation Parameters
  *
  * Constants for generating realistic agreement data when insufficient real data exists.
@@ -620,7 +636,7 @@ async function fetchRecentDecisions(hours = RECENT_DECISIONS_HOURS) {
 }
 
 /** Fetch all decisions for a specific symbol */
-async function fetchSymbolDecisions(symbol: string, limit = 50) {
+async function fetchSymbolDecisions(symbol: string, limit = SYMBOL_DECISIONS_QUERY_LIMIT) {
   const decisions = await db
     .select()
     .from(agentDecisions)
