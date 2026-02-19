@@ -510,6 +510,22 @@ const OVERALL_MOMENTUM_ACCELERATION_SCORE = 0.5;
 const DASHBOARD_SENTIMENT_BULLISH_RATIO = 1.5;
 
 /**
+ * Strong signal strength threshold (0-100 scale)
+ *
+ * Signals at or above this strength are classified as "strong" signals and
+ * counted separately in the dashboard as strongBuySignals / strongSellSignals.
+ *
+ * A strength of 70 means the signal has at least 70% conviction — combining
+ * indicator deviation from threshold, trend alignment, and volume confirmation.
+ *
+ * Example: RSI=22 (far below 30 oversold) → strength=85 → counted as strong buy
+ *          RSI=29 (just below 30 oversold) → strength=55 → not a strong buy
+ *
+ * Used in: getSignalDashboard() strongBuySignals / strongSellSignals filters
+ */
+const STRONG_SIGNAL_STRENGTH_THRESHOLD = 70;
+
+/**
  * Dashboard top opportunities/risks limit
  * Show top N bullish/bearish signals
  */
@@ -1444,10 +1460,10 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
   const consensus = await getAgentConsensusData();
   const signals: MarketSignal[] = [];
   const now = new Date();
-  const expiry = new Date(now.getTime() + 60 * 60 * 1000); // 1hr expiry
+  const expiry = new Date(now.getTime() + SIGNAL_CONSENSUS_EXPIRY_MS);
 
   for (const c of consensus) {
-    if (c.agreementRate >= 80 && c.consensusDirection !== "neutral") {
+    if (c.agreementRate >= CONSENSUS_AGREEMENT_THRESHOLD && c.consensusDirection !== "neutral") {
       signals.push({
         id: `sig_consensus_${c.symbol}_${Date.now()}`,
         symbol: c.symbol,
@@ -1464,13 +1480,13 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
       });
     }
 
-    if (c.consensusDirection === "split" && c.agentSignals.length >= 2) {
+    if (c.consensusDirection === "split" && c.agentSignals.length >= CONSENSUS_MIN_AGENTS_DIVERGENCE) {
       signals.push({
         id: `sig_divergence_${c.symbol}_${Date.now()}`,
         symbol: c.symbol,
         type: "agent_divergence",
         direction: "neutral",
-        strength: Math.round(c.averageConfidence * 0.7),
+        strength: Math.round(c.averageConfidence * CONSENSUS_DIVERGENCE_MULTIPLIER),
         indicator: "Agent Divergence",
         value: c.agreementRate,
         threshold: CONSENSUS_DIVERGENCE_THRESHOLD,
@@ -1486,12 +1502,12 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
   const recentHighConf = await db
     .select()
     .from(agentDecisions)
-    .where(gte(agentDecisions.createdAt, new Date(Date.now() - 2 * 60 * 60 * 1000)))
+    .where(gte(agentDecisions.createdAt, new Date(Date.now() - CONSENSUS_HIGH_CONF_LOOKBACK_MS)))
     .orderBy(desc(agentDecisions.confidence))
     .limit(5);
 
   for (const d of recentHighConf) {
-    if (d.confidence >= 85 && d.action !== "hold") {
+    if (d.confidence >= CONSENSUS_HIGH_CONFIDENCE_THRESHOLD && d.action !== "hold") {
       const config = getAgentConfigs().find((c) => c.agentId === d.agentId);
       signals.push({
         id: `sig_highconf_${d.id}_${Date.now()}`,
@@ -1529,18 +1545,18 @@ export async function getSignalDashboard(): Promise<SignalDashboard> {
     (s) => s.direction === "bearish",
   ).length;
   const marketSentiment: "risk_on" | "risk_off" | "neutral" =
-    bullishSignals > bearishSignals * 1.5
+    bullishSignals > bearishSignals * DASHBOARD_SENTIMENT_BULLISH_RATIO
       ? "risk_on"
-      : bearishSignals > bullishSignals * 1.5
+      : bearishSignals > bullishSignals * DASHBOARD_SENTIMENT_BULLISH_RATIO
         ? "risk_off"
         : "neutral";
 
   // Strong signals
   const strongBuySignals = allSignals.filter(
-    (s) => s.direction === "bullish" && s.strength >= 70,
+    (s) => s.direction === "bullish" && s.strength >= STRONG_SIGNAL_STRENGTH_THRESHOLD,
   ).length;
   const strongSellSignals = allSignals.filter(
-    (s) => s.direction === "bearish" && s.strength >= 70,
+    (s) => s.direction === "bearish" && s.strength >= STRONG_SIGNAL_STRENGTH_THRESHOLD,
   ).length;
 
   // Top opportunities and risks
