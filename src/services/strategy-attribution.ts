@@ -111,6 +111,27 @@ const tradeRecords: TradeRecord[] = [];
 const MAX_RECORDS = 5000;
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum number of completed trades with known outcomes required before an
+ * agent-intent pairing is considered statistically meaningful.
+ *
+ * A single trade P&L is too noisy to classify as "best" or "worst" — at least
+ * 2 outcomes are needed to confirm the pattern isn't a fluke.
+ *
+ * Used in:
+ *   - buildAgentMatrix():      best/worst intent detection per agent
+ *   - getAgentIntentProfile(): single-agent best/worst intent detection
+ *   - findBestCombinations():  filters combos with too few trades to rank
+ *
+ * Example: Agent has 1 momentum trade at +5% → excluded (could be luck).
+ *          Agent has 2 momentum trades at +3%, +4% → included (avgPnl = +3.5%).
+ */
+const MIN_OUTCOMES_FOR_INTENT_STATS = 2;
+
+// ---------------------------------------------------------------------------
 // Record Trades
 // ---------------------------------------------------------------------------
 
@@ -268,11 +289,11 @@ function computeAgentIntentMatrix(
       const wins = countByCondition(outcomes, (t) => t.outcome === "profit");
       const winRate = outcomes.length > 0 ? wins / outcomes.length : 0;
 
-      if (outcomes.length >= 2 && avgPnl > bestPnl) {
+      if (outcomes.length >= MIN_OUTCOMES_FOR_INTENT_STATS && avgPnl > bestPnl) {
         bestPnl = avgPnl;
         bestIntent = intent;
       }
-      if (outcomes.length >= 2 && avgPnl < worstPnl) {
+      if (outcomes.length >= MIN_OUTCOMES_FOR_INTENT_STATS && avgPnl < worstPnl) {
         worstPnl = avgPnl;
         worstIntent = intent;
       }
@@ -318,7 +339,7 @@ function findBestCombinations(
   }
 
   return [...combos.entries()]
-    .filter(([, data]) => data.count >= 2) // Need at least 2 trades
+    .filter(([, data]) => data.count >= MIN_OUTCOMES_FOR_INTENT_STATS) // Need minimum trades
     .map(([key, data]) => {
       const [agentId, intent] = key.split(":");
       const avgPnl = data.pnls.reduce((a, b) => a + b, 0) / data.pnls.length;
@@ -375,11 +396,11 @@ export function getAgentIntentProfile(agentId: string): AgentIntentMatrix | null
     const wins = countByCondition(outcomes, (t) => t.outcome === "profit");
     const winRate = outcomes.length > 0 ? wins / outcomes.length : 0;
 
-    if (outcomes.length >= 2 && avgPnl > bestPnl) {
+    if (outcomes.length >= MIN_OUTCOMES_FOR_INTENT_STATS && avgPnl > bestPnl) {
       bestPnl = avgPnl;
       bestIntent = intent;
     }
-    if (outcomes.length >= 2 && avgPnl < worstPnl) {
+    if (outcomes.length >= MIN_OUTCOMES_FOR_INTENT_STATS && avgPnl < worstPnl) {
       worstPnl = avgPnl;
       worstIntent = intent;
     }
