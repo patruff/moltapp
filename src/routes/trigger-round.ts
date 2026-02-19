@@ -41,6 +41,66 @@ import type {
 const app = new Hono();
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Conservative agent signal thresholds.
+ *
+ * The conservative style treats price drops as value opportunities and
+ * price rallies as profit-taking signals.
+ *
+ * - BUY when price has fallen more than CONSERVATIVE_BUY_THRESHOLD (dip buyer)
+ * - SELL when price has risen more than CONSERVATIVE_SELL_THRESHOLD (profit taker)
+ */
+const CONSERVATIVE_BUY_THRESHOLD = -2;   // buy dips below -2% change
+const CONSERVATIVE_SELL_THRESHOLD = 3;   // trim position above +3% change
+
+/**
+ * Aggressive (momentum) agent signal thresholds.
+ *
+ * The aggressive style chases trends and cuts losers quickly.
+ *
+ * - BUY when price is rising more than AGGRESSIVE_BUY_THRESHOLD (momentum entry)
+ * - SELL when price is falling more than AGGRESSIVE_SELL_THRESHOLD (stop loss)
+ */
+const AGGRESSIVE_BUY_THRESHOLD = 1;      // chase momentum above +1% change
+const AGGRESSIVE_SELL_THRESHOLD = -1.5;  // stop-loss below -1.5% change
+
+/**
+ * Contrarian agent signal thresholds.
+ *
+ * The contrarian style buys crashes and sells euphoria.
+ *
+ * - BUY when price has crashed more than CONTRARIAN_BUY_THRESHOLD ("buy fear")
+ * - SELL when price has surged more than CONTRARIAN_SELL_THRESHOLD ("sell greed")
+ */
+const CONTRARIAN_BUY_THRESHOLD = -3;     // buy panic below -3% change
+const CONTRARIAN_SELL_THRESHOLD = 4;     // sell euphoria above +4% change
+
+/**
+ * Round ID random suffix parameters.
+ *
+ * Round IDs are generated as `demo_{timestamp}_{randomSuffix}` where the
+ * random suffix comes from Math.random().toString(36).slice(start, end).
+ *
+ * - slice(2, 8) skips the "0." prefix (index 2) and takes 6 alphanumeric chars
+ * - 6 chars from base-36 = 36^6 ≈ 2.2 billion combinations (sufficient for demo uniqueness)
+ */
+const ROUND_ID_RANDOM_START = 2;   // skip "0." prefix from Math.random().toString(36)
+const ROUND_ID_RANDOM_END = 8;     // take 6 characters (indices 2..7)
+
+/**
+ * Inter-agent execution delay.
+ *
+ * A short pause between agents simulates sequential order submission and
+ * prevents all three agents from "trading at the exact same millisecond"
+ * in the demo timeline. 100ms is imperceptible to users but adds realism
+ * to the round timeline display.
+ */
+const INTER_AGENT_DELAY_MS = 100;  // ms between each agent's trade execution
+
+// ---------------------------------------------------------------------------
 // In-memory round history for triggered rounds
 // ---------------------------------------------------------------------------
 
@@ -144,12 +204,12 @@ function simulateAgentDecision(
   switch (agent.style) {
     case "conservative":
       // Value approach: buy dips cautiously
-      if (change < -2) {
+      if (change < CONSERVATIVE_BUY_THRESHOLD) {
         action = "buy";
         quantity = Math.min(25, portfolio.cashBalance * 0.05);
         confidence = 60 + Math.floor(Math.abs(change) * 3);
         reasoning = `${stock.symbol} down ${change.toFixed(1)}% — value opportunity. Buying conservatively with measured position size. Strong fundamentals support a recovery.`;
-      } else if (change > 3) {
+      } else if (change > CONSERVATIVE_SELL_THRESHOLD) {
         action = "sell";
         quantity = 0.1; // Small position reduction
         confidence = 55 + Math.floor(change * 2);
@@ -163,12 +223,12 @@ function simulateAgentDecision(
 
     case "aggressive":
       // Momentum approach: chase trends
-      if (change > 1) {
+      if (change > AGGRESSIVE_BUY_THRESHOLD) {
         action = "buy";
         quantity = Math.min(40, portfolio.cashBalance * 0.1);
         confidence = 65 + Math.floor(change * 5);
         reasoning = `${stock.symbol} showing strong momentum (+${change.toFixed(1)}%). Loading up on this trend. Volume confirms institutional interest.`;
-      } else if (change < -1.5) {
+      } else if (change < AGGRESSIVE_SELL_THRESHOLD) {
         action = "sell";
         quantity = 0.3;
         confidence = 60 + Math.floor(Math.abs(change) * 4);
@@ -182,12 +242,12 @@ function simulateAgentDecision(
 
     case "contrarian":
       // Buy fear, sell greed
-      if (change < -3) {
+      if (change < CONTRARIAN_BUY_THRESHOLD) {
         action = "buy";
         quantity = Math.min(35, portfolio.cashBalance * 0.08);
         confidence = 70 + Math.floor(Math.abs(change) * 3);
         reasoning = `${stock.symbol} crashed ${change.toFixed(1)}% — market is panicking. This is exactly when contrarians buy. Fear creates opportunity.`;
-      } else if (change > 4) {
+      } else if (change > CONTRARIAN_SELL_THRESHOLD) {
         action = "sell";
         quantity = 0.2;
         confidence = 65 + Math.floor(change * 2);
@@ -237,7 +297,7 @@ app.post("/trigger", async (c) => {
   }
 
   currentlyRunning = true;
-  const roundId = `demo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const roundId = `demo_${Date.now()}_${Math.random().toString(36).slice(ROUND_ID_RANDOM_START, ROUND_ID_RANDOM_END)}`;
   const triggeredAt = new Date().toISOString();
   const startMs = Date.now();
 
@@ -326,7 +386,7 @@ app.post("/trigger", async (c) => {
         results.push(roundResult);
 
         // Small delay between agents for realism
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, INTER_AGENT_DELAY_MS));
       } catch (err) {
         const msg = `${agent.name} error: ${errorMessage(err)}`;
         triggeredRound.errors.push(msg);
