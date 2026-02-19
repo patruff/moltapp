@@ -526,7 +526,7 @@ function generateHeadline(
   }
 
   const lastChange = leadChanges[leadChanges.length - 1];
-  const isClose = standings.length >= 2 && Math.abs(standings[0].pnlPercent - standings[1].pnlPercent) < 1.0;
+  const isClose = standings.length >= 2 && Math.abs(standings[0].pnlPercent - standings[1].pnlPercent) < HEADLINE_CLOSE_STANDINGS_MARGIN;
 
   if (isClose) {
     return `A razor-thin margin separates the top two agents after ${totalRounds} rounds — ${standings[0].agentLabel} edges out ${standings[1].agentLabel} by just ${Math.abs(standings[0].pnlPercent - standings[1].pnlPercent).toFixed(2)}%.`;
