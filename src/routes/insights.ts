@@ -27,6 +27,73 @@ import { apiError } from "../lib/errors.ts";
 import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
+// Display Limit Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of top sectors shown in the compare-all response.
+ * Keeps the summary compact — full breakdown available via /sectors endpoint.
+ */
+const TOP_SECTORS_COMPARE_LIMIT = 3;
+
+// ---------------------------------------------------------------------------
+// Risk Interpretation Thresholds
+// ---------------------------------------------------------------------------
+
+/** Sharpe ratio above this = "Excellent risk-adjusted returns" */
+const SHARPE_EXCELLENT_THRESHOLD = 2;
+
+/** Sharpe ratio above this (but below EXCELLENT) = "Good risk-adjusted returns" */
+const SHARPE_GOOD_THRESHOLD = 1;
+
+/** Max drawdown above this percent = "High" risk */
+const DRAWDOWN_HIGH_RISK_PERCENT = 20;
+
+/** Max drawdown above this percent (but below HIGH) = "Moderate" risk */
+const DRAWDOWN_MODERATE_RISK_PERCENT = 10;
+
+/**
+ * If sortinoRatio > sharpeRatio × this factor, agent has meaningfully better
+ * downside protection than overall risk adjustment suggests.
+ */
+const SORTINO_ABOVE_SHARPE_FACTOR = 1.5;
+
+/** Confidence volatility above this = "High volatility" */
+const CONFIDENCE_VOLATILITY_HIGH = 0.3;
+
+/** Confidence volatility below this = "Very consistent" */
+const CONFIDENCE_VOLATILITY_LOW = 0.1;
+
+// ---------------------------------------------------------------------------
+// Pattern Interpretation Thresholds
+// ---------------------------------------------------------------------------
+
+/** Symbol diversity above this % = "Highly diversified" */
+const DIVERSITY_HIGH_THRESHOLD = 50;
+
+/** Symbol diversity below this % = "Concentrated" */
+const DIVERSITY_LOW_THRESHOLD = 20;
+
+/** Reversal rate above this % = "Frequently reverses position" */
+const REVERSAL_RATE_HIGH_THRESHOLD = 30;
+
+// ---------------------------------------------------------------------------
+// Streak Interpretation Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimum consecutive wins/losses to describe as a notable current streak
+ * (e.g., "On a hot streak! 4 wins in a row").
+ */
+const CURRENT_STREAK_NOTABLE_LENGTH = 3;
+
+/**
+ * Minimum historical win/loss streak length to call out in interpretation
+ * (e.g., "Best run: 7 consecutive wins").
+ */
+const HISTORICAL_STREAK_NOTABLE_LENGTH = 5;
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -94,7 +161,7 @@ insightsRoutes.get("/compare-all", async (c) => {
         longestLossStreak: analytics.streaks.longestLossStreak,
       },
       social: analytics.socialMetrics,
-      topSectors: analytics.sectorAllocation.slice(0, 3).map((s) => ({
+      topSectors: analytics.sectorAllocation.slice(0, TOP_SECTORS_COMPARE_LIMIT).map((s) => ({
         sector: s.sector,
         allocation: s.allocation,
       })),
@@ -368,21 +435,21 @@ function interpretRisk(risk: {
 }): string[] {
   const insights: string[] = [];
 
-  if (risk.sharpeRatio > 2) insights.push("Excellent risk-adjusted returns (Sharpe > 2)");
-  else if (risk.sharpeRatio > 1) insights.push("Good risk-adjusted returns (Sharpe > 1)");
+  if (risk.sharpeRatio > SHARPE_EXCELLENT_THRESHOLD) insights.push("Excellent risk-adjusted returns (Sharpe > 2)");
+  else if (risk.sharpeRatio > SHARPE_GOOD_THRESHOLD) insights.push("Good risk-adjusted returns (Sharpe > 1)");
   else if (risk.sharpeRatio > 0) insights.push("Positive but modest risk-adjusted returns");
   else insights.push("Negative risk-adjusted returns - strategy needs review");
 
-  if (risk.maxDrawdownPercent > 20) insights.push("High max drawdown indicates significant risk exposure");
-  else if (risk.maxDrawdownPercent > 10) insights.push("Moderate drawdown risk");
+  if (risk.maxDrawdownPercent > DRAWDOWN_HIGH_RISK_PERCENT) insights.push("High max drawdown indicates significant risk exposure");
+  else if (risk.maxDrawdownPercent > DRAWDOWN_MODERATE_RISK_PERCENT) insights.push("Moderate drawdown risk");
   else insights.push("Low drawdown risk - conservative positioning");
 
-  if (risk.sortinoRatio > risk.sharpeRatio * 1.5) {
+  if (risk.sortinoRatio > risk.sharpeRatio * SORTINO_ABOVE_SHARPE_FACTOR) {
     insights.push("Sortino ratio significantly above Sharpe suggests good downside protection");
   }
 
-  if (risk.volatility > 0.3) insights.push("High volatility in decision confidence");
-  else if (risk.volatility < 0.1) insights.push("Very consistent confidence levels");
+  if (risk.volatility > CONFIDENCE_VOLATILITY_HIGH) insights.push("High volatility in decision confidence");
+  else if (risk.volatility < CONFIDENCE_VOLATILITY_LOW) insights.push("Very consistent confidence levels");
 
   return insights;
 }
@@ -399,10 +466,10 @@ function interpretPatterns(patterns: {
   if (patterns.tradeFrequency === "high") insights.push("Active trader - makes frequent decisions");
   else if (patterns.tradeFrequency === "low") insights.push("Patient trader - waits for high-conviction setups");
 
-  if (patterns.symbolDiversity > 50) insights.push("Highly diversified across many stocks");
-  else if (patterns.symbolDiversity < 20) insights.push("Concentrated in a few favorite stocks");
+  if (patterns.symbolDiversity > DIVERSITY_HIGH_THRESHOLD) insights.push("Highly diversified across many stocks");
+  else if (patterns.symbolDiversity < DIVERSITY_LOW_THRESHOLD) insights.push("Concentrated in a few favorite stocks");
 
-  if (patterns.reversalRate > 30) insights.push("Frequently reverses position - reactive to market changes");
+  if (patterns.reversalRate > REVERSAL_RATE_HIGH_THRESHOLD) insights.push("Frequently reverses position - reactive to market changes");
   else insights.push("Consistent directional bias - sticks to convictions");
 
   if (patterns.mostTradedSymbol) {
@@ -419,17 +486,17 @@ function interpretStreaks(streaks: {
 }): string[] {
   const insights: string[] = [];
 
-  if (streaks.currentStreak.type === "win" && streaks.currentStreak.length >= 3) {
+  if (streaks.currentStreak.type === "win" && streaks.currentStreak.length >= CURRENT_STREAK_NOTABLE_LENGTH) {
     insights.push(`On a hot streak! ${streaks.currentStreak.length} wins in a row`);
-  } else if (streaks.currentStreak.type === "loss" && streaks.currentStreak.length >= 3) {
+  } else if (streaks.currentStreak.type === "loss" && streaks.currentStreak.length >= CURRENT_STREAK_NOTABLE_LENGTH) {
     insights.push(`Cold streak: ${streaks.currentStreak.length} consecutive losses`);
   }
 
-  if (streaks.longestWinStreak >= 5) {
+  if (streaks.longestWinStreak >= HISTORICAL_STREAK_NOTABLE_LENGTH) {
     insights.push(`Best run: ${streaks.longestWinStreak} consecutive wins`);
   }
 
-  if (streaks.longestLossStreak >= 5) {
+  if (streaks.longestLossStreak >= HISTORICAL_STREAK_NOTABLE_LENGTH) {
     insights.push(`Worst slump: ${streaks.longestLossStreak} consecutive losses`);
   }
 
