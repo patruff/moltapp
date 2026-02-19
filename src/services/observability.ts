@@ -246,6 +246,34 @@ const startedAt = Date.now();
  */
 const BYTES_PER_MB = 1024;
 
+/**
+ * Metric Snapshot Query & Collector Interval Constants
+ *
+ * Controls the default number of snapshots returned by getMetricSnapshots()
+ * and the default interval at which the background metric collector fires.
+ *
+ * DEFAULT_SNAPSHOT_QUERY_LIMIT: Returns the most recent 60 snapshots.
+ * At 1 snapshot per minute (DEFAULT_COLLECTOR_INTERVAL_MS), this covers
+ * a 1-hour rolling window in the dashboard time-series view.
+ * Example: 360 total snapshots stored, but only last 60 returned by default.
+ *
+ * DEFAULT_COLLECTOR_INTERVAL_MS: 60,000 ms = 60 seconds between snapshots.
+ * Balances monitoring granularity with memory overhead (360 snapshots × 60s = 6h).
+ */
+const DEFAULT_SNAPSHOT_QUERY_LIMIT = 60;
+const DEFAULT_COLLECTOR_INTERVAL_MS = 60_000;
+
+/**
+ * Percentage Conversion Multiplier
+ *
+ * Converts a decimal fraction (0–1) to a whole-number percentage (0–100)
+ * for CloudWatch metric reporting (Unit: "Percent").
+ *
+ * Formula: Math.round(numerator / denominator * PERCENT_MULTIPLIER)
+ * Example: 142 successful / 150 total → Math.round(142/150 * 100) = 95 (%)
+ */
+const PERCENT_MULTIPLIER = 100;
+
 /** Rolling latency window for percentile calculations */
 const latencyWindow: number[] = [];
 const MAX_LATENCY_WINDOW = 1000;
@@ -622,7 +650,7 @@ export function takeMetricSnapshot(): void {
  * Get metric snapshots for time-series visualization.
  */
 export function getMetricSnapshots(
-  limit = 60,
+  limit = DEFAULT_SNAPSHOT_QUERY_LIMIT,
 ): Array<{ timestamp: string; metrics: Record<string, number> }> {
   return snapshots.slice(-limit);
 }
