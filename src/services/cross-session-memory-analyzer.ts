@@ -122,6 +122,28 @@ const WEAKNESS_THRESHOLD = 0.4; // Score < 0.4 = weakness (e.g., "Repeats losing
  */
 const TREND_DETECTION_THRESHOLD = 0.05; // ±5% coherence change = improving/declining trend
 
+/**
+ * Symbol knowledge score normalization constants.
+ * Raw ratio (improvingSymbols / totalTrackedSymbols) ranges 0–1, but we remap
+ * it to [0.2, 1.0] so an agent with zero improving symbols still gets 0.2 credit
+ * (some symbols may not have had enough data).
+ *
+ * Formula: clamp(rawRatio × MULTIPLIER + FLOOR, 0, 1)
+ * Examples:
+ *   rawRatio = 0.0 → clamp(0 × 0.8 + 0.2, 0, 1) = 0.2 (floor credit)
+ *   rawRatio = 0.5 → clamp(0.5 × 0.8 + 0.2, 0, 1) = 0.6
+ *   rawRatio = 1.0 → clamp(1.0 × 0.8 + 0.2, 0, 1) = 1.0 (perfect)
+ */
+const SYMBOL_KNOWLEDGE_SCORE_MULTIPLIER = 0.8; // compress raw ratio to [0, 0.8] range
+const SYMBOL_KNOWLEDGE_SCORE_FLOOR = 0.2; // minimum score even with zero improving symbols
+
+/**
+ * Memory score display precision.
+ * Controls decimal places in the composite memory score (0–1 range).
+ * Formula: Math.round(score × MULTIPLIER) / MULTIPLIER = 3 decimal places (e.g., 0.733)
+ */
+const MEMORY_SCORE_PRECISION_MULTIPLIER = 1000; // 3-decimal precision for memory score
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -412,7 +434,7 @@ function analyzeSymbolKnowledge(entries: MemoryEntry[]): { score: number } {
   }
 
   const score = totalTrackedSymbols > 0 ? improvingSymbols / totalTrackedSymbols : 0.5;
-  return { score: round3(clamp(score * 0.8 + 0.2, 0, 1)) };
+  return { score: round3(clamp(score * SYMBOL_KNOWLEDGE_SCORE_MULTIPLIER + SYMBOL_KNOWLEDGE_SCORE_FLOOR, 0, 1)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -490,18 +512,17 @@ export function getAgentMemoryProfile(agentId: string): AgentMemoryProfile {
 
   // Weighted aggregate
   const memoryScore = Math.round(
-    (dimensions.mistakeRepetition * 0.25 +
-      dimensions.lessonRetention * 0.25 +
-      dimensions.strategyEvolution * 0.20 +
-      dimensions.symbolKnowledge * 0.15 +
-      dimensions.confidenceRecalibration * 0.15) * 1000
-  ) / 1000;
+    (dimensions.mistakeRepetition * DIMENSION_WEIGHT_MISTAKE_REPETITION +
+      dimensions.lessonRetention * DIMENSION_WEIGHT_LESSON_RETENTION +
+      dimensions.strategyEvolution * DIMENSION_WEIGHT_STRATEGY_EVOLUTION +
+      dimensions.symbolKnowledge * DIMENSION_WEIGHT_SYMBOL_KNOWLEDGE +
+      dimensions.confidenceRecalibration * DIMENSION_WEIGHT_CONFIDENCE_RECALIBRATION) * MEMORY_SCORE_PRECISION_MULTIPLIER
+  ) / MEMORY_SCORE_PRECISION_MULTIPLIER;
 
-  // Learning curve (rolling 10-entry windows)
-  const windowSize = 10;
+  // Learning curve (rolling LEARNING_CURVE_WINDOW_SIZE-entry windows)
   const learningCurve: { round: number; score: number }[] = [];
-  for (let i = windowSize; i <= entries.length; i += windowSize) {
-    const window = entries.slice(i - windowSize, i);
+  for (let i = LEARNING_CURVE_WINDOW_SIZE; i <= entries.length; i += LEARNING_CURVE_WINDOW_SIZE) {
+    const window = entries.slice(i - LEARNING_CURVE_WINDOW_SIZE, i);
     const avgCoherence = window.reduce((s, e) => s + e.coherenceScore, 0) / window.length;
     learningCurve.push({ round: i, score: round3(avgCoherence) });
   }
