@@ -346,6 +346,17 @@ const FLOW_DIRECTION_THRESHOLD = 0.1;
  */
 const FLOW_MOMENTUM_CHANGE_THRESHOLD = 0.2;
 
+/**
+ * Milliseconds per hour (3,600,000 ms).
+ *
+ * Formula: 1 hour = 60 minutes × 60 seconds × 1,000 ms = 3,600,000 ms.
+ * Used for: Converting elapsed milliseconds to hours in time-span calculations
+ * (flow velocity, wash-trade detection, accumulation pattern analysis).
+ *
+ * Example: (lastTs - firstTs) / MS_PER_HOUR = flow span in hours
+ */
+const MS_PER_HOUR = 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // State (Ring Buffer)
 // ---------------------------------------------------------------------------
@@ -534,7 +545,7 @@ export function getAgentFlowProfile(agentId: string): AgentFlowProfile {
   const timestampObjects = agentFlows.map((f) => ({ ts: new Date(f.timestamp).getTime() }));
   const minTs = findMin(timestampObjects, 'ts')?.ts ?? 0;
   const maxTs = findMax(timestampObjects, 'ts')?.ts ?? 0;
-  const timeSpanHours = Math.max((maxTs - minTs) / (1000 * 60 * 60), 1);
+  const timeSpanHours = Math.max((maxTs - minTs) / MS_PER_HOUR, 1);
   const roundTrips = Math.min(totalBought, totalSold) / Math.max(totalBought * 0.5, 1);
   const holdingPeriodEstimate = roundTrips > 0
     ? round2(timeSpanHours / Math.max(roundTrips, 1))
@@ -954,7 +965,7 @@ function computeVelocity(flows: TokenFlow[]): number {
 
   const firstTs = new Date(flows[0].timestamp).getTime();
   const lastTs = new Date(flows[flows.length - 1].timestamp).getTime();
-  const spanHours = (lastTs - firstTs) / (1000 * 60 * 60);
+  const spanHours = (lastTs - firstTs) / MS_PER_HOUR;
 
   if (spanHours <= 0) return flows.length; // All in same instant
   return flows.length / spanHours;

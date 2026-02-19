@@ -243,6 +243,17 @@ const consistencyHistory = new Map<string, ConsistencyEntry[]>();
 const MAX_HISTORY_PER_AGENT = 300;
 
 /**
+ * Milliseconds per hour (3,600,000 ms).
+ *
+ * Formula: 1 hour = 60 minutes × 60 seconds × 1,000 ms = 3,600,000 ms.
+ * Used for: Converting timestamp differences to hours when detecting flip-flop
+ * patterns (stance reversals within FLIP_FLOP_DETECTION_WINDOW_HOURS).
+ *
+ * Example: timeDiff / MS_PER_HOUR = hours between consecutive decisions
+ */
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+/**
  * Record a trade entry for consistency tracking.
  * Called by the orchestrator after each trade.
  */
@@ -376,7 +387,7 @@ function analyzeStanceConsistency(
         (prev.action === "sell" && curr.action === "buy")
       ) {
         const timeDiff = new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime();
-        const hoursDiff = timeDiff / (1000 * 60 * 60);
+        const hoursDiff = timeDiff / MS_PER_HOUR;
 
         reversals++;
 
