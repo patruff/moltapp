@@ -585,6 +585,39 @@ const GRADE_C_THRESHOLD = 45; // C: Average
 const GRADE_D_THRESHOLD = 30; // D: Below average (< 30 = F)
 
 // ---------------------------------------------------------------------------
+// Dimension Score Precision Rounding Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Precision rounding multiplier for all 28 v34 benchmark dimension scores.
+ *
+ * Used in the pattern: Math.round(value * MULTIPLIER) / DIVISOR
+ * This produces scores rounded to 2 decimal places (e.g., 73.46).
+ *
+ * Formula:
+ *   Math.round(rawScore * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR
+ *
+ * Example:
+ *   rawScore = 73.456 → Math.round(73.456 * 100) / 100 = 73.46
+ *
+ * Applied to all 28 dimensions (pnlPercent, sharpeRatio, maxDrawdown,
+ * coherence, reasoningDepth, sourceQuality, logicalConsistency,
+ * reasoningIntegrity, reasoningTransparency, reasoningGrounding,
+ * causalReasoning, epistemicHumility, reasoningTraceability,
+ * adversarialCoherence, hallucinationRate, instructionDiscipline,
+ * riskAwareness, strategyConsistency, adaptability, confidenceCalibration,
+ * crossRoundLearning, outcomeAccuracy, marketRegimeAwareness, edgeConsistency,
+ * tradeAccountability, reasoningQualityIndex, decisionAccountability,
+ * consensusQuality) plus the composite score and round summary values.
+ *
+ * To change to 3-decimal precision: set both to 1000.
+ * To change to 1-decimal precision: set both to 10.
+ */
+const DIMENSION_SCORE_PRECISION_MULTIPLIER = 100;
+/** Divisor paired with DIMENSION_SCORE_PRECISION_MULTIPLIER for 2-decimal rounding. */
+const DIMENSION_SCORE_PRECISION_DIVISOR = 100;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -1384,34 +1417,34 @@ export function scoreAgent(input: {
   const consensusQuality = avg(t.map((x) => x.consensusQualityScore));
 
   const dimensions: V34DimensionScores = {
-    pnlPercent: Math.round(pnlScore * 100) / 100,
-    sharpeRatio: Math.round(sharpeScore * 100) / 100,
-    maxDrawdown: Math.round(drawdownScore * 100) / 100,
-    coherence: Math.round(coherence * 100) / 100,
-    reasoningDepth: Math.round(reasoningDepth * 100) / 100,
-    sourceQuality: Math.round(sourceQuality * 100) / 100,
-    logicalConsistency: Math.round(logicalConsistency * 100) / 100,
-    reasoningIntegrity: Math.round(reasoningIntegrity * 100) / 100,
-    reasoningTransparency: Math.round(reasoningTransparency * 100) / 100,
-    reasoningGrounding: Math.round(reasoningGrounding * 100) / 100,
-    causalReasoning: Math.round(causalReasoning * 100) / 100,
-    epistemicHumility: Math.round(epistemicHumility * 100) / 100,
-    reasoningTraceability: Math.round(reasoningTraceability * 100) / 100,
-    adversarialCoherence: Math.round(adversarialCoherence * 100) / 100,
-    hallucinationRate: Math.round(hallucinationFree * 100) / 100,
-    instructionDiscipline: Math.round(discipline * 100) / 100,
-    riskAwareness: Math.round(riskAwareness * 100) / 100,
-    strategyConsistency: Math.round(strategyConsistency * 100) / 100,
-    adaptability: Math.round(adaptability * 100) / 100,
-    confidenceCalibration: Math.round(confidenceCalibration * 100) / 100,
-    crossRoundLearning: Math.round(crossRoundLearning * 100) / 100,
-    outcomeAccuracy: Math.round(outcomeAccuracy * 100) / 100,
-    marketRegimeAwareness: Math.round(marketRegimeAwareness * 100) / 100,
-    edgeConsistency: Math.round(edgeConsistency * 100) / 100,
-    tradeAccountability: Math.round(tradeAccountability * 100) / 100,
-    reasoningQualityIndex: Math.round(rqi * 100) / 100,
-    decisionAccountability: Math.round(decisionAccountability * 100) / 100,
-    consensusQuality: Math.round(consensusQuality * 100) / 100,
+    pnlPercent: Math.round(pnlScore * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    sharpeRatio: Math.round(sharpeScore * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    maxDrawdown: Math.round(drawdownScore * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    coherence: Math.round(coherence * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningDepth: Math.round(reasoningDepth * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    sourceQuality: Math.round(sourceQuality * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    logicalConsistency: Math.round(logicalConsistency * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningIntegrity: Math.round(reasoningIntegrity * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningTransparency: Math.round(reasoningTransparency * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningGrounding: Math.round(reasoningGrounding * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    causalReasoning: Math.round(causalReasoning * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    epistemicHumility: Math.round(epistemicHumility * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningTraceability: Math.round(reasoningTraceability * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    adversarialCoherence: Math.round(adversarialCoherence * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    hallucinationRate: Math.round(hallucinationFree * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    instructionDiscipline: Math.round(discipline * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    riskAwareness: Math.round(riskAwareness * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    strategyConsistency: Math.round(strategyConsistency * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    adaptability: Math.round(adaptability * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    confidenceCalibration: Math.round(confidenceCalibration * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    crossRoundLearning: Math.round(crossRoundLearning * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    outcomeAccuracy: Math.round(outcomeAccuracy * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    marketRegimeAwareness: Math.round(marketRegimeAwareness * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    edgeConsistency: Math.round(edgeConsistency * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    tradeAccountability: Math.round(tradeAccountability * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    reasoningQualityIndex: Math.round(rqi * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    decisionAccountability: Math.round(decisionAccountability * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
+    consensusQuality: Math.round(consensusQuality * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
   };
 
   // Weighted composite score
@@ -1419,7 +1452,7 @@ export function scoreAgent(input: {
   for (const [dim, weight] of Object.entries(DIMENSION_WEIGHTS)) {
     compositeScore += (dimensions[dim as keyof V34DimensionScores] ?? 50) * weight;
   }
-  compositeScore = Math.round(compositeScore * 100) / 100;
+  compositeScore = Math.round(compositeScore * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR;
 
   const agentScore: V34AgentScore = {
     agentId: input.agentId,
@@ -1461,7 +1494,7 @@ export function createRoundSummary(
 
   const avgOf = (fn: (t: V34TradeGrade) => number) =>
     trades.length > 0
-      ? Math.round(trades.reduce((s, t) => s + fn(t), 0) / trades.length * 100) / 100
+      ? Math.round(trades.reduce((s, t) => s + fn(t), 0) / trades.length * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR
       : 50;
 
   const summary: V34RoundSummary = {
@@ -1470,7 +1503,7 @@ export function createRoundSummary(
     agentScores: scores,
     bestTrade: sorted[0] ?? null,
     worstTrade: sorted[sorted.length - 1] ?? null,
-    consensusAgreement: Math.round(consensusAgreement * 100) / 100,
+    consensusAgreement: Math.round(consensusAgreement * DIMENSION_SCORE_PRECISION_MULTIPLIER) / DIMENSION_SCORE_PRECISION_DIVISOR,
     marketRegime,
     avgTransparency: avgOf((t) => t.transparencyScore),
     avgAccountability: avgOf((t) => t.accountabilityScore),
