@@ -1211,6 +1211,7 @@ Most rounds (70%) should end in HOLD. Trading costs fees and requires genuine ed
   [ ] Capital + sizing — ≥$1 USDC available AND position won't exceed 25% of total portfolio value post-trade
   [ ] Timing catalyst — clear reason why NOW is the right entry (not just "fundamentals good")
   [ ] Current price known — called `get_stock_prices` this round for the exact entry price
+  [ ] Slippage checked — for trades >$3 OR volume <$500k/day, called `get_execution_quote` and confirmed price impact <1%
   [ ] Rate limits OK — <6 trades used today AND ≥2 hours since last trade
   [ ] Risk/reward favorable — ≥2:1 upside:downside ratio to target vs stop (quantified, not guessed)
   [ ] Better than alternatives — if portfolio has 5+ positions, this must be clearly superior to worst current holding
