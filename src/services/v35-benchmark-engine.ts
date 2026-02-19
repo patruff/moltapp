@@ -203,6 +203,21 @@ const CONSISTENCY_TEMPORAL_RATIONALE_POINTS = 3; // Points per temporal rational
 const CONSISTENCY_SCORE_MIN = 0; // Minimum consistency score
 const CONSISTENCY_SCORE_MAX = 15; // Maximum consistency score
 
+/**
+ * Number of hex characters kept from the SHA-256 digest for the trade integrity hash.
+ *
+ * SHA-256 produces a 64-character hex string. Keeping 16 characters = 64 bits of entropy,
+ * which gives a birthday-collision probability of ~1 in 4 billion proofs — safe for this
+ * use-case. Aligns with v31/v32 INTEGRITY_HASH_LENGTH and benchmark-reproducibility.ts
+ * HASH_TRUNCATION_LENGTH (both 16). All three must stay in sync for cross-engine verification.
+ *
+ * Collision safety reference points:
+ *   8 hex chars (32 bits) → collision at ~65K hashes   ← too short
+ *  16 hex chars (64 bits) → collision at ~4B hashes    ← current (safe)
+ *  32 hex chars (128 bits) → unnecessarily verbose
+ */
+const INTEGRITY_HASH_LENGTH = 16;
+
 // ---------------------------------------------------------------------------
 // Types for the 30 dimensions
 // ---------------------------------------------------------------------------
@@ -728,7 +743,7 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`v35:${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, INTEGRITY_HASH_LENGTH);
 
   // Overall grade (weighted average of all 16 trade-level sub-scores)
   const subScores = [
