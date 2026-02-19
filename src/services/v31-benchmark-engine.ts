@@ -324,6 +324,34 @@ const SCORE_PRECISION_DIVISOR = 100;
 const DEFAULT_SCORE_INSUFFICIENT_DATA = 50; // Neutral score when not enough data
 const DEFAULT_CALIBRATION_SCORE = 50; // Neutral calibration when < 2 trades
 
+/**
+ * Edge Consistency Points Per High-Grade Trade
+ *
+ * Each trade graded A or B adds this many points to the edge consistency score,
+ * starting from DEFAULT_SCORE_INSUFFICIENT_DATA (50). Score is capped at
+ * COHERENCE_SCORE_PERCENT_MULTIPLIER (100).
+ *
+ * Formula: min(100, 50 + countOfHighGradeTrades × EDGE_CONSISTENCY_POINTS_PER_GRADE)
+ * Example: 8 A/B-grade trades → min(100, 50 + 8×5) = min(100, 90) = 90
+ * Maximum: 10 high-grade trades → min(100, 50+50) = 100 (score ceiling)
+ */
+const EDGE_CONSISTENCY_POINTS_PER_GRADE = 5;
+
+/**
+ * Trade Accountability Scores
+ *
+ * Scores assigned to each trade based on whether it passed the discipline check.
+ * Used to compute the tradeAccountability dimension via averaging across all trades.
+ *
+ * - ACCOUNTABILITY_PASSED: Trade followed reasoning guidelines and discipline rules
+ * - ACCOUNTABILITY_FAILED: Trade violated reasoning quality or discipline requirements
+ *
+ * Gap of 50 points reflects a meaningful penalty for undisciplined trades
+ * (35 = below-average, 85 = well-above-average, midpoint = 60).
+ */
+const ACCOUNTABILITY_PASSED_SCORE = 85;  // Trade passed discipline check
+const ACCOUNTABILITY_FAILED_SCORE = 35;  // Trade failed discipline check
+
 // Types for the 22 dimensions
 export interface V31DimensionScores {
   // Financial Performance (3 dims)
@@ -704,15 +732,15 @@ export function scoreAgent(input: {
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
   const outcomeAccuracy = resolved.length > 0
-    ? (countByCondition(resolved, (x) => x.outcomeResolved === "correct") / resolved.length) * 100
-    : 50;
+    ? (countByCondition(resolved, (x) => x.outcomeResolved === "correct") / resolved.length) * COHERENCE_SCORE_PERCENT_MULTIPLIER
+    : DEFAULT_SCORE_INSUFFICIENT_DATA;
   const marketRegimeAwareness = avg(t.map((x) =>
     /regime|volatil|bull\s*market|bear\s*market|correction|recovery/i.test(x.reasoning) ? REGIME_AWARENESS_SCORE_WITH_REFERENCE : REGIME_AWARENESS_SCORE_NO_REFERENCE,
   ));
-  const edgeConsistency = Math.min(100, 50 + countByCondition(t, (x) => x.overallGrade.startsWith("A") || x.overallGrade.startsWith("B")) * 5);
+  const edgeConsistency = Math.min(COHERENCE_SCORE_PERCENT_MULTIPLIER, DEFAULT_SCORE_INSUFFICIENT_DATA + countByCondition(t, (x) => x.overallGrade.startsWith("A") || x.overallGrade.startsWith("B")) * EDGE_CONSISTENCY_POINTS_PER_GRADE);
 
   // Governance
-  const tradeAccountability = avg(t.map((x) => x.disciplinePassed ? 85 : 35));
+  const tradeAccountability = avg(t.map((x) => x.disciplinePassed ? ACCOUNTABILITY_PASSED_SCORE : ACCOUNTABILITY_FAILED_SCORE));
   const reasoningQualityIndex = avg([coherence, reasoningDepth, sourceQuality, logicalConsistency]) * 0.01 * 100;
   const decisionAccountability = avg(t.map((x) => x.accountabilityScore));
 
