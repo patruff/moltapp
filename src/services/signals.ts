@@ -382,6 +382,29 @@ const CONSENSUS_HIGH_CONF_LOOKBACK_MS = 2 * 60 * 60 * 1000;
 const INDICATOR_DISPLAY_PRECISION = 1;
 
 /**
+ * Indicator value rounding constants (1-decimal precision via Math.round)
+ *
+ * Used alongside INDICATOR_DISPLAY_PRECISION (used with .toFixed()) for the
+ * Math.round(x * MULTIPLIER) / DIVISOR pattern which also produces 1-decimal
+ * precision values.
+ *
+ * Formula: Math.round(value * 10) / 10 → 1 decimal place
+ *
+ * Examples:
+ * - RSI 67.333 → 67.3
+ * - trendStrength 4.756 → 4.8
+ * - consensusStrength 82.14 → 82.1
+ * - agreementRate 0.6667 → 0.7
+ * - averageConfidence 73.5 → 73.5
+ *
+ * Used in:
+ * - computeTechnicalIndicators(): rsi, trendStrength (lines 1265, 1271)
+ * - getAgentConsensus(): consensusStrength, agreementRate, averageConfidence (lines 1403–1405)
+ */
+const INDICATOR_ROUND_MULTIPLIER = 10;
+const INDICATOR_ROUND_DIVISOR = 10;
+
+/**
  * Percentage conversion multiplier (ratio to percentage)
  *
  * Converts decimal ratios (0.0-1.0) to percentage values (0-100%).
@@ -1262,13 +1285,13 @@ export async function getStockIndicators(
     symbol,
     price: stock.price,
     change24h: stock.change24h,
-    rsi: Math.round(rsi * 10) / 10,
+    rsi: Math.round(rsi * INDICATOR_ROUND_MULTIPLIER) / INDICATOR_ROUND_DIVISOR,
     rsiSignal,
     macd,
     bollingerBands,
     volumeProfile,
     momentum,
-    trendStrength: Math.round(Math.abs(momentum.mediumTerm) * 10) / 10,
+    trendStrength: Math.round(Math.abs(momentum.mediumTerm) * INDICATOR_ROUND_MULTIPLIER) / INDICATOR_ROUND_DIVISOR,
     overallSignal,
   };
 }
@@ -1400,9 +1423,9 @@ export async function getAgentConsensusData(): Promise<AgentConsensus[]> {
       symbol,
       agentSignals,
       consensusDirection,
-      consensusStrength: Math.round(consensusStrength * 10) / 10,
-      agreementRate: Math.round(agreementRate * 10) / 10,
-      averageConfidence: Math.round(avgConfidence * 10) / 10,
+      consensusStrength: Math.round(consensusStrength * INDICATOR_ROUND_MULTIPLIER) / INDICATOR_ROUND_DIVISOR,
+      agreementRate: Math.round(agreementRate * INDICATOR_ROUND_MULTIPLIER) / INDICATOR_ROUND_DIVISOR,
+      averageConfidence: Math.round(avgConfidence * INDICATOR_ROUND_MULTIPLIER) / INDICATOR_ROUND_DIVISOR,
       lastUpdated: new Date().toISOString(),
     });
   }
