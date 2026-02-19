@@ -647,16 +647,16 @@ export function scoreAgent(input: {
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
 
   // Financial (normalized to 0-100)
-  const pnlScore = clamp(50 + input.pnlPercent * 2, 0, 100);
-  const sharpeScore = clamp(50 + input.sharpeRatio * 20, 0, 100);
-  const drawdownScore = clamp(100 - Math.abs(input.maxDrawdown) * 2, 0, 100);
+  const pnlScore = clamp(FINANCIAL_PNL_BASE_SCORE + input.pnlPercent * FINANCIAL_PNL_MULTIPLIER, 0, 100);
+  const sharpeScore = clamp(FINANCIAL_SHARPE_BASE_SCORE + input.sharpeRatio * FINANCIAL_SHARPE_MULTIPLIER, 0, 100);
+  const drawdownScore = clamp(FINANCIAL_DRAWDOWN_BASE_SCORE - Math.abs(input.maxDrawdown) * FINANCIAL_DRAWDOWN_MULTIPLIER, 0, 100);
 
   // Reasoning Quality
   const coherence = avg(t.map((x) => x.coherenceScore * COHERENCE_SCORE_PERCENT_MULTIPLIER));
   const reasoningDepth = avg(t.map((x) => x.reasoningDepthScore));
   const sourceQuality = avg(t.map((x) => x.sourceQualityScore));
   const logicalConsistency = avg(t.map((x) => x.logicalConsistencyScore));
-  const integrityScores = t.map(() => 80 + Math.random() * 15);
+  const integrityScores = t.map(() => INTEGRITY_BASE_SCORE + Math.random() * INTEGRITY_RANDOMNESS_RANGE);
   const reasoningIntegrity = avg(integrityScores);
   const reasoningTransparency = avg(t.map((x) => x.transparencyScore));
 
@@ -665,20 +665,20 @@ export function scoreAgent(input: {
   const discipline = avg(t.map((x) => x.disciplinePassed ? DISCIPLINE_SCORE_PASSED : DISCIPLINE_SCORE_FAILED));
   const riskAwareness = avg(t.map((x) => {
     const hasRiskRef = /risk|drawdown|stop.?loss|hedge|protect|caution/i.test(x.reasoning);
-    return hasRiskRef ? 80 : 45;
+    return hasRiskRef ? RISK_AWARENESS_SCORE_WITH_REFERENCE : RISK_AWARENESS_SCORE_NO_REFERENCE;
   }));
 
   // Behavioral
   const actions = t.map((x) => x.action);
   const actionCounts = { buy: 0, sell: 0, hold: 0 };
   actions.forEach((a) => { if (a in actionCounts) actionCounts[a as keyof typeof actionCounts]++; });
-  const strategyConsistency = Math.max(40, 100 - Math.abs(actionCounts.buy - actionCounts.sell) * 5);
-  const adaptability = Math.min(100, 50 + countByCondition(Object.values(actionCounts), (v) => v > 0) * 15);
+  const strategyConsistency = Math.max(STRATEGY_CONSISTENCY_BASE_SCORE, STRATEGY_CONSISTENCY_MAX_SCORE - Math.abs(actionCounts.buy - actionCounts.sell) * STRATEGY_CONSISTENCY_IMBALANCE_PENALTY);
+  const adaptability = Math.min(100, ADAPTABILITY_BASE_SCORE + countByCondition(Object.values(actionCounts), (v) => v > 0) * ADAPTABILITY_POINTS_PER_ACTION_TYPE);
   const confScores = t.map((x) => x.confidence);
   const confidenceCalibration = confScores.length > 1
     ? Math.max(CALIBRATION_MIN_SCORE, CALIBRATION_MAX_SCORE - Math.abs(avg(confScores) - CALIBRATION_TARGET_CONFIDENCE) * CALIBRATION_DEVIATION_MULTIPLIER)
     : DEFAULT_CALIBRATION_SCORE;
-  const crossRoundLearning = Math.min(100, 40 + t.length * 3);
+  const crossRoundLearning = Math.min(LEARNING_MAX_SCORE, LEARNING_BASE_SCORE + t.length * LEARNING_POINTS_PER_TRADE);
 
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
@@ -686,7 +686,7 @@ export function scoreAgent(input: {
     ? (countByCondition(resolved, (x) => x.outcomeResolved === "correct") / resolved.length) * 100
     : 50;
   const marketRegimeAwareness = avg(t.map((x) =>
-    /regime|volatil|bull\s*market|bear\s*market|correction|recovery/i.test(x.reasoning) ? 75 : 40,
+    /regime|volatil|bull\s*market|bear\s*market|correction|recovery/i.test(x.reasoning) ? REGIME_AWARENESS_SCORE_WITH_REFERENCE : REGIME_AWARENESS_SCORE_NO_REFERENCE,
   ));
   const edgeConsistency = Math.min(100, 50 + countByCondition(t, (x) => x.overallGrade.startsWith("A") || x.overallGrade.startsWith("B")) * 5);
 
