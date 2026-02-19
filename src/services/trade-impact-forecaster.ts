@@ -494,7 +494,7 @@ export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
 
   const directionCorrect = countByCondition(resolved, f => f.directionCorrect === true);
   const directionAccuracy = resolved.length > 0
-    ? Math.round((directionCorrect / resolved.length) * 100) / 100
+    ? round2(directionCorrect / resolved.length)
     : 0;
 
   const withMag = resolved.filter(f => f.magnitudeError !== undefined);
@@ -504,7 +504,7 @@ export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
 
   const withHorizon = agentForecasts.filter(f => f.predictedHorizon !== null);
   const horizonUsageRate = agentForecasts.length > 0
-    ? Math.round((withHorizon.length / agentForecasts.length) * 100) / 100
+    ? round2(withHorizon.length / agentForecasts.length)
     : 0;
 
   // Symbol performance
@@ -533,13 +533,13 @@ export function getAgentImpactProfile(agentId: string): AgentImpactProfile {
   const convictionCorrelation = computeConvictionCorrelation(agentForecasts);
 
   // Composite score
-  const compositeScore = Math.round((
+  const compositeScore = round2(
     directionAccuracy * COMPOSITE_WEIGHT_DIRECTION +
     (1 - Math.min(1, avgMagError * MAGNITUDE_ERROR_MULTIPLIER)) * COMPOSITE_WEIGHT_MAGNITUDE +
     convictionCorrelation * COMPOSITE_WEIGHT_CONVICTION +
     horizonUsageRate * COMPOSITE_WEIGHT_HORIZON +
     learningVelocity * COMPOSITE_WEIGHT_LEARNING
-  ) * 100) / 100;
+  );
 
   return {
     agentId,
@@ -599,7 +599,7 @@ export function getImpactStats(): {
     resolvedForecasts: resolved.length,
     pendingForecasts: pending.length,
     overallDirectionAccuracy: resolved.length > 0
-      ? Math.round((correct / resolved.length) * 100) / 100
+      ? round2(correct / resolved.length)
       : 0,
     avgMagnitudeError: withMag.length > 0
       ? round3(magSum / withMag.length)
