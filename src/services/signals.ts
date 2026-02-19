@@ -1369,7 +1369,7 @@ export async function getAgentConsensusData(): Promise<AgentConsensus[]> {
         ),
       )
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(10);
+      .limit(CONSENSUS_RECENT_DECISIONS_LIMIT);
 
     const symbolMap = new Map<
       string,
@@ -1504,7 +1504,7 @@ async function generateAgentConsensusSignals(): Promise<MarketSignal[]> {
     .from(agentDecisions)
     .where(gte(agentDecisions.createdAt, new Date(Date.now() - CONSENSUS_HIGH_CONF_LOOKBACK_MS)))
     .orderBy(desc(agentDecisions.confidence))
-    .limit(5);
+    .limit(CONSENSUS_HIGH_CONF_LIMIT);
 
   for (const d of recentHighConf) {
     if (d.confidence >= CONSENSUS_HIGH_CONFIDENCE_THRESHOLD && d.action !== "hold") {

@@ -159,6 +159,18 @@ const BASELINE_DECISIONS_LIMIT = 1000;
 const RECENT_DECISIONS_LIMIT = 500;
 
 /**
+ * Maximum number of high-conviction decisions to fetch for conviction tracker.
+ *
+ * Fetches the 200 most recent decisions meeting the minConfidence threshold.
+ * 200 provides enough statistical depth to compute per-symbol conviction rates,
+ * trend directions, and timing patterns without over-loading the DB query.
+ *
+ * Formula: 3 agents × ~10 rounds/day × ~7 days = 210 decisions → 200 captures
+ * roughly one week of high-conviction trading activity.
+ */
+const CONVICTION_DECISIONS_LIMIT = 200;
+
+/**
  * Conviction Interpretation Thresholds
  *
  * Classifies overall market conviction levels based on average agent confidence.
@@ -701,7 +713,7 @@ export async function getConvictionTracker(minConfidence = CONVICTION_HIGH_THRES
     .from(agentDecisions)
     .where(gte(agentDecisions.confidence, minConfidence))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(200);
+    .limit(CONVICTION_DECISIONS_LIMIT);
 
   const allDecisions = await db
     .select()
