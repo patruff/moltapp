@@ -81,6 +81,28 @@ const PERCENT_MULTIPLIER = 100;
  */
 const BRAIN_FEED_LIMIT = 6;
 
+/**
+ * Letter grade classification thresholds for benchmark composite scores (0–1 scale).
+ * Formula: score >= threshold → letter grade (highest threshold wins).
+ * Standard academic grading: A+ = 95%+, A = 90%+, ... F = below 40%.
+ *
+ * Example: score 0.87 → A- (>= 0.85 but < 0.90)
+ * Example: score 0.62 → C  (>= 0.60 but < 0.65)
+ * Example: score 0.38 → F  (< 0.40)
+ */
+const GRADE_A_PLUS  = 0.95; // Top 5% — exceptional reasoning quality
+const GRADE_A       = 0.90; // 90–95% — excellent
+const GRADE_A_MINUS = 0.85; // 85–90% — very good
+const GRADE_B_PLUS  = 0.80; // 80–85% — good
+const GRADE_B       = 0.75; // 75–80% — above average
+const GRADE_B_MINUS = 0.70; // 70–75% — average
+const GRADE_C_PLUS  = 0.65; // 65–70% — below average
+const GRADE_C       = 0.60; // 60–65% — passing
+const GRADE_C_MINUS = 0.55; // 55–60% — marginal pass
+const GRADE_D_PLUS  = 0.50; // 50–55% — low pass
+const GRADE_D       = 0.45; // 45–50% — barely passing
+const GRADE_D_MINUS = 0.40; // 40–45% — near failure
+
 export const benchmarkLiveRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -471,17 +493,17 @@ benchmarkLiveRoutes.get("/", async (c) => {
 // ---------------------------------------------------------------------------
 
 function toGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
+  if (score >= GRADE_A_PLUS)  return "A+";
+  if (score >= GRADE_A)       return "A";
+  if (score >= GRADE_A_MINUS) return "A-";
+  if (score >= GRADE_B_PLUS)  return "B+";
+  if (score >= GRADE_B)       return "B";
+  if (score >= GRADE_B_MINUS) return "B-";
+  if (score >= GRADE_C_PLUS)  return "C+";
+  if (score >= GRADE_C)       return "C";
+  if (score >= GRADE_C_MINUS) return "C-";
+  if (score >= GRADE_D_PLUS)  return "D+";
+  if (score >= GRADE_D)       return "D";
+  if (score >= GRADE_D_MINUS) return "D-";
   return "F";
 }
