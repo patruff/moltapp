@@ -86,10 +86,65 @@ export interface HardeningMetrics {
 // Configuration
 // ---------------------------------------------------------------------------
 
+/**
+ * Default timeout for each agent's analyze() call in milliseconds.
+ *
+ * When an agent's reasoning+tool-use loop exceeds this duration, it is
+ * cancelled and the round proceeds without that agent's trade. 30 seconds
+ * allows for 2-3 LLM calls plus tool overhead while preventing indefinite hangs.
+ *
+ * Value: 30,000 ms (30 seconds)
+ * Impact: Safety-critical — prevents agent deadlock from stalling the round
+ * Tuning: Decrease (e.g., 20_000) for faster rounds; increase (e.g., 45_000) for
+ *         slow LLM providers or complex reasoning with many tool calls
+ */
+const DEFAULT_ANALYZE_TIMEOUT_MS = 30_000;
+
+/**
+ * Default timeout for trade execution (Jupiter DEX swap) in milliseconds.
+ *
+ * When a trade's execution pipeline (order fetch + send + confirm) exceeds this
+ * duration, the trade is marked as failed. 15 seconds covers Solana's typical
+ * 5-10 second confirmation plus network overhead.
+ *
+ * Value: 15,000 ms (15 seconds)
+ * Impact: Safety-critical — prevents execution from hanging indefinitely
+ * Tuning: Decrease (e.g., 10_000) for stricter latency; increase (e.g., 20_000)
+ *         for slow RPC nodes or high network congestion periods
+ * Related: EXECUTE_REQUEST_TIMEOUT_MS in jupiter-hardened.ts (30s, outer wrap)
+ */
+const DEFAULT_EXECUTION_TIMEOUT_MS = 15_000;
+
+/**
+ * Default timeout for the entire trading round in milliseconds.
+ *
+ * A full round includes: price fetch → all agents analyze → all agents execute.
+ * 240 seconds (4 minutes) = 6 agents × 40 seconds each with sequential execution.
+ * If the round exceeds this, it is force-cancelled and the next round is scheduled.
+ *
+ * Value: 240,000 ms (4 minutes = 240 seconds)
+ * Impact: Safety-critical — prevents hung rounds from blocking the entire trading loop
+ * Tuning: Increase (e.g., 360_000) for more agents or slower LLM providers;
+ *         decrease (e.g., 180_000) for faster round cadence in dev environments
+ * Formula: ceil(numAgents × DEFAULT_ANALYZE_TIMEOUT_MS) + buffer
+ */
+const DEFAULT_ROUND_TIMEOUT_MS = 240_000;
+
+/**
+ * Milliseconds per second.
+ *
+ * Converts second-based API parameters to milliseconds for timestamp arithmetic.
+ *
+ * Value: 1,000 ms
+ * Formula: seconds × MS_PER_SECOND = milliseconds
+ * Example: 300 seconds × 1,000 = 300,000 ms = 5 minutes
+ */
+const MS_PER_SECOND = 1_000;
+
 const DEFAULT_TIMEOUT_CONFIG: AgentTimeoutConfig = {
-  analyzeTimeoutMs: 30_000,
-  executionTimeoutMs: 15_000,
-  roundTimeoutMs: 240_000,
+  analyzeTimeoutMs: DEFAULT_ANALYZE_TIMEOUT_MS,
+  executionTimeoutMs: DEFAULT_EXECUTION_TIMEOUT_MS,
+  roundTimeoutMs: DEFAULT_ROUND_TIMEOUT_MS,
 };
 
 // ---------------------------------------------------------------------------
@@ -311,7 +366,7 @@ export function emergencyHalt(
   emergencyState.reason = reason;
 
   if (autoResumeSeconds) {
-    const resumeAt = new Date(Date.now() + autoResumeSeconds * 1000);
+    const resumeAt = new Date(Date.now() + autoResumeSeconds * MS_PER_SECOND);
     emergencyState.autoResumeAt = resumeAt.toISOString();
   } else {
     emergencyState.autoResumeAt = null;
