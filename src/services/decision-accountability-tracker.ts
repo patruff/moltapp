@@ -395,6 +395,20 @@ const CLAIM_DEFAULT_EXPIRATION_HOURS = 48;
  */
 const EARLY_RESOLUTION_MOVEMENT_THRESHOLD = 0.02;
 
+/**
+ * Accuracy Display Precision Multiplier (100 = 2 decimal places).
+ *
+ * Used for all accuracy rate calculations in accountability profiles:
+ * `Math.round(correctCount / totalCount * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER`
+ *
+ * Formula: Math.round(fraction × 100) / 100 → 2-decimal accuracy (e.g., 0.7333... → 0.73)
+ * Example: 22 correct of 30 total → Math.round(0.7333 × 100) / 100 = 0.73
+ *
+ * Tuning: Change to 1000 for 3 decimal places (e.g., 0.733), or 10 for 1 decimal (0.7).
+ * All 6 accuracy calculations in getAccountabilityProfile use this constant.
+ */
+const ACCURACY_PRECISION_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -756,7 +770,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
     if (claim.status === "correct") byType[claim.claimType].correct++;
   }
   for (const key of Object.keys(byType)) {
-    byType[key].accuracy = byType[key].total > 0 ? Math.round((byType[key].correct / byType[key].total) * 100) / 100 : 0;
+    byType[key].accuracy = byType[key].total > 0 ? Math.round((byType[key].correct / byType[key].total) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER : 0;
   }
 
   // By symbol
@@ -767,7 +781,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
     if (claim.status === "correct") bySymbol[claim.symbol].correct++;
   }
   for (const key of Object.keys(bySymbol)) {
-    bySymbol[key].accuracy = bySymbol[key].total > 0 ? Math.round((bySymbol[key].correct / bySymbol[key].total) * 100) / 100 : 0;
+    bySymbol[key].accuracy = bySymbol[key].total > 0 ? Math.round((bySymbol[key].correct / bySymbol[key].total) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER : 0;
   }
 
   // By confidence bucket
@@ -778,7 +792,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
       bucket: b.label,
       total: inBucket.length,
       correct: correctInBucket,
-      accuracy: inBucket.length > 0 ? Math.round((correctInBucket / inBucket.length) * 100) / 100 : 0,
+      accuracy: inBucket.length > 0 ? Math.round((correctInBucket / inBucket.length) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER : 0,
     };
   });
 
@@ -786,7 +800,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
   const highConfResolved = resolved.filter((c) => c.confidence > HIGH_CONFIDENCE_THRESHOLD);
   const highConfWrong = countByCondition(highConfResolved, (c) => c.status === "incorrect");
   const overconfidenceRate = highConfResolved.length > 0
-    ? Math.round((highConfWrong / highConfResolved.length) * 100) / 100
+    ? Math.round((highConfWrong / highConfResolved.length) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER
     : 0;
 
   // Learning trend: compare first half vs second half accuracy
@@ -801,7 +815,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
 
   // Accuracy rate
   const accuracyRate = resolved.length > 0
-    ? Math.round((correctClaims.length / resolved.length) * 100) / 100
+    ? Math.round((correctClaims.length / resolved.length) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER
     : 0;
 
   // Composite accountability score
@@ -810,7 +824,7 @@ export function getAccountabilityProfile(agentId: string): AccountabilityProfile
     (1 - overconfidenceRate) * ACCOUNTABILITY_WEIGHT_OVERCONFIDENCE +
     (learningTrend === "improving" ? LEARNING_TREND_SCORE_IMPROVING : learningTrend === "stable" ? LEARNING_TREND_SCORE_STABLE : LEARNING_TREND_SCORE_DECLINING) * ACCOUNTABILITY_WEIGHT_LEARNING_TREND +
     Math.min(1, resolved.length / CLAIMS_VOLUME_NORMALIZATION) * ACCOUNTABILITY_WEIGHT_VOLUME
-  ) * 100) / 100;
+  ) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER;
 
   return {
     agentId,
@@ -876,7 +890,7 @@ export function getAccountabilityStats(): {
   return {
     totalClaimsTracked: totalClaims,
     totalResolved,
-    overallAccuracy: totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * 100) / 100 : 0,
+    overallAccuracy: totalResolved > 0 ? Math.round((totalCorrect / totalResolved) * ACCURACY_PRECISION_MULTIPLIER) / ACCURACY_PRECISION_MULTIPLIER : 0,
     mostAccountable: best.id || null,
     leastAccountable: worst.id || null,
   };
