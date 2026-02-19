@@ -144,6 +144,17 @@ const PERCENT_MULTIPLIER = 100;
  */
 const PERCENTILE_DIVISOR = 100;
 
+/**
+ * Milliseconds in a 24-hour statistics window for recent slippage trend analysis.
+ *
+ * Formula: 24 hours × 60 minutes × 60 seconds × 1000 milliseconds = 86,400,000ms
+ * Example: Date.now() - STATS_WINDOW_24H_MS = timestamp 24 hours ago
+ *
+ * Used in getSlippageStats to compute average slippage over the last 24 hours
+ * (the "now24h" cutoff) for trend comparison alongside the all-time average.
+ */
+const STATS_WINDOW_24H_MS = 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -397,7 +408,7 @@ export function getSlippageStats(since?: Date): SlippageStats {
   const favorableCount = countByCondition(filtered, (r) => r.favorable);
 
   // 24-hour stats
-  const now24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const now24h = new Date(Date.now() - STATS_WINDOW_24H_MS);
   const last24h = filtered.filter((r) => new Date(r.timestamp) >= now24h);
   const avg24h = averageAbsoluteByKey(last24h, 'slippageBps');
 
