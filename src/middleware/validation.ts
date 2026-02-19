@@ -190,7 +190,7 @@ export const registerSchema = z.object({
 
 /** Schema for demo trade request body */
 export const demoTradeSchema = z.object({
-  symbol: z.string().min(1, "symbol is required").max(10, "symbol too long"),
+  symbol: z.string().min(1, "symbol is required").max(STOCK_SYMBOL_MAX_LENGTH, "symbol too long"),
   side: z.enum(["buy", "sell"], {
     error: "side must be 'buy' or 'sell'",
   }),
@@ -202,7 +202,7 @@ export const demoStartSchema = z.object({
   displayName: z
     .string()
     .min(1, "displayName must not be empty")
-    .max(32, "displayName must be 32 characters or less")
+    .max(DISPLAY_NAME_MAX_LENGTH, "displayName must be 32 characters or less")
     .optional(),
 });
 
@@ -210,8 +210,8 @@ export const demoStartSchema = z.object({
 export const withdrawSchema = z.object({
   destinationAddress: z
     .string()
-    .min(32, "Invalid Solana address")
-    .max(44, "Invalid Solana address"),
+    .min(SOLANA_ADDRESS_MIN_LENGTH, "Invalid Solana address")
+    .max(SOLANA_ADDRESS_MAX_LENGTH, "Invalid Solana address"),
   amount: z
     .string()
     .regex(/^\d+(\.\d{1,6})?$/, "amount must be a decimal string"),
@@ -223,7 +223,7 @@ export const paginationSchema = z.object({
     .string()
     .regex(/^\d+$/)
     .transform(Number)
-    .pipe(z.number().min(1).max(100))
+    .pipe(z.number().min(1).max(PAGINATION_LIMIT_MAX))
     .optional(),
   offset: z
     .string()
