@@ -83,6 +83,24 @@ const LEADERBOARD_CACHE_TTL_MS = 2 * 60 * 1000;
  */
 const TOP_POSITIONS_DISPLAY_LIMIT = 5;
 
+/**
+ * Percent Multiplier for P&L Percentage Calculations
+ *
+ * Converts decimal ratios to percentage values.
+ *
+ * Formula: percentValue = decimalRatio × PERCENT_MULTIPLIER
+ * Example: 0.1234 × 100 = 12.34% P&L
+ *
+ * Used for:
+ * - unrealizedPnlPercent: position-level unrealized gain/loss %
+ * - totalPnlPercent: portfolio-level total P&L as % of initial capital
+ * - netPnlPercent: net P&L (after tx costs) as % of initial capital
+ *
+ * Displayed via Decimal.times(PERCENT_MULTIPLIER) or plain `* PERCENT_MULTIPLIER`
+ * then formatted with DECIMAL_PRECISION_CURRENCY (2 decimal places).
+ */
+const PERCENT_MULTIPLIER = 100;
+
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
 type TradeRow = typeof trades.$inferSelect;
@@ -326,7 +344,7 @@ async function refreshLeaderboard(): Promise<void> {
         const value = quantity * currentPrice;
         const totalCost = quantity * costBasis;
         const unrealizedPnl = value - totalCost;
-        const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * 100 : 0;
+        const unrealizedPnlPercent = totalCost > 0 ? (unrealizedPnl / totalCost) * PERCENT_MULTIPLIER : 0;
 
         marketValue = marketValue.plus(value);
         positionSummaries.push({
@@ -362,7 +380,7 @@ async function refreshLeaderboard(): Promise<void> {
     const totalPnlAbsolute = currentPortfolioValue.minus(AGENT_INITIAL_CAPITAL);
     const totalPnlPercent = new Decimal(AGENT_INITIAL_CAPITAL).isZero()
       ? new Decimal(0)
-      : totalPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(100);
+      : totalPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(PERCENT_MULTIPLIER);
 
     // Accumulate total volume (buys + sells)
     totalVolumeDecimal = totalVolumeDecimal
@@ -396,7 +414,7 @@ async function refreshLeaderboard(): Promise<void> {
     const netPnlAbsolute = totalPnlAbsolute.minus(txCostDecimal);
     const netPnlPercent = new Decimal(AGENT_INITIAL_CAPITAL).isZero()
       ? new Decimal(0)
-      : netPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(100);
+      : netPnlAbsolute.div(AGENT_INITIAL_CAPITAL).times(PERCENT_MULTIPLIER);
 
     return {
       rank: 0, // assigned after sorting
