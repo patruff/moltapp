@@ -394,6 +394,46 @@ const MIN_LOW_CONFIDENCE_TRADES_FOR_PATTERN = 5;
 const MIN_TRADES_FOR_CALIBRATION_PATTERN = 15;
 
 /**
+ * Minimum closed trades required for timing pattern detection (detectTimingPattern).
+ * Needs enough trades across short/medium/long-term holding buckets to produce
+ * statistically meaningful per-bucket win rates.
+ * @example
+ * - 12 closed trades → can analyze timing pattern (12 >= 10)
+ * - 7 closed trades → not enough data across holding period buckets
+ */
+const MIN_TRADES_FOR_TIMING_PATTERN = 10;
+
+/**
+ * Minimum recent closed trades required for sector rotation detection (detectSectorRotation).
+ * Applies to the SECTOR_ROTATION_LOOKBACK_TRADES window, not all trades, to detect
+ * recent sector shifts rather than historical averages.
+ * @example
+ * - 15 recent trades in window → can detect sector rotation (15 >= 10)
+ * - 8 recent trades in window → not enough data for rotation signal
+ */
+const MIN_TRADES_FOR_SECTOR_ROTATION_DETECTION = 10;
+
+/**
+ * Minimum pattern occurrences to display pattern in memory prompt (Section 3: Active Patterns).
+ * Lower than MIN_PATTERN_OCCURRENCES_FOR_LESSON (3) so patterns appear in context before
+ * they graduate to key lessons — gives agents early signal of emerging patterns.
+ * @example
+ * - Timing pattern: 2 occurrences → shown in memory prompt (2 >= 2)
+ * - New pattern: 1 occurrence → too early to include (noise vs signal)
+ */
+const MIN_PATTERN_OCCURRENCES_FOR_DISPLAY = 2;
+
+/**
+ * Minimum pattern success rate (as percentage) to display in memory prompt.
+ * Lower than MIN_PATTERN_SUCCESS_RATE_FOR_LESSON (60%) to show patterns with modest
+ * evidence, while still filtering out below-chance patterns.
+ * @example
+ * - Sector pattern: 55% success rate → shown in prompt (55 > 50)
+ * - Weak pattern: 48% success rate → below chance threshold, excluded
+ */
+const MIN_PATTERN_SUCCESS_RATE_FOR_DISPLAY = 50;
+
+/**
  * Database Query Parameters
  *
  * These parameters control how much historical data is loaded from the database
@@ -925,7 +965,7 @@ function detectTimingPattern(memory: AgentMemoryState): void {
   const closedTrades = memory.tradeMemories.filter(
     (t) => t.pnl !== null && t.holdingHours !== null,
   );
-  if (closedTrades.length < 10) return;
+  if (closedTrades.length < MIN_TRADES_FOR_TIMING_PATTERN) return;
 
   // Categorize by holding period
   const shortTerm = closedTrades.filter((t) => t.holdingHours! < 2);
@@ -944,7 +984,7 @@ function detectTimingPattern(memory: AgentMemoryState): void {
   let bestWinRate = 0;
 
   for (const cat of categories) {
-    if (cat.trades.length < 3) continue;
+    if (cat.trades.length < MIN_TRADES_FOR_SECTOR_CLASSIFICATION) continue;
     const winRate =
       (countByCondition(cat.trades, (t) => t.pnl! > 0) / cat.trades.length) * 100;
     if (winRate > bestWinRate) {
@@ -953,7 +993,7 @@ function detectTimingPattern(memory: AgentMemoryState): void {
     }
   }
 
-  if (bestCategory && bestWinRate > 60) {
+  if (bestCategory && bestWinRate > TIMING_PATTERN_WIN_RATE_THRESHOLD) {
     const patternId = `timing-${bestCategory.name}`;
     const existing = memory.patterns.find((p) => p.id === patternId);
 
@@ -984,7 +1024,7 @@ function detectSectorRotation(memory: AgentMemoryState): void {
   const recentTrades = memory.tradeMemories
     .filter((t) => t.pnl !== null)
     .slice(-SECTOR_ROTATION_LOOKBACK_TRADES);
-  if (recentTrades.length < 10) return;
+  if (recentTrades.length < MIN_TRADES_FOR_SECTOR_ROTATION_DETECTION) return;
 
   const sectorPerformance = new Map<
     string,
@@ -1059,7 +1099,7 @@ function detectSectorRotation(memory: AgentMemoryState): void {
 
 function detectConfidencePattern(memory: AgentMemoryState): void {
   const closedTrades = memory.tradeMemories.filter((t) => t.pnl !== null);
-  if (closedTrades.length < 15) return;
+  if (closedTrades.length < MIN_TRADES_FOR_CALIBRATION_PATTERN) return;
 
   // Split into high/low confidence
   const highConf = closedTrades.filter((t) => t.confidence >= 70);
@@ -1156,7 +1196,7 @@ function updateKeyLessons(memory: AgentMemoryState): void {
 
   // Pattern lessons
   for (const pattern of memory.patterns) {
-    if (pattern.occurrences >= 3 && pattern.successRate > 60) {
+    if (pattern.occurrences >= MIN_PATTERN_OCCURRENCES_FOR_LESSON && pattern.successRate > MIN_PATTERN_SUCCESS_RATE_FOR_LESSON) {
       lessons.push(`Pattern "${pattern.name}": ${pattern.description}`);
     }
   }
@@ -1247,7 +1287,7 @@ export function generateMemoryPrompt(agentId: string): string {
 
   // Section 3: Active patterns
   const activePatterns = memory.patterns
-    .filter((p) => p.occurrences >= 2 && p.successRate > 50)
+    .filter((p) => p.occurrences >= MIN_PATTERN_OCCURRENCES_FOR_DISPLAY && p.successRate > MIN_PATTERN_SUCCESS_RATE_FOR_DISPLAY)
     .slice(0, ACTIVE_PATTERNS_DISPLAY_LIMIT);
   if (activePatterns.length > 0) {
     sections.push(
