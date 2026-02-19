@@ -477,6 +477,44 @@ const NEWS_GENERATION = {
  */
 const RECENT_DECISIONS_DISPLAY_LIMIT = 10;
 
+/**
+ * Query Limit Constants
+ *
+ * Each sentiment function scans agent decisions over a different time window
+ * and at a different granularity, so each needs its own limit:
+ *
+ * AGENT_SENTIMENT_QUERY_LIMIT (30):
+ *   Used in computeAgentSentiment() — fetches the most-recent decisions for a
+ *   single symbol over the last 7 days.  30 covers ~10 trading rounds for 3
+ *   agents and keeps per-symbol scoring fast.
+ *
+ * AGENT_PROFILE_QUERY_LIMIT (200):
+ *   Used in getAgentSentimentProfile() — fetches a single agent's decisions
+ *   over 30 days.  200 gives enough history for flip-flop and consistency
+ *   analysis without bloating the in-memory grouping structures.
+ *
+ * CONTRARIAN_SCORE_QUERY_LIMIT (500):
+ *   Used in getAgentSentimentProfile() for contrarian scoring — fetches ALL
+ *   agents' decisions over the same 30-day window to compare consensus.
+ *   Higher limit (500) ensures representative round samples for comparison.
+ *
+ * CORRELATION_QUERY_LIMIT (1000):
+ *   Used in getSentimentCorrelation() — fetches ALL agents' decisions over
+ *   14 days to build Pearson correlation matrices.  1000 is the upper bound
+ *   to prevent runaway memory on large datasets (3 agents × ~333 decisions
+ *   each at 30-min intervals = ~1000 total decisions per 14-day window).
+ *
+ * NEWS_DIGEST_QUERY_LIMIT (100):
+ *   Used in generateNewsDigest() — fetches 24h decisions to attach agent
+ *   sentiment context to generated news headlines.  100 covers 3 agents ×
+ *   ~33 rounds and keeps headline generation latency low.
+ */
+const AGENT_SENTIMENT_QUERY_LIMIT = 30;
+const AGENT_PROFILE_QUERY_LIMIT = 200;
+const CONTRARIAN_SCORE_QUERY_LIMIT = 500;
+const CORRELATION_QUERY_LIMIT = 1000;
+const NEWS_DIGEST_QUERY_LIMIT = 100;
+
 /** The 3 AI agent IDs */
 const AGENT_IDS = [
   "claude-value-investor",
@@ -568,7 +606,7 @@ async function computeAgentSentiment(symbol: string): Promise<{ score: number; d
         ),
       )
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(30);
+      .limit(AGENT_SENTIMENT_QUERY_LIMIT);
 
     if (decisions.length === 0) {
       return { score: 0, drivers: [{ source: "agent_decisions", impact: 0, description: "No recent agent decisions for this stock", weight: SENTIMENT_WEIGHTS.agentSentiment }] };
@@ -1053,7 +1091,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
         ),
       )
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(200);
+      .limit(AGENT_PROFILE_QUERY_LIMIT);
 
     if (decisions.length === 0) {
       return {
@@ -1154,7 +1192,7 @@ export async function getAgentSentimentProfile(agentId: string): Promise<AgentSe
       .from(agentDecisions)
       .where(gte(agentDecisions.createdAt, cutoff))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(500);
+      .limit(CONTRARIAN_SCORE_QUERY_LIMIT);
 
     // Group by round (decisions within 5 minutes of each other on the same symbol)
     const roundGroups: Record<string, typeof allDecisions> = {};
@@ -1231,7 +1269,7 @@ export async function getSentimentCorrelation(): Promise<SentimentCorrelation> {
       .from(agentDecisions)
       .where(gte(agentDecisions.createdAt, cutoff))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(1000);
+      .limit(CORRELATION_QUERY_LIMIT);
 
     // Group by round (decisions within 5 min on same symbol)
     const roundGroups: Record<string, typeof allDecisions> = {};
@@ -1410,7 +1448,7 @@ export async function generateNewsDigest(symbol?: string): Promise<NewsSentiment
       .from(agentDecisions)
       .where(gte(agentDecisions.createdAt, cutoff))
       .orderBy(desc(agentDecisions.createdAt))
-      .limit(100);
+      .limit(NEWS_DIGEST_QUERY_LIMIT);
 
     const news: NewsSentiment[] = [];
 
