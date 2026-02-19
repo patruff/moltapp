@@ -97,6 +97,63 @@ export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
 }
 
 // ---------------------------------------------------------------------------
+// Validation Schema Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum length for a stock symbol string (e.g., "AAPL", "GOOGL", "xAAPL").
+ * Longest current xStocks ticker is 5 characters; 10 gives headroom for future additions.
+ */
+const STOCK_SYMBOL_MAX_LENGTH = 10;
+
+/**
+ * Maximum decimal places allowed in a USDC amount string.
+ * USDC has 6 decimals on-chain (1 USDC = 10^6 raw units), so inputs beyond
+ * 6 decimal places would be silently truncated by the blockchain.
+ */
+const USDC_DECIMALS = 6;
+
+/**
+ * Maximum decimal places allowed in a stock (xStock) quantity string.
+ * xStocks are SPL tokens with 9 decimal places (1 xStock = 10^9 raw lamports),
+ * matching the SOL precision standard used by most Solana programs.
+ */
+const XSTOCK_DECIMALS = 9;
+
+/**
+ * Maximum length for an agent name string.
+ * 64 characters accommodates descriptive names like "GPT-4 Momentum Trader v2"
+ * while preventing excessively long names in API responses and leaderboard display.
+ */
+const AGENT_NAME_MAX_LENGTH = 64;
+
+/**
+ * Maximum length for a demo session display name.
+ * 32 characters fits comfortably in the leaderboard UI column without truncation.
+ */
+const DISPLAY_NAME_MAX_LENGTH = 32;
+
+/**
+ * Minimum length of a valid base-58 encoded Solana wallet address.
+ * Solana public keys are 32 bytes; base-58 encoding produces 32-44 characters.
+ * Addresses shorter than 32 characters are definitely invalid.
+ */
+const SOLANA_ADDRESS_MIN_LENGTH = 32;
+
+/**
+ * Maximum length of a valid base-58 encoded Solana wallet address.
+ * The longest possible encoding of a 32-byte public key in base-58 is 44 characters.
+ */
+const SOLANA_ADDRESS_MAX_LENGTH = 44;
+
+/**
+ * Maximum number of records returned by a single paginated API request.
+ * 100 items balances response payload size against the number of round-trips
+ * a client needs to fetch a full agent trade history or leaderboard page.
+ */
+const PAGINATION_LIMIT_MAX = 100;
+
+// ---------------------------------------------------------------------------
 // Reusable schemas
 // ---------------------------------------------------------------------------
 
@@ -105,7 +162,7 @@ export const buyOrderSchema = z.object({
   stockSymbol: z
     .string()
     .min(1, "stockSymbol is required")
-    .max(10, "stockSymbol too long"),
+    .max(STOCK_SYMBOL_MAX_LENGTH, "stockSymbol too long"),
   usdcAmount: z
     .string()
     .regex(/^\d+(\.\d{1,6})?$/, "usdcAmount must be a decimal string with up to 6 decimals"),
@@ -116,7 +173,7 @@ export const sellOrderSchema = z.object({
   stockSymbol: z
     .string()
     .min(1, "stockSymbol is required")
-    .max(10, "stockSymbol too long"),
+    .max(STOCK_SYMBOL_MAX_LENGTH, "stockSymbol too long"),
   stockQuantity: z
     .string()
     .regex(/^\d+(\.\d{1,9})?$/, "stockQuantity must be a decimal string with up to 9 decimals"),
@@ -127,7 +184,7 @@ export const registerSchema = z.object({
   agentName: z
     .string()
     .min(1, "agentName is required")
-    .max(64, "agentName must be 64 characters or less"),
+    .max(AGENT_NAME_MAX_LENGTH, "agentName must be 64 characters or less"),
   identityToken: z.string().min(1, "identityToken is required"),
 });
 
