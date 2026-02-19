@@ -125,6 +125,128 @@ const USDC_DISPLAY_DECIMALS = 6;
 const XSTOCK_DISPLAY_DECIMALS = 8;
 
 // ---------------------------------------------------------------------------
+// Tool Input Validation Constants — string field character limits
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum character length for investment thesis text (update_thesis tool).
+ *
+ * 2 000 characters gives agents ample space for a full thesis (~400 words)
+ * covering catalysts, valuation, risk factors, and price targets — while
+ * keeping the stored string from bloating the agent-theses DB column.
+ *
+ * Applied via: validateStringField(args.thesis, "thesis", THESIS_TEXT_MAX_LENGTH)
+ */
+const THESIS_TEXT_MAX_LENGTH = 2000;
+
+/**
+ * Maximum character length for thesis closure reason (close_thesis tool).
+ *
+ * 1 000 characters is enough for a concise one-paragraph explanation of why
+ * the thesis is closed (stop-loss hit, target reached, thesis invalidated).
+ * Shorter than thesis text since reasons are summaries, not full analyses.
+ *
+ * Applied via: validateStringField(args.reason, "reason", CLOSE_REASON_MAX_LENGTH)
+ */
+const CLOSE_REASON_MAX_LENGTH = 1000;
+
+/**
+ * Maximum character length for news search query strings (search_news tool).
+ *
+ * 500 characters accommodates detailed multi-term queries while preventing
+ * agents from passing entire paragraphs as search queries, which would waste
+ * API quota and degrade search result quality.
+ *
+ * Applied via: validateStringField(args.query, "query", SEARCH_QUERY_MAX_LENGTH)
+ */
+const SEARCH_QUERY_MAX_LENGTH = 500;
+
+/**
+ * Maximum character length for trade execution reasoning (execute_trade tool).
+ *
+ * 2 000 characters matches THESIS_TEXT_MAX_LENGTH — the reasoning field
+ * documents the agent's decision rationale for each live trade, stored in the
+ * trade history for audit and learning purposes.
+ *
+ * Applied via: validateStringField(args.reasoning, "reasoning", EXECUTION_REASONING_MAX_LENGTH)
+ */
+const EXECUTION_REASONING_MAX_LENGTH = 2000;
+
+// ---------------------------------------------------------------------------
+// Brave Search Result Count Constant
+// ---------------------------------------------------------------------------
+
+/**
+ * Number of web search results to request from the Brave Search API per query.
+ *
+ * 15 results gives agents broader context than AV news (which is limited to
+ * SEARCH_NEWS_RESULTS_LIMIT=10 after filtering). Brave results are raw web
+ * pages, so more results improve the chance of finding fresh, relevant content.
+ *
+ * Used as URL query param: url.searchParams.set("count", String(BRAVE_SEARCH_COUNT))
+ *
+ * The final displayed results are still capped at SEARCH_NEWS_RESULTS_LIMIT
+ * (10) via rawResults.slice(0, SEARCH_NEWS_RESULTS_LIMIT) — so BRAVE_SEARCH_COUNT
+ * > SEARCH_NEWS_RESULTS_LIMIT acts as a pre-filter buffer allowing deduplication
+ * before the final slice.
+ */
+const BRAVE_SEARCH_COUNT = 15;
+
+// ---------------------------------------------------------------------------
+// Trade Amount Validation Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum allowed trade amount in a single get_execution_quote or execute_trade call.
+ *
+ * 1 billion (1_000_000_000) is a safety ceiling that catches obvious agent errors
+ * (e.g., passing raw lamports instead of USDC amounts). No legitimate single
+ * trade should approach this size given typical agent starting capital of ~$10 000.
+ *
+ * Formula check: args.amount > MAX_TRADE_AMOUNT → reject with error
+ */
+const MAX_TRADE_AMOUNT = 1_000_000_000;
+
+/**
+ * Minimum allowed trade amount in a single get_execution_quote or execute_trade call.
+ *
+ * 0.01 USDC (1 cent) is the practical floor below which Jupiter routing becomes
+ * unreliable and slippage approaches 100% due to DEX minimum fill sizes.
+ * Also prevents agents from accidentally submitting zero-equivalent amounts.
+ *
+ * Formula check: args.amount < MIN_TRADE_AMOUNT → reject with error
+ */
+const MIN_TRADE_AMOUNT = 0.01;
+
+// ---------------------------------------------------------------------------
+// Price Impact Threshold Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Price impact percentage above which the mid-market price is considered stale.
+ *
+ * If the implied price impact exceeds 20%, it almost certainly means the
+ * mid-market price from get_stock_prices is stale or diverged from the real
+ * on-chain price — not that the trade itself has extreme market impact.
+ * In this case the impact figure is replaced with -1 ("unreliable") and
+ * agents are told to treat effectivePrice as the current market rate.
+ *
+ * Formula: priceImpactPercent > STALE_PRICE_IMPACT_THRESHOLD → flag stale
+ */
+const STALE_PRICE_IMPACT_THRESHOLD = 20;
+
+/**
+ * Price impact percentage above which a "high impact" warning is shown.
+ *
+ * Trades with >1% price impact materially move the market and should prompt
+ * agents to consider splitting the order into smaller tranches. Below 1% is
+ * considered normal execution slippage for retail-sized positions.
+ *
+ * Formula: priceImpactPercent > HIGH_PRICE_IMPACT_THRESHOLD → warn agent
+ */
+const HIGH_PRICE_IMPACT_THRESHOLD = 1;
+
+// ---------------------------------------------------------------------------
 // Tool Context — passed into executeTool for data access
 // ---------------------------------------------------------------------------
 
@@ -613,7 +735,7 @@ async function executeUpdateThesis(
   if (symbolError) {
     return JSON.stringify({ success: false, error: symbolError });
   }
-  const thesisError = validateStringField(args.thesis, "thesis", 2000);
+  const thesisError = validateStringField(args.thesis, "thesis", THESIS_TEXT_MAX_LENGTH);
   if (thesisError) {
     return JSON.stringify({ success: false, error: thesisError });
   }
@@ -670,7 +792,7 @@ async function executeCloseThesis(
   if (symbolError) {
     return JSON.stringify({ success: false, error: symbolError });
   }
-  const reasonError = validateStringField(args.reason, "reason", 1000);
+  const reasonError = validateStringField(args.reason, "reason", CLOSE_REASON_MAX_LENGTH);
   if (reasonError) {
     return JSON.stringify({ success: false, error: reasonError });
   }
@@ -735,7 +857,7 @@ interface AlphaVantageResponse {
  */
 async function executeSearchNews(args: SearchNewsArgs): Promise<string> {
   // Validate required string fields
-  const queryError = validateStringField(args.query, "query", 500);
+  const queryError = validateStringField(args.query, "query", SEARCH_QUERY_MAX_LENGTH);
   if (queryError) {
     return JSON.stringify({ results: [], error: queryError });
   }
@@ -922,7 +1044,7 @@ async function executeSearchNewsBrave(
   try {
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.set("q", query);
-    url.searchParams.set("count", "15");
+    url.searchParams.set("count", String(BRAVE_SEARCH_COUNT));
     url.searchParams.set("freshness", freshness);
     url.searchParams.set("text_decorations", "false");
 
@@ -1028,10 +1150,10 @@ async function executeGetExecutionQuote(
   if (!Number.isFinite(args.amount)) {
     return JSON.stringify({ error: "amount must be a finite number" });
   }
-  if (args.amount > 1_000_000_000) {
+  if (args.amount > MAX_TRADE_AMOUNT) {
     return JSON.stringify({ error: "amount exceeds maximum (1B)" });
   }
-  if (args.amount < 0.01) {
+  if (args.amount < MIN_TRADE_AMOUNT) {
     return JSON.stringify({ error: "amount must be at least 0.01" });
   }
 
@@ -1156,10 +1278,10 @@ async function executeGetExecutionQuote(
     // Guard against stale/divergent mid-market prices producing extreme impacts
     // If impact > 20%, the mid-market price is likely stale — flag but cap
     let priceNote: string;
-    if (priceImpactPercent > 20) {
+    if (priceImpactPercent > STALE_PRICE_IMPACT_THRESHOLD) {
       priceNote = `WARNING: Mid-market price may be stale (${midMarketPrice.toFixed(2)} vs effective ${effectivePrice.toFixed(2)}). Price impact unreliable. Use effectivePrice as current market rate.`;
       priceImpactPercent = -1; // Signal unreliable
-    } else if (priceImpactPercent > 1) {
+    } else if (priceImpactPercent > HIGH_PRICE_IMPACT_THRESHOLD) {
       priceNote = "WARNING: High price impact (>1%). Consider smaller trade size.";
     } else {
       priceNote = "Quote matches execution conditions. Valid for ~30 seconds.";
@@ -1210,7 +1332,7 @@ async function executeExecuteTrade(
   if (!Number.isFinite(args.amount)) {
     return JSON.stringify({ success: false, error: "amount must be a finite number" });
   }
-  const reasoningError = validateStringField(args.reasoning, "reasoning", 2000);
+  const reasoningError = validateStringField(args.reasoning, "reasoning", EXECUTION_REASONING_MAX_LENGTH);
   if (reasoningError) {
     return JSON.stringify({ success: false, error: reasoningError });
   }
