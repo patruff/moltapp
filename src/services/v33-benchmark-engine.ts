@@ -325,6 +325,136 @@ const DIMENSION_SCORE_PRECISION_MULTIPLIER = 100;
 const DIMENSION_SCORE_PRECISION_DIVISOR = 100;
 
 // ---------------------------------------------------------------------------
+// Agent Dimension Score Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Trade grade history buffer cap.
+ *
+ * Limits in-memory storage of graded trades to prevent unbounded growth.
+ * 2000 trades ≈ ~667 rounds × 3 agents, covering ~22 months at 1 round/day.
+ */
+const MAX_TRADE_GRADES_STORED = 2000;
+
+/**
+ * Hallucination-free score penalty per flagged hallucination.
+ *
+ * Formula: hallucinationFree = (1 - min(1, flags.length × PENALTY)) × 100
+ * Example: 1 flag → (1 - 0.25) × 100 = 75; 4 flags → (1 - 1.0) × 100 = 0
+ * At 4+ flags, the agent's hallucination-free score bottoms out at 0.
+ */
+const HALLUCINATION_PENALTY_PER_FLAG = 0.25;
+
+/**
+ * Instruction discipline scores for the overall trade grade calculation.
+ *
+ * disciplinePassed = true  → DISCIPLINE_PASS_SCORE (90) in the sub-score average
+ * disciplinePassed = false → DISCIPLINE_FAIL_SCORE (30) in the sub-score average
+ *
+ * Not 0 for failure because partial compliance still has value; not 100 for
+ * pass because discipline alone does not guarantee quality reasoning.
+ */
+const DISCIPLINE_PASS_SCORE = 90;
+const DISCIPLINE_FAIL_SCORE = 30;
+
+/**
+ * Strategy consistency dimension scores.
+ *
+ * Based on how many unique actions (buy/sell/hold) the agent took:
+ * - 1 unique action (pure strategy):     STRATEGY_PURE_SCORE  = 90
+ * - 2 unique actions (mixed strategy):   STRATEGY_MIXED_SCORE = 70
+ * - 3+ unique actions (varied strategy): STRATEGY_VARIED_SCORE = 50
+ *
+ * Pure strategies score highest because consistent action patterns
+ * indicate a well-defined edge; varied agents are harder to characterize.
+ */
+const STRATEGY_PURE_SCORE = 90;
+const STRATEGY_MIXED_SCORE = 70;
+const STRATEGY_VARIED_SCORE = 50;
+
+/**
+ * Adaptability dimension calculation parameters.
+ *
+ * Formula: adaptability = max(0, min(100, BASELINE + confStdDev × SENSITIVITY))
+ * - BASELINE (50): neutral score when confidence variation is zero
+ * - SENSITIVITY (200): a 0.1 std-dev in confidence → 20 adaptability points
+ *
+ * Agents who vary confidence appropriately across trade conditions score
+ * higher; rigid constant-confidence agents score near the baseline.
+ */
+const ADAPTABILITY_BASELINE = 50;
+const ADAPTABILITY_CONF_SENSITIVITY = 200;
+
+/**
+ * Confidence calibration target and scale factor.
+ *
+ * Formula: calibration = max(0, 100 - |confidence - TARGET| × SCALE)
+ * - TARGET (0.6): 60% confidence is the "ideal" calibrated midpoint
+ * - SCALE (200):  each 0.1 deviation from 0.6 costs 20 calibration points
+ *   (e.g., confidence = 0.8 → |0.8 - 0.6| × 200 = 40 point penalty)
+ *
+ * Agents expressing very high (>0.8) or very low (<0.4) confidence uniformly
+ * are penalized; well-calibrated agents hover near 60%.
+ */
+const CONFIDENCE_CALIBRATION_TARGET = 0.6;
+const CONFIDENCE_CALIBRATION_SCALE = 200;
+
+/**
+ * Cross-round learning dimension calculation parameters.
+ *
+ * Formula: crossRoundLearning = min(100, BASELINE + trades.length × PER_TRADE)
+ * - BASELINE (40): score for a single trade (agent has at least shown up)
+ * - PER_TRADE (5): each additional graded trade adds 5 points (capped at 100)
+ *
+ * At 12 trades the score reaches 100 (40 + 12 × 5 = 100), reflecting a
+ * full round of data for meaningful cross-round learning assessment.
+ */
+const CROSS_ROUND_LEARNING_BASELINE = 40;
+const CROSS_ROUND_LEARNING_PER_TRADE = 5;
+
+/**
+ * Outcome accuracy scores for resolved predictions.
+ *
+ * outcomeResolved = "correct"  → OUTCOME_CORRECT_SCORE  (100)
+ * outcomeResolved = "partial"  → OUTCOME_PARTIAL_SCORE  (60)
+ * outcomeResolved = "wrong"    → OUTCOME_WRONG_SCORE    (20, not 0 — hedges
+ *   against unfair 0 when prediction was directionally close but off in detail)
+ * outcomeResolved = "pending"  → excluded from average (unresolved)
+ */
+const OUTCOME_CORRECT_SCORE = 100;
+const OUTCOME_PARTIAL_SCORE = 60;
+const OUTCOME_WRONG_SCORE = 20;
+
+/**
+ * Market regime awareness scores.
+ *
+ * Agents whose reasoning references market regime keywords ("regime", "volatile",
+ * "bull market", "bear market", "sideways", "trending") receive AWARE_SCORE (80);
+ * those that don't receive UNAWARE_SCORE (45, not 0 — regime-agnostic reasoning
+ * can still be valid for short-term momentum trades).
+ */
+const REGIME_AWARE_SCORE = 80;
+const REGIME_UNAWARE_SCORE = 45;
+
+/**
+ * Edge consistency dimension calculation parameters.
+ *
+ * Requires MIN_TRADES_FOR_EDGE (3) before scoring — fewer trades is too small
+ * a sample to evaluate consistency.
+ *
+ * Formula (when trades >= MIN_TRADES_FOR_EDGE):
+ *   edgeConsistency = min(100, BASELINE + (coherentFraction × MULTIPLIER))
+ * - BASELINE (40): base score if all trades have coherenceScore ≤ threshold
+ * - MULTIPLIER (60): scales coherent fraction (0-1) to 0-60 range
+ * - COHERENCE_THRESHOLD (0.6): coherenceScore > 0.6 = "coherent" trade
+ *
+ * Example: 3/5 trades coherent → 40 + (0.6 × 60) = 76 edge consistency score
+ */
+const EDGE_MIN_TRADES = 3;
+const EDGE_CONSISTENCY_BASELINE = 40;
+const EDGE_CONSISTENCY_MULTIPLIER = 60;
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -859,8 +989,8 @@ export function gradeTrade(input: {
   // Overall grade (weighted average of all 12 trade-level sub-scores)
   const subScores = [
     input.coherenceScore * 100,
-    (1 - Math.min(1, input.hallucinationFlags.length * 0.25)) * 100,
-    input.disciplinePassed ? 90 : 30,
+    (1 - Math.min(1, input.hallucinationFlags.length * HALLUCINATION_PENALTY_PER_FLAG)) * 100,
+    input.disciplinePassed ? DISCIPLINE_PASS_SCORE : DISCIPLINE_FAIL_SCORE,
     reasoningDepthScore,
     sourceQualityScore,
     logicalConsistencyScore,
@@ -904,7 +1034,7 @@ export function gradeTrade(input: {
   };
 
   tradeGrades.unshift(grade);
-  if (tradeGrades.length > 2000) tradeGrades.length = 2000;
+  if (tradeGrades.length > MAX_TRADE_GRADES_STORED) tradeGrades.length = MAX_TRADE_GRADES_STORED;
 
   return grade;
 }
@@ -964,34 +1094,34 @@ export function scoreAgent(input: {
   const epistemicHumility = avg(t.map((x) => x.epistemicHumilityScore));
 
   // Safety
-  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? 100 : Math.max(0, 100 - x.hallucinationFlags.length * 25)));
-  const discipline = avg(t.map((x) => x.disciplinePassed ? 90 : 30));
+  const hallucinationFree = avg(t.map((x) => x.hallucinationFlags.length === 0 ? 100 : Math.max(0, 100 - x.hallucinationFlags.length * (HALLUCINATION_PENALTY_PER_FLAG * 100))));
+  const discipline = avg(t.map((x) => x.disciplinePassed ? DISCIPLINE_PASS_SCORE : DISCIPLINE_FAIL_SCORE));
   const riskAwareness = avg(t.map((x) => {
     const hasRiskRef = /risk|drawdown|stop.?loss|hedge|protect|caution/i.test(x.reasoning);
-    return hasRiskRef ? 80 : 45;
+    return hasRiskRef ? REGIME_AWARE_SCORE : REGIME_UNAWARE_SCORE;
   }));
 
   // Behavioral
   const actions = t.map((x) => x.action);
   const uniqueActions = new Set(actions);
-  const strategyConsistency = uniqueActions.size === 1 ? 90 : uniqueActions.size === 2 ? 70 : 50;
+  const strategyConsistency = uniqueActions.size === 1 ? STRATEGY_PURE_SCORE : uniqueActions.size === 2 ? STRATEGY_MIXED_SCORE : STRATEGY_VARIED_SCORE;
   const confidences = t.map((x) => x.confidence);
   const confStdDev = Math.sqrt(computeVariance(confidences, true));
-  const adaptability = Math.max(0, Math.min(100, 50 + confStdDev * 200));
-  const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - 0.6) * 200)));
-  const crossRoundLearning = Math.min(100, 40 + t.length * 5);
+  const adaptability = Math.max(0, Math.min(100, ADAPTABILITY_BASELINE + confStdDev * ADAPTABILITY_CONF_SENSITIVITY));
+  const confidenceCalibration = avg(confidences.map((c) => Math.max(0, 100 - Math.abs(c - CONFIDENCE_CALIBRATION_TARGET) * CONFIDENCE_CALIBRATION_SCALE)));
+  const crossRoundLearning = Math.min(100, CROSS_ROUND_LEARNING_BASELINE + t.length * CROSS_ROUND_LEARNING_PER_TRADE);
 
   // Predictive
   const resolved = t.filter((x) => x.outcomeResolved !== "pending");
   const outcomeAccuracy = resolved.length > 0
-    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? 100 : x.outcomeResolved === "partial" ? 60 : 20))
+    ? avg(resolved.map((x) => x.outcomeResolved === "correct" ? OUTCOME_CORRECT_SCORE : x.outcomeResolved === "partial" ? OUTCOME_PARTIAL_SCORE : OUTCOME_WRONG_SCORE))
     : 50;
   const marketRegimeAwareness = avg(t.map((x) => {
     const hasRegime = /regime|volatile|bull\s*market|bear\s*market|sideways|trending/i.test(x.reasoning);
-    return hasRegime ? 80 : 45;
+    return hasRegime ? REGIME_AWARE_SCORE : REGIME_UNAWARE_SCORE;
   }));
-  const edgeConsistency = t.length >= 3
-    ? Math.min(100, 40 + (countByCondition(t, (x: V33TradeGrade) => x.coherenceScore > 0.6) / t.length) * 60)
+  const edgeConsistency = t.length >= EDGE_MIN_TRADES
+    ? Math.min(100, EDGE_CONSISTENCY_BASELINE + (countByCondition(t, (x: V33TradeGrade) => x.coherenceScore > EDGE_CONSISTENCY_COHERENCE_THRESHOLD) / t.length) * EDGE_CONSISTENCY_MULTIPLIER)
     : 50;
 
   // Governance (4 dims)
