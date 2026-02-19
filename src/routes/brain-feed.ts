@@ -56,6 +56,64 @@ interface BrainFeedEntry {
 const brainFeedCache: BrainFeedEntry[] = [];
 const MAX_CACHE_SIZE = 500;
 
+// ---------------------------------------------------------------------------
+// Pagination Defaults
+// ---------------------------------------------------------------------------
+
+/** Default number of entries returned by the main feed and agent feed routes. */
+const FEED_DEFAULT_LIMIT = 20;
+
+/** Maximum number of entries the caller may request from the main/agent feed. */
+const FEED_MAX_LIMIT = 100;
+
+/** Default page offset (start from the beginning). */
+const FEED_DEFAULT_OFFSET = 0;
+
+/** Default number of highlight entries returned by the /highlights route. */
+const HIGHLIGHTS_DEFAULT_LIMIT = 10;
+
+/** Maximum number of highlight entries the caller may request. */
+const HIGHLIGHTS_MAX_LIMIT = 50;
+
+// ---------------------------------------------------------------------------
+// Highlights Thresholds
+// ---------------------------------------------------------------------------
+
+/**
+ * Coherence score ceiling for "low coherence" highlights.
+ * Trades where reasoning score ≤ 0.4 are flagged as contradicting the action —
+ * these reveal the most interesting agent failure modes.
+ */
+const LOW_COHERENCE_THRESHOLD = 0.4;
+
+/**
+ * Confidence floor for "high confidence risk" highlights.
+ * Trades where the agent is ≥ 80% confident are tracked for outcome review —
+ * high conviction combined with a bad outcome is the most instructive failure.
+ */
+const HIGH_CONFIDENCE_HIGHLIGHT_THRESHOLD = 0.8;
+
+/**
+ * Weight applied to confidence in the interestingness sort score.
+ *
+ * Interestingness = coherenceScore − confidence × CONFIDENCE_INTEREST_WEIGHT
+ *
+ * A lower score = more interesting. Subtracting a fraction of confidence means
+ * high-confidence trades bubble up alongside low-coherence ones.
+ * Example: coherence 0.6, confidence 0.9 → 0.6 − 0.9×0.3 = 0.33 (interesting)
+ */
+const CONFIDENCE_INTEREST_WEIGHT = 0.3;
+
+// ---------------------------------------------------------------------------
+// Stats Precision
+// ---------------------------------------------------------------------------
+
+/**
+ * Multiplier/divisor pair for rounding aggregate stats to 2 decimal places.
+ * Formula: Math.round(value × 100) / 100 → e.g. 0.8333 → 0.83
+ */
+const STATS_PRECISION_MULTIPLIER = 100;
+
 /**
  * Add an entry to the brain feed cache.
  * Called by the orchestrator after analyzing each trade.
@@ -123,8 +181,8 @@ export function buildBrainFeedEntry(
  *   maxConfidence — maximum confidence (0-1)
  */
 brainFeedRoutes.get("/", async (c) => {
-  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
-  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
+  const limit = parseQueryInt(c.req.query("limit"), FEED_DEFAULT_LIMIT, 1, FEED_MAX_LIMIT);
+  const offset = parseQueryInt(c.req.query("offset"), FEED_DEFAULT_OFFSET, 0);
   const agentFilter = c.req.query("agent");
   const intentFilter = c.req.query("intent");
   const minConfidence = parseFloat(c.req.query("minConfidence") ?? "0");
@@ -202,14 +260,14 @@ brainFeedRoutes.get("/", async (c) => {
  * These are the trades that reveal agent weaknesses.
  */
 brainFeedRoutes.get("/highlights", async (c) => {
-  const limit = parseQueryInt(c.req.query("limit"), 10, 1, 50);
+  const limit = parseQueryInt(c.req.query("limit"), HIGHLIGHTS_DEFAULT_LIMIT, 1, HIGHLIGHTS_MAX_LIMIT);
 
   try {
     // Query low-coherence trades from DB
     const lowCoherence = await db
       .select()
       .from(tradeJustifications)
-      .where(lte(tradeJustifications.coherenceScore, 0.4))
+      .where(lte(tradeJustifications.coherenceScore, LOW_COHERENCE_THRESHOLD))
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(limit);
 
@@ -217,7 +275,7 @@ brainFeedRoutes.get("/highlights", async (c) => {
     const highConfidence = await db
       .select()
       .from(tradeJustifications)
-      .where(gte(tradeJustifications.confidence, 0.8))
+      .where(gte(tradeJustifications.confidence, HIGH_CONFIDENCE_HIGHLIGHT_THRESHOLD))
       .orderBy(desc(tradeJustifications.timestamp))
       .limit(limit);
 
@@ -234,8 +292,8 @@ brainFeedRoutes.get("/highlights", async (c) => {
 
     // Sort by "interestingness": low coherence first, then high confidence
     highlights.sort((a: typeof tradeJustifications.$inferSelect, b: typeof tradeJustifications.$inferSelect) => {
-      const scoreA = (a.coherenceScore ?? 1) - (a.confidence ?? 0) * 0.3;
-      const scoreB = (b.coherenceScore ?? 1) - (b.confidence ?? 0) * 0.3;
+      const scoreA = (a.coherenceScore ?? 1) - (a.confidence ?? 0) * CONFIDENCE_INTEREST_WEIGHT;
+      const scoreB = (b.coherenceScore ?? 1) - (b.confidence ?? 0) * CONFIDENCE_INTEREST_WEIGHT;
       return scoreA - scoreB;
     });
 
@@ -250,10 +308,10 @@ brainFeedRoutes.get("/highlights", async (c) => {
   } catch {
     // Fall back to cache
     const highlights = brainFeedCache
-      .filter((e) => e.coherenceScore < 0.4 || e.confidence > 0.8)
+      .filter((e) => e.coherenceScore < LOW_COHERENCE_THRESHOLD || e.confidence > HIGH_CONFIDENCE_HIGHLIGHT_THRESHOLD)
       .sort((a, b) => {
-        const scoreA = a.coherenceScore - a.confidence * 0.3;
-        const scoreB = b.coherenceScore - b.confidence * 0.3;
+        const scoreA = a.coherenceScore - a.confidence * CONFIDENCE_INTEREST_WEIGHT;
+        const scoreB = b.coherenceScore - b.confidence * CONFIDENCE_INTEREST_WEIGHT;
         return scoreA - scoreB;
       })
       .slice(0, limit);
@@ -306,16 +364,16 @@ brainFeedRoutes.get("/stats", async (c) => {
             ? Math.round(
                 (agentStats.reduce((sum: number, a: typeof agentStats[0]) => sum + a.avgCoherence, 0) /
                   agentStats.length) *
-                  100,
-              ) / 100
+                  STATS_PRECISION_MULTIPLIER,
+              ) / STATS_PRECISION_MULTIPLIER
             : 0,
         overallHallucinationRate:
           agentStats.length > 0
             ? Math.round(
                 (agentStats.reduce((sum: number, a: typeof agentStats[0]) => sum + a.hallucinationRate, 0) /
                   agentStats.length) *
-                  100,
-              ) / 100
+                  STATS_PRECISION_MULTIPLIER,
+              ) / STATS_PRECISION_MULTIPLIER
             : 0,
       },
     });
@@ -351,8 +409,8 @@ brainFeedRoutes.get("/stats", async (c) => {
  */
 brainFeedRoutes.get("/:agentId", async (c) => {
   const agentId = c.req.param("agentId");
-  const limit = parseQueryInt(c.req.query("limit"), 20, 1, 100);
-  const offset = parseQueryInt(c.req.query("offset"), 0, 0);
+  const limit = parseQueryInt(c.req.query("limit"), FEED_DEFAULT_LIMIT, 1, FEED_MAX_LIMIT);
+  const offset = parseQueryInt(c.req.query("offset"), FEED_DEFAULT_OFFSET, 0);
 
   try {
     const justifications = await db
