@@ -614,6 +614,55 @@ const TRUST_LEVEL_LOW_MIN = 25;
  */
 const TRUST_LEVEL_UNTRUSTED_MIN = 0;
 
+/**
+ * Score Display Precision Constants
+ *
+ * Rounding multipliers used throughout reputation metrics to produce
+ * human-readable values with consistent decimal precision.
+ *
+ * Formula: Math.round(value × MULTIPLIER) / DIVISOR
+ */
+
+/**
+ * 1-decimal precision multiplier: 10
+ * Produces one decimal place for accuracy/calibration/consistency/trust scores.
+ *
+ * Formula:  Math.round(value × 10) / 10  →  e.g. 83.4%
+ * Example:  accuracy = 0.834 → Math.round(0.834 × 10) / 10 = 8.3 (× 100 elsewhere = 83.3%)
+ *           or for 0–100 scores: Math.round(83.456 × 10) / 10 = 83.5
+ *
+ * Used for: accuracy, buyAccuracy, sellAccuracy, holdAccuracy, recentAccuracy,
+ *           predictedProbability, actualAccuracy, calibrationError,
+ *           overallCalibration, decisionConsistency, styleAdherence,
+ *           volatilityScore, streakDiscipline, timeConsistency, trustScore,
+ *           computeReputationScore result.
+ */
+const SCORE_PRECISION_MULTIPLIER = 10;
+
+/**
+ * 1-decimal precision divisor: 10
+ * Paired with SCORE_PRECISION_MULTIPLIER — divide after Math.round to restore scale.
+ */
+const SCORE_PRECISION_DIVISOR = 10;
+
+/**
+ * Brier score 4-decimal precision multiplier: 10 000
+ * Brier score is a squared probability error in [0, 1]; 4 decimal places
+ * (e.g. 0.1234) give meaningful resolution without noise.
+ *
+ * Formula:  Math.round(brierScore × 10_000) / 10_000  →  e.g. 0.1234
+ * Example:  0.12345 → Math.round(1234.5) / 10_000 = 1235 / 10_000 = 0.1235
+ *
+ * Used for: brierScore in computeCalibrationMetrics.
+ */
+const BRIER_SCORE_PRECISION_MULTIPLIER = 10_000;
+
+/**
+ * Brier score 4-decimal precision divisor: 10 000
+ * Paired with BRIER_SCORE_PRECISION_MULTIPLIER.
+ */
+const BRIER_SCORE_PRECISION_DIVISOR = 10_000;
+
 // ---------------------------------------------------------------------------
 // Tier and Level Configuration Arrays
 // ---------------------------------------------------------------------------
@@ -1015,11 +1064,11 @@ function calculatePredictionAccuracy(
   return {
     totalPredictions: totalValidated,
     correctPredictions: correct,
-    accuracy: Math.round(accuracy * 10) / 10,
-    buyAccuracy: Math.round(buyAccuracy * 10) / 10,
-    sellAccuracy: Math.round(sellAccuracy * 10) / 10,
-    holdAccuracy: Math.round(holdAccuracy * 10) / 10,
-    recentAccuracy: Math.round(recentAccuracy * 10) / 10,
+    accuracy: Math.round(accuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    buyAccuracy: Math.round(buyAccuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    sellAccuracy: Math.round(sellAccuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    holdAccuracy: Math.round(holdAccuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    recentAccuracy: Math.round(recentAccuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
     accuracyTrend,
   };
 }
@@ -1160,10 +1209,10 @@ function calculateCalibration(
 
     bins.push({
       confidenceRange: `${low}-${high}%`,
-      predictedProbability: Math.round(avgConfidence * 10) / 10,
-      actualAccuracy: Math.round(actualAccuracy * 10) / 10,
+      predictedProbability: Math.round(avgConfidence * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+      actualAccuracy: Math.round(actualAccuracy * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
       count: binDecisions.length,
-      calibrationError: Math.round(calibrationError * 10) / 10,
+      calibrationError: Math.round(calibrationError * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
     });
   }
 
@@ -1187,11 +1236,11 @@ function calculateCalibration(
       : 50;
 
   return {
-    overallCalibration: Math.round(overallCalibration * 10) / 10,
+    overallCalibration: Math.round(overallCalibration * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
     bins,
     isOverconfident: avgPredicted > avgActual + CALIBRATION_BIAS_THRESHOLD,
     isUnderconfident: avgActual > avgPredicted + CALIBRATION_BIAS_THRESHOLD,
-    brierScore: Math.round(brierScore * 10000) / 10000,
+    brierScore: Math.round(brierScore * BRIER_SCORE_PRECISION_MULTIPLIER) / BRIER_SCORE_PRECISION_DIVISOR,
   };
 }
 
@@ -1287,11 +1336,11 @@ function calculateConsistency(
   }
 
   return {
-    decisionConsistency: Math.round(decisionConsistency * 10) / 10,
-    styleAdherence: Math.round(styleAdherence * 10) / 10,
-    volatilityScore: Math.round(volatilityScore * 10) / 10,
-    streakDiscipline: Math.round(streakDiscipline * 10) / 10,
-    timeConsistency: Math.round(timeConsistency * 10) / 10,
+    decisionConsistency: Math.round(decisionConsistency * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    styleAdherence: Math.round(styleAdherence * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    volatilityScore: Math.round(volatilityScore * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    streakDiscipline: Math.round(streakDiscipline * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
+    timeConsistency: Math.round(timeConsistency * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
   };
 }
 
@@ -1329,7 +1378,7 @@ function calculateTrustScore(
     consistencyScore * TRUST_WEIGHT_CONSISTENCY +
     activityScore * TRUST_WEIGHT_ACTIVITY;
 
-  return Math.round(clamp(raw, 0, 100) * 10) / 10;
+  return Math.round(clamp(raw, 0, 100) * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR;
 }
 
 function getTrustLevel(score: number): TrustLevel {
@@ -1521,7 +1570,7 @@ function buildRatingHistory(
       history.push({
         date: d.createdAt.toISOString(),
         eloRating: Math.round(elo),
-        trustScore: Math.round(trust * 10) / 10,
+        trustScore: Math.round(trust * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR,
         event: `${d.action.toUpperCase()} ${d.symbol} (${d.confidence}%)`,
       });
     }
