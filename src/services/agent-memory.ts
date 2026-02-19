@@ -315,6 +315,22 @@ const MEMORY_PROMPT_RECENT_TRADES = 5;
 const AGENT_MEMORY_API_RECENT_TRADES = 10;
 
 /**
+ * Database Query Limit for Memory Computation
+ *
+ * Maximum number of recent decisions and trades fetched from the database
+ * when building agent memory (getAgentMemoryData). Controls how much
+ * historical data is loaded into memory before filtering/analysis.
+ *
+ * Large enough to cover ~3-4 rounds of agent activity (each round has
+ * ~10-20 decisions), while staying well within DB query performance limits.
+ *
+ * @example
+ * - Agent has 800 decisions in DB → load last 200 for memory computation
+ * - Agent has 50 decisions in DB → load all 50 (limit not reached)
+ */
+const MEMORY_COMPUTATION_QUERY_LIMIT = 200;
+
+/**
  * Minimum Occurrence Thresholds
  *
  * These thresholds control when data becomes statistically significant enough
@@ -1368,7 +1384,7 @@ export async function loadMemoryFromDB(agentId: string): Promise<void> {
       ),
     )
     .orderBy(agentDecisions.createdAt)
-    .limit(200);
+    .limit(MEMORY_COMPUTATION_QUERY_LIMIT);
 
   // Load recent trades
   const recentTrades = await db
@@ -1376,7 +1392,7 @@ export async function loadMemoryFromDB(agentId: string): Promise<void> {
     .from(trades)
     .where(and(eq(trades.agentId, agentId), gte(trades.createdAt, cutoff)))
     .orderBy(trades.createdAt)
-    .limit(200);
+    .limit(MEMORY_COMPUTATION_QUERY_LIMIT);
 
   // Build trade memories from decisions and trades
   for (const decision of recentDecisions) {
