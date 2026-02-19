@@ -322,6 +322,36 @@ const SIGNAL_EXPIRY_DURATION_MS = 60 * 60 * 1000;
  */
 const PERFORMANCE_ROUNDING_MULTIPLIER = 100;
 
+/**
+ * Strategy Rating Bounds
+ *
+ * Minimum and maximum valid integer values for a strategy rating submission.
+ * The 1–5 star scale is standard for marketplace trust signals; ratings outside
+ * this range are rejected with a validation error.
+ *
+ * Formula: valid if RATING_MIN ≤ rating ≤ RATING_MAX && Number.isInteger(rating)
+ * Example: rating=3 → valid; rating=6 → rejected ("must be integer between 1 and 5")
+ *
+ * Used in: rateStrategy() input validation
+ */
+const RATING_MIN = 1;
+const RATING_MAX = 5;
+
+/**
+ * Strategy Comparison Count Bounds
+ *
+ * Minimum and maximum number of strategy IDs accepted by getStrategyComparison().
+ * At least 2 strategies are needed for a meaningful side-by-side comparison;
+ * capping at 5 keeps the response payload manageable.
+ *
+ * Formula: valid if COMPARISON_MIN_STRATEGIES ≤ ids.length ≤ COMPARISON_MAX_STRATEGIES
+ * Example: 3 strategy IDs → valid; 1 ID → rejected ("must compare between 2 and 5")
+ *
+ * Used in: getStrategyComparison() input validation
+ */
+const COMPARISON_MIN_STRATEGIES = 2;
+const COMPARISON_MAX_STRATEGIES = 5;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -693,7 +723,7 @@ export async function rateStrategy(
   rating: number,
   review?: string,
 ) {
-  if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+  if (rating < RATING_MIN || rating > RATING_MAX || !Number.isInteger(rating)) {
     throw new Error("Rating must be an integer between 1 and 5");
   }
 
