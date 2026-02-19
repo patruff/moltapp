@@ -1144,7 +1144,7 @@ export function scoreAgent(input: {
     }
     const denominator = Math.sqrt(denomCoh * denomPnl);
     reasoningProfitCorrelation = denominator > 0
-      ? Math.round((numerator / denominator) * 1000) / 1000
+      ? Math.round((numerator / denominator) * CORRELATION_PRECISION_MULTIPLIER) / CORRELATION_PRECISION_MULTIPLIER
       : 0;
   }
 
@@ -1293,6 +1293,34 @@ const OPTIMAL_WEIGHT_CAP = 0.15;
  * undefined), so we return empty results below this threshold.
  */
 const OPTIMAL_WEIGHT_MIN_AGENTS = 3;
+
+/**
+ * Score Display Precision Rounding Constants
+ *
+ * These multiplier/divisor pairs control decimal precision when rounding
+ * computed scores for display and storage. The pattern is:
+ *   Math.round(value * MULTIPLIER) / DIVISOR
+ *
+ * SCORE_PRECISION_MULTIPLIER / DIVISOR = 100 → 2 decimal places (e.g., 83.47)
+ *   Used for all dimension scores (pnlPercent, coherence, compositeScore, etc.)
+ *   Formula: Math.round(score * 100) / 100 → 0.8347
+ *
+ * CORRELATION_PRECISION_MULTIPLIER / DIVISOR = 1000 → 3 decimal places (e.g., 0.742)
+ *   Used for Pearson correlation coefficients (reasoningProfitCorrelation, dimension correlations)
+ *   Formula: Math.round(r * 1000) / 1000 → 0.742
+ *   Extra precision needed: correlations are in [-1, 1] range so 2 decimals loses information
+ *
+ * WEIGHT_PRECISION_MULTIPLIER / DIVISOR = 10000 → 4 decimal places (e.g., 0.0625)
+ *   Used for optimal dimension weights (suggestedWeight) which sum to 1.0 across 34 dimensions
+ *   Formula: Math.round(weight * 10000) / 10000 → 0.0625
+ *   Extra precision needed: with 34 dimensions averaging ~0.03 each, 2 decimals → all weights round to 0.03
+ */
+/** 2-decimal precision for dimension scores: Math.round(score × 100) / 100 */
+const SCORE_PRECISION_MULTIPLIER = 100;
+/** 3-decimal precision for correlation values: Math.round(r × 1000) / 1000 */
+const CORRELATION_PRECISION_MULTIPLIER = 1000;
+/** 4-decimal precision for suggested weights: Math.round(weight × 10000) / 10000 */
+const WEIGHT_PRECISION_MULTIPLIER = 10000;
 
 // ---------------------------------------------------------------------------
 // Optimal Weight Computation
