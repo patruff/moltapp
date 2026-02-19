@@ -23,7 +23,43 @@
  */
 
 import { errorMessage } from "../lib/errors.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
+
+// ---------------------------------------------------------------------------
+// Stream Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of events retained in the in-memory history buffer.
+ *
+ * When the buffer exceeds this size, the oldest events are evicted.
+ * 200 events covers several trading rounds' worth of activity without
+ * bloating memory for long-running processes.
+ *
+ * Formula: eventHistory.splice(0, eventHistory.length - EVENT_HISTORY_BUFFER_SIZE)
+ * Example: 250 events accumulated → evict 50, keep 200 most recent
+ */
+const EVENT_HISTORY_BUFFER_SIZE = 200;
+
+/**
+ * Default number of recent events returned by getRecentEvents().
+ *
+ * Callers can override this with an explicit limit; 50 is chosen to
+ * balance API response verbosity with completeness for a typical UI
+ * trade-activity feed (covers ~1 full trading round of events).
+ */
+const DEFAULT_RECENT_EVENTS_LIMIT = 50;
+
+/**
+ * Interval between heartbeat events sent to all subscribers (milliseconds).
+ *
+ * 30 seconds keeps SSE connections alive through typical proxy/load-balancer
+ * idle-connection timeouts (many default to 60 seconds). Heartbeats also
+ * carry real-time subscriber count and uptime metrics for monitoring.
+ *
+ * Formula: heartbeat fires every HEARTBEAT_INTERVAL_MS = 30,000 ms = 30 s
+ */
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -67,7 +103,6 @@ interface SubscriberEntry {
 
 const subscribers = new Map<string, SubscriberEntry>();
 const eventHistory: TradeStreamEvent[] = [];
-const MAX_HISTORY = 200;
 
 let eventCounter = 0;
 let totalEventsEmitted = 0;
@@ -163,8 +198,8 @@ export function emitTradeStreamEvent(
 
   // Store in history
   eventHistory.push(event);
-  if (eventHistory.length > MAX_HISTORY) {
-    eventHistory.splice(0, eventHistory.length - MAX_HISTORY);
+  if (eventHistory.length > EVENT_HISTORY_BUFFER_SIZE) {
+    eventHistory.splice(0, eventHistory.length - EVENT_HISTORY_BUFFER_SIZE);
   }
 
   // Broadcast to subscribers
@@ -321,7 +356,7 @@ export function emitDisagreement(
  * Get recent events from the history buffer.
  */
 export function getRecentEvents(
-  limit = 50,
+  limit = DEFAULT_RECENT_EVENTS_LIMIT,
   filter?: {
     types?: TradeStreamEventType[];
     agentId?: string;
@@ -359,7 +394,7 @@ function startHeartbeat(): void {
       subscribers: subscribers.size,
       uptime: Date.now() - new Date(startedAt).getTime(),
     });
-  }, 30_000);
+  }, HEARTBEAT_INTERVAL_MS);
 }
 
 function stopHeartbeat(): void {
