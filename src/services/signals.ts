@@ -418,9 +418,11 @@ const INDICATOR_ROUND_DIVISOR = 10;
  * - Momentum percentage: (priceChange / oldPrice) * 100 → 3.2%
  *
  * Used in:
- * - Bollinger Bands bandwidth calculation (line 774)
- * - Bollinger breakout strength calculation (line 967)
- * - Momentum threshold price calculation (line 1042)
+ * - Bollinger Bands bandwidth calculation
+ * - Bollinger breakout strength calculation
+ * - Momentum threshold price calculation
+ * - Long-term momentum percentage (longTerm momentum)
+ * - Consensus agreement rate and strength calculations
  */
 const PERCENTAGE_CONVERSION_MULTIPLIER = 100;
 const CONSENSUS_RECENT_DECISIONS_LIMIT = 10;
@@ -952,7 +954,7 @@ function calculateMomentum(prices: number[]): MomentumData {
 
   const longTerm =
     prices.length >= 30
-      ? ((current - prices[0]) / prices[0]) * 100
+      ? ((current - prices[0]) / prices[0]) * PERCENTAGE_CONVERSION_MULTIPLIER
       : mediumTerm;
 
   // Acceleration: rate of change of momentum
@@ -1414,10 +1416,10 @@ export async function getAgentConsensusData(): Promise<AgentConsensus[]> {
     else consensusDirection = "split";
 
     const maxDirection = Math.max(buyCount, sellCount, holdCount);
-    const agreementRate = (maxDirection / total) * 100;
+    const agreementRate = (maxDirection / total) * PERCENTAGE_CONVERSION_MULTIPLIER;
     const avgConfidence =
       agentSignals.reduce((s, a) => s + a.confidence, 0) / total;
-    const consensusStrength = agreementRate * (avgConfidence / 100);
+    const consensusStrength = agreementRate * (avgConfidence / PERCENTAGE_CONVERSION_MULTIPLIER);
 
     consensusList.push({
       symbol,

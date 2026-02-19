@@ -292,6 +292,23 @@ const WIN_RATE_PRECISION_DIVISOR = 10;
 const CONVICTION_PRECISION_MULTIPLIER = 10;
 const CONVICTION_PRECISION_DIVISOR = 10;
 
+/**
+ * Percentage Conversion Multiplier
+ *
+ * Converts a decimal ratio (0.0–1.0) to an integer percentage (0–100).
+ *
+ * Formula: percentage = Math.round(ratio × PERCENT_MULTIPLIER)
+ *
+ * Examples:
+ * - Bullish stance: (buyCount / total) × 100 → 67% bullish
+ * - Price change:   (priceNow - priceAtDebate) / priceAtDebate × 100 → +3.2%
+ * - Contrarianism:  (contrarianCount / totalRounds) × 100 → 45% contrarian
+ *
+ * Also used as divisor to normalize confidence (0–100) to fraction (0.0–1.0):
+ *   conviction = (confidence / PERCENT_MULTIPLIER) × MAX_SCORE
+ */
+const PERCENT_MULTIPLIER = 100;
+
 // ---------------------------------------------------------------------------
 // Database Query Limit Constants
 // ---------------------------------------------------------------------------
@@ -829,7 +846,7 @@ function scoreParticipant(
   allParticipants: Debate["participants"],
 ): { conviction: number; reasoning: number; dataUsage: number; riskAwareness: number; total: number } {
   // Conviction: based on confidence and strength of position
-  const conviction = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((participant.confidence / 100) * DEBATE_SCORE_MAX_PER_DIMENSION));
+  const conviction = Math.min(DEBATE_SCORE_MAX_PER_DIMENSION, Math.round((participant.confidence / PERCENT_MULTIPLIER) * DEBATE_SCORE_MAX_PER_DIMENSION));
 
   // Reasoning: based on number of supporting points and argument length
   const argumentRichness = Math.min(1, participant.supportingPoints.length / ARGUMENT_RICHNESS_POINTS);
@@ -1199,7 +1216,7 @@ export async function getDebateHistory(): Promise<
     // Current price
     const currentStock = marketData.find((m) => m.symbol === primarySymbol);
     const priceNow = currentStock?.price ?? priceAtDebate;
-    const priceChange = priceAtDebate > 0 ? ((priceNow - priceAtDebate) / priceAtDebate) * 100 : 0;
+    const priceChange = priceAtDebate > 0 ? ((priceNow - priceAtDebate) / priceAtDebate) * PERCENT_MULTIPLIER : 0;
 
     // Build participants
     const participants = roundDecisions.map((d) => {
@@ -1290,8 +1307,8 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     const holdCount = countByCondition(decisions, (d: DecisionRow) => d.action === "hold");
     const total = decisions.length;
 
-    const bullishPct = Math.round((buyCount / total) * 100);
-    const bearishPct = Math.round((sellCount / total) * 100);
+    const bullishPct = Math.round((buyCount / total) * PERCENT_MULTIPLIER);
+    const bearishPct = Math.round((sellCount / total) * PERCENT_MULTIPLIER);
 
     let stance: string;
     if (bullishPct > STANCE_STRONG_THRESHOLD) stance = "Strongly Bullish";
@@ -1493,7 +1510,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     const priceAtDebate = snapshot?.[agentDecision.symbol]?.price ?? 0;
     const currentStock = marketData.find((m) => m.symbol === agentDecision.symbol);
     const priceNow = currentStock?.price ?? priceAtDebate;
-    const priceChange = priceAtDebate > 0 ? ((priceNow - priceAtDebate) / priceAtDebate) * 100 : 0;
+    const priceChange = priceAtDebate > 0 ? ((priceNow - priceAtDebate) / priceAtDebate) * PERCENT_MULTIPLIER : 0;
 
     const agentWasRight =
       (agentAction === "buy" && priceChange > PRICE_RESOLUTION_THRESHOLD) ||
@@ -1560,7 +1577,7 @@ export async function getAgentDebateStats(agentId: string): Promise<DebateStats 
     }
   }
   const contrarianism = totalRoundsWithMajority > 0
-    ? Math.round((contrarianCount / totalRoundsWithMajority) * 100)
+    ? Math.round((contrarianCount / totalRoundsWithMajority) * PERCENT_MULTIPLIER)
     : 0;
 
   // Best debate performance
