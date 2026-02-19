@@ -673,11 +673,11 @@ function detectStyleDrift(agentId: string): StyleDriftAlert | null {
 
   driftScore = Math.min(driftScore, 1.0);
 
-  if (driftScore < 0.3) return null; // Not significant
+  if (driftScore < STYLE_DRIFT_ALERT_THRESHOLD) return null; // Not significant
 
   let detectedBehavior: string;
-  if (tradeRate > 0.7) detectedBehavior = "aggressive (high trade frequency)";
-  else if (tradeRate < 0.3) detectedBehavior = "conservative (mostly holding)";
+  if (tradeRate > STYLE_DRIFT_LOW_FREQ_MAX_RATE) detectedBehavior = "aggressive (high trade frequency)";
+  else if (tradeRate < STYLE_DRIFT_ALERT_THRESHOLD) detectedBehavior = "conservative (mostly holding)";
   else detectedBehavior = "moderate (balanced trading)";
 
   return {
@@ -852,19 +852,19 @@ export function generateReport(periodDays = 7): CrossAgentReport {
 
   // Generate insights
   const insights: string[] = [];
-  if (herdingFrequency > 50) {
+  if (herdingFrequency > INSIGHT_HERDING_FREQUENCY_THRESHOLD) {
     insights.push(
       `High herding frequency (${herdingFrequency.toFixed(0)}%) — agents are converging on similar trades, reducing portfolio diversification benefit`,
     );
   }
-  if (unanimousAccuracy > 70 && unanimousRounds.length >= 5) {
+  if (unanimousAccuracy > INSIGHT_UNANIMOUS_ACCURACY_THRESHOLD && unanimousRounds.length >= INSIGHT_UNANIMOUS_MIN_ROUNDS) {
     insights.push(
       `Unanimous decisions are ${unanimousAccuracy.toFixed(0)}% accurate — when all agents agree, it's a strong signal`,
     );
   }
   if (
     mostCorrelated &&
-    Math.abs(mostCorrelated.signalCorrelation) > 0.7
+    Math.abs(mostCorrelated.signalCorrelation) > INSIGHT_HIGH_CORRELATION_THRESHOLD
   ) {
     insights.push(
       `${mostCorrelated.agent1} and ${mostCorrelated.agent2} are highly correlated (${mostCorrelated.signalCorrelation.toFixed(2)}) — they're making similar decisions`,
