@@ -445,7 +445,7 @@ function computeConfidenceBuckets(agentForecasts: TradeImpactForecast[]): Confid
     return {
       range: b.range,
       count: inBucket.length,
-      directionAccuracy: inBucket.length > 0 ? Math.round((correct / inBucket.length) * 100) / 100 : 0,
+      directionAccuracy: inBucket.length > 0 ? round2(correct / inBucket.length) : 0,
       avgMagnitudeError: withMag.length > 0 ? round3(magSum / withMag.length) : 0,
     };
   });
