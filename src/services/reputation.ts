@@ -663,6 +663,27 @@ const BRIER_SCORE_PRECISION_MULTIPLIER = 10_000;
  */
 const BRIER_SCORE_PRECISION_DIVISOR = 10_000;
 
+/**
+ * Volatility score: confidence-swing multiplier.
+ * avgSwing × 2 maps average per-decision confidence swing to a 0-100 score.
+ * An agent with an average swing of 40 points scores min(100, 40 × 2) = 80.
+ */
+const VOLATILITY_SWING_MULTIPLIER = 2;
+
+/**
+ * Time consistency: coefficient-of-variation penalty multiplier.
+ * timeConsistency = max(0, 100 - gapCV × 50).
+ * A gapCV of 1.0 (high irregularity) produces score 50; gapCV ≥ 2.0 → 0.
+ */
+const TIME_CONSISTENCY_GAP_CV_PENALTY = 50;
+
+/**
+ * Milliseconds per day: 24 × 60 × 60 × 1000 = 86 400 000 ms.
+ * Used to convert elapsed-ms timestamps to days since last trade for
+ * the activity decay penalty in calculateTrustScore().
+ */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Tier and Level Configuration Arrays
 // ---------------------------------------------------------------------------
@@ -1285,15 +1306,15 @@ function calculateConsistency(
   if (config.riskTolerance === "conservative") {
     // Conservative agents should hold more, have lower avg confidence
     const holdRatio = holdCount / total;
-    styleAdherence = Math.min(100, holdRatio * 150 + (avgConf < MODERATE_CONFIDENCE_THRESHOLD ? 20 : 0));
+    styleAdherence = Math.min(100, holdRatio * STYLE_CONSERVATIVE_HOLD_MULTIPLIER + (avgConf < MODERATE_CONFIDENCE_THRESHOLD ? STYLE_ADHERENCE_CONFIDENCE_BONUS : 0));
   } else if (config.riskTolerance === "aggressive") {
     // Aggressive agents should trade more (fewer holds), higher confidence
     const actionRatio = (buyCount + sellCount) / total;
-    styleAdherence = Math.min(100, actionRatio * 120 + (avgConf > MODERATE_CONFIDENCE_THRESHOLD ? 20 : 0));
+    styleAdherence = Math.min(100, actionRatio * STYLE_AGGRESSIVE_ACTION_MULTIPLIER + (avgConf > MODERATE_CONFIDENCE_THRESHOLD ? STYLE_ADHERENCE_CONFIDENCE_BONUS : 0));
   } else {
     // Moderate: balanced approach
     const balance = 1 - Math.abs(buyCount - sellCount) / total;
-    styleAdherence = Math.min(100, balance * 80 + 20);
+    styleAdherence = Math.min(100, balance * STYLE_MODERATE_BALANCE_MULTIPLIER + STYLE_MODERATE_BASE_SCORE);
   }
 
   // Volatility score: how much do confidence levels swing?
@@ -1302,7 +1323,7 @@ function calculateConsistency(
     totalSwing += Math.abs(confidences[i] - confidences[i - 1]);
   }
   const avgSwing = totalSwing / (confidences.length - 1);
-  const volatilityScore = Math.min(100, avgSwing * 2);
+  const volatilityScore = Math.min(100, avgSwing * VOLATILITY_SWING_MULTIPLIER);
 
   // Streak discipline: does agent overreact after losses?
   let streakDiscipline = 70; // default good
@@ -1332,7 +1353,7 @@ function calculateConsistency(
     const avgGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
     const gapVariance = computeVariance(gaps, true); // population variance
     const gapCV = Math.sqrt(gapVariance) / (avgGap || 1); // coefficient of variation
-    timeConsistency = Math.max(0, 100 - gapCV * 50);
+    timeConsistency = Math.max(0, 100 - gapCV * TIME_CONSISTENCY_GAP_CV_PENALTY);
   }
 
   return {
@@ -1366,7 +1387,7 @@ function calculateTrustScore(
   let activityScore = DEFAULT_SCORE;
   if (decisions.length > 0) {
     const daysSinceLastTrade =
-      (Date.now() - decisions[0].createdAt.getTime()) / (24 * 60 * 60 * 1000);
+      (Date.now() - decisions[0].createdAt.getTime()) / MS_PER_DAY;
     const decayPenalty = daysSinceLastTrade * TRUST_DECAY_RATE * 100;
     const volumeBonus = Math.min(ACTIVITY_MAX_VOLUME_BONUS, decisions.length * ACTIVITY_VOLUME_MULTIPLIER);
     activityScore = Math.max(ELO_SCORE_FLOOR, ACTIVITY_SCORE_BASELINE + volumeBonus - decayPenalty);
