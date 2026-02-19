@@ -296,6 +296,27 @@ const INTEGRITY_HASH_LENGTH = 16; // SHA256 hex prefix length for trade integrit
 const COHERENCE_SCORE_PERCENT_MULTIPLIER = 100; // Converts 0-1 coherence to 0-100 scale
 
 /**
+ * Score Display Precision Rounding
+ *
+ * Controls how many decimal places are shown in all dimension score outputs.
+ * Used by the r() helper function, which rounds every dimension and composite
+ * score before storing and returning the grade.
+ *
+ * Formula: Math.round(value * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR
+ * Example: 0.8333... → Math.round(0.8333 * 100) / 100 = 0.83
+ *
+ * Both multiplier and divisor must be the same value. Changing to 1000 would
+ * give 3 decimal places (e.g., 0.833 instead of 0.83).
+ *
+ * Used for: all dimension scores, composite score, per-round averages,
+ * provider bias values, fairness index, and consensus variance output.
+ */
+/** Multiply before Math.round to get 2-decimal precision */
+const SCORE_PRECISION_MULTIPLIER = 100;
+/** Divide after Math.round to restore scale (must equal SCORE_PRECISION_MULTIPLIER) */
+const SCORE_PRECISION_DIVISOR = 100;
+
+/**
  * Default/Fallback Scores
  *
  * Used when insufficient data exists for accurate scoring.
@@ -736,7 +757,7 @@ export function scoreAgent(input: {
 }
 
 function r(n: number): number {
-  return Math.round(n * 100) / 100;
+  return Math.round(n * SCORE_PRECISION_MULTIPLIER) / SCORE_PRECISION_DIVISOR;
 }
 
 // ---------------------------------------------------------------------------

@@ -260,6 +260,23 @@ const SCORE_PRECISION_MULTIPLIER = 100;
 /** Divide after Math.round to restore scale (must equal SCORE_PRECISION_MULTIPLIER) */
 const SCORE_PRECISION_DIVISOR = 100;
 
+/**
+ * Integrity Hash Display Length
+ *
+ * Controls how many hex characters of the SHA256 integrity fingerprint are
+ * retained in the gradeAgent() output. 16 hex chars = 64 bits of entropy,
+ * which is sufficient for trade-level deduplication and audit trail display
+ * while keeping API response payloads compact.
+ *
+ * Security note: 64 bits → birthday collision at ~4 billion trade grades
+ * (safe for all practical purposes). Increasing to 32 chars (128 bits) adds
+ * no user-facing benefit but doubles the field size in every response.
+ *
+ * Must match the truncation length used in verifyTradeGrade() if implemented.
+ */
+/** SHA256 hex prefix length stored with each trade grade for integrity display */
+const INTEGRITY_HASH_LENGTH = 16;
+
 // ---------------------------------------------------------------------------
 // Types for the 24 dimensions
 // ---------------------------------------------------------------------------
@@ -694,7 +711,7 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`v32:${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, INTEGRITY_HASH_LENGTH);
 
   // Overall grade (weighted average of sub-scores)
   const subScores = [
