@@ -218,6 +218,68 @@ const TIME_WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;
  */
 const TIME_WINDOW_1D_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Strategy Search Results Limit
+ *
+ * Maximum number of strategies returned by searchStrategies() and
+ * getStrategyLeaderboard(). Balances API response size with coverage.
+ *
+ * Example: 200 public strategies match query → return top 50 by sort order
+ *
+ * Used in: searchStrategies(), getStrategyLeaderboard()
+ */
+const STRATEGY_SEARCH_RESULTS_LIMIT = 50;
+
+/**
+ * Strategy Detail Ratings Limit
+ *
+ * Maximum number of recent ratings included in getStrategyById() response.
+ * Sorted by most recent first, so this shows the latest community feedback.
+ *
+ * Example: Strategy has 87 ratings → return 10 most recent
+ *
+ * Used in: getStrategyById() ratings fetch
+ */
+const STRATEGY_RECENT_RATINGS_LIMIT = 10;
+
+/**
+ * Strategy Detail Signals Limit
+ *
+ * Maximum number of recent signals included in getStrategyById() response.
+ * More signals than ratings since signals are generated more frequently
+ * (each trading round produces signals, ratings are manual).
+ *
+ * Example: Strategy has 340 signals → return 20 most recent
+ *
+ * Used in: getStrategyById() signals fetch
+ */
+const STRATEGY_DETAIL_SIGNALS_LIMIT = 20;
+
+/**
+ * Strategy Forks Display Limit
+ *
+ * Maximum number of forked strategies shown in getStrategyById() response.
+ * Sorted by creation date descending to show newest forks first.
+ *
+ * Example: Strategy has been forked 23 times → show 10 most recent forks
+ *
+ * Used in: getStrategyById() forks fetch
+ */
+const STRATEGY_FORKS_DISPLAY_LIMIT = 10;
+
+/**
+ * Strategy Performance Signals Limit
+ *
+ * Maximum number of recent signals fetched when calculating strategy
+ * performance metrics (signal strength averaging). Used in both
+ * getStrategyPerformance() and getStrategyLeaderboard() inner loop.
+ *
+ * Example: Strategy has 500 signals → use 10 most recent to compute avg strength
+ *
+ * Used in: getStrategyPerformance(), getStrategyLeaderboard() signal strength
+ */
+const STRATEGY_PERFORMANCE_SIGNALS_LIMIT = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -719,7 +781,7 @@ export async function getStrategyCatalog(
     .from(strategies)
     .where(and(...conditions))
     .orderBy(orderClause)
-    .limit(50);
+    .limit(STRATEGY_SEARCH_RESULTS_LIMIT);
 
   return results;
 }
@@ -751,7 +813,7 @@ export async function getStrategyById(id: string) {
     .from(strategyRatings)
     .where(eq(strategyRatings.strategyId, id))
     .orderBy(desc(strategyRatings.createdAt))
-    .limit(10);
+    .limit(STRATEGY_RECENT_RATINGS_LIMIT);
 
   // Fetch active adoptions
   const adoptions = await db
@@ -771,7 +833,7 @@ export async function getStrategyById(id: string) {
     .from(strategySignals)
     .where(eq(strategySignals.strategyId, id))
     .orderBy(desc(strategySignals.createdAt))
-    .limit(20);
+    .limit(STRATEGY_DETAIL_SIGNALS_LIMIT);
 
   // Check for forks
   const forks = await db
@@ -784,7 +846,7 @@ export async function getStrategyById(id: string) {
     .from(strategies)
     .where(eq(strategies.parentStrategyId, id))
     .orderBy(desc(strategies.createdAt))
-    .limit(10);
+    .limit(STRATEGY_FORKS_DISPLAY_LIMIT);
 
   return {
     ...strategy,
@@ -818,7 +880,7 @@ export async function getStrategyLeaderboard() {
       ),
     )
     .orderBy(desc(strategies.totalAdopters))
-    .limit(50);
+    .limit(STRATEGY_SEARCH_RESULTS_LIMIT);
 
   const leaderboard = [];
 
@@ -1175,7 +1237,7 @@ export async function getStrategyPerformance(
     .from(strategySignals)
     .where(eq(strategySignals.strategyId, strategyId))
     .orderBy(desc(strategySignals.createdAt))
-    .limit(10);
+    .limit(STRATEGY_PERFORMANCE_SIGNALS_LIMIT);
 
   // Total signals count
   const allSignals = await db
@@ -1344,7 +1406,7 @@ export async function getStrategyComparison(
       .from(strategySignals)
       .where(eq(strategySignals.strategyId, id))
       .orderBy(desc(strategySignals.createdAt))
-      .limit(10);
+      .limit(STRATEGY_PERFORMANCE_SIGNALS_LIMIT);
 
     const recentStrength =
       signals.length > 0
