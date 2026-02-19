@@ -8,6 +8,54 @@
 import type { TradingDecision } from "../agents/base-agent.ts";
 import { clamp } from "../lib/math-utils.ts";
 
+// ---------------------------------------------------------------------------
+// Loan Amount Constraints
+// ---------------------------------------------------------------------------
+
+/**
+ * Hard ceiling on how many $STONKS a borrower may request in a single loan.
+ * Prevents any single agent from monopolising the lending pool.
+ * Communicated to the LLM in the borrower prompt ("max 50000").
+ */
+const LENDING_MAX_BORROW_AMOUNT = 50_000;
+
+// ---------------------------------------------------------------------------
+// Interest Rate Constraints  (per-round fraction, e.g. 0.05 = 5 %)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fallback interest rate used when the LLM omits the field.
+ * 5 % per round is the "market-rate" starting point for both borrower proposals
+ * and lender counter-offers.
+ */
+const LENDING_DEFAULT_INTEREST_RATE = 0.05;
+
+/** Absolute floor — 0 % loans are allowed (goodwill / alliance signals). */
+const LENDING_MIN_INTEREST_RATE = 0;
+
+/**
+ * Hard ceiling on interest rates.
+ * 20 % per round prevents predatory lending that would bankrupt borrowers in
+ * a single bad round.
+ */
+const LENDING_MAX_INTEREST_RATE = 0.20;
+
+// ---------------------------------------------------------------------------
+// Loan Duration Constraints  (in trading rounds)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fallback duration when the LLM omits the field.
+ * 2 rounds gives the borrower one round to execute and one round to settle.
+ */
+const LENDING_DEFAULT_DURATION_ROUNDS = 2;
+
+/** Maximum loan term. 6 rounds ≈ 3 hours of trading at a 30-minute interval. */
+const LENDING_MAX_DURATION_ROUNDS = 6;
+
+/** Minimum loan term — at least 1 round so the trade has time to play out. */
+const LENDING_MIN_DURATION_ROUNDS = 1;
+
 /**
  * Build the prompt asking a high-conviction agent if it wants to borrow $STONKS.
  */
@@ -112,9 +160,9 @@ export function parseBorrowerResponse(raw: string): {
   const parsed = JSON.parse(cleaned);
   return {
     shouldBorrow: !!parsed.shouldBorrow,
-    amount: Math.max(0, Math.min(50000, Number(parsed.amount) || 0)),
-    interestRate: clamp(Number(parsed.interestRate) || 0.05, 0, 0.20),
-    duration: Math.max(1, Math.min(6, Math.round(Number(parsed.duration) || 2))),
+    amount: Math.max(0, Math.min(LENDING_MAX_BORROW_AMOUNT, Number(parsed.amount) || 0)),
+    interestRate: clamp(Number(parsed.interestRate) || LENDING_DEFAULT_INTEREST_RATE, LENDING_MIN_INTEREST_RATE, LENDING_MAX_INTEREST_RATE),
+    duration: Math.max(LENDING_MIN_DURATION_ROUNDS, Math.min(LENDING_MAX_DURATION_ROUNDS, Math.round(Number(parsed.duration) || LENDING_DEFAULT_DURATION_ROUNDS))),
     reasoning: String(parsed.reasoning || "No reasoning provided"),
   };
 }
@@ -132,7 +180,7 @@ export function parseLenderResponse(raw: string): {
   return {
     shouldLend: !!parsed.shouldLend,
     amountWilling: Math.max(0, Number(parsed.amountWilling) || 0),
-    counterRate: clamp(Number(parsed.counterRate) || 0.05, 0, 0.20),
+    counterRate: clamp(Number(parsed.counterRate) || LENDING_DEFAULT_INTEREST_RATE, LENDING_MIN_INTEREST_RATE, LENDING_MAX_INTEREST_RATE),
     reasoning: String(parsed.reasoning || "No reasoning provided"),
     riskAssessment: String(parsed.riskAssessment || "No assessment provided"),
   };
