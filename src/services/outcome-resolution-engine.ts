@@ -176,6 +176,33 @@ const CALIBRATION_WELL_CALIBRATED_THRESHOLD = 0.1;
 const PREDICTION_STORE_MAX_SIZE = 500;
 
 /**
+ * Pending Resolution Query Limit
+ *
+ * Maximum number of unresolved justifications fetched per resolution run.
+ * Caps DB query size to prevent memory spikes when many predictions are pending.
+ *
+ * Why 100?
+ * - At ~3 agents × ~5 trades/round, a 100-row cap covers ~6–7 rounds per pass.
+ * - Resolution runs frequently enough that overflow is rare; pending predictions
+ *   are picked up in the next run if the queue exceeds this limit.
+ * - Larger (e.g. 500): increases per-run latency for large backlogs.
+ * - Smaller (e.g. 25): causes artificial lag when many horizons resolve together.
+ */
+const PENDING_RESOLUTION_QUERY_LIMIT = 100;
+
+/**
+ * P&L Display Decimal Places
+ *
+ * Number of decimal places used when formatting P&L percentages in:
+ * - actualOutcomeSummary (stored in DB, shown in trade logs)
+ * - actualOutcome (stored in tradeJustifications table)
+ *
+ * 2 decimal places = "3.47%" (sufficient precision for trading context).
+ * Formula: pnlPercent.toFixed(PNL_DISPLAY_DECIMALS)
+ */
+const PNL_DISPLAY_DECIMALS = 2;
+
+/**
  * Time Conversion Constants
  *
  * Millisecond equivalents used in resolution horizon minimum-age calculations.
@@ -190,6 +217,7 @@ const PREDICTION_STORE_MAX_SIZE = 500;
  * Used for:
  * - resolveOutcomesForHorizon(): minimum age check before resolving predictions
  *   (ensures a 4h prediction is at least 4 hours old before scoring it)
+ * - runOutcomeResolution(): minAge cutoff via horizonHours × MS_PER_HOUR
  */
 const MS_PER_HOUR = 60 * 60 * 1000;
 
@@ -328,7 +356,7 @@ export async function runOutcomeResolution(
 
   // Determine the minimum age required for this horizon
   const horizonHours = getHorizonHours(horizon) ?? 1;
-  const minAge = new Date(Date.now() - horizonHours * 60 * 60 * 1000);
+  const minAge = new Date(Date.now() - horizonHours * MS_PER_HOUR);
 
   try {
     const pending = await db
