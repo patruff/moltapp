@@ -151,6 +151,48 @@ const TREND_MIN_HISTORY = 5; // Minimum history entries required for trend calcu
  */
 const MAX_HISTORY = 200; // Maximum composite score history entries per agent
 
+/**
+ * Composite score display precision rounding.
+ *
+ * Rounds the composite score to 4 decimal places for display:
+ *   Math.round(score × 10000) / 10000 → e.g., 0.7834
+ *
+ * 4 decimal places gives meaningful differentiation between close scores
+ * (e.g., 0.7834 vs 0.7832) without excessive precision that looks like noise.
+ * Changing to 100 gives 2 decimal places (0.78), 1000 gives 3 (0.783).
+ */
+const COMPOSITE_SCORE_PRECISION_MULTIPLIER = 10000; // multiply before rounding for 4-decimal precision
+
+/**
+ * Percentile scale multiplier.
+ *
+ * Converts decimal fraction to 0-100 percentile rank:
+ *   rank / (total - 1) × 100 → e.g., 2nd of 5 = 3/4 × 100 = 75th percentile
+ *
+ * 100 = standard percentile scale (0 = bottom, 100 = top).
+ * If only one agent, percentile is set to PERCENTILE_SCALE (100 = sole agent = top).
+ */
+const PERCENTILE_SCALE = 100; // multiplier for 0-100 percentile rank display
+
+/**
+ * Default Elo K-factor.
+ *
+ * The K-factor controls how much ratings change per head-to-head matchup.
+ * K=32 is the standard value used in chess (FIDE for novice/intermediate players).
+ * Lower K (e.g., 16) means more stable ratings; higher K (e.g., 64) means
+ * faster adaptation to recent performance.
+ */
+const DEFAULT_ELO_K = 32; // standard Elo K-factor (same as FIDE for ≤2400 rated players)
+
+/**
+ * Minimum trades required for ranking.
+ *
+ * Agents must execute at least this many trades before appearing on the
+ * leaderboard. Prevents new agents with 1-2 trades from distorting rankings.
+ * 3 trades provides minimal statistical validity while allowing fast entry.
+ */
+const DEFAULT_MIN_TRADES_FOR_RANKING = 3; // minimum trades before agent appears in rankings
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -164,8 +206,8 @@ const DEFAULT_CONFIG: RankingConfig = {
     disciplineRate: 0.10,
     calibration: 0.10,
   },
-  eloK: 32,
-  minTradesForRanking: 3,
+  eloK: DEFAULT_ELO_K,
+  minTradesForRanking: DEFAULT_MIN_TRADES_FOR_RANKING,
 };
 
 let currentConfig = { ...DEFAULT_CONFIG };
@@ -309,7 +351,7 @@ export function computeComposite(
   }
 
   return totalWeight > 0
-    ? Math.round((composite / totalWeight) * 10000) / 10000
+    ? Math.round((composite / totalWeight) * COMPOSITE_SCORE_PRECISION_MULTIPLIER) / COMPOSITE_SCORE_PRECISION_MULTIPLIER
     : 0;
 }
 
@@ -452,8 +494,8 @@ export function generateRankings(
     rank: idx + 1,
     percentile:
       scored.length > 1
-        ? Math.round(((scored.length - 1 - idx) / (scored.length - 1)) * 100)
-        : 100,
+        ? Math.round(((scored.length - 1 - idx) / (scored.length - 1)) * PERCENTILE_SCALE)
+        : PERCENTILE_SCALE,
   }));
 
   return {
