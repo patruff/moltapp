@@ -218,6 +218,34 @@ const PORTFOLIO_PRIOR_TRADES_LIMIT = 10;
 const TIMELINE_DECISIONS_LIMIT = 20;
 
 /**
+ * DECISION TIMELINE QUERY PARAMETERS
+ *
+ * Control pagination behavior for the getDecisionTimeline() API endpoint.
+ */
+
+/**
+ * Default number of decisions returned by getDecisionTimeline() when no limit is specified.
+ *
+ * 50 decisions covers roughly 2-3 rounds per agent across all 3 agents, giving a meaningful
+ * slice of recent activity without bloating API responses.
+ *
+ * Formula: getDecisionTimeline() → decisions.slice(0, DEFAULT_DECISION_TIMELINE_LIMIT)
+ * Example: Agent has 200 decisions stored → API returns most recent 50 by default.
+ */
+const DEFAULT_DECISION_TIMELINE_LIMIT = 50;
+
+/**
+ * Maximum number of decisions that can be requested in a single getDecisionTimeline() call.
+ *
+ * Hard cap prevents clients from fetching the entire decision history in one request,
+ * which could produce very large JSON payloads and slow database scans.
+ *
+ * Formula: Math.min(requestedLimit ?? DEFAULT_DECISION_TIMELINE_LIMIT, MAX_DECISION_TIMELINE_LIMIT)
+ * Example: Client requests limit=500 → capped to 200; limit=30 → returns 30 as-is.
+ */
+const MAX_DECISION_TIMELINE_LIMIT = 200;
+
+/**
  * DISPLAY LIMITS
  *
  * Control how many characters/records are shown in UI responses.
@@ -530,7 +558,7 @@ export async function searchDecisions(params: {
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
-  const limit = Math.min(params.limit ?? 50, 200);
+  const limit = Math.min(params.limit ?? DEFAULT_DECISION_TIMELINE_LIMIT, MAX_DECISION_TIMELINE_LIMIT);
 
   const results = await db
     .select()
