@@ -99,6 +99,43 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   FATAL: 4,
 };
 
+// ---------------------------------------------------------------------------
+// Logger Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of log entries held in the in-memory ring buffer.
+ *
+ * When the buffer exceeds this size the oldest entries are evicted
+ * (splice(0, overflow)).  500 entries covers roughly one full trading
+ * round at typical log verbosity without growing unboundedly.
+ *
+ * Trade-off: larger buffer → more RAM; smaller → less history for
+ * getRecentLogs() queries.
+ */
+const RING_BUFFER_SIZE = 500;
+
+/**
+ * Fraction of DEBUG-level log calls that are actually written in
+ * production (0-1, where 1 = write all).
+ *
+ * At 0.1, approximately 1 in 10 DEBUG calls is recorded, keeping
+ * CloudWatch ingestion costs low while preserving a representative
+ * sample for diagnostics.  Development always uses 1.0 (all logs).
+ *
+ * Formula: log is written when Math.random() <= PROD_DEBUG_SAMPLE_RATE.
+ */
+const PROD_DEBUG_SAMPLE_RATE = 0.1;
+
+/**
+ * Default number of entries returned by getRecentLogs() and
+ * getRecentMetrics() when the caller does not supply an explicit limit.
+ *
+ * 50 entries provides enough context for a single agent decision cycle
+ * without overwhelming API consumers or UI displays.
+ */
+const DEFAULT_LOG_QUERY_LIMIT = 50;
+
 const isProduction = process.env.NODE_ENV === "production";
 const isLambda = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
@@ -106,8 +143,8 @@ const config: LoggerConfig = {
   minLevel: isProduction ? "INFO" : "DEBUG",
   jsonOutput: isProduction || isLambda,
   includeStackTraces: !isProduction,
-  debugSampleRate: isProduction ? 0.1 : 1.0,
-  ringBufferSize: 500,
+  debugSampleRate: isProduction ? PROD_DEBUG_SAMPLE_RATE : 1.0,
+  ringBufferSize: RING_BUFFER_SIZE,
 };
 
 // ---------------------------------------------------------------------------
@@ -265,14 +302,14 @@ export function getRecentLogs(filters?: {
     filtered = filtered.filter((l) => l.agentId === filters.agentId);
   }
 
-  const limit = filters?.limit ?? 50;
+  const limit = filters?.limit ?? DEFAULT_LOG_QUERY_LIMIT;
   return filtered.slice(-limit);
 }
 
 /**
  * Get recent metrics from the buffer.
  */
-export function getRecentMetrics(limit = 50): MetricEntry[] {
+export function getRecentMetrics(limit = DEFAULT_LOG_QUERY_LIMIT): MetricEntry[] {
   return metricBuffer.slice(-limit);
 }
 
