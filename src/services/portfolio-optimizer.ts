@@ -169,6 +169,73 @@ const PORTFOLIO_VALUE_DENOMINATOR = 10000;
  */
 const RISK_PARITY_VARIANCE_MULTIPLIER = 50000;
 
+/**
+ * Kelly Criterion Decision Query Limits
+ * Controls how many recent agent decisions are fetched for Kelly and allocation analysis.
+ *
+ * KELLY_DECISIONS_QUERY_LIMIT (200): Fetches last 200 decisions for Kelly criterion win/loss
+ * statistics. 200 decisions gives statistically stable win-rate estimates per symbol
+ * (typically 20-40 decisions per symbol × 5-10 active symbols).
+ *
+ * ALLOCATION_DECISIONS_QUERY_LIMIT (100): Fetches last 100 decisions for current allocation
+ * inference. 100 decisions covers ~5-10 recent trading rounds, sufficient to determine
+ * which symbols an agent is currently focused on.
+ *
+ * Used in: getKellyCriterion() and getOptimalPortfolio() DB queries respectively.
+ */
+const KELLY_DECISIONS_QUERY_LIMIT = 200;
+const ALLOCATION_DECISIONS_QUERY_LIMIT = 100;
+
+/**
+ * Kelly Criterion Simulation Parameters
+ * Controls win/loss simulation used to estimate Kelly optimal position sizing
+ * when actual P&L data is unavailable (simulated from confidence scores).
+ *
+ * KELLY_SIM_CONFIDENCE_MIDPOINT (50): Neutral confidence threshold.
+ *   - Above 50 → agent thinks trade will succeed
+ *   - Below 50 → agent is uncertain
+ *
+ * KELLY_SIM_WIN_BASE_RATE (0.55): Base win probability for high-confidence trades.
+ *   - A 50-confidence trade wins 55% of the time (slight edge over random)
+ *   - A 100-confidence trade wins: 0.55 + (100-50)/200 = 0.55 + 0.25 = 0.80 (80%)
+ *   Formula: P(win | conf≥50) = KELLY_SIM_WIN_BASE_RATE + (conf - MIDPOINT) / KELLY_SIM_CONFIDENCE_RANGE
+ *
+ * KELLY_SIM_CONFIDENCE_RANGE (200): Denominator that scales confidence bonus.
+ *   - Range of 200 maps [50,100] confidence → [0, 0.25] probability bonus
+ *
+ * KELLY_SIM_LOW_CONF_WIN_RATE (0.40): Win probability for below-midpoint confidence.
+ *   - Any trade with confidence < 50 wins 40% of the time (below-random)
+ *
+ * KELLY_SIM_WIN_PNL_MAX (5): Maximum random win P&L multiplier (in % return units).
+ *   - Win P&L = (random × 5 + 1) × (confidence / 50) ∈ [1%, 6%] at 100% confidence
+ *
+ * KELLY_SIM_WIN_PNL_MIN (1): Minimum win P&L (guaranteed floor of 1% return per win).
+ *
+ * KELLY_SIM_LOSS_PNL_MAX (4): Maximum random loss P&L multiplier.
+ *   - Loss P&L = (random × 4 + 0.5) × ((100 - confidence) / 50)
+ *   - At 50% confidence: loss ∈ [0.5%, 4.5%] (symmetric with win range)
+ *
+ * KELLY_SIM_LOSS_PNL_MIN (0.5): Minimum loss magnitude (floor of 0.5% per loss).
+ *
+ * KELLY_SIM_CONFIDENCE_COMPLEMENT (100): Used to compute confidence-weighted loss size.
+ *   - (100 - confidence) / 50 normalizes loss severity by uncertainty level
+ *   - High-confidence losses are smaller; low-confidence losses are larger
+ *
+ * KELLY_SIM_CONFIDENCE_NORMALIZER (50): Normalizes both win and loss P&L by confidence.
+ *   - confidence / 50: maps [0,100] → [0, 2] for win scaling
+ *   - (100 - confidence) / 50: maps [0,100] → [2, 0] for loss scaling
+ */
+const KELLY_SIM_CONFIDENCE_MIDPOINT = 50;
+const KELLY_SIM_WIN_BASE_RATE = 0.55;
+const KELLY_SIM_CONFIDENCE_RANGE = 200;
+const KELLY_SIM_LOW_CONF_WIN_RATE = 0.40;
+const KELLY_SIM_WIN_PNL_MAX = 5;
+const KELLY_SIM_WIN_PNL_MIN = 1;
+const KELLY_SIM_LOSS_PNL_MAX = 4;
+const KELLY_SIM_LOSS_PNL_MIN = 0.5;
+const KELLY_SIM_CONFIDENCE_COMPLEMENT = 100;
+const KELLY_SIM_CONFIDENCE_NORMALIZER = 50;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -504,7 +571,7 @@ export async function getOptimalPortfolio(agentId: string): Promise<OptimalPortf
     .from(agentDecisions)
     .where(eq(agentDecisions.agentId, agentId))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(100);
+    .limit(ALLOCATION_DECISIONS_QUERY_LIMIT);
 
   // Build current allocation from agent's buy decisions
   const symbolCounts: Record<string, { count: number; totalConfidence: number; lastAction: string }> = {};
@@ -839,7 +906,7 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
     .from(agentDecisions)
     .where(eq(agentDecisions.agentId, agentId))
     .orderBy(desc(agentDecisions.createdAt))
-    .limit(200);
+    .limit(KELLY_DECISIONS_QUERY_LIMIT);
 
   // Group by symbol and compute win/loss stats
   const symbolStats: Record<string, { wins: number; losses: number; totalWinPnl: number; totalLossPnl: number; totalDecisions: number }> = {};
@@ -852,10 +919,12 @@ export async function getKellyCriterion(agentId: string): Promise<KellyCriterion
     symbolStats[d.symbol].totalDecisions++;
 
     // Simulate win/loss based on confidence and agent personality
-    const isWin = d.confidence > 50 ? Math.random() < 0.55 + (d.confidence - 50) / 200 : Math.random() < 0.40;
+    const isWin = d.confidence > KELLY_SIM_CONFIDENCE_MIDPOINT
+      ? Math.random() < KELLY_SIM_WIN_BASE_RATE + (d.confidence - KELLY_SIM_CONFIDENCE_MIDPOINT) / KELLY_SIM_CONFIDENCE_RANGE
+      : Math.random() < KELLY_SIM_LOW_CONF_WIN_RATE;
     const pnl = isWin
-      ? (Math.random() * 5 + 1) * (d.confidence / 50)
-      : -(Math.random() * 4 + 0.5) * ((100 - d.confidence) / 50);
+      ? (Math.random() * KELLY_SIM_WIN_PNL_MAX + KELLY_SIM_WIN_PNL_MIN) * (d.confidence / KELLY_SIM_CONFIDENCE_NORMALIZER)
+      : -(Math.random() * KELLY_SIM_LOSS_PNL_MAX + KELLY_SIM_LOSS_PNL_MIN) * ((KELLY_SIM_CONFIDENCE_COMPLEMENT - d.confidence) / KELLY_SIM_CONFIDENCE_NORMALIZER);
 
     if (isWin) {
       symbolStats[d.symbol].wins++;
