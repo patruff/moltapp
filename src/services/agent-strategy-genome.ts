@@ -93,6 +93,24 @@ const RISK_APPETITE_TRADE_SIZE_NORM = 2000;
  * avgWords / 100: reasoning of 100 words = score of 1.0 (maximum depth of processing). */
 const REASONING_LENGTH_NORM = 100;
 
+/**
+ * Emotional Regulation Penalty Factor
+ *
+ * Penalty multiplier applied to confidence standard deviation when scoring emotional regulation.
+ * Formula: score = max(0, 1 - confStdDev × EMOTIONAL_REGULATION_STDDEV_PENALTY)
+ *
+ * Higher values make the gene more sensitive to confidence volatility:
+ * - Value of 3: confStdDev of 0.2 → score 0.4 (moderate regulation)
+ *              confStdDev of 0.33 → score 0 (volatile)
+ * - Value of 4: confStdDev of 0.15 → score 0.4 (stricter threshold)
+ *
+ * Lower values are more forgiving of confidence variation:
+ * - Value of 2: confStdDev of 0.3 → score 0.4 (more lenient)
+ *
+ * Current value of 3 means agents need confStdDev < 0.33 to avoid zero score.
+ */
+const EMOTIONAL_REGULATION_STDDEV_PENALTY = 3;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -385,7 +403,7 @@ function scoreEmotionalRegulation(obs: TradeObservation[]): Gene {
   );
 
   // Lower std dev = more regulated
-  const score = Math.max(0, 1 - confStdDev * 3);
+  const score = Math.max(0, 1 - confStdDev * EMOTIONAL_REGULATION_STDDEV_PENALTY);
 
   const evidence: string[] = [];
   evidence.push(`Confidence std dev: ${confStdDev.toFixed(3)}`);
