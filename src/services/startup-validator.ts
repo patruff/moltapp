@@ -66,6 +66,69 @@ export interface StartupHealthReport {
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a standardized HealthCheck object.
+ *
+ * Consolidates the repeated object construction pattern used across all health
+ * check functions (database, Solana RPC, Jupiter API, LLM providers).
+ *
+ * Before this helper (23 instances of repeated code):
+ * ```typescript
+ * return {
+ *   name: "database",
+ *   status: "healthy",
+ *   severity: "critical",
+ *   latencyMs: Date.now() - start,
+ *   message: `Connected (${latencyMs}ms)`,
+ *   details: { provider: "neon" }
+ * };
+ * ```
+ *
+ * After this helper (single function call):
+ * ```typescript
+ * return createHealthCheck(
+ *   "database",
+ *   "healthy",
+ *   "critical",
+ *   Date.now() - start,
+ *   `Connected (${latencyMs}ms)`,
+ *   { provider: "neon" }
+ * );
+ * ```
+ *
+ * @param name - Health check identifier (e.g., "database", "solana_rpc")
+ * @param status - Check result: healthy, degraded, unhealthy, or skipped
+ * @param severity - Check importance: critical (blocks startup), warning (advisory), info (optional)
+ * @param latencyMs - Check execution time in milliseconds
+ * @param message - Human-readable status description
+ * @param details - Optional additional context (URLs, versions, error codes)
+ * @returns Standardized HealthCheck object
+ */
+function createHealthCheck(
+  name: string,
+  status: CheckStatus,
+  severity: CheckSeverity,
+  latencyMs: number,
+  message: string,
+  details?: Record<string, unknown>
+): HealthCheck {
+  const check: HealthCheck = {
+    name,
+    status,
+    severity,
+    latencyMs,
+    message,
+  };
+  if (details) {
+    check.details = details;
+  }
+  return check;
+}
+
+// ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
 
@@ -286,26 +349,26 @@ async function checkDatabase(): Promise<HealthCheck> {
     const latencyMs = Date.now() - start;
     const isSlowButOk = latencyMs > DATABASE_DEGRADED_THRESHOLD_MS;
 
-    return {
-      name: "database",
-      status: isSlowButOk ? "degraded" : "healthy",
-      severity: "critical",
+    return createHealthCheck(
+      "database",
+      isSlowButOk ? "degraded" : "healthy",
+      "critical",
       latencyMs,
-      message: isSlowButOk
+      isSlowButOk
         ? `Connected but slow (${latencyMs}ms)`
         : `Connected (${latencyMs}ms)`,
-      details: {
+      {
         provider: env.DATABASE_URL?.includes("neon") ? "neon" : "postgres",
-      },
-    };
+      }
+    );
   } catch (err) {
-    return {
-      name: "database",
-      status: "unhealthy",
-      severity: "critical",
-      latencyMs: Date.now() - start,
-      message: `Connection failed: ${errorMessage(err)}`,
-    };
+    return createHealthCheck(
+      "database",
+      "unhealthy",
+      "critical",
+      Date.now() - start,
+      `Connection failed: ${errorMessage(err)}`
+    );
   }
 }
 
@@ -315,13 +378,13 @@ async function checkDatabase(): Promise<HealthCheck> {
 async function checkSolanaRpc(): Promise<HealthCheck> {
   const rpcUrl = env.SOLANA_RPC_URL;
   if (!rpcUrl) {
-    return {
-      name: "solana_rpc",
-      status: "skipped",
-      severity: "warning",
-      latencyMs: 0,
-      message: "SOLANA_RPC_URL not configured — using default mainnet",
-    };
+    return createHealthCheck(
+      "solana_rpc",
+      "skipped",
+      "warning",
+      0,
+      "SOLANA_RPC_URL not configured — using default mainnet"
+    );
   }
 
   const start = Date.now();
@@ -343,43 +406,43 @@ async function checkSolanaRpc(): Promise<HealthCheck> {
     const latencyMs = Date.now() - start;
 
     if (!response.ok) {
-      return {
-        name: "solana_rpc",
-        status: "unhealthy",
-        severity: "warning",
+      return createHealthCheck(
+        "solana_rpc",
+        "unhealthy",
+        "warning",
         latencyMs,
-        message: `HTTP ${response.status}`,
-      };
+        `HTTP ${response.status}`
+      );
     }
 
     const data = (await response.json()) as { result?: number; error?: { message: string } };
 
     if (data.error) {
-      return {
-        name: "solana_rpc",
-        status: "degraded",
-        severity: "warning",
+      return createHealthCheck(
+        "solana_rpc",
+        "degraded",
+        "warning",
         latencyMs,
-        message: `RPC error: ${data.error.message}`,
-      };
+        `RPC error: ${data.error.message}`
+      );
     }
 
-    return {
-      name: "solana_rpc",
-      status: latencyMs > SOLANA_RPC_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
-      severity: "warning",
+    return createHealthCheck(
+      "solana_rpc",
+      latencyMs > SOLANA_RPC_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
+      "warning",
       latencyMs,
-      message: `Slot ${data.result} (${latencyMs}ms)`,
-      details: { slot: data.result, rpcUrl: rpcUrl.replace(/\/\/.*@/, "//***@") },
-    };
+      `Slot ${data.result} (${latencyMs}ms)`,
+      { slot: data.result, rpcUrl: rpcUrl.replace(/\/\/.*@/, "//***@") }
+    );
   } catch (err) {
-    return {
-      name: "solana_rpc",
-      status: "unhealthy",
-      severity: "warning",
-      latencyMs: Date.now() - start,
-      message: `Failed: ${errorMessage(err)}`,
-    };
+    return createHealthCheck(
+      "solana_rpc",
+      "unhealthy",
+      "warning",
+      Date.now() - start,
+      `Failed: ${errorMessage(err)}`
+    );
   }
 }
 
