@@ -448,7 +448,7 @@ function scoreStructuralCompleteness(reasoning: string): CertificationDimension 
     name: "structural_completeness",
     score: Math.min(1, round2(score)),
     indicators,
-    grade: getGrade(score),
+    grade: getGradeFractional(score),
   };
 }
 
@@ -481,7 +481,7 @@ function scoreDataGrounding(reasoning: string, sources: string[]): Certification
     name: "data_grounding",
     score: Math.min(1, round2(score)),
     indicators,
-    grade: getGrade(score),
+    grade: getGradeFractional(score),
   };
 }
 
@@ -526,7 +526,7 @@ function scoreLogicalSoundness(reasoning: string): CertificationDimension {
     name: "logical_soundness",
     score: clamp(round2(score), 0, 1),
     indicators,
-    grade: getGrade(score),
+    grade: getGradeFractional(score),
   };
 }
 
@@ -569,7 +569,7 @@ function scoreEpistemicHonesty(reasoning: string, confidence: number): Certifica
     name: "epistemic_honesty",
     score: clamp(round2(score), 0, 1),
     indicators,
-    grade: getGrade(score),
+    grade: getGradeFractional(score),
   };
 }
 
