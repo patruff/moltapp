@@ -17,6 +17,7 @@
  */
 
 import { countByCondition, round2, round3, findMax, findMin } from "../lib/math-utils.ts";
+import { REASONING_SNIPPET_LENGTH } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -555,7 +556,7 @@ function checkDuplicates(records: BenchmarkRecord[], issues: ValidationIssue[]):
   let contentDuplicates = 0;
 
   for (const r of records) {
-    const key = `${r.agent_id}|${r.symbol}|${r.action}|${r.reasoning.slice(0, 100)}`;
+    const key = `${r.agent_id}|${r.symbol}|${r.action}|${r.reasoning.slice(0, REASONING_SNIPPET_LENGTH)}`;
     if (contentSet.has(key)) {
       contentDuplicates++;
     }

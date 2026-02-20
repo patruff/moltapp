@@ -141,6 +141,58 @@ export const USDC_ATA_CREATION_FEE_LAMPORTS = 2_044_280n;
 export const ISO_DATE_DISPLAY_LENGTH = 10;
 
 // ---------------------------------------------------------------------------
+// Text Truncation & Display Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum reasoning text length for deduplication keys.
+ *
+ * Used in benchmark validation and debate engines to create compact
+ * deduplication keys from reasoning text. Truncating to 100 characters:
+ * - Captures the core thesis/main argument
+ * - Prevents memory bloat from storing full reasoning in dedup sets
+ * - Balances uniqueness detection vs performance
+ *
+ * Formula: reasoning.slice(0, REASONING_SNIPPET_LENGTH)
+ *
+ * Example:
+ * ```typescript
+ * const key = `${agentId}|${symbol}|${action}|${reasoning.slice(0, REASONING_SNIPPET_LENGTH)}`;
+ * // "agent_123|AAPL|BUY|Strong fundamentals suggest undervaluation. Apple's Q4 earnings beat expectations wi..."
+ * ```
+ *
+ * Applications:
+ * - Benchmark validator content duplicate detection (benchmark-validator.ts)
+ * - Cross-agent debate engine fallback thesis extraction (cross-agent-debate-engine.ts)
+ */
+export const REASONING_SNIPPET_LENGTH = 100;
+
+/**
+ * Hash truncation length for readability in error messages and logs.
+ *
+ * When displaying SHA-256 hashes (64 hex characters) in error messages,
+ * truncate to 16 characters for readability while maintaining uniqueness
+ * for debugging purposes.
+ *
+ * Collision safety: 16 hex chars = 64 bits = ~18 quintillion combinations
+ * (birthday collision at ~4 billion hashes, safe for debugging display)
+ *
+ * Formula: hash.slice(0, HASH_DISPLAY_LENGTH)
+ *
+ * Example:
+ * ```typescript
+ * const shortHash = computedHash.slice(0, HASH_DISPLAY_LENGTH);
+ * throw new Error(`Hash mismatch: computed ${shortHash}..., expected ${expectedHash}...`);
+ * // Error: "Hash mismatch: computed a3f9z2k1x4m9p6q0..., expected b7d2e5n3w8r1t4y9..."
+ * ```
+ *
+ * Applications:
+ * - Benchmark integrity prover hash mismatch diagnostics (benchmark-integrity-prover.ts)
+ * - Dataset fingerprint validation error messages
+ */
+export const HASH_DISPLAY_LENGTH = 16;
+
+// ---------------------------------------------------------------------------
 // Report Display Limit Constants
 // ---------------------------------------------------------------------------
 

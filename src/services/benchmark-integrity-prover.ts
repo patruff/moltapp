@@ -18,6 +18,7 @@
  */
 
 import { createHash } from "crypto";
+import { HASH_DISPLAY_LENGTH } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -413,7 +414,7 @@ export function verifyDatasetFingerprint(
   if (computedHash !== fingerprint.datasetHash) {
     return {
       valid: false,
-      reason: `Dataset hash mismatch: computed ${computedHash.slice(0, 16)}..., expected ${fingerprint.datasetHash.slice(0, 16)}...`,
+      reason: `Dataset hash mismatch: computed ${computedHash.slice(0, HASH_DISPLAY_LENGTH)}..., expected ${fingerprint.datasetHash.slice(0, HASH_DISPLAY_LENGTH)}...`,
     };
   }
   return { valid: true, reason: "Dataset hash matches fingerprint" };

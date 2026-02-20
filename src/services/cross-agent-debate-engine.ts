@@ -16,7 +16,7 @@
  */
 
 import { splitSentences, countWords, round2, round3, sortEntriesDescending, countWhere } from "../lib/math-utils.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG, REASONING_SNIPPET_LENGTH } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -370,7 +370,7 @@ const MAX_DEBATES = 1500;
 
 function extractThesis(reasoning: string): string {
   const sentences = splitSentences(reasoning, THESIS_EXTRACTION_MIN_SENTENCE_LENGTH);
-  if (sentences.length === 0) return reasoning.slice(0, 100);
+  if (sentences.length === 0) return reasoning.slice(0, REASONING_SNIPPET_LENGTH);
 
   // The thesis is usually the first actionable sentence
   for (const s of sentences.slice(0, THESIS_EXTRACTION_MAX_SEARCH_SENTENCES)) {
