@@ -25,7 +25,7 @@
  */
 
 import { createHash } from "crypto";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG, INTEGRITY_SCORE_BASE, INTEGRITY_SCORE_VARIANCE } from "../config/constants.ts";
 import { countByCondition, computeStdDev } from "../lib/math-utils.ts";
 import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 
@@ -807,7 +807,7 @@ export function scoreAgent(input: {
   const reasoningDepth = avg(t.map((x) => x.reasoningDepthScore));
   const sourceQuality = avg(t.map((x) => x.sourceQualityScore));
   const logicalConsistency = avg(t.map((x) => x.logicalConsistencyScore));
-  const integrityScores = t.map(() => 80 + Math.random() * 15);
+  const integrityScores = t.map(() => INTEGRITY_SCORE_BASE + Math.random() * INTEGRITY_SCORE_VARIANCE);
   const reasoningIntegrity = avg(integrityScores);
   const reasoningTransparency = avg(t.map((x) => x.transparencyScore));
   const reasoningGrounding = avg(t.map((x) => x.groundingScore));

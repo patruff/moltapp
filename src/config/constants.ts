@@ -376,3 +376,37 @@ export const ID_RANDOM_LENGTH_STANDARD = 6;
  * Example: "prov_1738540800000_a3f9z2k8"
  */
 export const ID_RANDOM_LENGTH_LONG = 8;
+
+// ---------------------------------------------------------------------------
+// Benchmark Engine Integrity Score Simulation Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Base integrity score for simulated benchmark test results.
+ *
+ * Integrity scores simulate how "honest" or "reliable" test results are
+ * in benchmark engine test generation. Used across all benchmark versions
+ * (v32-v37) to generate consistent test quality baselines.
+ *
+ * Formula: integrityScore = BASE + random() * VARIANCE = [80, 95]
+ *
+ * @example
+ * 80 base = high baseline integrity (tests are trustworthy)
+ * 95 max = perfect integrity (test results fully reliable)
+ */
+export const INTEGRITY_SCORE_BASE = 80;
+
+/**
+ * Random variance added to integrity score baseline.
+ *
+ * Adds realistic variation to simulated test integrity scores.
+ * Variance of 15 produces scores in [80, 95] range.
+ *
+ * Formula: integrityScore = BASE + random() * VARIANCE
+ * Range: [INTEGRITY_SCORE_BASE, INTEGRITY_SCORE_BASE + INTEGRITY_SCORE_VARIANCE]
+ *
+ * @example
+ * BASE=80, VARIANCE=15 → scores between 80-95
+ * Higher variance = more unpredictable test quality simulation
+ */
+export const INTEGRITY_SCORE_VARIANCE = 15;
