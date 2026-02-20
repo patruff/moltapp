@@ -107,20 +107,6 @@ export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
 const STOCK_SYMBOL_MAX_LENGTH = 10;
 
 /**
- * Maximum decimal places allowed in a USDC amount string.
- * USDC has 6 decimals on-chain (1 USDC = 10^6 raw units), so inputs beyond
- * 6 decimal places would be silently truncated by the blockchain.
- */
-const USDC_DECIMALS = 6;
-
-/**
- * Maximum decimal places allowed in a stock (xStock) quantity string.
- * xStocks are SPL tokens with 9 decimal places (1 xStock = 10^9 raw lamports),
- * matching the SOL precision standard used by most Solana programs.
- */
-const XSTOCK_DECIMALS = 9;
-
-/**
  * Maximum length for an agent name string.
  * 64 characters accommodates descriptive names like "GPT-4 Momentum Trader v2"
  * while preventing excessively long names in API responses and leaderboard display.

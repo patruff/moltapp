@@ -43,7 +43,6 @@ const REASONING_MIN_LENGTH = 20;
 const REASONING_LENGTH_TIER_EXCELLENT = 200; // 0.30 score
 const REASONING_LENGTH_TIER_GOOD = 100;      // 0.25 score
 const REASONING_LENGTH_TIER_ACCEPTABLE = 50; // 0.20 score
-const REASONING_LENGTH_TIER_MINIMAL = 20;    // 0.15 score
 
 /**
  * Minimum character length per sentence.
