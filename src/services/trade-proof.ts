@@ -472,6 +472,68 @@ export function generateCompetitionProof(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Verification Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a hash verification result object.
+ *
+ * Standardizes verification result structure for hash comparisons.
+ * Used by: verifyProofHash, benchmark-integrity-engine (fingerprint verification)
+ *
+ * @param valid - Whether computed hash matches stored hash
+ * @param storedHash - Original hash from proof/fingerprint store
+ * @param computedHash - Newly computed hash from current data
+ * @returns Verification result with comparison details
+ *
+ * @example
+ * // Invalid verification (hashes don't match)
+ * createHashVerificationResult(false, "abc123", "def456")
+ * // => { valid: false, storedHash: "abc123", computedHash: "def456" }
+ *
+ * @example
+ * // Valid verification (hashes match)
+ * createHashVerificationResult(true, "abc123", "abc123")
+ * // => { valid: true, storedHash: "abc123", computedHash: "abc123" }
+ */
+function createHashVerificationResult(
+  valid: boolean,
+  storedHash: string,
+  computedHash: string,
+): { valid: boolean; storedHash: string; computedHash: string } {
+  return { valid, storedHash, computedHash };
+}
+
+/**
+ * Create a Merkle root verification result object.
+ *
+ * Standardizes verification result structure for Merkle tree root comparisons.
+ * Used by: verifyRoundMerkleRoot
+ *
+ * @param valid - Whether computed root matches stored root
+ * @param storedRoot - Original Merkle root from round proof
+ * @param computedRoot - Newly computed root from transaction hashes
+ * @returns Verification result with root comparison details
+ *
+ * @example
+ * // Invalid verification (roots don't match)
+ * createRootVerificationResult(false, "root_abc", "root_def")
+ * // => { valid: false, storedRoot: "root_abc", computedRoot: "root_def" }
+ *
+ * @example
+ * // Valid verification (roots match)
+ * createRootVerificationResult(true, "root_abc", "root_abc")
+ * // => { valid: true, storedRoot: "root_abc", computedRoot: "root_abc" }
+ */
+function createRootVerificationResult(
+  valid: boolean,
+  storedRoot: string,
+  computedRoot: string,
+): { valid: boolean; storedRoot: string; computedRoot: string } {
+  return { valid, storedRoot, computedRoot };
+}
+
+// ---------------------------------------------------------------------------
 // Verification
 // ---------------------------------------------------------------------------
 
@@ -485,7 +547,7 @@ export function verifyProofHash(proofId: string): {
 } {
   const proof = proofs.get(proofId);
   if (!proof) {
-    return { valid: false, storedHash: "", computedHash: "" };
+    return createHashVerificationResult(false, "", "");
   }
 
   let computedHash: string;
@@ -547,11 +609,11 @@ export function verifyProofHash(proofId: string): {
       computedHash = "";
   }
 
-  return {
-    valid: computedHash === proof.hash,
-    storedHash: proof.hash,
+  return createHashVerificationResult(
+    computedHash === proof.hash,
+    proof.hash,
     computedHash,
-  };
+  );
 }
 
 /**
@@ -564,17 +626,17 @@ export function verifyRoundMerkleRoot(proofId: string): {
 } {
   const proof = proofs.get(proofId);
   if (!proof || proof.type !== "round") {
-    return { valid: false, storedRoot: "", computedRoot: "" };
+    return createRootVerificationResult(false, "", "");
   }
 
   const txHashes = proof.transactionProofs.map((p) => p.hash);
   const computedRoot = computeMerkleRoot(txHashes);
 
-  return {
-    valid: computedRoot === proof.merkleRoot,
-    storedRoot: proof.merkleRoot,
+  return createRootVerificationResult(
+    computedRoot === proof.merkleRoot,
+    proof.merkleRoot,
     computedRoot,
-  };
+  );
 }
 
 // ---------------------------------------------------------------------------
