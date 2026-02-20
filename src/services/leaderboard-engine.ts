@@ -251,6 +251,14 @@ const GLICKO_VOLATILITY_PRECISION = 10000;
 const PERCENTILE_MULTIPLIER = 100;
 
 /**
+ * Fallback Percentile Rank
+ *
+ * Default percentile rank when no comparison data exists (e.g., only one agent).
+ * 50 = median position (50th percentile) — neutral assumption.
+ */
+const PERCENTILE_RANK_DEFAULT = 50;
+
+/**
  * Sharpe Ratio Calculation
  */
 
@@ -259,6 +267,21 @@ const PERCENTILE_MULTIPLIER = 100;
  * 3 trades = minimum sample size for meaningful variance estimate
  */
 const SHARPE_MIN_TRADES = 3;
+
+/**
+ * ELO Match Result Values
+ *
+ * Standard chess ELO result encoding for head-to-head pairwise comparisons.
+ * Formula: expectedA = 1 / (1 + 10^((ratingB - ratingA) / ELO_DIVISOR))
+ * newRating = oldRating + ELO_K_FACTOR * (result - expected)
+ *
+ * Win (1.0): agent scored higher composite than opponent
+ * Draw (0.5): agents have identical composite scores
+ * Loss (0.0): agent scored lower composite than opponent
+ */
+const ELO_RESULT_WIN = 1;
+const ELO_RESULT_DRAW = 0.5;
+const ELO_RESULT_LOSS = 0;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -486,7 +509,7 @@ export function recordScore(params: {
     // Did this agent score higher than the other?
     const thisScore = params.compositeScore;
     const otherScore = otherState.currentComposite;
-    const result = thisScore > otherScore ? 1 : thisScore < otherScore ? 0 : 0.5;
+    const result = thisScore > otherScore ? ELO_RESULT_WIN : thisScore < otherScore ? ELO_RESULT_LOSS : ELO_RESULT_DRAW;
 
     const [newElo, otherNewElo] = updateElo(state.elo, otherState.elo, result);
     state.elo = newElo;
@@ -707,7 +730,7 @@ export function getLeaderboard(options?: {
 /**
  * Get historical leaderboard snapshots.
  */
-export function getLeaderboardHistory(limit = 20): LeaderboardSnapshot[] {
+export function getLeaderboardHistory(limit = SNAPSHOT_HISTORY_DEFAULT_LIMIT): LeaderboardSnapshot[] {
   return snapshotHistory.slice(0, limit);
 }
 
@@ -731,7 +754,7 @@ export function getAgentLeaderboardDetail(agentId: string): {
   const belowCount = allComposites.filter((c) => c < state.currentComposite).length;
   const percentileRank = allComposites.length > 0
     ? Math.round((belowCount / allComposites.length) * PERCENTILE_MULTIPLIER)
-    : 50;
+    : PERCENTILE_RANK_DEFAULT;
 
   return {
     state,
@@ -745,7 +768,7 @@ export function getAgentLeaderboardDetail(agentId: string): {
 // ---------------------------------------------------------------------------
 
 function sharpeRatio(returns: number[]): number {
-  if (returns.length < 3) return 0;
+  if (returns.length < SHARPE_MIN_TRADES) return 0;
   const m = mean(returns);
   const variance = computeVariance(returns, true); // true = population variance
   const stdDev = Math.sqrt(variance);
