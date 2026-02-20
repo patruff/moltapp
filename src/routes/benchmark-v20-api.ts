@@ -63,6 +63,7 @@ import {
   verifyCertificate,
 } from "../services/reasoning-quality-certifier.ts";
 import { round2 } from "../lib/math-utils.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 
 export const benchmarkV20ApiRoutes = new Hono();
 
@@ -96,22 +97,6 @@ const V20_WEIGHTS: Record<string, number> = {
   decision_accountability: 0.05,
   quality_certification: 0.05,
 };
-
-function computeGrade(score: number): string {
-  if (score >= 0.95) return "A+";
-  if (score >= 0.90) return "A";
-  if (score >= 0.85) return "A-";
-  if (score >= 0.80) return "B+";
-  if (score >= 0.75) return "B";
-  if (score >= 0.70) return "B-";
-  if (score >= 0.65) return "C+";
-  if (score >= 0.60) return "C";
-  if (score >= 0.55) return "C-";
-  if (score >= 0.50) return "D+";
-  if (score >= 0.45) return "D";
-  if (score >= 0.40) return "D-";
-  return "F";
-}
 
 interface V20Score {
   agentId: string;

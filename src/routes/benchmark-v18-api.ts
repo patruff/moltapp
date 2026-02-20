@@ -23,6 +23,7 @@
 
 import { Hono } from "hono";
 import { round3, countByCondition } from "../lib/math-utils.ts";
+import { computeGrade } from "../lib/grade-calculator.ts";
 import {
   getAgentRobustnessProfile,
   getAllRobustnessProfiles,
@@ -407,20 +408,4 @@ function computeV18Composite(pillars: Record<string, number>): number {
   return totalWeight > 0
     ? round3(composite / totalWeight)
     : 0.5;
-}
-
-function computeGrade(composite: number): string {
-  if (composite >= 0.95) return "A+";
-  if (composite >= 0.90) return "A";
-  if (composite >= 0.85) return "A-";
-  if (composite >= 0.80) return "B+";
-  if (composite >= 0.75) return "B";
-  if (composite >= 0.70) return "B-";
-  if (composite >= 0.65) return "C+";
-  if (composite >= 0.60) return "C";
-  if (composite >= 0.55) return "C-";
-  if (composite >= 0.50) return "D+";
-  if (composite >= 0.45) return "D";
-  if (composite >= 0.40) return "D-";
-  return "F";
 }
