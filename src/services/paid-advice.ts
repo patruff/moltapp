@@ -120,6 +120,60 @@ const serviceRequestCounts: Record<string, number> = {
 const startTime = new Date().toISOString();
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a standardized AdviceResponse object.
+ *
+ * Consolidates duplicate AdviceResponse construction across all 3 advice generation
+ * functions (market analysis, meeting summary, portfolio musings).
+ *
+ * @param service - Service name ("market-analysis", "meeting-summary", "portfolio-musings")
+ * @param analysis - Service-specific analysis object (or error status)
+ * @param roundId - Trading round ID (or "none" if no data available)
+ * @param topAgent - Top agent name (optional, defaults to current top agent)
+ * @param topAgentWinRate - Top agent's win rate (optional, defaults to 0)
+ * @returns Standardized AdviceResponse with service metadata
+ *
+ * @example
+ * // No data case
+ * createAdviceResponse("market-analysis", {
+ *   status: "no_data",
+ *   message: "No trading round data available yet."
+ * }, "none");
+ *
+ * @example
+ * // Success case
+ * createAdviceResponse("market-analysis", {
+ *   roundId: "round_123",
+ *   timestamp: "2026-02-20T...",
+ *   topAgentOutlook: {...},
+ *   allSignals: [...],
+ *   marketPrices: [...]
+ * }, "round_123");
+ */
+function createAdviceResponse(
+  service: string,
+  analysis: Record<string, unknown>,
+  roundId: string,
+  topAgent?: string,
+  topAgentWinRate?: number,
+): AdviceResponse {
+  const agent = topAgent ?? getTopAgent()?.name ?? "unknown";
+  const winRate = topAgentWinRate ?? 0;
+
+  return {
+    service,
+    topAgent: agent,
+    topAgentWinRate: winRate,
+    analysis,
+    generatedAt: new Date().toISOString(),
+    roundId,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -172,17 +226,14 @@ export function generateMarketAnalysis(symbol?: string): AdviceResponse {
   const topAgent = getTopAgent();
 
   if (!latestRoundData) {
-    return {
-      service: "market-analysis",
-      topAgent: topAgent?.name ?? "unknown",
-      topAgentWinRate: 0,
-      analysis: {
+    return createAdviceResponse(
+      "market-analysis",
+      {
         status: "no_data",
         message: "No trading round data available yet. Check back after the next round.",
       },
-      generatedAt: new Date().toISOString(),
-      roundId: "none",
-    };
+      "none",
+    );
   }
 
   // Find the top agent's decision (or filter by symbol)
@@ -214,11 +265,9 @@ export function generateMarketAnalysis(symbol?: string): AdviceResponse {
     change24h: m.change24h,
   }));
 
-  return {
-    service: "market-analysis",
-    topAgent: topAgent?.name ?? "unknown",
-    topAgentWinRate: 0, // Would need performance data for real win rate
-    analysis: {
+  return createAdviceResponse(
+    "market-analysis",
+    {
       roundId: latestRoundData.roundId,
       timestamp: latestRoundData.timestamp.toISOString(),
       topAgentOutlook: topAgentDecision
@@ -235,9 +284,8 @@ export function generateMarketAnalysis(symbol?: string): AdviceResponse {
       agentCount: latestRoundData.decisions.length,
       ...(symbol ? { filteredSymbol: symbol } : {}),
     },
-    generatedAt: new Date().toISOString(),
-    roundId: latestRoundData.roundId,
-  };
+    latestRoundData.roundId,
+  );
 }
 
 /**
@@ -248,24 +296,19 @@ export function generateMeetingSummary(): AdviceResponse {
   const meeting = latestRoundData?.meeting ?? getLatestMeeting() ?? null;
 
   if (!meeting) {
-    return {
-      service: "meeting-summary",
-      topAgent: topAgent?.name ?? "unknown",
-      topAgentWinRate: 0,
-      analysis: {
+    return createAdviceResponse(
+      "meeting-summary",
+      {
         status: "no_data",
         message: "No Meeting of Minds data available yet. Check back after the next round.",
       },
-      generatedAt: new Date().toISOString(),
-      roundId: "none",
-    };
+      "none",
+    );
   }
 
-  return {
-    service: "meeting-summary",
-    topAgent: topAgent?.name ?? "unknown",
-    topAgentWinRate: 0,
-    analysis: {
+  return createAdviceResponse(
+    "meeting-summary",
+    {
       meetingId: meeting.meetingId,
       roundId: meeting.roundId,
       consensus: {
@@ -288,9 +331,8 @@ export function generateMeetingSummary(): AdviceResponse {
       deliberationRounds: meeting.transcript.length,
       durationMs: meeting.durationMs,
     },
-    generatedAt: new Date().toISOString(),
-    roundId: meeting.roundId,
-  };
+    meeting.roundId,
+  );
 }
 
 /**
@@ -301,24 +343,19 @@ export function generateMusingsSummary(): AdviceResponse {
   const musings = latestRoundData?.musings ?? getLatestMusings() ?? null;
 
   if (!musings) {
-    return {
-      service: "portfolio-musings",
-      topAgent: topAgent?.name ?? "unknown",
-      topAgentWinRate: 0,
-      analysis: {
+    return createAdviceResponse(
+      "portfolio-musings",
+      {
         status: "no_data",
         message: "No Portfolio Musings data available yet. Check back after the next round.",
       },
-      generatedAt: new Date().toISOString(),
-      roundId: "none",
-    };
+      "none",
+    );
   }
 
-  return {
-    service: "portfolio-musings",
-    topAgent: topAgent?.name ?? "unknown",
-    topAgentWinRate: 0,
-    analysis: {
+  return createAdviceResponse(
+    "portfolio-musings",
+    {
       musingsId: musings.musingsId,
       roundId: musings.roundId,
       consensusStocks: musings.consensusStocks,
@@ -336,9 +373,8 @@ export function generateMusingsSummary(): AdviceResponse {
       })),
       durationMs: musings.durationMs,
     },
-    generatedAt: new Date().toISOString(),
-    roundId: musings.roundId,
-  };
+    musings.roundId,
+  );
 }
 
 /**
