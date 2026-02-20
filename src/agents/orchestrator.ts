@@ -319,9 +319,6 @@ import {
   recordV25Metrics,
 } from "../routes/benchmark-v25-api.ts";
 import {
-  parsePrediction,
-  analyzeConsensusIntelligence,
-  computeV25CompositeScore,
   type V25RoundAgentData,
 } from "../services/v25-benchmark-engine.ts";
 import {
@@ -2623,9 +2620,7 @@ async function executeTradingRound(
     }
 
     // 3. Record benchmark health snapshot
-    const agentIds = Object.keys(agentScores);
     const scoreValues = Object.values(agentScores);
-    const scoreMean = scoreValues.length > 0 ? scoreValues.reduce((s, v) => s + v, 0) / scoreValues.length : 0;
     const scoreSpread = scoreValues.length > 1
       ? computeStdDev(scoreValues)
       : 0;
