@@ -178,6 +178,7 @@ const SOURCE_MULTIPLE_BONUS_SOME = 0.1; // 10% bonus for 2 distinct sources
 const SOURCE_MULTIPLE_THRESHOLD_MANY = 3; // 3+ sources = "many"
 const SOURCE_MULTIPLE_THRESHOLD_SOME = 2; // 2+ sources = "some"
 const SOURCE_FABRICATION_LENGTH_THRESHOLD = 60; // Flag source names > 60 chars as suspicious
+const SOURCE_NAME_DISPLAY_MAX_LENGTH = 40; // Truncate source names to 40 chars in error messages for readability
 
 /**
  * Price Grounding Scoring Parameters — Accuracy thresholds for price claim validation.
@@ -595,7 +596,7 @@ function validateSources(decision: TradingDecision, issues: ValidationIssue[], s
   // Check for source fabrication (very long or unusual source names)
   for (const src of sources) {
     if (src.length > SOURCE_FABRICATION_LENGTH_THRESHOLD) {
-      issues.push(createValidationIssue("info", "source_verification", `Unusually long source name: ${src.slice(0, 40)}...`));
+      issues.push(createValidationIssue("info", "source_verification", `Unusually long source name: ${src.slice(0, SOURCE_NAME_DISPLAY_MAX_LENGTH)}...`));
     }
   }
 
