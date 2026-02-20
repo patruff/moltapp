@@ -65,8 +65,27 @@ export interface OnChainPortfolio {
 /** Initial capital per agent (actual funding amount) */
 const AGENT_INITIAL_CAPITAL = 50; // $50 USDC per agent
 
-/** Approximate SOL price in USD (for portfolio valuation) */
-const SOL_PRICE_USD = 200; // Conservative estimate, update as needed
+/**
+ * SOL price fallback in USD for portfolio valuation when Jupiter API is unavailable.
+ *
+ * USAGE: This is a FALLBACK-ONLY value. Normal operation uses live Jupiter prices.
+ * When Jupiter is down, we use cost basis for positions (not this constant) to avoid
+ * contaminating P&L calculations with stale/mock prices.
+ *
+ * For SOL balance valuation specifically: This constant provides a conservative
+ * estimate when Jupiter SOL/USD price is unavailable. Value of $200 is deliberately
+ * conservative (below typical market price) to avoid overstating portfolio values
+ * during API outages.
+ *
+ * DEPRECATED APPROACH: Previously used ±5% random variation (Math.random() * 0.1 - 0.05)
+ * for mock prices, but this contaminated P&L calculations on every refresh. Current
+ * approach (lines 151-155) uses cost basis as fallback, making unrealizedPnl = 0
+ * during outages (conservative, stable).
+ *
+ * Update frequency: Adjust this value if SOL drops below $150 or rises above $300
+ * for extended periods to keep fallback valuation reasonable.
+ */
+const SOL_PRICE_USD = 200;
 
 /**
  * Multiplier for converting decimal fractions to percentages in P&L displays.
