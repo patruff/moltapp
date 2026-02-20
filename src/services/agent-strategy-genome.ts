@@ -154,6 +154,37 @@ const genomes = new Map<string, StrategyGenome>();
 // ---------------------------------------------------------------------------
 
 /**
+ * Creates a Gene object with standardized structure.
+ *
+ * Consolidates duplicate Gene object construction pattern used across all 8 gene scoring functions.
+ * Before: Each function manually constructed `{ name, score, phenotype, evidence, sampleSize }`
+ * After: Single helper ensures consistency and reduces duplication.
+ *
+ * @param name - Gene identifier (e.g., "risk_appetite", "conviction")
+ * @param score - Numeric score from 0 to 1
+ * @param phenotype - Descriptive classification (e.g., "aggressive", "undetermined")
+ * @param evidence - Array of supporting evidence strings
+ * @param sampleSize - Number of observations used in scoring
+ * @returns Standardized Gene object
+ *
+ * @example
+ * // Before:
+ * return { name: "risk_appetite", score, phenotype, evidence, sampleSize: obs.length };
+ *
+ * // After:
+ * return createGene("risk_appetite", score, phenotype, evidence, obs.length);
+ */
+function createGene(
+  name: string,
+  score: number,
+  phenotype: string,
+  evidence: string[],
+  sampleSize: number,
+): Gene {
+  return { name, score, phenotype, evidence, sampleSize };
+}
+
+/**
  * Classifies a 0-1 score into phenotype categories using thresholds.
  * @param score - Numeric score from 0 to 1
  * @param lowLabel - Label for scores below midThreshold
@@ -196,13 +227,13 @@ function scoreRiskAppetite(obs: TradeObservation[]): Gene {
 
   const phenotype = classifyPhenotype(score, "cautious", "moderate", "aggressive", RISK_APPETITE_MID, RISK_APPETITE_HIGH);
 
-  return { name: "risk_appetite", score, phenotype, evidence, sampleSize: obs.length };
+  return createGene("risk_appetite", score, phenotype, evidence, obs.length);
 }
 
 function scoreConviction(obs: TradeObservation[]): Gene {
   const nonHold = obs.filter((o) => o.action !== "hold");
   if (nonHold.length < CONVICTION_MIN_OBS) {
-    return { name: "conviction", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient data"], sampleSize: nonHold.length };
+    return createGene("conviction", 0.5, "undetermined", ["Insufficient data"], nonHold.length);
   }
 
   // Measure confidence-quantity correlation
@@ -231,14 +262,14 @@ function scoreConviction(obs: TradeObservation[]): Gene {
 
   const phenotype = classifyPhenotype(score, "inconsistent", "moderate_conviction", "high_conviction", CONVICTION_MID, CONVICTION_HIGH);
 
-  return { name: "conviction", score, phenotype, evidence, sampleSize: nonHold.length };
+  return createGene("conviction", score, phenotype, evidence, nonHold.length);
 }
 
 function scoreAdaptability(obs: TradeObservation[]): Gene {
   // Look for behavior changes after losses
   const withOutcome = obs.filter((o) => o.pnlAfter !== null);
   if (withOutcome.length < ADAPTABILITY_MIN_OBS) {
-    return { name: "adaptability", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient outcome data"], sampleSize: withOutcome.length };
+    return createGene("adaptability", 0.5, "undetermined", ["Insufficient outcome data"], withOutcome.length);
   }
 
   let behaviorChanges = 0;
@@ -268,13 +299,13 @@ function scoreAdaptability(obs: TradeObservation[]): Gene {
 
   const phenotype = classifyPhenotype(score, "rigid", "semi_adaptive", "adaptive", ADAPTABILITY_MID, ADAPTABILITY_HIGH);
 
-  return { name: "adaptability", score, phenotype, evidence, sampleSize: withOutcome.length };
+  return createGene("adaptability", score, phenotype, evidence, withOutcome.length);
 }
 
 function scoreContrarianism(obs: TradeObservation[]): Gene {
   const withConsensus = obs.filter((o) => o.consensusAction !== null && o.action !== "hold");
   if (withConsensus.length < CONTRARIANISM_MIN_OBS) {
-    return { name: "contrarianism", score: 0.5, phenotype: "undetermined", evidence: ["Insufficient consensus data"], sampleSize: withConsensus.length };
+    return createGene("contrarianism", 0.5, "undetermined", ["Insufficient consensus data"], withConsensus.length);
   }
 
   const contrarian = countByCondition(withConsensus, (o) => o.action !== o.consensusAction);
