@@ -189,6 +189,42 @@ const MOCK_VOLUME_RANDOM_MAX = 490_000_000;
 const MOCK_CHANGE_24H_MAX = 5;
 
 /**
+ * External API Request Timeout Parameters
+ *
+ * Timeout durations for fetching price/liquidity data from external APIs.
+ * Different APIs have different response characteristics - Jupiter handles
+ * batch requests with 50+ tokens (needs longer timeout), while CoinGecko
+ * and DexScreener return single-token data quickly.
+ */
+
+/**
+ * Jupiter Price API V3 batch fetch timeout (8 seconds)
+ *
+ * Allows time for Jupiter to process batch requests with 50+ mint addresses.
+ * Jupiter typically responds in 1-3s, but 8s provides buffer for network spikes
+ * and API load without blocking the entire market data pipeline indefinitely.
+ */
+const JUPITER_PRICE_API_TIMEOUT_MS = 8_000;
+
+/**
+ * CoinGecko API fallback timeout (5 seconds)
+ *
+ * Standard external API timeout for single coin price lookups.
+ * CoinGecko typically responds in <1s, but 5s allows tolerance for
+ * occasional delays while preventing indefinite hangs.
+ */
+const COINGECKO_API_TIMEOUT_MS = 5_000;
+
+/**
+ * DexScreener liquidity API timeout (5 seconds)
+ *
+ * Timeout for fetching token liquidity data from DexScreener free API.
+ * Similar response time to CoinGecko - usually <1s, but 5s buffer
+ * prevents pipeline stalls during network congestion.
+ */
+const DEXSCREENER_API_TIMEOUT_MS = 5_000;
+
+/**
  * Correlation Analysis Parameters
  */
 
@@ -474,7 +510,7 @@ async function fetchJupiterPrices(): Promise<Map<string, JupiterPriceEntry>> {
       try {
         const resp = await fetch(
           `https://api.jup.ag/price/v3?ids=${ids}`,
-          { headers, signal: AbortSignal.timeout(8000) },
+          { headers, signal: AbortSignal.timeout(JUPITER_PRICE_API_TIMEOUT_MS) },
         );
 
         if (resp.ok) {
@@ -542,7 +578,7 @@ async function fetchCoinGeckoPrice(symbol: string): Promise<CoinGeckoPrice | nul
   try {
     const resp = await fetch(
       `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: AbortSignal.timeout(COINGECKO_API_TIMEOUT_MS) },
     );
 
     if (!resp.ok) return null;
@@ -585,7 +621,7 @@ async function fetchDexScreenerLiquidity(mintAddress: string): Promise<DexScreen
   try {
     const resp = await fetch(
       `https://api.dexscreener.com/latest/dex/tokens/${mintAddress}`,
-      { signal: AbortSignal.timeout(5000) },
+      { signal: AbortSignal.timeout(DEXSCREENER_API_TIMEOUT_MS) },
     );
 
     if (!resp.ok) return null;
