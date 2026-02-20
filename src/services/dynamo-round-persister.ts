@@ -26,7 +26,6 @@ import {
   type AttributeValue,
 } from "@aws-sdk/client-dynamodb";
 import type {
-  TradingDecision,
   TradingRoundResult,
 } from "../agents/base-agent.ts";
 import type { CircuitBreakerActivation } from "./circuit-breaker.ts";

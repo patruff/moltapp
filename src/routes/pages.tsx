@@ -46,8 +46,6 @@ import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds
 type Trade = typeof trades.$inferSelect;
 type AgentDecision = typeof agentDecisions.$inferSelect;
 type Thesis = typeof agentTheses.$inferSelect;
-type DbPosition = typeof positions.$inferSelect;
-type TradeJustification = typeof tradeJustifications.$inferSelect;
 
 // Tool trace type from trade justifications schema
 type TradeJustificationToolCall = {

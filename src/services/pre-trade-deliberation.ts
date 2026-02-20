@@ -20,7 +20,6 @@ import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_
 import type {
   TradingDecision,
   MarketData,
-  PortfolioContext,
 } from "../agents/base-agent.ts";
 import { getTopKey, countByCondition } from "../lib/math-utils.ts";
 

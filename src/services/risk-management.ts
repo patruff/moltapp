@@ -27,7 +27,7 @@ import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
-import type { MarketData, PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
+import type { PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
 import { round2, round3, sumByKey, averageByKey, mean, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------

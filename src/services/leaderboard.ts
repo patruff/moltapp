@@ -103,7 +103,6 @@ const PERCENT_MULTIPLIER = 100;
 
 // Database query result types
 type PositionRow = typeof positions.$inferSelect;
-type TradeRow = typeof trades.$inferSelect;
 type AgentRow = InferSelectModel<typeof agents>;
 
 // ---------------------------------------------------------------------------

@@ -16,7 +16,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { errorMessage } from "../lib/errors.ts";
 import type {
   TradingDecision,
-  TradingRoundResult,
   MarketData,
 } from "../agents/base-agent.ts";
 import type {

@@ -41,7 +41,7 @@ import {
   getStrategyComparison,
   getMarketplaceStats,
 } from "../services/strategies.ts";
-import type { StrategyCategory, RiskLevel, StrategySortBy } from "../services/strategies.ts";
+import type { StrategySortBy } from "../services/strategies.ts";
 import type { StrategyParameters } from "../db/schema/strategies.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
 import { errorMessage } from "../lib/errors.ts";
