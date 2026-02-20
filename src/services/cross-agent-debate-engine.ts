@@ -16,7 +16,7 @@
  */
 
 import { splitSentences, countWords, round2, round3, sortEntriesDescending, countWhere } from "../lib/math-utils.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG, REASONING_SNIPPET_LENGTH } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, REASONING_SNIPPET_LENGTH } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

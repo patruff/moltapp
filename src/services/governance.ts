@@ -18,7 +18,7 @@
  */
 
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts";
 import { countByCondition, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------

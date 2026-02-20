@@ -21,7 +21,7 @@
  */
 
 import { createHash } from "crypto";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG, INTEGRITY_SCORE_BASE, INTEGRITY_SCORE_VARIANCE } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, INTEGRITY_SCORE_BASE, INTEGRITY_SCORE_VARIANCE } from "../config/constants.ts";
 import { countByCondition, computeStdDev, computeVariance } from "../lib/math-utils.js";
 import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 

@@ -16,7 +16,7 @@
  */
 
 import { createHash } from "crypto";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
 import { averageByKey, countByCondition } from "../lib/math-utils.js";
 
 // ---------------------------------------------------------------------------

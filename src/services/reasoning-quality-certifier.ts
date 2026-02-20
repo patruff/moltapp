@@ -20,7 +20,7 @@
  */
 
 import { createHash } from "crypto";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts";
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
 import { splitSentences, normalize, countWords, round2, weightedSum, clamp, countByCondition, findMin } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";

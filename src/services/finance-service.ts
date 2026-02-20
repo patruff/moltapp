@@ -17,7 +17,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
 import OpenAI from "openai";
 import { estimateCost, recordLlmUsage } from "./llm-cost-tracker.ts";
 import { getWalletPortfolio } from "./onchain-portfolio.ts";

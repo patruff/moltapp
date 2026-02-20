@@ -19,7 +19,7 @@
  */
 
 import { clamp, countByCondition, round2, round3 } from "../lib/math-utils.ts";
-import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
+import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
