@@ -109,6 +109,38 @@ export const SOL_TRANSFER_FEE_LAMPORTS = 5000n;
 export const USDC_ATA_CREATION_FEE_LAMPORTS = 2_044_280n;
 
 // ---------------------------------------------------------------------------
+// Date & Time Format Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * ISO date string display length (YYYY-MM-DD format).
+ *
+ * Used for extracting date portion from ISO 8601 timestamps via:
+ * `date.toISOString().slice(0, ISO_DATE_DISPLAY_LENGTH)`
+ *
+ * ISO 8601 format: "2026-02-20T14:30:00.000Z"
+ * Extracted date:   "2026-02-20" (first 10 characters)
+ *
+ * Applications:
+ * - Daily earnings aggregation (payments.ts)
+ * - Tournament date formatting (tournaments.ts)
+ * - Market regime daily grouping (market-regime.ts)
+ * - Benchmark tracking date keys (benchmark-tracker.ts)
+ * - Circuit breaker daily reset (circuit-breaker.ts)
+ * - Attribution daily rollups (attribution.ts)
+ *
+ * Example:
+ * ```typescript
+ * const date = new Date();
+ * const dateKey = date.toISOString().slice(0, ISO_DATE_DISPLAY_LENGTH);
+ * // Returns: "2026-02-20"
+ * ```
+ *
+ * Changing this value would break date parsing (10 is the standard for YYYY-MM-DD).
+ */
+export const ISO_DATE_DISPLAY_LENGTH = 10;
+
+// ---------------------------------------------------------------------------
 // Report Display Limit Constants
 // ---------------------------------------------------------------------------
 

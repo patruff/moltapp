@@ -18,6 +18,7 @@ import { agentPayments, agentEarnings } from "../db/schema/payments.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
+import { ISO_DATE_DISPLAY_LENGTH } from "../config/constants.ts";
 
 // Database query result types
 type PaymentRow = typeof agentPayments.$inferSelect;
@@ -353,13 +354,13 @@ export async function getAgentEarningsProfile(
         );
 
       earningsByDay.push({
-        date: date.toISOString().slice(0, 10),
+        date: date.toISOString().slice(0, ISO_DATE_DISPLAY_LENGTH),
         totalAmount: parseFloat(dayTips[0]?.totalAmount ?? "0"),
         tipCount: Number(dayTips[0]?.tipCount ?? 0),
       });
     } catch {
       earningsByDay.push({
-        date: date.toISOString().slice(0, 10),
+        date: date.toISOString().slice(0, ISO_DATE_DISPLAY_LENGTH),
         totalAmount: 0,
         tipCount: 0,
       });
