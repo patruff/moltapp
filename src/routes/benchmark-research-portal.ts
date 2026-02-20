@@ -19,7 +19,7 @@ import { Hono } from "hono";
 import { computeVariance, countByCondition, mean, round4, stdDev } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import {
   buildDataset,
   formatAsJsonl,
