@@ -46,7 +46,7 @@ import {
   setSearchProvider,
 } from "../services/search-cache.ts";
 import { braveSearchProvider } from "../services/brave-search.ts";
-import { averageByKey, clamp, computeStdDev, countByCondition, countWords, getTopKey, round, round2, round3 } from "../lib/math-utils.ts";
+import { averageByKey, clamp, computeStdDev, countByCondition, countWords, getTopKey, round2, round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { fetchAggregatedPrices, getTradeableSymbols } from "../services/market-aggregator.ts";
 
@@ -59,12 +59,10 @@ import { recordBalanceSnapshot, preTradeFundCheck } from "../services/agent-wall
 import { getOnChainPortfolio } from "../services/onchain-portfolio.ts";
 import {
   executeDecision as executeTradeDecision,
-  executePipeline,
-  getExecutionStats,
   getTradingMode,
   type ExecutionResult,
 } from "../services/trade-executor.ts";
-import { emitTradeAlert, emitRoundCompletedAlert, emitAgentDisagreementAlert } from "../services/alert-webhooks.ts";
+import { emitRoundCompletedAlert, emitAgentDisagreementAlert } from "../services/alert-webhooks.ts";
 import {
   persistRound,
   cacheRound,
@@ -91,7 +89,6 @@ import {
   recordReasoningSnapshot,
   generateRoundDiffs,
 } from "../services/reasoning-diff-engine.ts";
-import { recordTradeForAttribution } from "../services/strategy-attribution.ts";
 import { recordHallucinationAnalysis } from "../services/hallucination-tracker.ts";
 import { recordReasoningEntry } from "../services/reasoning-profile.ts";
 import { recordTimelineSnapshot } from "../services/reasoning-timeline.ts";
