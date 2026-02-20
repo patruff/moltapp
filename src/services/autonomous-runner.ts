@@ -83,6 +83,15 @@ const STATS_WINDOW_24H_MS = 24 * 60 * 60 * 1000;
 const MARKET_OPEN_MINUTES = 9 * 60 + 30; // 9:30 AM
 const MARKET_CLOSE_MINUTES = 16 * 60; // 4:00 PM
 
+/**
+ * Decimal rounding precision for runner statistics display (1 decimal place).
+ * Formula: Math.round(value × MULTIPLIER) / MULTIPLIER = 1-decimal precision
+ * Example: avgAgents = 2.34 → Math.round(2.34 × 10) / 10 = 2.3
+ * Purpose: Provides human-readable statistics in runner status API responses
+ * without excessive precision (avgAgentsPerRound shown as "2.3" not "2.34567").
+ */
+const DECIMAL_ROUNDING_MULTIPLIER = 10;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -578,7 +587,7 @@ export function getRunnerStats(): {
     totalRoundsRun: state.totalRoundsRun,
     successRate: round3(successRate),
     avgRoundDurationMs: Math.round(avgDuration),
-    avgAgentsPerRound: Math.round(avgAgents * 10) / 10,
+    avgAgentsPerRound: Math.round(avgAgents * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER,
     failedRoundsLast24h: failedLast24h,
   };
 }
