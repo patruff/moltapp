@@ -51,11 +51,71 @@ export interface BenchmarkEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum number of benchmark events retained in the in-memory ring buffer.
+ * When exceeded, oldest events are evicted (FIFO via array truncation).
+ * 500 events ≈ several full trading rounds of activity at typical emission rates.
+ * Increase for longer replay history; decrease to reduce memory footprint.
+ */
+const MAX_BUFFER = 500;
+
+/**
+ * Number of historical events replayed to SSE subscribers on connection.
+ * When a client connects, the last N matching events are sent immediately
+ * so the subscriber sees recent activity without waiting for the next live event.
+ * 10 events provides context without overwhelming slow clients at connect time.
+ */
+const SSE_REPLAY_WINDOW_SIZE = 10;
+
+/**
+ * Default number of events returned by GET /recent when no limit param is given.
+ * Chosen to keep response size manageable for typical dashboard polling.
+ */
+const RECENT_EVENTS_DEFAULT_LIMIT = 50;
+
+/**
+ * Hard cap on the limit parameter for GET /recent.
+ * Prevents accidental large responses; MAX_BUFFER (500) is the true upper bound,
+ * but 200 provides a practical ceiling for API consumers.
+ */
+const RECENT_EVENTS_MAX_LIMIT = 200;
+
+/**
+ * Time window (milliseconds) used to calculate the events-per-minute rate.
+ * 5 minutes = 300,000 ms. Counts events emitted in the last 5 minutes,
+ * then divides by EVENTS_PER_MINUTE_WINDOW_MINUTES for the per-minute rate.
+ */
+const EVENTS_PER_MINUTE_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Window length in minutes, paired with EVENTS_PER_MINUTE_WINDOW_MS.
+ * eventsPerMinute = recentCount / EVENTS_PER_MINUTE_WINDOW_MINUTES
+ * Must stay in sync with EVENTS_PER_MINUTE_WINDOW_MS (5 min = 300,000 ms).
+ */
+const EVENTS_PER_MINUTE_WINDOW_MINUTES = 5;
+
+/**
+ * Precision multiplier for the events-per-minute display value.
+ * Math.round(rate × 10) / 10 → one decimal place (e.g., 3.7 events/min).
+ */
+const EVENTS_PER_MINUTE_PRECISION_MULTIPLIER = 10;
+
+/**
+ * Interval (milliseconds) between SSE heartbeat pings sent to each subscriber.
+ * Heartbeats keep the HTTP connection alive through proxies and load balancers
+ * that close idle connections. 15 s is well within the 30–60 s idle timeouts
+ * common on Cloudflare, nginx, and AWS ALB.
+ */
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
+// ---------------------------------------------------------------------------
 // Event Buffer
 // ---------------------------------------------------------------------------
 
 const eventBuffer: BenchmarkEvent[] = [];
-const MAX_BUFFER = 500;
 let eventCounter = 0;
 
 // Active SSE subscribers
@@ -130,7 +190,7 @@ benchmarkStreamRoutes.get("/", (c) => {
         if (agentFilter && e.agentId !== agentFilter) return false;
         return true;
       })
-      .slice(0, 10)
+      .slice(0, SSE_REPLAY_WINDOW_SIZE)
       .reverse();
 
     for (const event of recentEvents) {
@@ -174,7 +234,7 @@ benchmarkStreamRoutes.get("/", (c) => {
         clearInterval(heartbeat);
         subscribers.delete(callback);
       }
-    }, 15000);
+    }, HEARTBEAT_INTERVAL_MS);
 
     // Cleanup on disconnect
     stream.onAbort(() => {
@@ -198,7 +258,7 @@ benchmarkStreamRoutes.get("/", (c) => {
  *   agent — filter by agent ID
  */
 benchmarkStreamRoutes.get("/recent", (c) => {
-  const limit = Math.min(parseInt(c.req.query("limit") ?? "50", 10), 200);
+  const limit = Math.min(parseInt(c.req.query("limit") ?? String(RECENT_EVENTS_DEFAULT_LIMIT), 10), RECENT_EVENTS_MAX_LIMIT);
   const typeFilter = c.req.query("type");
   const agentFilter = c.req.query("agent");
 
@@ -237,11 +297,13 @@ benchmarkStreamRoutes.get("/stats", (c) => {
   }
 
   // Events per minute (last 5 minutes)
-  const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+  const windowStart = Date.now() - EVENTS_PER_MINUTE_WINDOW_MS;
   const recentCount = eventBuffer.filter(
-    (e) => new Date(e.timestamp).getTime() > fiveMinAgo,
+    (e) => new Date(e.timestamp).getTime() > windowStart,
   ).length;
-  const eventsPerMinute = Math.round((recentCount / 5) * 10) / 10;
+  const eventsPerMinute =
+    Math.round((recentCount / EVENTS_PER_MINUTE_WINDOW_MINUTES) * EVENTS_PER_MINUTE_PRECISION_MULTIPLIER) /
+    EVENTS_PER_MINUTE_PRECISION_MULTIPLIER;
 
   return c.json({
     ok: true,
