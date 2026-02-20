@@ -24,6 +24,7 @@ import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts"
 import { CERTIFICATION_WEIGHTS_ARRAY } from "../lib/scoring-weights.ts";
 import { splitSentences, normalize, countWords, round2, weightedSum, clamp, countByCondition, findMin } from "../lib/math-utils.ts";
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
+import { getGradeFractional } from "../lib/benchmark-grading-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -605,19 +606,11 @@ function scoreActionability(reasoning: string, action: string): CertificationDim
     name: "actionability",
     score: Math.min(1, round2(score)),
     indicators,
-    grade: getGrade(score),
+    grade: getGradeFractional(score),
   };
 }
 
-function getGrade(score: number): string {
-  if (score >= 0.9) return "A";
-  if (score >= 0.8) return "B+";
-  if (score >= 0.7) return "B";
-  if (score >= 0.6) return "C+";
-  if (score >= 0.5) return "C";
-  if (score >= 0.4) return "D";
-  return "F";
-}
+// Grade classification now uses shared getGradeFractional function from benchmark-grading-utils.ts
 
 // ---------------------------------------------------------------------------
 // Query Functions

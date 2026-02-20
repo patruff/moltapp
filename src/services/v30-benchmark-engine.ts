@@ -12,6 +12,7 @@
  */
 
 import { findMax, findMin } from "../lib/math-utils.ts";
+import { getTier } from "../lib/benchmark-grading-utils.ts";
 
 // Types for the 20 dimensions
 export interface V30DimensionScores {
@@ -263,14 +264,7 @@ const DIMENSION_WEIGHTS: Record<keyof V30DimensionScores, number> = {
   reasoningQualityIndex: 0.01,
 };
 
-// Tier thresholds
-function getTier(composite: number): 'S' | 'A' | 'B' | 'C' | 'D' {
-  if (composite >= TIER_S_THRESHOLD) return 'S';
-  if (composite >= TIER_A_THRESHOLD) return 'A';
-  if (composite >= TIER_B_THRESHOLD) return 'B';
-  if (composite >= TIER_C_THRESHOLD) return 'C';
-  return 'D';
-}
+// Tier thresholds (now using shared getTier function from benchmark-grading-utils.ts)
 
 // Create an integrity hash for reasoning (simple but functional)
 export function computeReasoningIntegrityHash(reasoning: string, agentId: string, timestamp: string): string {
