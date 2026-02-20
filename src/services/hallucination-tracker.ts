@@ -83,6 +83,14 @@ const SYMBOL_MIN_TRADES_FOR_RISK = 3;
 const SYMBOL_RISK_DISPLAY_LIMIT = 5;
 
 /**
+ * Minimum trades required to include symbol in platform-wide risk map (2 trades).
+ * Prevents single trade outliers from appearing in symbol risk analysis.
+ * Lower threshold than SYMBOL_MIN_TRADES_FOR_RISK (3) because platform-wide aggregation
+ * provides more statistical significance than per-agent analysis.
+ */
+const SYMBOL_RISK_MAP_MIN_TRADES = 2;
+
+/**
  * Hallucination Classification Thresholds
  *
  * Controls how hallucination flags are classified by type (price/claim severity).
@@ -388,7 +396,7 @@ function computeSymbolRiskMap(): HallucinationReport["symbolRiskMap"] {
   }
 
   return [...symbolStats.entries()]
-    .filter(([, stats]) => stats.total >= 2)
+    .filter(([, stats]) => stats.total >= SYMBOL_RISK_MAP_MIN_TRADES)
     .map(([symbol, stats]) => ({
       symbol,
       hallucinationRate: round3(stats.hallucinated / stats.total),
