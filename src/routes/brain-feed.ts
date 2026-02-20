@@ -19,10 +19,6 @@ import { tradeJustifications, benchmarkSnapshots } from "../db/schema/trade-reas
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import {
-  analyzeCoherence,
-  detectHallucinations,
-} from "../services/coherence-analyzer.ts";
-import {
   normalizeConfidence,
   extractSourcesFromReasoning,
   classifyIntent,

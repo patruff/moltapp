@@ -29,10 +29,6 @@ import {
   getTrackedAgents,
   getConsistencyHistorySize,
 } from "../services/cross-round-consistency.ts";
-import {
-  validateForBenchmark,
-  type DatasetQualityReport,
-} from "../services/benchmark-validation-engine.ts";
 import { round3 } from "../lib/math-utils.ts";
 
 export const benchmarkV12ApiRoutes = new Hono();
