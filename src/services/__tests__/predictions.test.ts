@@ -150,19 +150,20 @@ describe("Predictions Service", () => {
         ]),
       };
 
-      const result = await createPrediction({
-        agentId: "agent-1",
-        type: "direction",
-        symbol: "AAPL",
-        direction: "bullish",
-        confidence: 75,
-        horizon: "1d",
-        reasoning: "Strong technical indicators",
-      });
+      const result = await createPrediction(
+        "agent-1",
+        "AAPL",
+        "direction",
+        "bullish",
+        null,
+        "1d",
+        75,
+        "Strong technical indicators",
+      );
 
       expect(result).toBeDefined();
-      expect(result.status).toBe("active");
-      expect(result.symbol).toBe("AAPL");
+      expect(result.prediction.status).toBe("active");
+      expect(result.prediction.symbol).toBe("AAPL");
     });
 
     it("should lock odds when bet is placed", async () => {
@@ -180,7 +181,7 @@ describe("Predictions Service", () => {
       const initialOdds = calculateDynamicOdds(100, 100);
 
       // Simulate bet placement (doesn't actually modify pool in this test)
-      const betOdds = initialOdds.forOdds;
+      const betOdds = initialOdds.oddsFor;
 
       // Odds at bet placement should be locked
       expect(betOdds).toBeCloseTo(2.0, 1);
@@ -200,7 +201,7 @@ describe("Predictions Service", () => {
 
       // After FOR bet, AGAINST odds should improve
       const initialOdds = calculateDynamicOdds(initialForPool, initialAgainstPool);
-      expect(newOdds.againstOdds).toBeGreaterThan(initialOdds.againstOdds);
+      expect(newOdds.oddsAgainst).toBeGreaterThan(initialOdds.oddsAgainst);
     });
   });
 
