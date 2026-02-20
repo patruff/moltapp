@@ -13,7 +13,7 @@
  */
 
 import type { NewsItem } from "./search-cache.ts";
-import { errorMessage } from "../lib/errors.ts";
+import { errorMessage, safeJsonParse } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -401,7 +401,7 @@ function parsePerplexityResponse(
       cleaned = arrayMatch[0];
     }
 
-    const parsed = JSON.parse(cleaned) as Array<Record<string, unknown>>;
+    const parsed = safeJsonParse<Array<Record<string, unknown>>>(cleaned, []);
 
     for (const item of parsed.slice(0, MAX_ITEMS_PER_PROVIDER)) {
       const title = String(item.title ?? "");

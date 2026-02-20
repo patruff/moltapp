@@ -147,3 +147,52 @@ export function throwApiError(code: keyof typeof ErrorCodes, details?: string): 
   const message = details ? `${errorCode}: ${details}` : errorCode;
   throw new Error(message);
 }
+
+/**
+ * Safely parse JSON with type safety and fallback handling.
+ *
+ * Eliminates unsafe JSON.parse() patterns that can cause runtime errors:
+ * - Returns fallback value if JSON is invalid
+ * - Provides runtime type validation via optional schema function
+ * - Prevents "any" type leakage from JSON.parse()
+ *
+ * @param json - JSON string to parse
+ * @param fallback - Value to return if parsing fails or schema validation fails
+ * @param schema - Optional type guard function to validate parsed structure
+ * @returns Parsed value of type T, or fallback if parsing/validation fails
+ *
+ * @example
+ * // Without schema validation
+ * const data = safeJsonParse<string[]>('["a","b"]', []);
+ * // data: string[] (not any)
+ *
+ * @example
+ * // With schema validation
+ * interface User { name: string; age: number; }
+ * const isUser = (obj: unknown): obj is User =>
+ *   typeof obj === "object" && obj !== null &&
+ *   "name" in obj && typeof obj.name === "string" &&
+ *   "age" in obj && typeof obj.age === "number";
+ *
+ * const user = safeJsonParse<User>('{"name":"Alice","age":30}', { name: "", age: 0 }, isUser);
+ * // user: User (validated at runtime)
+ */
+export function safeJsonParse<T>(
+  json: string,
+  fallback: T,
+  schema?: (obj: unknown) => obj is T
+): T {
+  try {
+    const parsed: unknown = JSON.parse(json);
+
+    // If schema provided, validate parsed value
+    if (schema && !schema(parsed)) {
+      return fallback;
+    }
+
+    return parsed as T;
+  } catch {
+    // JSON.parse threw SyntaxError
+    return fallback;
+  }
+}

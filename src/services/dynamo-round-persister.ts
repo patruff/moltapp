@@ -30,7 +30,7 @@ import type {
   TradingRoundResult,
 } from "../agents/base-agent.ts";
 import type { CircuitBreakerActivation } from "./circuit-breaker.ts";
-import { errorMessage } from "../lib/errors.ts";
+import { errorMessage, safeJsonParse } from "../lib/errors.ts";
 import { countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -522,7 +522,7 @@ export async function getLatestMeetingFromDynamo(): Promise<unknown | null> {
 
     if (rounds.length === 0 || !rounds[0].meetingOfMinds) return null;
 
-    return JSON.parse(rounds[0].meetingOfMinds);
+    return safeJsonParse(rounds[0].meetingOfMinds, null);
   } catch (err) {
     console.error(`[DynamoPersister] Failed to get latest meeting: ${errorMessage(err)}`);
     return null;
@@ -538,7 +538,7 @@ export async function getMeetingFromDynamo(roundId: string): Promise<unknown | n
   try {
     const round = await getRound(roundId);
     if (!round?.meetingOfMinds) return null;
-    return JSON.parse(round.meetingOfMinds);
+    return safeJsonParse(round.meetingOfMinds, null);
   } catch (err) {
     console.error(`[DynamoPersister] Failed to get meeting for round ${roundId}: ${errorMessage(err)}`);
     return null;
@@ -574,7 +574,7 @@ function unmarshalRound(item: Record<string, AttributeValue>): PersistedRound {
     timestamp: item.timestamp?.S ?? "",
     durationMs: Number(item.durationMs?.N ?? 0),
     tradingMode: (item.tradingMode?.S ?? "paper") as "live" | "paper",
-    results: JSON.parse(item.results?.S ?? "[]") as PersistedAgentResult[],
+    results: safeJsonParse<PersistedAgentResult[]>(item.results?.S ?? "[]", []),
     errors: errors.filter((e) => e !== "none"),
     circuitBreakerActivations: Number(item.circuitBreakerActivations?.N ?? 0),
     lockSkipped: item.lockSkipped?.BOOL ?? false,
