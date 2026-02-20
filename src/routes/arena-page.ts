@@ -9,7 +9,6 @@
 import { Hono } from "hono";
 import { html } from "hono/html";
 import { getArenaOverview } from "../services/analytics.ts";
-import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { pnlSign } from "../lib/format-utils.ts";
 
 export const arenaPageRoutes = new Hono();
@@ -21,8 +20,6 @@ arenaPageRoutes.get("/", async (c) => {
   } catch {
     overview = null;
   }
-
-  const configs = getAgentConfigs();
 
   // Agent identity data for display
   const agentColors: Record<string, { bg: string; text: string; border: string; icon: string }> = {

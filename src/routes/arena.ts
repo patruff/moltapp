@@ -15,7 +15,6 @@
  */
 
 import { Hono } from "hono";
-import { z } from "zod";
 import { getArenaOverview, compareAgents } from "../services/analytics.ts";
 import {
   getAgentConfigs,
@@ -27,7 +26,7 @@ import {
 } from "../agents/orchestrator.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { desc, eq, sql, and } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { countByCondition } from "../lib/math-utils.ts";
 import { clamp } from "../lib/math-utils.ts";
 import { apiError } from "../lib/errors.ts";
