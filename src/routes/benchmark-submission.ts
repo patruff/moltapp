@@ -177,52 +177,6 @@ const MEETING_MAX_EXTERNAL_AGENTS = 10;
 // Scoring & Display Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Milliseconds per day for converting timestamps to human-readable age.
- * Formula: days = elapsedMs / MS_PER_DAY
- * Example: 86,400,000 ms = 1 day
- */
-const MS_PER_DAY = 1000 * 60 * 60 * 24;
-
-/**
- * Multiply-then-divide pattern for 2-decimal percentage display.
- * Formula: Math.round(fraction × HALLUCINATION_RATE_MULTIPLIER) / HALLUCINATION_RATE_DIVISOR
- * Example: 0.1667 → Math.round(1667) / 100 = 16.67%
- */
-const HALLUCINATION_RATE_MULTIPLIER = 10000;
-const HALLUCINATION_RATE_DIVISOR = 100;
-
-/**
- * Number of recent agent decisions fetched from DB for Meeting of the Minds context.
- * Balances recency vs DB query cost; 30 decisions ≈ 5 rounds of 6 agents.
- */
-const RECENT_DECISIONS_QUERY_LIMIT = 30;
-
-/**
- * Max characters shown for a thesis preview in Meeting of the Minds responses.
- * Keeps API payloads compact while preserving the core thesis argument.
- * Full reasoning is available in the `reasoning` field.
- */
-const THESIS_PREVIEW_MAX_LENGTH = 200;
-
-/**
- * Composite score weights for external agent benchmark scoring.
- * Must sum to 1.0: 0.25 + 0.20 + 0.15 + 0.25 + 0.15 = 1.00
- * Matches internal agent scoring weights in the benchmark engine.
- */
-const COMPOSITE_WEIGHT_COHERENCE = 0.25;
-const COMPOSITE_WEIGHT_HALLUCINATION_FREE = 0.20;
-const COMPOSITE_WEIGHT_DISCIPLINE = 0.15;
-const COMPOSITE_WEIGHT_DEEP_COHERENCE = 0.25;
-const COMPOSITE_WEIGHT_REASONING_QUALITY = 0.15;
-
-/**
- * Precision for composite score display (2 decimal places).
- * Formula: Math.round(rawScore × COMPOSITE_SCORE_PRECISION) / COMPOSITE_SCORE_PRECISION
- * Example: 0.8333 → Math.round(83.33) / 100 = 83.33
- */
-const COMPOSITE_SCORE_PRECISION = 100;
-
 /** Record a tool call for an agent */
 function recordToolTrace(agentId: string, tool: string, args: Record<string, string>) {
   const traces = toolTraces.get(agentId) ?? [];
