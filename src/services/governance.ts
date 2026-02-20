@@ -519,6 +519,44 @@ function seedProposals() {
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a standardized governance error result object.
+ *
+ * Used across all governance validation functions (castVote, addDiscussionComment,
+ * executeProposal) to ensure consistent error response format.
+ *
+ * @param error - Human-readable error message describing why operation failed
+ * @returns Error result object with success: false
+ *
+ * @example
+ * ```typescript
+ * // Before (duplicate pattern across 5+ locations):
+ * if (!proposal) return { success: false, error: "Proposal not found" };
+ * if (proposal.status !== "active") {
+ *   return { success: false, error: `Proposal is ${proposal.status}, not active` };
+ * }
+ *
+ * // After (consolidated with helper):
+ * if (!proposal) return createGovernanceErrorResult("Proposal not found");
+ * if (proposal.status !== "active") {
+ *   return createGovernanceErrorResult(`Proposal is ${proposal.status}, not active`);
+ * }
+ * ```
+ *
+ * Common error messages:
+ * - "Proposal not found" (invalid proposal ID)
+ * - "Proposal is {status}, not active" (voting window closed)
+ * - "Voting period has ended" (timestamp validation)
+ * - "Agent has already voted on this proposal" (duplicate vote prevention)
+ */
+function createGovernanceErrorResult(error: string): { success: false; error: string } {
+  return { success: false, error };
+}
+
+// ---------------------------------------------------------------------------
 // Proposal Management
 // ---------------------------------------------------------------------------
 
@@ -593,21 +631,21 @@ export function castVote(params: {
   seedProposals();
 
   const proposal = proposals.find((p) => p.id === params.proposalId);
-  if (!proposal) return { success: false, error: "Proposal not found" };
+  if (!proposal) return createGovernanceErrorResult("Proposal not found");
 
   if (proposal.status !== "active") {
-    return { success: false, error: `Proposal is ${proposal.status}, not active` };
+    return createGovernanceErrorResult(`Proposal is ${proposal.status}, not active`);
   }
 
   // Check if voting window has closed
   if (new Date() > new Date(proposal.votingEndsAt)) {
-    return { success: false, error: "Voting period has ended" };
+    return createGovernanceErrorResult("Voting period has ended");
   }
 
   // Check if agent already voted
   const existingVote = proposal.votes.find((v) => v.agentId === params.agentId);
   if (existingVote) {
-    return { success: false, error: "Agent has already voted on this proposal" };
+    return createGovernanceErrorResult("Agent has already voted on this proposal");
   }
 
   const configs = getAgentConfigs();
@@ -675,7 +713,7 @@ export function addDiscussionComment(params: {
   seedProposals();
 
   const proposal = proposals.find((p) => p.id === params.proposalId);
-  if (!proposal) return { success: false, error: "Proposal not found" };
+  if (!proposal) return createGovernanceErrorResult("Proposal not found");
 
   const configs = getAgentConfigs();
   const agent = configs.find((c) => c.agentId === params.agentId);
