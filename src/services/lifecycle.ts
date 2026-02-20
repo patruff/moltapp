@@ -279,34 +279,40 @@ export async function deepHealthCheck(): Promise<DeepHealthResult> {
   if (dbHealth.status === "fulfilled") {
     dependencies.push(dbHealth.value);
   } else {
-    dependencies.push({
-      name: "database",
-      status: "unhealthy",
-      latencyMs: -1,
-      error: dbHealth.reason?.message ?? "Unknown error",
-    });
+    dependencies.push(
+      createDependencyHealth(
+        "database",
+        "unhealthy",
+        -1,
+        dbHealth.reason?.message ?? "Unknown error",
+      ),
+    );
   }
 
   if (solanaHealth.status === "fulfilled") {
     dependencies.push(solanaHealth.value);
   } else {
-    dependencies.push({
-      name: "solana_rpc",
-      status: "unhealthy",
-      latencyMs: -1,
-      error: solanaHealth.reason?.message ?? "Unknown error",
-    });
+    dependencies.push(
+      createDependencyHealth(
+        "solana_rpc",
+        "unhealthy",
+        -1,
+        solanaHealth.reason?.message ?? "Unknown error",
+      ),
+    );
   }
 
   if (jupiterHealth.status === "fulfilled") {
     dependencies.push(jupiterHealth.value);
   } else {
-    dependencies.push({
-      name: "jupiter_api",
-      status: "unhealthy",
-      latencyMs: -1,
-      error: jupiterHealth.reason?.message ?? "Unknown error",
-    });
+    dependencies.push(
+      createDependencyHealth(
+        "jupiter_api",
+        "unhealthy",
+        -1,
+        jupiterHealth.reason?.message ?? "Unknown error",
+      ),
+    );
   }
 
   // Memory usage
@@ -391,6 +397,61 @@ export async function readinessCheck(): Promise<ReadinessResult> {
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a DependencyHealth object with consistent structure.
+ *
+ * Consolidates duplicate object construction across all dependency check functions.
+ * All health checks return this consistent shape for the /health API endpoint.
+ *
+ * @param name - Dependency identifier (e.g., "database", "solana_rpc", "jupiter_api")
+ * @param status - Health status: "healthy", "degraded", or "unhealthy"
+ * @param latencyMs - Response time in milliseconds (-1 for failed checks)
+ * @param error - Optional error message (only for degraded/unhealthy states)
+ * @param details - Optional metadata (e.g., endpoint URL, provider info)
+ * @returns Standardized DependencyHealth object
+ *
+ * @example
+ * // Before:
+ * return {
+ *   name: "database",
+ *   status: "healthy",
+ *   latencyMs: 45,
+ *   details: { type: "postgresql" }
+ * };
+ *
+ * // After:
+ * return createDependencyHealth("database", "healthy", 45, undefined, {
+ *   type: "postgresql"
+ * });
+ */
+function createDependencyHealth(
+  name: string,
+  status: "healthy" | "degraded" | "unhealthy",
+  latencyMs: number,
+  error?: string,
+  details?: Record<string, unknown>,
+): DependencyHealth {
+  const health: DependencyHealth = {
+    name,
+    status,
+    latencyMs,
+  };
+
+  if (error !== undefined) {
+    health.error = error;
+  }
+
+  if (details !== undefined) {
+    health.details = details;
+  }
+
+  return health;
+}
+
+// ---------------------------------------------------------------------------
 // Dependency Checks
 // ---------------------------------------------------------------------------
 
@@ -413,23 +474,23 @@ async function checkDatabase(): Promise<DependencyHealth> {
     ]);
     const latencyMs = Date.now() - start;
 
-    return {
-      name: "database",
-      status:
-        latencyMs > DB_LATENCY_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
+    return createDependencyHealth(
+      "database",
+      latencyMs > DB_LATENCY_DEGRADED_THRESHOLD_MS ? "degraded" : "healthy",
       latencyMs,
-      details: {
+      undefined,
+      {
         type: "postgresql",
         provider: "neon",
       },
-    };
+    );
   } catch (err) {
-    return {
-      name: "database",
-      status: "unhealthy",
-      latencyMs: Date.now() - start,
-      error: errorMessage(err),
-    };
+    return createDependencyHealth(
+      "database",
+      "unhealthy",
+      Date.now() - start,
+      errorMessage(err),
+    );
   }
 }
 
@@ -453,12 +514,12 @@ async function checkSolanaRpc(): Promise<DependencyHealth> {
     const latencyMs = Date.now() - start;
 
     if (!response.ok) {
-      return {
-        name: "solana_rpc",
-        status: "unhealthy",
+      return createDependencyHealth(
+        "solana_rpc",
+        "unhealthy",
         latencyMs,
-        error: `HTTP ${response.status}`,
-      };
+        `HTTP ${response.status}`,
+      );
     }
 
     const data = (await response.json()) as {
@@ -467,32 +528,32 @@ async function checkSolanaRpc(): Promise<DependencyHealth> {
     };
 
     if (data.result === "ok") {
-      return {
-        name: "solana_rpc",
-        status:
-          latencyMs > SOLANA_LATENCY_DEGRADED_THRESHOLD_MS
-            ? "degraded"
-            : "healthy",
+      return createDependencyHealth(
+        "solana_rpc",
+        latencyMs > SOLANA_LATENCY_DEGRADED_THRESHOLD_MS
+          ? "degraded"
+          : "healthy",
         latencyMs,
-        details: {
+        undefined,
+        {
           endpoint: rpcUrl.replace(/api-key=[^&]+/, "api-key=***"),
         },
-      };
+      );
     }
 
-    return {
-      name: "solana_rpc",
-      status: "degraded",
+    return createDependencyHealth(
+      "solana_rpc",
+      "degraded",
       latencyMs,
-      error: data.error?.message ?? "RPC not healthy",
-    };
+      data.error?.message ?? "RPC not healthy",
+    );
   } catch (err) {
-    return {
-      name: "solana_rpc",
-      status: "unhealthy",
-      latencyMs: Date.now() - start,
-      error: errorMessage(err),
-    };
+    return createDependencyHealth(
+      "solana_rpc",
+      "unhealthy",
+      Date.now() - start,
+      errorMessage(err),
+    );
   }
 }
 
@@ -518,32 +579,32 @@ async function checkJupiterApi(): Promise<DependencyHealth> {
     const latencyMs = Date.now() - start;
 
     if (!response.ok) {
-      return {
-        name: "jupiter_api",
-        status: "unhealthy",
+      return createDependencyHealth(
+        "jupiter_api",
+        "unhealthy",
         latencyMs,
-        error: `HTTP ${response.status}`,
-      };
+        `HTTP ${response.status}`,
+      );
     }
 
-    return {
-      name: "jupiter_api",
-      status:
-        latencyMs > JUPITER_LATENCY_DEGRADED_THRESHOLD_MS
-          ? "degraded"
-          : "healthy",
+    return createDependencyHealth(
+      "jupiter_api",
+      latencyMs > JUPITER_LATENCY_DEGRADED_THRESHOLD_MS
+        ? "degraded"
+        : "healthy",
       latencyMs,
-      details: {
+      undefined,
+      {
         endpoint: JUPITER_API_BASE_URL,
       },
-    };
+    );
   } catch (err) {
-    return {
-      name: "jupiter_api",
-      status: "unhealthy",
-      latencyMs: Date.now() - start,
-      error: errorMessage(err),
-    };
+    return createDependencyHealth(
+      "jupiter_api",
+      "unhealthy",
+      Date.now() - start,
+      errorMessage(err),
+    );
   }
 }
 
