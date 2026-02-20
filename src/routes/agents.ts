@@ -36,6 +36,29 @@ import { clamp } from "../lib/math-utils.ts";
 export const agentRoutes = new Hono();
 
 // ---------------------------------------------------------------------------
+// Pagination Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Default number of trades returned per page when no `limit` query param is provided.
+ * Balances response size with usefulness — 20 decisions covers ~1 full trading round.
+ */
+const DEFAULT_TRADES_PAGE_SIZE = 20;
+
+/**
+ * Minimum value for the `limit` query parameter.
+ * Prevents clients from requesting 0 results (which would be useless).
+ */
+const MIN_TRADES_PAGE_SIZE = 1;
+
+/**
+ * Maximum value for the `limit` query parameter.
+ * Caps response size to prevent excessive database queries and large payloads.
+ * 100 decisions covers ~5 full trading rounds of history.
+ */
+const MAX_TRADES_PAGE_SIZE = 100;
+
+// ---------------------------------------------------------------------------
 // GET /agents — List all AI agents with summary stats
 // ---------------------------------------------------------------------------
 
@@ -146,11 +169,11 @@ agentRoutes.get("/:agentId/trades", async (c) => {
   const offsetStr = c.req.query("offset");
 
   // Safely parse limit with NaN check to prevent database query errors
-  let limit = 20;
+  let limit = DEFAULT_TRADES_PAGE_SIZE;
   if (limitStr) {
     const parsed = parseInt(limitStr, 10);
     if (!isNaN(parsed) && parsed > 0) {
-      limit = clamp(parsed, 1, 100);
+      limit = clamp(parsed, MIN_TRADES_PAGE_SIZE, MAX_TRADES_PAGE_SIZE);
     }
   }
 
