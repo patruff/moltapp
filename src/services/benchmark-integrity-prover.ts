@@ -112,12 +112,43 @@ export interface DatasetFingerprint {
 }
 
 // ---------------------------------------------------------------------------
+// Configuration Constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Proof Storage Capacity Limit
+ *
+ * Maximum number of round integrity proofs retained in memory.
+ *
+ * Purpose: Controls memory footprint of the cryptographic proof cache.
+ *
+ * Formula:
+ * - 500 proofs ≈ 3,000 trades (assuming ~6 trades per proof on average)
+ * - At 48 rounds/day (30-minute intervals), 500 proofs ≈ 10.4 days of history
+ * - Each proof stores: roundId, merkleRoot, leafCount, records[], timestamps, chain hash
+ * - Memory estimate: ~2KB per proof × 500 = ~1MB total cache size
+ *
+ * Why 500:
+ * - Sufficient for medium-term audit trails (10+ days of trading rounds)
+ * - Keeps memory usage minimal (<1MB) while enabling verification
+ * - Older proofs can be reconstructed from exported HuggingFace datasets
+ * - Recent proofs enable fast verification without database queries
+ *
+ * Tuning:
+ * - Change to 1000 for 3-week history (doubles memory usage to ~2MB)
+ * - Change to 200 for minimal footprint (~400KB, 4 days of rounds)
+ * - Production systems with high round frequency may need 1000+ for compliance
+ *
+ * Used by: createRoundProof (lines 310-314 - LRU eviction when limit exceeded)
+ */
+const MAX_PROOF_CACHE_SIZE = 500;
+
+// ---------------------------------------------------------------------------
 // In-Memory State
 // ---------------------------------------------------------------------------
 
 const roundProofs: Map<string, RoundIntegrityProof> = new Map();
 let lastProofHash: string | null = null;
-const MAX_PROOFS = 500;
 
 // ---------------------------------------------------------------------------
 // Hash Functions
@@ -308,7 +339,7 @@ export function createRoundProof(
 
   // Store
   roundProofs.set(roundId, proof);
-  if (roundProofs.size > MAX_PROOFS) {
+  if (roundProofs.size > MAX_PROOF_CACHE_SIZE) {
     const oldest = roundProofs.keys().next().value;
     if (oldest) roundProofs.delete(oldest);
   }
