@@ -289,6 +289,59 @@ export interface BiasDetection {
   triggers: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper to construct BiasDetection objects consistently.
+ *
+ * Consolidates duplicate object construction pattern used across all bias
+ * detection functions. Before this helper, BiasDetection objects were manually
+ * constructed 14 times across 7 detection functions with identical structure.
+ *
+ * @param type - The type of cognitive bias detected
+ * @param confidence - Confidence in the detection (0.0 to 1.0)
+ * @param evidence - Evidence string explaining why this bias was detected
+ * @param severity - Impact severity: "low", "medium", or "high"
+ * @param triggers - Specific text segments that triggered detection
+ * @returns A BiasDetection object
+ *
+ * @example
+ * // Before (manual construction):
+ * return {
+ *   type: "anchoring",
+ *   confidence: 0.7,
+ *   evidence: "Price $100 mentioned 5 times",
+ *   severity: "high",
+ *   triggers: ["$100", "$100", "$100", "$100", "$100"],
+ * };
+ *
+ * // After (using helper):
+ * return createBiasDetection(
+ *   "anchoring",
+ *   0.7,
+ *   "Price $100 mentioned 5 times",
+ *   "high",
+ *   ["$100", "$100", "$100", "$100", "$100"]
+ * );
+ */
+function createBiasDetection(
+  type: BiasType,
+  confidence: number,
+  evidence: string,
+  severity: "low" | "medium" | "high",
+  triggers: string[],
+): BiasDetection {
+  return {
+    type,
+    confidence,
+    evidence,
+    severity,
+    triggers,
+  };
+}
+
 export interface BiasAnalysisResult {
   /** Overall bias score: 0.0 (bias-free) to 1.0 (heavily biased) */
   biasScore: number;
@@ -352,13 +405,13 @@ function detectAnchoring(reasoning: string, marketData: MarketData[]): BiasDetec
 
   if (repeatedPrices.length > 0) {
     const anchor = repeatedPrices[0][0];
-    return {
-      type: "anchoring",
-      confidence: Math.min(ANCHORING_MAX_CONFIDENCE, ANCHORING_BASE_CONFIDENCE + repeatedPrices[0][1] * ANCHORING_CONFIDENCE_PER_REPETITION),
-      evidence: `Price ${anchor} mentioned ${repeatedPrices[0][1]} times — reasoning appears anchored to this value`,
-      severity: repeatedPrices[0][1] >= ANCHORING_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
-      triggers: repeatedPrices.map(([p]) => p),
-    };
+    return createBiasDetection(
+      "anchoring",
+      Math.min(ANCHORING_MAX_CONFIDENCE, ANCHORING_BASE_CONFIDENCE + repeatedPrices[0][1] * ANCHORING_CONFIDENCE_PER_REPETITION),
+      `Price ${anchor} mentioned ${repeatedPrices[0][1]} times — reasoning appears anchored to this value`,
+      repeatedPrices[0][1] >= ANCHORING_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
+      repeatedPrices.map(([p]) => p),
+    );
   }
 
   // Anchoring: reasoning references only one stock's data despite having multiple
@@ -376,13 +429,13 @@ function detectAnchoring(reasoning: string, marketData: MarketData[]): BiasDetec
     }
 
     if (symbolsInReasoning.size === 1 && priceRefs.length >= ANCHORING_MIN_PRICE_REFS_SINGLE_SYMBOL) {
-      return {
-        type: "anchoring",
-        confidence: ANCHORING_SINGLE_SYMBOL_CONFIDENCE,
-        evidence: `Only references one symbol despite ${marketData.length} available — may be anchored to that stock's data`,
-        severity: "low",
-        triggers: Array.from(symbolsInReasoning),
-      };
+      return createBiasDetection(
+        "anchoring",
+        ANCHORING_SINGLE_SYMBOL_CONFIDENCE,
+        `Only references one symbol despite ${marketData.length} available — may be anchored to that stock's data`,
+        "low",
+        Array.from(symbolsInReasoning),
+      );
     }
   }
 
@@ -417,23 +470,23 @@ function detectConfirmation(
     );
 
     if (positiveSignals >= CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD && negativeSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED && negativeStocks.length >= CONFIRMATION_MIN_NEGATIVE_STOCKS) {
-      return {
-        type: "confirmation",
-        confidence: CONFIRMATION_IGNORED_DATA_CONFIDENCE,
-        evidence: `Buy reasoning cites ${positiveSignals} positive signals but ignores ${negativeStocks.length} stocks with significant losses (>2% down)`,
-        severity: "medium",
-        triggers: negativeStocks.map((s) => `${s.symbol}: ${s.change24h?.toFixed(1)}%`),
-      };
+      return createBiasDetection(
+        "confirmation",
+        CONFIRMATION_IGNORED_DATA_CONFIDENCE,
+        `Buy reasoning cites ${positiveSignals} positive signals but ignores ${negativeStocks.length} stocks with significant losses (>2% down)`,
+        "medium",
+        negativeStocks.map((s) => `${s.symbol}: ${s.change24h?.toFixed(1)}%`),
+      );
     }
 
     if (positiveSignals >= CONFIRMATION_STRONG_ONE_SIDED_THRESHOLD && negativeSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED) {
-      return {
-        type: "confirmation",
-        confidence: CONFIRMATION_ONE_SIDED_CONFIDENCE,
-        evidence: `Reasoning cites ${positiveSignals} positive signals with zero counterarguments — one-sided analysis`,
-        severity: "medium",
-        triggers: ["all_positive_no_counterarguments"],
-      };
+      return createBiasDetection(
+        "confirmation",
+        CONFIRMATION_ONE_SIDED_CONFIDENCE,
+        `Reasoning cites ${positiveSignals} positive signals with zero counterarguments — one-sided analysis`,
+        "medium",
+        ["all_positive_no_counterarguments"],
+      );
     }
   }
 
@@ -449,13 +502,13 @@ function detectConfirmation(
     ], (p) => p.test(lower));
 
     if (negativeSignals >= CONFIRMATION_POSITIVE_SIGNALS_THRESHOLD && positiveSignals === CONFIRMATION_NEGATIVE_SIGNALS_REQUIRED) {
-      return {
-        type: "confirmation",
-        confidence: CONFIRMATION_ONE_SIDED_CONFIDENCE,
-        evidence: `Sell reasoning cites ${negativeSignals} negative signals with zero positive counterpoints — one-sided analysis`,
-        severity: "medium",
-        triggers: ["all_negative_no_counterarguments"],
-      };
+      return createBiasDetection(
+        "confirmation",
+        CONFIRMATION_ONE_SIDED_CONFIDENCE,
+        `Sell reasoning cites ${negativeSignals} negative signals with zero positive counterpoints — one-sided analysis`,
+        "medium",
+        ["all_negative_no_counterarguments"],
+      );
     }
   }
 
@@ -503,13 +556,13 @@ function detectRecency(reasoning: string): BiasDetection | null {
       })
       .filter(Boolean);
 
-    return {
-      type: "recency",
-      confidence: Math.min(RECENCY_MAX_CONFIDENCE, RECENCY_BASE_CONFIDENCE + recencyCount * RECENCY_CONFIDENCE_PER_TERM),
-      evidence: `Reasoning uses ${recencyCount} recency terms ("just", "recently", "right now") with zero references to historical or long-term data`,
-      severity: recencyCount >= RECENCY_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
+    return createBiasDetection(
+      "recency",
+      Math.min(RECENCY_MAX_CONFIDENCE, RECENCY_BASE_CONFIDENCE + recencyCount * RECENCY_CONFIDENCE_PER_TERM),
+      `Reasoning uses ${recencyCount} recency terms ("just", "recently", "right now") with zero references to historical or long-term data`,
+      recencyCount >= RECENCY_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
-    };
+    );
   }
 
   return null;
@@ -547,13 +600,13 @@ function detectSunkCost(
       return m ? m[0] : "";
     }).filter(Boolean);
 
-    return {
-      type: "sunk_cost",
-      confidence: Math.min(SUNK_COST_MAX_CONFIDENCE, SUNK_COST_BASE_CONFIDENCE + matchedPatterns.length * SUNK_COST_CONFIDENCE_PER_PATTERN),
-      evidence: `Reasoning references prior investment ${matchedPatterns.length} times — decision may be influenced by sunk costs rather than current merit`,
-      severity: matchedPatterns.length >= SUNK_COST_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
+    return createBiasDetection(
+      "sunk_cost",
+      Math.min(SUNK_COST_MAX_CONFIDENCE, SUNK_COST_BASE_CONFIDENCE + matchedPatterns.length * SUNK_COST_CONFIDENCE_PER_PATTERN),
+      `Reasoning references prior investment ${matchedPatterns.length} times — decision may be influenced by sunk costs rather than current merit`,
+      matchedPatterns.length >= SUNK_COST_HIGH_SEVERITY_THRESHOLD ? "high" : "medium",
       triggers,
-    };
+    );
   }
 
   // If action is "hold" or "buy" on a losing position with sunk cost language
@@ -562,16 +615,16 @@ function detectSunkCost(
       if (pos.unrealizedPnl < 0) {
         const symLower = pos.symbol.toLowerCase();
         if (lower.includes(symLower.replace(/x$/i, "")) && matchedPatterns.length >= SUNK_COST_LOSING_POSITION_MIN_PATTERNS) {
-          return {
-            type: "sunk_cost",
-            confidence: SUNK_COST_LOSING_POSITION_CONFIDENCE,
-            evidence: `Holding/adding to losing position (${pos.symbol}) with sunk cost language`,
-            severity: "medium",
-            triggers: matchedPatterns.map((p) => {
+          return createBiasDetection(
+            "sunk_cost",
+            SUNK_COST_LOSING_POSITION_CONFIDENCE,
+            `Holding/adding to losing position (${pos.symbol}) with sunk cost language`,
+            "medium",
+            matchedPatterns.map((p) => {
               const m = lower.match(p);
               return m ? m[0] : "";
             }).filter(Boolean),
-          };
+          );
         }
       }
     }
@@ -631,24 +684,24 @@ function detectOverconfidence(
       })
       .filter(Boolean);
 
-    return {
-      type: "overconfidence",
-      confidence: Math.min(OVERCONFIDENCE_MAX_CONFIDENCE, OVERCONFIDENCE_BASE_CONFIDENCE + certaintyCount * OVERCONFIDENCE_CONFIDENCE_PER_TERM + (confidence - OVERCONFIDENCE_CONFIDENCE_THRESHOLD) * OVERCONFIDENCE_CONFIDENCE_MULTIPLIER),
-      evidence: `Confidence ${(confidence * 100).toFixed(0)}% with ${certaintyCount} certainty expressions and zero hedging — overconfidence likely`,
-      severity: confidence > OVERCONFIDENCE_VERY_HIGH_THRESHOLD ? "high" : "medium",
+    return createBiasDetection(
+      "overconfidence",
+      Math.min(OVERCONFIDENCE_MAX_CONFIDENCE, OVERCONFIDENCE_BASE_CONFIDENCE + certaintyCount * OVERCONFIDENCE_CONFIDENCE_PER_TERM + (confidence - OVERCONFIDENCE_CONFIDENCE_THRESHOLD) * OVERCONFIDENCE_CONFIDENCE_MULTIPLIER),
+      `Confidence ${(confidence * 100).toFixed(0)}% with ${certaintyCount} certainty expressions and zero hedging — overconfidence likely`,
+      confidence > OVERCONFIDENCE_VERY_HIGH_THRESHOLD ? "high" : "medium",
       triggers,
-    };
+    );
   }
 
   // Overconfidence: very high confidence with very short reasoning
   if (confidence > OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE && wordCount < OVERCONFIDENCE_SHORT_REASONING_WORD_LIMIT && action !== "hold") {
-    return {
-      type: "overconfidence",
-      confidence: OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE_VALUE,
-      evidence: `Confidence ${(confidence * 100).toFixed(0)}% with only ${wordCount} words of reasoning — insufficient evidence for high confidence`,
-      severity: "medium",
-      triggers: [`confidence: ${confidence}`, `words: ${wordCount}`],
-    };
+    return createBiasDetection(
+      "overconfidence",
+      OVERCONFIDENCE_SHORT_REASONING_CONFIDENCE_VALUE,
+      `Confidence ${(confidence * 100).toFixed(0)}% with only ${wordCount} words of reasoning — insufficient evidence for high confidence`,
+      "medium",
+      [`confidence: ${confidence}`, `words: ${wordCount}`],
+    );
   }
 
   return null;
