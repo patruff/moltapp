@@ -434,6 +434,47 @@ export function validateForBenchmark(
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Create a ValidationIssue object with consistent structure.
+ *
+ * Consolidates duplicate `{ severity, dimension, message }` object construction
+ * across all validation check functions.
+ *
+ * @param severity - Issue severity level (error blocks validation, warning shows concern, info is advisory)
+ * @param dimension - Validation dimension name (matches ValidationDimension.name field)
+ * @param message - Human-readable description of the issue
+ * @param evidence - Optional text snippet that triggered the issue
+ * @returns ValidationIssue object ready to push to issues array
+ *
+ * @example
+ * // Before: issues.push({ severity: "error", dimension: "structural_validity", message: "Missing symbol field" });
+ * // After:  issues.push(createValidationIssue("error", "structural_validity", "Missing symbol field"));
+ *
+ * @example With evidence
+ * issues.push(createValidationIssue(
+ *   "warning",
+ *   "price_grounding",
+ *   `Price claim for TSLA ($500) deviates 25% from actual ($400)`,
+ *   "TSLA is priced at $500"
+ * ));
+ */
+function createValidationIssue(
+  severity: "error" | "warning" | "info",
+  dimension: string,
+  message: string,
+  evidence?: string,
+): ValidationIssue {
+  const issue: ValidationIssue = { severity, dimension, message };
+  if (evidence !== undefined) {
+    issue.evidence = evidence;
+  }
+  return issue;
+}
+
+// ---------------------------------------------------------------------------
 // Dimension Validators
 // ---------------------------------------------------------------------------
 
@@ -441,32 +482,32 @@ function validateStructure(decision: TradingDecision, issues: ValidationIssue[])
   let score = 1.0;
 
   if (!decision.action || !["buy", "sell", "hold"].includes(decision.action)) {
-    issues.push({ severity: "error", dimension: "structural_validity", message: "Missing or invalid action field" });
+    issues.push(createValidationIssue("error", "structural_validity", "Missing or invalid action field"));
     score -= PENALTY_MISSING_ACTION;
   }
 
   if (!decision.symbol || decision.symbol.length === 0) {
-    issues.push({ severity: "error", dimension: "structural_validity", message: "Missing symbol field" });
+    issues.push(createValidationIssue("error", "structural_validity", "Missing symbol field"));
     score -= PENALTY_MISSING_SYMBOL;
   }
 
   if (!decision.reasoning || decision.reasoning.length < STRUCTURAL_MIN_REASONING_LENGTH) {
-    issues.push({ severity: "error", dimension: "structural_validity", message: "Missing or too-short reasoning" });
+    issues.push(createValidationIssue("error", "structural_validity", "Missing or too-short reasoning"));
     score -= PENALTY_MISSING_REASONING;
   }
 
   if (typeof decision.confidence !== "number") {
-    issues.push({ severity: "warning", dimension: "structural_validity", message: "Confidence is not a number" });
+    issues.push(createValidationIssue("warning", "structural_validity", "Confidence is not a number"));
     score -= PENALTY_INVALID_CONFIDENCE;
   }
 
   if (decision.action !== "hold" && (typeof decision.quantity !== "number" || decision.quantity <= 0)) {
-    issues.push({ severity: "warning", dimension: "structural_validity", message: "Non-hold action with invalid quantity" });
+    issues.push(createValidationIssue("warning", "structural_validity", "Non-hold action with invalid quantity"));
     score -= PENALTY_INVALID_QUANTITY;
   }
 
   if (!decision.timestamp) {
-    issues.push({ severity: "info", dimension: "structural_validity", message: "Missing timestamp" });
+    issues.push(createValidationIssue("info", "structural_validity", "Missing timestamp"));
     score -= PENALTY_MISSING_TIMESTAMP;
   }
 
@@ -486,7 +527,7 @@ function validateReasoningDepth(reasoning: string, issues: ValidationIssue[], su
   else if (wordCount >= DEPTH_WORD_COUNT_GREAT) score += DEPTH_WORD_COUNT_BONUS_GREAT;
   else if (wordCount >= DEPTH_WORD_COUNT_GOOD) score += DEPTH_WORD_COUNT_BONUS_GOOD;
   else {
-    issues.push({ severity: "warning", dimension: "reasoning_depth", message: `Reasoning is only ${wordCount} words — substantive analysis needs ${DEPTH_WORD_COUNT_GREAT}+ words` });
+    issues.push(createValidationIssue("warning", "reasoning_depth", `Reasoning is only ${wordCount} words — substantive analysis needs ${DEPTH_WORD_COUNT_GREAT}+ words`));
     suggestions.push("Expand reasoning to include multiple analytical angles (price action, fundamentals, portfolio context)");
   }
 
@@ -533,7 +574,7 @@ function validateSources(decision: TradingDecision, issues: ValidationIssue[], s
   const sources = decision.sources ?? [];
 
   if (sources.length === 0) {
-    issues.push({ severity: "warning", dimension: "source_verification", message: "No data sources cited" });
+    issues.push(createValidationIssue("warning", "source_verification", "No data sources cited"));
     suggestions.push("Cite specific data sources used in analysis (e.g., 'market_price_feed', 'news_feed', 'technical_indicators')");
     return SOURCE_MINIMAL_SCORE;
   }
@@ -554,7 +595,7 @@ function validateSources(decision: TradingDecision, issues: ValidationIssue[], s
   // Check for source fabrication (very long or unusual source names)
   for (const src of sources) {
     if (src.length > SOURCE_FABRICATION_LENGTH_THRESHOLD) {
-      issues.push({ severity: "info", dimension: "source_verification", message: `Unusually long source name: ${src.slice(0, 40)}...` });
+      issues.push(createValidationIssue("info", "source_verification", `Unusually long source name: ${src.slice(0, 40)}...`));
     }
   }
 
@@ -593,12 +634,12 @@ function validatePriceGrounding(reasoning: string, marketData: MarketData[], iss
       } else if (deviation <= PRICE_DEVIATION_ACCEPTABLE) {
         accurateCount += 0.5;
       } else {
-        issues.push({
-          severity: "warning",
-          dimension: "price_grounding",
-          message: `Price claim for ${symbol.toUpperCase()} ($${claimed.toFixed(2)}) deviates ${(deviation * 100).toFixed(0)}% from actual ($${real.toFixed(2)})`,
-          evidence: match[0],
-        });
+        issues.push(createValidationIssue(
+          "warning",
+          "price_grounding",
+          `Price claim for ${symbol.toUpperCase()} ($${claimed.toFixed(2)}) deviates ${(deviation * 100).toFixed(0)}% from actual ($${real.toFixed(2)})`,
+          match[0],
+        ));
         score -= PRICE_INACCURATE_PENALTY;
       }
     }
@@ -637,7 +678,7 @@ function validateTemporalConsistency(reasoning: string, issues: ValidationIssue[
 
   // Red flag: reasoning that sounds generic / not grounded in current conditions
   if (!/\d/.test(reasoning)) {
-    issues.push({ severity: "info", dimension: "temporal_consistency", message: "Reasoning contains no numbers — may not be grounded in current data" });
+    issues.push(createValidationIssue("info", "temporal_consistency", "Reasoning contains no numbers — may not be grounded in current data"));
     score -= TEMPORAL_NO_NUMBERS_PENALTY;
   }
 
@@ -659,39 +700,39 @@ function validateConfidenceCalibration(
     const zScore = Math.abs(confidence - stats.mean) / Math.max(0.01, stats.stdDev);
 
     if (zScore > CALIBRATION_Z_SCORE_EXTREME) {
-      issues.push({
-        severity: "warning",
-        dimension: "confidence_calibration",
-        message: `Confidence ${(confidence * 100).toFixed(0)}% is ${zScore.toFixed(1)} standard deviations from agent's mean of ${(stats.mean * 100).toFixed(0)}%`,
-      });
+      issues.push(createValidationIssue(
+        "warning",
+        "confidence_calibration",
+        `Confidence ${(confidence * 100).toFixed(0)}% is ${zScore.toFixed(1)} standard deviations from agent's mean of ${(stats.mean * 100).toFixed(0)}%`,
+      ));
       score -= CALIBRATION_Z_EXTREME_PENALTY;
     } else if (zScore > CALIBRATION_Z_SCORE_NOTABLE) {
-      issues.push({
-        severity: "info",
-        dimension: "confidence_calibration",
-        message: `Confidence is notably different from agent's historical average`,
-      });
+      issues.push(createValidationIssue(
+        "info",
+        "confidence_calibration",
+        `Confidence is notably different from agent's historical average`,
+      ));
       score -= CALIBRATION_Z_NOTABLE_PENALTY;
     }
   }
 
   // Very high confidence on hold actions is suspicious
   if (decision.action === "hold" && confidence > CALIBRATION_HIGH_CONF_HOLD_THRESHOLD) {
-    issues.push({
-      severity: "info",
-      dimension: "confidence_calibration",
-      message: "Very high confidence (>90%) on a hold action — consider why confidence is so high if no trade is being made",
-    });
+    issues.push(createValidationIssue(
+      "info",
+      "confidence_calibration",
+      "Very high confidence (>90%) on a hold action — consider why confidence is so high if no trade is being made",
+    ));
     score -= CALIBRATION_HIGH_CONF_HOLD_PENALTY;
   }
 
   // Very low confidence on aggressive actions
   if (decision.action !== "hold" && confidence < CALIBRATION_LOW_CONF_TRADE_THRESHOLD) {
-    issues.push({
-      severity: "warning",
-      dimension: "confidence_calibration",
-      message: "Trading with very low confidence (<20%) — consider whether this trade should be a hold instead",
-    });
+    issues.push(createValidationIssue(
+      "warning",
+      "confidence_calibration",
+      "Trading with very low confidence (<20%) — consider whether this trade should be a hold instead",
+    ));
     suggestions.push("Low-confidence trades should include strong reasoning for why the trade is being taken despite uncertainty");
     score -= CALIBRATION_LOW_CONF_TRADE_PENALTY;
   }
@@ -716,7 +757,7 @@ function validateActionAlignment(decision: TradingDecision, issues: ValidationIs
       if (/contrarian|reversion|oversold|bounce|discount/i.test(reasoning)) {
         score = 0.7;
       } else {
-        issues.push({ severity: "warning", dimension: "action_reasoning_alignment", message: "Bearish reasoning but choosing to buy" });
+        issues.push(createValidationIssue("warning", "action_reasoning_alignment", "Bearish reasoning but choosing to buy"));
         score = 0.25;
       }
     }
@@ -727,7 +768,7 @@ function validateActionAlignment(decision: TradingDecision, issues: ValidationIs
       if (/profit|take\s+gains|rebalance|trim|overexposed/i.test(reasoning)) {
         score = 0.7;
       } else {
-        issues.push({ severity: "warning", dimension: "action_reasoning_alignment", message: "Bullish reasoning but choosing to sell" });
+        issues.push(createValidationIssue("warning", "action_reasoning_alignment", "Bullish reasoning but choosing to sell"));
         score = 0.25;
       }
     }
@@ -738,7 +779,7 @@ function validateActionAlignment(decision: TradingDecision, issues: ValidationIs
       if (/guardrail|limit|buffer|risk\s+management/i.test(reasoning)) {
         score = 0.75;
       } else {
-        issues.push({ severity: "info", dimension: "action_reasoning_alignment", message: "Strong directional signals but choosing to hold" });
+        issues.push(createValidationIssue("info", "action_reasoning_alignment", "Strong directional signals but choosing to hold"));
         score = 0.45;
       }
     }
@@ -756,7 +797,7 @@ function validateRiskAwareness(reasoning: string, action: string, issues: Valida
   }
 
   if (riskMentions === 0) {
-    issues.push({ severity: "info", dimension: "risk_awareness", message: "Reasoning does not mention any risk factors" });
+    issues.push(createValidationIssue("info", "risk_awareness", "Reasoning does not mention any risk factors"));
     suggestions.push("Include risk awareness in reasoning — what could go wrong with this trade?");
     return 0.2;
   }
