@@ -37,6 +37,11 @@ import {
   analyzeCoherence,
   detectHallucinations,
 } from "../services/coherence-analyzer.ts";
+import {
+  QUERY_LIMIT_EXTENDED,
+  QUERY_LIMIT_MEDIUM,
+  QUERY_LIMIT_BENCHMARK,
+} from "../lib/display-limits.ts";
 
 export const benchmarkV25ApiRoutes = new Hono();
 

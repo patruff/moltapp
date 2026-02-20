@@ -31,6 +31,13 @@ import {
 import { getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { countByCondition, round2 } from "../lib/math-utils.ts";
+import {
+  QUERY_LIMIT_DEFAULT,
+  QUERY_LIMIT_SMALL,
+  QUERY_LIMIT_MODERATE,
+  QUERY_LIMIT_MEDIUM,
+  QUERY_LIMIT_BENCHMARK,
+} from "../lib/display-limits.ts";
 
 export const benchmarkV23ApiRoutes = new Hono();
 
@@ -44,7 +51,7 @@ benchmarkV23ApiRoutes.get("/leaderboard", async (c) => {
       .select()
       .from(benchmarkLeaderboardV23)
       .orderBy(desc(benchmarkLeaderboardV23.compositeScore))
-      .limit(50);
+      .limit(QUERY_LIMIT_DEFAULT);
 
     return c.json({
       ok: true,
@@ -139,21 +146,21 @@ benchmarkV23ApiRoutes.get("/scores/:agentId", async (c) => {
       .from(benchmarkLeaderboardV23)
       .where(eq(benchmarkLeaderboardV23.agentId, agentId))
       .orderBy(desc(benchmarkLeaderboardV23.updatedAt))
-      .limit(10);
+      .limit(QUERY_LIMIT_SMALL);
 
     const calibration = await db
       .select()
       .from(calibrationSnapshots)
       .where(eq(calibrationSnapshots.agentId, agentId))
       .orderBy(desc(calibrationSnapshots.createdAt))
-      .limit(20);
+      .limit(QUERY_LIMIT_MODERATE);
 
     const outcomes = await db
       .select()
       .from(outcomeResolutions)
       .where(eq(outcomeResolutions.agentId, agentId))
       .orderBy(desc(outcomeResolutions.resolvedAt))
-      .limit(50);
+      .limit(QUERY_LIMIT_DEFAULT);
 
     return c.json({
       ok: true,
@@ -199,7 +206,7 @@ benchmarkV23ApiRoutes.get("/calibration", async (c) => {
       .select()
       .from(calibrationSnapshots)
       .orderBy(desc(calibrationSnapshots.createdAt))
-      .limit(100);
+      .limit(QUERY_LIMIT_MEDIUM);
 
     // Group by agent
     const agentBuckets = new Map<string, typeof snapshots>();
@@ -297,12 +304,12 @@ benchmarkV23ApiRoutes.get("/export/jsonl", async (c) => {
       .select()
       .from(tradeJustifications)
       .orderBy(desc(tradeJustifications.timestamp))
-      .limit(1000);
+      .limit(QUERY_LIMIT_BENCHMARK);
 
     // Build outcome map
     const outcomeMap = new Map<string, { pnl: number | null; correct: boolean | null }>();
     try {
-      const outs = await db.select().from(outcomeResolutions).limit(1000);
+      const outs = await db.select().from(outcomeResolutions).limit(QUERY_LIMIT_BENCHMARK);
       for (const o of outs) {
         outcomeMap.set(o.justificationId, {
           pnl: o.pnlPercent,
@@ -351,7 +358,7 @@ benchmarkV23ApiRoutes.get("/export/csv", async (c) => {
       .select()
       .from(tradeJustifications)
       .orderBy(desc(tradeJustifications.timestamp))
-      .limit(1000);
+      .limit(QUERY_LIMIT_BENCHMARK);
 
     const headers = [
       "agent_id", "timestamp", "action", "symbol", "quantity",

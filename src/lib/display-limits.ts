@@ -71,6 +71,21 @@ export const RECENT_ROUNDS_WINDOW_FULL = 100;
 // Database Query Limits
 // ---------------------------------------------------------------------------
 
+/** Database query limit: 1 record (single entity lookups) */
+export const QUERY_LIMIT_SINGLE = 1;
+
+/** Database query limit: 5 records (very small result sets) */
+export const QUERY_LIMIT_TINY = 5;
+
+/** Database query limit: 8 records (compact displays) */
+export const QUERY_LIMIT_COMPACT = 8;
+
+/** Database query limit: 10 records (small result sets) */
+export const QUERY_LIMIT_SMALL = 10;
+
+/** Database query limit: 20 records (moderate result sets) */
+export const QUERY_LIMIT_MODERATE = 20;
+
 /** Database query limit: 50 records (default for most queries) */
 export const QUERY_LIMIT_DEFAULT = 50;
 
@@ -80,11 +95,17 @@ export const QUERY_LIMIT_MEDIUM = 100;
 /** Database query limit: 200 records (comprehensive analysis) */
 export const QUERY_LIMIT_LARGE = 200;
 
+/** Database query limit: 300 records (reasoning duel analysis) */
+export const QUERY_LIMIT_REASONING_DUEL = 300;
+
 /** Database query limit: 500 records (full history scans) */
 export const QUERY_LIMIT_EXTENDED = 500;
 
 /** Database query limit: 1000 records (benchmark baseline calculations) */
 export const QUERY_LIMIT_BENCHMARK = 1000;
+
+/** Database query limit: 5000 records (research & extensive analysis) */
+export const QUERY_LIMIT_RESEARCH = 5000;
 
 // ---------------------------------------------------------------------------
 // Data Retention/Buffer Limits
