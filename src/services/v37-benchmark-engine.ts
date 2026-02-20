@@ -24,6 +24,7 @@
  */
 
 import { createHash } from "crypto";
+import { HASH_TRUNCATION_LENGTH } from "./benchmark-reproducibility.ts";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, ID_RANDOM_LENGTH_STANDARD, ID_RANDOM_LENGTH_LONG } from "../config/constants.ts";
 import { countByCondition, clamp, computeVariance } from "../lib/math-utils.ts";
 import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
@@ -940,7 +941,7 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`v37:${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, HASH_TRUNCATION_LENGTH);
 
   // Overall grade (weighted average of all 20 trade-level sub-scores)
   const subScores = [

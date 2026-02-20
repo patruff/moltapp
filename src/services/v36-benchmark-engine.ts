@@ -17,6 +17,7 @@
  */
 
 import { createHash } from "crypto";
+import { HASH_TRUNCATION_LENGTH } from "./benchmark-reproducibility.ts";
 
 // Re-export inherited scoring functions from v35
 export {
@@ -909,7 +910,7 @@ export function gradeTrade(input: {
   const integrityHash = createHash("sha256")
     .update(`v36:${input.agentId}:${input.action}:${input.symbol}:${input.reasoning}:${input.confidence}`)
     .digest("hex")
-    .slice(0, 16);
+    .slice(0, HASH_TRUNCATION_LENGTH);
 
   // Overall grade (weighted average of all 18 trade-level sub-scores)
   const subScores = [

@@ -176,8 +176,10 @@ const MIN_SAMPLE_SIZE_FOR_STABILITY = 3;
  * To increase entropy (e.g. for archival/academic datasets), change to 20
  * or 32. Both inputHash and outputHash in reproduceProof() + verifyProof()
  * must use the same length for proof verification to succeed.
+ *
+ * Used by: benchmark-reproducibility.ts, v36-benchmark-engine.ts, v37-benchmark-engine.ts
  */
-const HASH_TRUNCATION_LENGTH = 16;
+export const HASH_TRUNCATION_LENGTH = 16;
 
 // ---------------------------------------------------------------------------
 // Types
