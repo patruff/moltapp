@@ -494,3 +494,44 @@ export const INTEGRITY_SCORE_BASE = 80;
  * Higher variance = more unpredictable test quality simulation
  */
 export const INTEGRITY_SCORE_VARIANCE = 15;
+
+// ---------------------------------------------------------------------------
+// Benchmark Engine History Size Limits
+// ---------------------------------------------------------------------------
+
+/**
+ * Maximum trade grades stored in benchmark engine memory.
+ *
+ * Controls in-memory history retention for all benchmark versions (v32-v37).
+ * Trade grades track per-trade performance scores used in leaderboard rankings.
+ *
+ * Formula: 2000 trades ≈ ~667 rounds × 3 agents, covering ~22 months at 1 round/day
+ *
+ * Used by: v32/v33/v34/v35/v36/v37-benchmark-engine.ts submitBenchmarkGrade()
+ *
+ * @example
+ * tradeGrades.unshift(grade);
+ * if (tradeGrades.length > MAX_TRADE_GRADES_HISTORY) {
+ *   tradeGrades.length = MAX_TRADE_GRADES_HISTORY;
+ * }
+ */
+export const MAX_TRADE_GRADES_HISTORY = 2000;
+
+/**
+ * Maximum round summaries stored in benchmark engine memory.
+ *
+ * Controls in-memory history retention for round-level performance summaries
+ * across all benchmark versions (v32-v37). Round summaries aggregate all trades
+ * in a trading round for leaderboard API responses.
+ *
+ * Formula: 200 rounds ≈ ~6.6 months at 1 round/day (sufficient for quarterly analysis)
+ *
+ * Used by: v32/v33/v34/v35/v36/v37-benchmark-engine.ts submitRound()
+ *
+ * @example
+ * roundSummaries.unshift(summary);
+ * if (roundSummaries.length > MAX_ROUND_SUMMARIES_HISTORY) {
+ *   roundSummaries.length = MAX_ROUND_SUMMARIES_HISTORY;
+ * }
+ */
+export const MAX_ROUND_SUMMARIES_HISTORY = 200;
