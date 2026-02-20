@@ -998,7 +998,7 @@ function generateStockSignals(
   const now = new Date();
   const signalId = () =>
     `sig_${symbol}_${Date.now()}_${Math.random().toString(36).slice(ID_RANDOM_START, ID_RANDOM_START + ID_RANDOM_LENGTH_SHORT)}`;
-  const expiry = new Date(now.getTime() + 30 * 60 * 1000); // 30 min expiry
+  const expiry = new Date(now.getTime() + SIGNAL_EXPIRY_MS);
 
   // RSI signals
   if (indicators.rsi < 30) {
@@ -1290,7 +1290,7 @@ export async function getStockIndicators(
   const volumeProfile = calculateVolumeProfile(recentCount, avgDailyCount);
 
   const rsiSignal: "oversold" | "neutral" | "overbought" =
-    rsi < 30 ? "oversold" : rsi > 70 ? "overbought" : "neutral";
+    rsi < RSI_OVERSOLD_THRESHOLD ? "oversold" : rsi > RSI_OVERBOUGHT_THRESHOLD ? "overbought" : "neutral";
 
   const overallSignal = computeOverallSignal(
     rsi,
