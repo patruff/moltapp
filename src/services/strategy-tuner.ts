@@ -408,6 +408,26 @@ const CONFIDENCE_THRESHOLD_SAFETY_MAX = 90;
  */
 const COOLDOWN_HOURS_SAFETY_MIN = 0;
 
+/**
+ * History Display Limit Constants
+ *
+ * Controls how many recent items are included in API responses for history
+ * endpoints. Smaller limits = faster responses, larger limits = more context.
+ */
+
+/**
+ * Maximum recent adjustment history entries in status reports.
+ * Set to 20 to show ~2-3 rounds worth of recent tuning decisions.
+ */
+const RECENT_ADJUSTMENTS_DISPLAY_LIMIT = 20;
+
+/**
+ * Default limit for agent-specific adjustment history queries.
+ * Set to 20 for consistency with status report display limit.
+ * Formula: adjustmentHistory.filter(agentId).slice(-LIMIT)
+ */
+const AGENT_ADJUSTMENT_HISTORY_DEFAULT_LIMIT = 20;
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -766,7 +786,7 @@ export function getStrategyTunerStatus(): {
     enabled: config.enabled,
     config,
     activeAdjustments: adjustments,
-    recentHistory: adjustmentHistory.slice(-20),
+    recentHistory: adjustmentHistory.slice(-RECENT_ADJUSTMENTS_DISPLAY_LIMIT),
     stats: {
       totalAdjustmentsCalculated: adjustmentHistory.length,
       agentsWithActiveAdjustments: activeAdjustments.size,
@@ -786,7 +806,7 @@ export function getStrategyTunerStatus(): {
  */
 export function getAgentAdjustmentHistory(
   agentId: string,
-  limit = 20,
+  limit = AGENT_ADJUSTMENT_HISTORY_DEFAULT_LIMIT,
 ): StrategyAdjustment[] {
   return adjustmentHistory
     .filter((a) => a.agentId === agentId)
