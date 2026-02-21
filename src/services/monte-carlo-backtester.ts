@@ -412,17 +412,6 @@ export function runMonteCarloSimulation(
   // Extract the empirical return distribution (percentages)
   const returns = trades.map((t) => t.returnPct);
 
-  // Precompute distribution statistics for the agent
-  const agentWinRate = countByCondition(returns, (r) => r > 0) / returns.length;
-  const positiveReturns = returns.filter((r) => r > 0);
-  const negativeReturns = returns.filter((r) => r <= 0);
-  const avgGain = positiveReturns.length > 0
-    ? positiveReturns.reduce((s, r) => s + r, 0) / positiveReturns.length
-    : 0;
-  const avgLoss = negativeReturns.length > 0
-    ? negativeReturns.reduce((s, r) => s + r, 0) / negativeReturns.length
-    : 0;
-
   // Run all simulation paths
   const results: SimulationResult[] = [];
 
