@@ -18,12 +18,9 @@
 
 import {
   analyzeCoherence,
-  detectHallucinations,
-  checkInstructionDiscipline,
   type CoherenceResult,
   type HallucinationResult,
   type DisciplineResult,
-  type AgentTradeConfig,
 } from "./coherence-analyzer.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { countWords, mean, round2, round3, countByCondition, computeStdDev } from "../lib/math-utils.ts";
@@ -201,37 +198,11 @@ const CONFIDENCE_LOW_THRESHOLD = 0.3;
  */
 
 /**
- * Minimum values required for standard deviation calculation.
- * stddev requires at least 2 data points for (n-1) denominator in variance formula.
- */
-const STDDEV_MIN_VALUES = 2;
-
-/**
  * Minimum returns required for Sharpe ratio calculation.
  * Sharpe ratio requires at least 2 returns to compute mean and standard deviation.
  */
 const SHARPE_MIN_RETURNS = 2;
 
-/**
- * Regime-Adjusted Coherence Bonuses
- *
- * These bonuses reward regime-aware reasoning in agent decision-making.
- * Contrarian trades and volatility-aware reasoning receive coherence score boosts.
- */
-
-/**
- * Coherence bonus for contrarian reasoning in extreme regimes.
- * Applied when agent buys in bear market or sells in bull market
- * with supporting contrarian/risk-aware reasoning (0.1 = 10% bonus).
- */
-const REGIME_CONTRARIAN_BONUS = 0.1;
-
-/**
- * Coherence bonus for volatility-aware reasoning in volatile regimes.
- * Applied when agent shows risk management awareness during high volatility
- * (0.05 = 5% bonus, smaller than contrarian since less actionable).
- */
-const REGIME_VOLATILITY_AWARENESS_BONUS = 0.05;
 
 // ---------------------------------------------------------------------------
 // Storage
