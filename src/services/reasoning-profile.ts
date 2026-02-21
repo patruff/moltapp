@@ -490,7 +490,6 @@ function analyzeConsistency(entries: ReasoningEntry[]): ConsistencyProfile {
 
   // Confidence variance
   const confidences = entries.map((e) => e.confidence > 1 ? e.confidence / 100 : e.confidence);
-  const meanConf = confidences.reduce((a, b) => a + b, 0) / confidences.length;
   const confVariance = computeVariance(confidences, true); // population variance
 
   // Intent stability: fraction of times the most common intent is used

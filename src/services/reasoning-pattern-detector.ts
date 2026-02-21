@@ -13,7 +13,7 @@
  * This feeds into the benchmark's qualitative scoring pillar.
  */
 
-import { normalize, round2, round3, clamp } from "../lib/math-utils.ts";
+import { round2, round3, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
