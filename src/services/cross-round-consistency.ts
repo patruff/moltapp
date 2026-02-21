@@ -434,7 +434,6 @@ function analyzeConvictionStability(
   const confidences = history.map((e) => e.confidence);
 
   // Calculate standard deviation of confidence
-  const mean = calculateAverage(confidences);
   const variance = computeVariance(confidences, true);
   const stdDev = Math.sqrt(variance);
 

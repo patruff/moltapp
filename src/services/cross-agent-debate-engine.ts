@@ -745,7 +745,6 @@ export function conductDebate(
     narrative += `Key battleground: ${keyFactor}. Evidence clashes: ${evidenceClashes.length}. `;
     narrative += `Logical chains: ${logicalChainAnalysis.strongerChain === "equal" ? "equivalent" : `${logicalChainAnalysis.strongerChain} leads`}.`;
   } else {
-    const loser = winner === agentA ? agentB : agentA;
     narrative = `${winner} wins the ${symbol} debate by ${(margin * 100).toFixed(1)}% margin. `;
     narrative += `Decisive factor: ${keyFactor}. `;
     if (evidenceClashes.length > 0) {

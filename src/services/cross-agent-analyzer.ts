@@ -48,9 +48,6 @@ const MAX_ALERTS = 200;
  * Controls minimum data requirements for correlation calculations.
  */
 
-/** Minimum common rounds required for pairwise agent correlation calculation */
-const CORRELATION_MIN_ROUNDS = 3;
-
 /**
  * Style Drift Detection Parameters
  *
