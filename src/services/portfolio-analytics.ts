@@ -20,10 +20,9 @@
 
 import { db } from "../db/index.ts";
 import { trades } from "../db/schema/trades.ts";
-import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, asc, and, gte, InferSelectModel } from "drizzle-orm";
-import { sumByKey, countByCondition, findMax, findMin, computeSampleVariance, computeVariance, computeDownsideVariance } from "../lib/math-utils.ts";
+import { eq, asc, and, gte, InferSelectModel } from "drizzle-orm";
+import { sumByKey, countByCondition, findMax, findMin, computeVariance, computeDownsideVariance } from "../lib/math-utils.ts";
 
 // Infer types from database schema
 type Trade = InferSelectModel<typeof trades>;

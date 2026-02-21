@@ -22,9 +22,9 @@ import { db } from "../db/index.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, asc, sql, and, gte, InferSelectModel } from "drizzle-orm";
+import { eq, desc, asc, InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { findMax, findMin, round2, sortDescending, sortByDescending, countByCondition, computeVariance, computeSortino, mean } from "../lib/math-utils.ts";
+import { findMax, findMin, round2, sortByDescending, countByCondition, computeVariance, computeSortino, mean } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Database Types
