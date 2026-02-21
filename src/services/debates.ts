@@ -1278,12 +1278,6 @@ export async function getDebateHistory(): Promise<
  */
 export async function generateMarketOutlook(): Promise<MarketOutlook> {
   const configs = getAgentConfigs();
-  let marketData: MarketData[];
-  try {
-    marketData = await getMarketData();
-  } catch {
-    marketData = [];
-  }
 
   const agentOutlooks: MarketOutlook["agentOutlooks"] = [];
 
@@ -1304,7 +1298,6 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
     // Aggregate stance
     const buyCount = countByCondition(decisions, (d: DecisionRow) => d.action === "buy");
     const sellCount = countByCondition(decisions, (d: DecisionRow) => d.action === "sell");
-    const holdCount = countByCondition(decisions, (d: DecisionRow) => d.action === "hold");
     const total = decisions.length;
 
     const bullishPct = Math.round((buyCount / total) * PERCENT_MULTIPLIER);
@@ -1372,7 +1365,6 @@ export async function generateMarketOutlook(): Promise<MarketOutlook> {
 
   for (const symbol of allSymbols) {
     const positions: Record<string, string> = {};
-    const confidences: number[] = [];
 
     for (const config of configs) {
       const action = agentSymbolActions.get(config.agentId)?.get(symbol);

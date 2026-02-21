@@ -14,7 +14,7 @@
  * trade exists in a vacuum.
  */
 
-import { clamp, round2, countWords, computeVariance, calculateAverage } from "../lib/math-utils.ts";
+import { clamp, round2, countWords, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

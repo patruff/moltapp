@@ -30,18 +30,6 @@ import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts"
  */
 
 /**
- * Directional claim resolution threshold (2%)
- *
- * For directional claims (up/down), require at least this % price movement
- * to resolve the claim before expiration.
- *
- * Example: Buy claim with 1.5% move stays pending; 2.5% move resolves as correct
- *
- * Tuning impact: Lower to 1.5% to resolve claims faster; raise to 3% for stricter verification
- */
-const CLAIM_RESOLUTION_MOVEMENT_THRESHOLD = 0.02;
-
-/**
  * Flat direction classification threshold (1%)
  *
  * For "flat" directional claims, price moves ≤ this threshold classify as correct.
@@ -286,42 +274,6 @@ const PRICE_TARGETS_MAX_COUNT = 3;
  *
  * Constants defining hour durations for common time horizon phrases in agent reasoning.
  */
-
-/**
- * Intraday horizon hours (8)
- *
- * Duration for "next few hours", "intraday", "today" claims.
- * Represents a single trading session.
- *
- * Example: "Expecting rally today" → 8-hour claim expiration
- *
- * Tuning impact: Raise to 12 for longer intraday window
- */
-const HORIZON_HOURS_INTRADAY = 8;
-
-/**
- * Overnight horizon hours (24)
- *
- * Duration for "overnight", "tomorrow", "24h" claims.
- * Represents next trading day.
- *
- * Example: "Price will gap up tomorrow" → 24-hour claim
- *
- * Tuning impact: Not user-tunable (standard day definition)
- */
-const HORIZON_HOURS_OVERNIGHT = 24;
-
-/**
- * Short-term horizon hours (120 = 5 days)
- *
- * Duration for "this week", "next few days", "short-term" claims.
- * Represents one trading week.
- *
- * Example: "Expecting breakout this week" → 5-day claim
- *
- * Tuning impact: Lower to 72 (3 days) for stricter short-term definition
- */
-const HORIZON_HOURS_SHORT_TERM = 120;
 
 /**
  * One-week horizon hours (168 = 7 days)
