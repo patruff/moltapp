@@ -11,10 +11,7 @@ import {
   getAddressEncoder,
   getProgramDerivedAddress,
 } from "@solana/kit";
-import type {
-  Address,
-  Instruction,
-} from "@solana/kit";
+import type { Instruction } from "@solana/kit";
 import { getTransferSolInstruction } from "@solana-program/system";
 import type { TransactionPartialSigner } from "@solana/kit";
 import { getTurnkeySigner } from "./wallet.ts";
