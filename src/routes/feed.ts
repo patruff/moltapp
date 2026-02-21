@@ -16,7 +16,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { tradeReactions } from "../db/schema/trade-reactions.ts";
 import { tradeComments } from "../db/schema/trade-comments.ts";
-import { desc, eq, sql, and, inArray } from "drizzle-orm";
+import { desc, eq, sql, inArray } from "drizzle-orm";
 import { getAgentConfig } from "../agents/orchestrator.ts";
 import { parseQueryInt } from "../lib/query-params.js";
 
