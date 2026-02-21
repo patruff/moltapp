@@ -31,7 +31,7 @@ import {
   getDeadLetterQueue,
   getStuckTrades,
 } from "../services/trade-recovery.ts";
-import { getAgentConfigs, getTradingInfraStatus } from "../agents/orchestrator.ts";
+import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { clamp } from "../lib/math-utils.ts";
 
 const adminRoutes = new Hono();
