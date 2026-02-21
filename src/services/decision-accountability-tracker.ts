@@ -269,65 +269,6 @@ const PRICE_TARGET_MAX = 100000;
  */
 const PRICE_TARGETS_MAX_COUNT = 3;
 
-/**
- * Time Horizon Pattern Recognition
- *
- * Constants defining hour durations for common time horizon phrases in agent reasoning.
- */
-
-/**
- * One-week horizon hours (168 = 7 days)
- *
- * Duration for "next week", "coming week" claims.
- * Represents one calendar week.
- *
- * Example: "Next week should see upside" → 7-day claim
- *
- * Tuning impact: Not user-tunable (standard week definition)
- */
-const HORIZON_HOURS_ONE_WEEK = 168;
-
-/**
- * Medium-term horizon hours (720 = 30 days)
- *
- * Duration for "medium-term", "next month", "coming weeks" claims.
- * Represents one month.
- *
- * Example: "Medium-term outlook positive" → 30-day claim
- *
- * Tuning impact: Raise to 1440 (60 days) for longer medium-term window
- */
-const HORIZON_HOURS_MEDIUM_TERM = 720;
-
-/**
- * Long-term horizon hours (2160 = 90 days)
- *
- * Duration for "long-term", "next quarter", "several months" claims.
- * Represents one quarter.
- *
- * Example: "Long-term bullish thesis" → 90-day claim
- *
- * Tuning impact: Raise to 4320 (180 days) for 6-month long-term definition
- */
-const HORIZON_HOURS_LONG_TERM = 2160;
-
-/**
- * Claim Expiration Parameters
- *
- * Constants for determining when claims expire if not resolved earlier.
- */
-
-/**
- * Default claim expiration hours (48)
- *
- * Default time horizon when agent doesn't specify explicit timeframe.
- * Represents 2 trading days.
- *
- * Example: Generic "bullish on TSLAx" → 48-hour default expiration
- *
- * Tuning impact: Lower to 24 for faster claim turnover; raise to 72 for more patience
- */
-const CLAIM_DEFAULT_EXPIRATION_HOURS = 48;
 
 /**
  * Early Resolution Threshold
