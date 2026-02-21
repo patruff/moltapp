@@ -19,7 +19,6 @@
 import { Hono } from "hono";
 import {
   getAgentAnalytics,
-  getArenaOverview,
   type AnalyticsPeriod,
 } from "../services/analytics.ts";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
