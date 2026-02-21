@@ -18,7 +18,7 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, and, sql, gte, lte } from "drizzle-orm";
+import { eq, desc, and, sql, gte } from "drizzle-orm";
 import { errorMessage } from "../lib/errors.ts";
 import { getTopKey, countByCondition } from "../lib/math-utils.ts";
 

@@ -29,7 +29,7 @@ import type {
   SignalMetadata,
 } from "../db/schema/strategies.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, gte, and, sql, asc } from "drizzle-orm";
+import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { round2, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------

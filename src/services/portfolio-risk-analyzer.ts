@@ -22,7 +22,7 @@
 import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, gte, asc } from "drizzle-orm";
+import { eq, desc, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { clamp, round2, countByCondition, computeVariance } from "../lib/math-utils.ts";
 

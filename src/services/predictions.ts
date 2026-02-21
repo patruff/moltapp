@@ -23,7 +23,7 @@ import {
   predictionBets,
   predictionMarkets,
 } from "../db/schema/predictions.ts";
-import { eq, desc, and, lte, sql, gte, asc, ne } from "drizzle-orm";
+import { eq, desc, and, lte, sql, gte } from "drizzle-orm";
 import { getMarketData } from "../agents/orchestrator.ts";
 import { calculateAverage, averageByKey } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
