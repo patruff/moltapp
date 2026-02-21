@@ -22,7 +22,7 @@
  * - Internal event bus integration for broadcasting price updates
  */
 
-import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
+import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { eventBus } from "./event-stream.ts";
 import { errorMessage } from "../lib/errors.ts";
 

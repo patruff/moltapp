@@ -19,7 +19,7 @@
  *   - Integration: Are source data points used in the logical argument?
  */
 
-import { splitSentences, normalize, round2, clamp } from "../lib/math-utils.ts";
+import { splitSentences, round2, clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

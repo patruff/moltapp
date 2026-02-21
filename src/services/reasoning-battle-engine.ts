@@ -15,7 +15,7 @@
  *  7. Uniqueness: Is the reasoning original or templated?
  */
 
-import { countByCondition, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { countByCondition, round3, splitSentences, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
