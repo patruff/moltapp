@@ -44,11 +44,16 @@ export const BACKTEST_INITIAL_CAPITAL = 10_000;
  * Time Conversion Constants
  *
  * Standard millisecond conversions for time-based calculations.
+ * Used across the codebase for time-based filtering, expiration, and analytics.
+ *
+ * IMPORTANT: Do NOT duplicate these in other files. Import from here.
  */
 export const MS_PER_SECOND = 1000;
 export const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-export const MS_PER_DAY = 24 * MS_PER_HOUR;
+export const MS_PER_HOUR = 60 * MS_PER_MINUTE; // 3,600,000ms
+export const MS_PER_DAY = 24 * MS_PER_HOUR; // 86,400,000ms
+export const MS_PER_WEEK = 7 * MS_PER_DAY; // 604,800,000ms
+export const MS_PER_MONTH = 30 * MS_PER_DAY; // 2,592,000,000ms (30-day month approximation)
 
 /**
  * Rounds Per Trading Day

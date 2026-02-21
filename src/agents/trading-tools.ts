@@ -20,6 +20,12 @@ import { computeAgentPerformance } from "../services/performance-tracker.ts";
 import type { agentTheses } from "../db/schema/agent-theses.ts";
 import type { InferSelectModel } from "drizzle-orm";
 import { XSTOCKS_CATALOG, USDC_MINT_MAINNET } from "../config/constants.ts";
+import {
+  MS_PER_HOUR,
+  MS_PER_DAY,
+  MS_PER_WEEK,
+  MS_PER_MONTH,
+} from "../config/financial-constants.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { executeBuy, executeSell } from "../services/trading.ts";
 import { getAgentWalletStatus } from "../services/agent-wallets.ts";
@@ -959,10 +965,10 @@ async function executeSearchNewsAlphaVantage(
     const freshness = args.freshness ?? "pd";
     const now = Date.now();
     const freshnessMs = {
-      ph: 60 * 60 * 1000, // 1 hour
-      pd: 24 * 60 * 60 * 1000, // 1 day
-      pw: 7 * 24 * 60 * 60 * 1000, // 1 week
-      pm: 30 * 24 * 60 * 60 * 1000, // 1 month
+      ph: MS_PER_HOUR, // 1 hour
+      pd: MS_PER_DAY, // 1 day
+      pw: MS_PER_WEEK, // 1 week
+      pm: MS_PER_MONTH, // 1 month (30-day approximation)
     }[freshness];
 
     const filteredFeed = feed.filter((article) => {
