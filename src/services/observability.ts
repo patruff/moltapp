@@ -263,17 +263,6 @@ const BYTES_PER_MB = 1024;
 const DEFAULT_SNAPSHOT_QUERY_LIMIT = 60;
 const DEFAULT_COLLECTOR_INTERVAL_MS = 60_000;
 
-/**
- * Percentage Conversion Multiplier
- *
- * Converts a decimal fraction (0–1) to a whole-number percentage (0–100)
- * for CloudWatch metric reporting (Unit: "Percent").
- *
- * Formula: Math.round(numerator / denominator * PERCENT_MULTIPLIER)
- * Example: 142 successful / 150 total → Math.round(142/150 * 100) = 95 (%)
- */
-const PERCENT_MULTIPLIER = 100;
-
 /** Rolling latency window for percentile calculations */
 const latencyWindow: number[] = [];
 const MAX_LATENCY_WINDOW = 1000;
