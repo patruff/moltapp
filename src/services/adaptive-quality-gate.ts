@@ -192,7 +192,7 @@ export function computeAdaptiveThresholds(agentId: string): AdaptiveThresholds {
 export function evaluateWithAdaptiveGate(
   agentId: string,
   decision: TradingDecision,
-  marketData: MarketData[],
+  marketData: MarketData[]
 ): AdaptiveGateResult {
   const thresholds = computeAdaptiveThresholds(agentId);
   const rejectionReasons: string[] = [];
