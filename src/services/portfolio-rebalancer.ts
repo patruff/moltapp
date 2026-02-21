@@ -19,7 +19,7 @@
 import { db } from "../db/index.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round3, averageByKey, sumByKey, calculateAverage, computeVariance } from "../lib/math-utils.ts";
 import { nowISO } from "../lib/format-utils.ts";
