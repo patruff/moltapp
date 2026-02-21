@@ -20,7 +20,7 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte } from "drizzle-orm";
-import { getAgentConfigs, getAgentStats } from "../agents/orchestrator.ts";
+import { getAgentConfigs } from "../agents/orchestrator.ts";
 import type { AgentStats } from "../agents/base-agent.ts";
 import { round2, sumByKey, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 

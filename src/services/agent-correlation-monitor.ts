@@ -154,8 +154,6 @@ export interface CorrelationReport {
 // Constants
 // ---------------------------------------------------------------------------
 
-const AGENT_IDS = ["claude-trader", "gpt-momentum", "grok-contrarian"] as const;
-
 /**
  * Configuration Constants
  *
@@ -401,14 +399,6 @@ function pearsonCorrelation(xs: number[], ys: number[]): number {
 // ---------------------------------------------------------------------------
 // Internal Helpers — Data Access
 // ---------------------------------------------------------------------------
-
-/**
- * Get return values for a specific agent, ordered chronologically.
- */
-function getAgentReturns(agentId: string): number[] {
-  const samples = samplesByAgent.get(agentId) || [];
-  return samples.map((s) => s.returnPct);
-}
 
 /**
  * Get all unique agent pairs as [agentA, agentB] tuples.
