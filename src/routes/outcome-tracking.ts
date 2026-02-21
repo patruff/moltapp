@@ -26,7 +26,6 @@ import {
 } from "../services/outcome-tracker.ts";
 import {
   getQualityGateStats,
-  getQualityGateConfig,
   updateQualityGateConfig,
 } from "../services/reasoning-quality-gate.ts";
 import { getMarketData } from "../agents/orchestrator.ts";

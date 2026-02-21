@@ -24,7 +24,6 @@ import { Hono } from "hono";
 import {
   createPrediction,
   placeBet,
-  resolvePrediction,
   resolveExpiredPredictions,
   getActivePredictions,
   getPredictionById,

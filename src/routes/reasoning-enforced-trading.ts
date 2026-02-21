@@ -28,9 +28,6 @@ import { round2 } from "../lib/math-utils.ts";
 import {
   tradeWithReasoningSchema,
   holdWithReasoningSchema,
-  normalizeConfidence,
-  extractSourcesFromReasoning,
-  classifyIntent,
   type TradeWithReasoning,
 } from "../schemas/trade-reasoning.ts";
 import {
@@ -45,7 +42,6 @@ import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { addBrainFeedEntry, buildBrainFeedEntry } from "./brain-feed.ts";
 import {
   collectTradeEvidence,
-  analyzeCoherenceWithContext,
 } from "../services/benchmark-evidence-collector.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { apiError, errorMessage } from "../lib/errors.ts";
