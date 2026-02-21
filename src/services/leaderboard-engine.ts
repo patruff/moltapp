@@ -118,13 +118,6 @@ const GLICKO_INITIAL_DEVIATION = 350;
 const GLICKO_INITIAL_VOLATILITY = 0.06;
 
 /**
- * Glicko-2 tau parameter (system constant)
- * Controls how much volatility can change
- * 0.5 is standard recommendation from Glickman's paper
- */
-const GLICKO_TAU = 0.5;
-
-/**
  * Glicko-2 phi scaling divisor
  * Converts deviation to phi scale: phi = deviation / 173.7178
  */

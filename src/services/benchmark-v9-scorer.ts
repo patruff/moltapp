@@ -192,12 +192,6 @@ const ADAPTABILITY_MIN_REGIMES = 2;
 const CALIBRATION_QUARTILE_COUNT = 4;
 
 /**
- * Coherence streak threshold.
- * Trades with coherence >= 0.7 count toward currentCoherent streak.
- */
-const COHERENCE_STREAK_THRESHOLD = 0.70;
-
-/**
  * Highlight reasoning snippet length.
  * Most/least coherent reasoning snippets are truncated to 200 characters.
  */

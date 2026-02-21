@@ -17,7 +17,7 @@
  * - Market regime classification (bull/bear/sideways)
  */
 
-import { XSTOCKS_CATALOG, type StockToken } from "../config/constants.ts";
+import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round4, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
