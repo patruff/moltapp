@@ -160,30 +160,6 @@ const TOP_THEMES_DISPLAY_LIMIT = 8;
  * in agent taxonomy profiles (strategy distribution, bias patterns, themes).
  */
 
-/**
- * Precision multiplier for 2-decimal rounding of taxonomy frequencies.
- *
- * Formula: Math.round((value / total) * FREQUENCY_PRECISION_MULTIPLIER) / FREQUENCY_PRECISION_DIVISOR
- * Example: 15 occurrences / 100 total = 0.15 → Math.round(0.15 × 100) / 100 = 0.15 (15%)
- *
- * Used for:
- * - Strategy distribution percentages (momentum: 0.45 = 45% of trades)
- * - Cognitive bias frequencies (anchoring: 0.33 = 33% of reasoning instances)
- * - Theme frequencies (valuation: 0.22 = 22% of analyses)
- * - Fingerprint diversity ratio (unique patterns / total)
- * - Classification confidence scores (average 0.87 = 87% confidence)
- *
- * Changing from 100 to 1000 would give 3-decimal precision (0.333 instead of 0.33).
- */
-const FREQUENCY_PRECISION_MULTIPLIER = 100;
-
-/**
- * Precision divisor for 2-decimal rounding (paired with FREQUENCY_PRECISION_MULTIPLIER).
- *
- * Formula denominator that produces final 2-decimal result.
- * Example: Math.round(0.456 × 100) = 46, then 46 / 100 = 0.46
- */
-const FREQUENCY_PRECISION_DIVISOR = 100;
 
 // ---------------------------------------------------------------------------
 // Types
