@@ -5,7 +5,7 @@
  * including agents, jobs, auth, analysis runs, and shared analyses.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Hono } from "hono";
 import { mobileMarketplaceRoutes } from "./mobile-marketplace.ts";
 
@@ -178,7 +178,7 @@ describe("Mobile Marketplace API — Jobs", () => {
   });
 
   it("POST /jobs rejects missing title", async () => {
-    const { status, body } = await post("/jobs", {
+    const { status } = await post("/jobs", {
       buyerWallet: "W1",
       budgetUsdc: 5.0,
     });

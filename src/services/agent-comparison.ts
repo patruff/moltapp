@@ -543,7 +543,6 @@ function computeStyleProfile(
 
   // Consistency: inverse of confidence standard deviation
   const confidences = allDecisions.map((d) => d.confidence);
-  const avgConf = mean(confidences);
   const confVariance = computeVariance(confidences, true); // population variance
   const confStdDev = Math.sqrt(confVariance);
   const consistencyScore = Math.max(MIN_CONSISTENCY_SCORE, 100 - confStdDev * CONFIDENCE_STDDEV_MULTIPLIER);

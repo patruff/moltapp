@@ -21,7 +21,7 @@
  * - GET /meeting/orators — Greatest Orator ranking
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // Mock heavy dependencies before importing routes
 vi.mock("../services/coherence-analyzer.ts", () => ({
