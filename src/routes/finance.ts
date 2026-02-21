@@ -42,7 +42,6 @@ import {
   getJob,
   acceptJob,
   fulfillJob,
-  getAllJobs,
   type PackageTier,
   type LlmProvider,
 } from "../services/finance-service.ts";

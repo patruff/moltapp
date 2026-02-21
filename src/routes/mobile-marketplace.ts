@@ -498,7 +498,7 @@ mobileMarketplaceRoutes.post("/deliverables/:jobId/verify", async (c) => {
 // POST /escrow — Create escrow (placeholder — real impl uses Solana program)
 mobileMarketplaceRoutes.post("/escrow", async (c) => {
   try {
-    const body = await c.req.json();
+    await c.req.json(); // Validate request body exists
     const escrowAddress = `escrow_${generateId("esc")}`;
 
     // In production: create a PDA, fund it with USDC via the buyer's wallet
