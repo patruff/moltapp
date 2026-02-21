@@ -386,20 +386,6 @@ const MIN_PATTERN_OCCURRENCES_FOR_DISPLAY = 2;
  */
 const MIN_PATTERN_SUCCESS_RATE_FOR_DISPLAY = 50;
 
-/**
- * Database Query Parameters
- *
- * These parameters control how much historical data is loaded from the database
- * when bootstrapping agent memory on startup.
- */
-
-/**
- * Maximum time difference (in milliseconds) between decision and trade to match them
- * @example
- * - Decision at 10:00:00, Trade at 10:05:00 → 5 min = 300,000 ms < 3,600,000 → matched
- * - Decision at 10:00:00, Trade at 11:15:00 → 75 min = 4,500,000 ms > 3,600,000 → not matched
- */
-const MEMORY_LOAD_MATCH_WINDOW_MS = 3600_000; // 1 hour
 
 // ---------------------------------------------------------------------------
 // Types
