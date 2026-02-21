@@ -289,6 +289,28 @@ export interface GovernanceStats {
   quorumSuccessRate: number;
 }
 
+/** Agent's governance participation profile */
+export interface AgentGovernanceProfile {
+  agentId: string;
+  agentName: string;
+  proposalsCreated: number;
+  proposalsPassed: number;
+  totalVotes: number;
+  voteBreakdown: {
+    for: number;
+    against: number;
+    abstain: number;
+  };
+  participationRate: number;
+  majorityAlignment: number;
+  recentActivity: Array<{
+    proposalId?: string;
+    vote: string;
+    reasoning: string;
+    timestamp: string;
+  }>;
+}
+
 /** Constitutional rule (immutable constraint) */
 export interface ConstitutionalRule {
   id: string;
@@ -888,7 +910,7 @@ export function getGovernanceStats(): GovernanceStats {
 /**
  * Get an agent's governance participation.
  */
-export function getAgentGovernanceProfile(agentId: string) {
+export function getAgentGovernanceProfile(agentId: string): AgentGovernanceProfile | null {
   seedProposals();
 
   const configs = getAgentConfigs();
