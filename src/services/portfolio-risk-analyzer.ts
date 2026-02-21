@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { eq, desc } from "drizzle-orm";
-import { clamp, round2, countByCondition, computeVariance } from "../lib/math-utils.ts";
+import { clamp, round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Risk Analysis Configuration Constants
@@ -393,9 +393,6 @@ const SYNTHETIC_RETURNS_RANDOM_OFFSET = 0.48;
 
 /** Fallback return series when no trade history or portfolio history exists */
 const DEFAULT_RETURN_SERIES = [0.5, -0.3, 0.2, -0.1, 0.4] as const;
-
-/** Default volatility estimate (%) when insufficient return data for computation */
-const VOLATILITY_DEFAULT = 2.0;
 
 // ---------------------------------------------------------------------------
 // Types

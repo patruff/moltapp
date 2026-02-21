@@ -256,7 +256,6 @@ const rejectionReasons: Record<string, number> = {};
 export async function validatePrice(
   request: PriceValidationRequest,
 ): Promise<PriceValidationResult> {
-  const startTime = Date.now();
   const isLive = !request.allowStale;
   const config = isLive ? liveConfig : paperConfig;
 
