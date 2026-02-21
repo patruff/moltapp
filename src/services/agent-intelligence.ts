@@ -21,7 +21,6 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
-import type { AgentStats } from "../agents/base-agent.ts";
 import { round2, sumByKey, weightedSumByKey, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -97,20 +96,6 @@ const DEFAULT_HISTORICAL_ACCURACY_BASE = 50;
  */
 const DEFAULT_HISTORICAL_ACCURACY_RANGE = 25;
 
-/**
- * Swarm Score Classification Threshold
- *
- * Minimum swarm score (0-100 scale) required for a consensus signal to be
- * classified as "strong consensus" worthy of elevated attention.
- *
- * Swarm score calculation: (agentsAgreeing / totalAgents) × avgConfidence × accuracy
- * - Score > 60 = Strong consensus (agents aligned with high confidence)
- * - Score ≤ 60 = Moderate/weak consensus (either low agreement OR low confidence)
- *
- * Example: 3/3 agents agreeing at 80% confidence × 0.60 accuracy = 144 swarm score (strong)
- * Example: 2/3 agents agreeing at 50% confidence × 0.60 accuracy = 60 swarm score (threshold)
- */
-const SWARM_SCORE_STRONG_THRESHOLD = 60;
 
 /**
  * Baseline contrarian prediction accuracy (%) when agent bucks majority.
@@ -202,21 +187,6 @@ const COLLECTIVE_MOMENTUM_HOURS = 48;
  */
 const MAX_DECISIONS_FETCH_LIMIT = 200;
 
-/**
- * Default number of recent decisions to fetch per symbol for consensus analysis.
- *
- * Used in fetchSymbolDecisions() which feeds consensus detection, contrarian
- * alerts, and symbol agreement matrix calculations.
- *
- * 50 decisions covers roughly 2-3 trading rounds per symbol (each round has
- * 3 agents × ~8 symbols = ~24 decisions per round). Increasing to 100 would
- * give deeper history for accuracy estimates; decreasing to 25 would speed up
- * consensus detection at the cost of less historical context.
- *
- * Example: With 3 agents and 50 decisions, consensus analysis covers ~17 rounds
- * of data per symbol, sufficient for reliable win-rate estimation.
- */
-const SYMBOL_DECISIONS_QUERY_LIMIT = 50;
 
 /**
  * Agreement Matrix Simulation Parameters
@@ -269,9 +239,6 @@ const MOMENTUM_VERY_BULLISH_THRESHOLD = 60;
 
 /** Minimum score for "bullish" classification (20% net bullish) */
 const MOMENTUM_BULLISH_THRESHOLD = 20;
-
-/** Range for "neutral" classification (±20% from zero) */
-const MOMENTUM_NEUTRAL_THRESHOLD = 20;
 
 /** Maximum score for "bearish" classification (-20% to -60%) */
 const MOMENTUM_BEARISH_THRESHOLD = -20;
@@ -635,17 +602,6 @@ async function fetchRecentDecisions(hours = RECENT_DECISIONS_HOURS) {
   return decisions;
 }
 
-/** Fetch all decisions for a specific symbol */
-async function fetchSymbolDecisions(symbol: string, limit = SYMBOL_DECISIONS_QUERY_LIMIT) {
-  const decisions = await db
-    .select()
-    .from(agentDecisions)
-    .where(eq(agentDecisions.symbol, symbol))
-    .orderBy(desc(agentDecisions.createdAt))
-    .limit(limit);
-
-  return decisions;
-}
 
 // ---------------------------------------------------------------------------
 // Consensus Detection
