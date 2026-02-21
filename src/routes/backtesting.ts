@@ -94,8 +94,6 @@ export const backtestRoutes = new Hono();
 
 backtestRoutes.get("/compare", async (c) => {
   try {
-    const days = parseQueryInt(c.req.query("days"), BACKTEST_DEFAULT_DAYS, BACKTEST_MIN_DAYS, BACKTEST_MAX_DAYS);
-
     const comparison = await getBacktestComparison();
 
     return c.json({
