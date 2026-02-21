@@ -16,7 +16,7 @@
  * It replaces ad-hoc scoring scattered across v9-v15 with a unified pipeline.
  */
 
-import { computeStdDev, countByCondition, countWords, mean, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { computeStdDev, countByCondition, countWords, mean, round3, splitSentences, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -756,7 +756,6 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   });
 
   // 14. Reasoning Efficiency (NEW v16)
-  const recentReasoning = w.wordCounts.length > 0 ? "" : "";
   // Use aggregate stats from window
   const efficiencyAggregate = {
     informationDensity: mean(w.quantClaims.map((q, i) => Math.min(1, q / Math.max(1, (w.wordCounts[i] ?? EFFICIENCY_AGGREGATE_WORD_COUNT_FALLBACK) * EFFICIENCY_INFO_DENSITY_SCALING + 1)))),
@@ -787,9 +786,6 @@ export function computeV16Score(agentId: string): V16BenchmarkScore {
   // Compute weighted composite
   const composite = weightedSumByKey(pillars, 'score', 'weight');
   const normalizedComposite = round3(composite);
-
-  // Rank
-  const prevRank = previousRanks.get(agentId) ?? 0;
 
   const score: V16BenchmarkScore = {
     agentId,

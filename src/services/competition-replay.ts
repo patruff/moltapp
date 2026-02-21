@@ -174,28 +174,6 @@ const HEADLINE_CLOSE_STANDINGS_MARGIN = 1.0;
  * Determine how event streams are grouped into narrative chapters.
  */
 
-/** Number of rounds batched into each chapter (default: 3 rounds per chapter). */
-const ROUNDS_PER_CHAPTER = 3;
-
-/**
- * Chapter Significance Scoring Weights
- *
- * Point values assigned when calculating chapter importance (0-100 scale).
- * Higher significance = more dramatic/impactful chapter.
- */
-
-/** Base significance score for all chapters before event-based bonuses. */
-const SIGNIFICANCE_BASE_SCORE = 20;
-
-/** Points added per lead change in the chapter (major volatility indicator). */
-const SIGNIFICANCE_LEAD_CHANGE_POINTS = 25;
-
-/** Points added per circuit breaker activation (market stress indicator). */
-const SIGNIFICANCE_CIRCUIT_BREAKER_POINTS = 15;
-
-/** Points added per milestone event (achievement/turning point indicator). */
-const SIGNIFICANCE_MILESTONE_POINTS = 10;
-
 /** Max points from event density (caps at 20 to prevent long chapters from dominating). */
 const SIGNIFICANCE_EVENT_DENSITY_MAX = 20;
 

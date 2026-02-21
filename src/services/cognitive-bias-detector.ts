@@ -393,7 +393,6 @@ const agentBiasStats = new Map<
 function detectAnchoring(reasoning: string, marketData: MarketData[]): BiasDetection | null {
   // Look for patterns where one number dominates the reasoning
   const priceRefs = reasoning.match(/\$[\d,]+\.?\d*/g) ?? [];
-  const percentRefs = reasoning.match(/[+-]?\d+\.?\d*%/g) ?? [];
 
   // Anchoring: same price reference appears 3+ times
   const priceCounts = new Map<string, number>();

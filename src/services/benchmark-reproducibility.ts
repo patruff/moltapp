@@ -102,13 +102,10 @@ const BOOTSTRAP_CI99_UPPER_PERCENTILE = 0.995;
  *
  * - STABILITY_VARIANCE_THRESHOLD: Rolling window variance < 0.01 = stable agent
  *   (composite score varies < 1% over 10-round window)
- * - STABILITY_PUBLICATION_THRESHOLD: Overall stability >= 0.8 = publication-ready
- *   (80%+ of agents show stable scores)
  * - MIN_ROUNDS_PER_AGENT: Empirically determined minimum for stable rankings
  *   (20 rounds gives sufficient data for statistical confidence)
  */
 const STABILITY_VARIANCE_THRESHOLD = 0.01;
-const STABILITY_PUBLICATION_THRESHOLD = 0.8;
 const MIN_ROUNDS_PER_AGENT = 20;
 
 /**
@@ -150,13 +147,6 @@ const STABILITY_ROLLING_WINDOW_SIZE = 10;
  * Below this, tests return null results (no statistical power).
  */
 const MIN_SAMPLE_SIZE_FOR_TEST = 2;
-
-/**
- * Minimum Sample Size for Stability Assessment
- *
- * Need at least 3 scores to compute meaningful variance estimates.
- */
-const MIN_SAMPLE_SIZE_FOR_STABILITY = 3;
 
 /**
  * Reproducibility Proof Hash Truncation Length

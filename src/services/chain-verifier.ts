@@ -19,7 +19,6 @@ import {
   address,
   getAddressEncoder,
   getProgramDerivedAddress,
-  type Address,
 } from "@solana/kit";
 import { errorMessage } from "../lib/errors.ts";
 import { countByCondition } from "../lib/math-utils.ts";

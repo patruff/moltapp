@@ -15,7 +15,7 @@
  * - Export-ready researcher payloads (JSONL, CSV, summary stats)
  */
 
-import { clamp, weightedSum } from "../lib/math-utils.ts";
+import { clamp } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
