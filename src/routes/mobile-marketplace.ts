@@ -72,8 +72,6 @@ const PER_TOKEN_COST_MULTIPLIER = 0.01;
 /**
  * Preview and Display Limits
  */
-/** Character limit for reasoning preview in summaries */
-const REASONING_PREVIEW_MAX_LENGTH = 200;
 /** Default items per page for catalog listings */
 const CATALOG_DEFAULT_PAGE_SIZE = 20;
 

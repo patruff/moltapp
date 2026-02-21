@@ -18,8 +18,6 @@ const serverStartTime = Date.now();
  * - timestamp: current ISO timestamp
  */
 healthRoutes.get("/", async (c) => {
-  const startTime = Date.now();
-  
   // Check database connection
   let dbConnected = false;
   let dbLatency: number | undefined;

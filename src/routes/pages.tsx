@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { getLeaderboard } from "../services/leaderboard.ts";
 import type { LeaderboardEntry, PositionSummary } from "../services/leaderboard.ts";
 import { getAgentConfig, getAgentPortfolio, getAgentTradeHistory } from "../agents/orchestrator.ts";
-import { compareAgentTimelines, type EquityCurvePoint } from "../services/portfolio-snapshots.ts";
+import { type EquityCurvePoint } from "../services/portfolio-snapshots.ts";
 import { getAgentWallet } from "../services/agent-wallets.ts";
 import { getThesisHistory } from "../services/agent-theses.ts";
 import { getTotalCosts, getAgentCosts } from "../services/llm-cost-tracker.ts";
@@ -34,11 +34,11 @@ import {
 } from "../lib/format-utils.ts";
 import { db } from "../db/index.ts";
 import { agents as agentsTable } from "../db/schema/agents.ts";
-import { trades, agentDecisions, agentTheses, positions } from "../db/schema/index.ts";
+import { trades, agentDecisions, agentTheses } from "../db/schema/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { getStockName, getStockCategory, getStockDescription } from "../config/constants.ts";
+import { getStockName, getStockDescription } from "../config/constants.ts";
 import { getLatestMeeting, getMeetingByRoundId } from "../services/meeting-of-minds.ts";
-import { getLatestLiquidityAnalysis, fetchAggregatedPrices, type TokenLiquidity, type LiquidityAnalysis } from "../services/market-aggregator.ts";
+import { getLatestLiquidityAnalysis, fetchAggregatedPrices, type TokenLiquidity } from "../services/market-aggregator.ts";
 import { getLatestMeetingFromDynamo, getMeetingFromDynamo, getRecentRounds, type PersistedAgentResult } from "../services/dynamo-round-persister.ts";
 import type { MeetingResult, MeetingMessage } from "../services/meeting-of-minds.ts";
 
@@ -599,7 +599,6 @@ pages.get("/", async (c) => {
           const pnlPctNum = Number(entry.totalPnlPercent);
           const isUp = pnlNum >= 0;
           const portfolioNum = Number(entry.totalPortfolioValue);
-          const cashNum = Number(entry.cashBalance);
           const stocksNum = Number(entry.stocksValue);
           const deployedPct = portfolioNum > 0 ? (stocksNum / portfolioNum) * 100 : 0;
           const lastAction = lastRoundByAgent.get(entry.agentId);
@@ -1201,7 +1200,6 @@ pages.get("/agent/:id", async (c) => {
               {thesisHistory.map((t: Thesis) => {
               const isActive = t.status === "active";
               const isBullish = t.direction === "bullish";
-              const isBearish = t.direction === "bearish";
 
               // Find matching position to show current P&L
               const matchingPosition = portfolio.positions.find((p: AgentPosition) => p.symbol === t.symbol);
@@ -2242,9 +2240,6 @@ pages.get("/performance", async (c) => {
     .where(eq(agentsTable.isActive, true));
 
   const agentIds = activeAgents.map((a: Agent) => a.id);
-
-  // Get comparison data from portfolio snapshots
-  const comparison = await compareAgentTimelines(agentIds, { limit: 500 });
 
   // Get full timelines for daily breakdown
   const timelines = await Promise.all(
