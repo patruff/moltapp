@@ -32,6 +32,7 @@ import { recordRoundForComparison } from "../services/agent-comparison.ts";
 import { clamp, countByCondition, round2, round3 } from "../lib/math-utils.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import type {
+  AgentPosition,
   MarketData,
   PortfolioContext,
   TradingDecision,
@@ -516,7 +517,7 @@ app.get("/last", (c) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function generateRandomPositions(marketData: MarketData[]) {
+function generateRandomPositions(marketData: MarketData[]): AgentPosition[] {
   const count = Math.floor(Math.random() * 4); // 0-3 positions
   const positions = [];
   const used = new Set<string>();
