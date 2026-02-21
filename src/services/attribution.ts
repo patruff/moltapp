@@ -45,10 +45,6 @@ const FACTOR_SCORE_BUY_MATCH = 1; // +1 when buy aligns with factor (e.g., buy w
 const FACTOR_SCORE_BUY_MISMATCH = -1; // -1 when buy opposes factor (e.g., buy loser = anti-momentum)
 const FACTOR_SCORE_SELL_MATCH = 1; // +1 when sell aligns with factor (e.g., sell loser = momentum)
 const FACTOR_SCORE_SELL_MISMATCH = -1; // -1 when sell opposes factor (e.g., sell winner = anti-momentum)
-const FACTOR_SCORE_QUALITY_HIGH = 1; // +1 for buying quality stocks (stable, profitable)
-const FACTOR_SCORE_QUALITY_LOW = -1; // -1 for buying speculative stocks
-const FACTOR_SCORE_CRYPTO_BUY = 2; // +2 for buying crypto-adjacent stocks (stronger signal)
-const FACTOR_SCORE_CRYPTO_SELL = -1; // -1 for selling crypto-adjacent stocks
 
 /**
  * Timing analysis parameters for decision-to-trade matching and scoring.
