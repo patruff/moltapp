@@ -218,13 +218,6 @@ const CALIBRATION_LOW_CONF_TRADE_THRESHOLD = 0.2; // <20% confidence on trade = 
 const CALIBRATION_LOW_CONF_TRADE_PENALTY = 0.20; // 20% penalty for very low confidence trade
 
 /**
- * Risk Awareness Scoring Parameters — Risk mention counts for buy/sell vs hold actions.
- */
-const RISK_EXCELLENT_THRESHOLD = 3; // 3+ risk mentions = 1.0 score
-const RISK_GOOD_THRESHOLD = 2; // 2 risk mentions = 0.8 score
-const RISK_ADEQUATE_SCORE = 0.5; // 1 risk mention = 0.5 score
-
-/**
  * Memory and Display Limits — Control history retention and suggestion counts.
  */
 const MAX_CONFIDENCE_HISTORY = 100; // Max confidence records per agent for calibration
