@@ -10,7 +10,6 @@ import {
   getActiveAdjustment,
   getAgentAdjustmentHistory,
   calculateAdjustments,
-  applyAdjustments,
   forceRecalculate,
   resetAllAdjustments,
   resetAgentAdjustments,
