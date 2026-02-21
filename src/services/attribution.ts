@@ -89,7 +89,6 @@ const CONFIDENCE_NORMALIZATION_DIVISOR = 50; // Divide confidence delta by 50 fo
 const REGIME_BULL_STRONG_THRESHOLD = 2; // change24h > 2% = strong bull regime
 const REGIME_BEAR_STRONG_THRESHOLD = -2; // change24h < -2% = strong bear regime
 const REGIME_MILD_BULL_THRESHOLD = 0; // change24h 0-2% = mild bull
-const REGIME_MILD_BEAR_THRESHOLD = 0; // change24h 0 to -2% = mild bear
 const REGIME_HIGH_VOLATILITY_THRESHOLD = 5; // |change24h| > 5% = high volatility regime
 
 /**
@@ -149,11 +148,6 @@ const FACTOR_LOADING_MAX = FACTOR_LOADING_SCALE;
  * Determines when factor loading is strong enough to define agent style.
  */
 const FACTOR_TILT_STRONG_THRESHOLD = 30; // |loading| > 30 = strong factor tilt defines style
-
-/**
- * Alpha/beta regression minimum data requirements.
- */
-const ALPHA_BETA_MIN_OBSERVATIONS = 2; // Minimum daily returns for valid alpha/beta calculation
 
 /**
  * Decision-to-trade matching parameters for confidence lookup.
@@ -836,9 +830,6 @@ export async function getAlphaBeta(
     0,
   ) / (n - 1);
   const trackingError = Math.sqrt(trackingErrorVariance);
-
-  // Information ratio
-  const informationRatio = trackingError > 0 ? meanExcess / trackingError : 0;
 
   // Annualize
   const annualizedAlpha = alpha * ANNUALIZATION_TRADING_DAYS;
