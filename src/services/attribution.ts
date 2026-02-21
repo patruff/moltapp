@@ -16,7 +16,7 @@ import { positions } from "../db/schema/positions.ts";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { clamp, findMax, findMin, findMaxBy, findMinBy, MS_PER_DAY, computeVariance } from "../lib/math-utils.ts";
+import { clamp, findMax, findMaxBy, findMinBy, MS_PER_DAY, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -45,14 +45,6 @@ const FACTOR_SCORE_BUY_MATCH = 1; // +1 when buy aligns with factor (e.g., buy w
 const FACTOR_SCORE_BUY_MISMATCH = -1; // -1 when buy opposes factor (e.g., buy loser = anti-momentum)
 const FACTOR_SCORE_SELL_MATCH = 1; // +1 when sell aligns with factor (e.g., sell loser = momentum)
 const FACTOR_SCORE_SELL_MISMATCH = -1; // -1 when sell opposes factor (e.g., sell winner = anti-momentum)
-const FACTOR_SCORE_VALUE_BUY_BELOW_AVG = 1; // +1 for buying below-average-priced stock (value)
-const FACTOR_SCORE_VALUE_BUY_ABOVE_AVG = -0.5; // -0.5 for buying above-average-priced stock (anti-value)
-const FACTOR_SCORE_VALUE_SELL_ABOVE_AVG = 0.5; // +0.5 for selling above-average-priced stock (value)
-const FACTOR_SCORE_VALUE_SELL_BELOW_AVG = -1; // -1 for selling below-average-priced stock (anti-value)
-const FACTOR_SCORE_SIZE_LARGE_CAP = 1; // +1 for buying large-cap stocks
-const FACTOR_SCORE_SIZE_SMALL_CAP = -1; // -1 for buying small-cap stocks
-const FACTOR_SCORE_VOLATILITY_HIGH_VOL = 1; // +1 for buying high-volatility stocks
-const FACTOR_SCORE_VOLATILITY_LOW_VOL = -1; // -1 for buying low-volatility stocks
 const FACTOR_SCORE_QUALITY_HIGH = 1; // +1 for buying quality stocks (stable, profitable)
 const FACTOR_SCORE_QUALITY_LOW = -1; // -1 for buying speculative stocks
 const FACTOR_SCORE_CRYPTO_BUY = 2; // +2 for buying crypto-adjacent stocks (stronger signal)

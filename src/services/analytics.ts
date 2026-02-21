@@ -17,7 +17,7 @@ import { tradeComments } from "../db/schema/trade-comments.ts";
 import { eq, desc, sql, and, gte, inArray } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
-import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortDescending, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, computeDownsideVariance, computeSortino, filterMap } from "../lib/math-utils.ts";
+import { calculateAverage, averageByKey, sumByKey, getTopKey, round2, round3, sortByDescending, sortEntriesDescending, groupAndAggregate, indexBy, countByCondition, findMax, computeVariance, computeDownsideVariance, computeSortino } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

@@ -17,7 +17,7 @@
  * those that apply rigid heuristics regardless of context.
  */
 
-import { clamp, countByCondition, stdDev } from "../lib/math-utils.ts";
+import { clamp, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
