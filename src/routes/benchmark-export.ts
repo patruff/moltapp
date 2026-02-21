@@ -19,7 +19,7 @@ import { Hono } from "hono";
 import { round3 } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { db } from "../db/index.ts";
-import { tradeJustifications, benchmarkSnapshots } from "../db/schema/trade-reasoning.ts";
+import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs } from "../agents/orchestrator.ts";
 
