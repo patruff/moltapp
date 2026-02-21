@@ -15,7 +15,7 @@
  * 7. Forensic Quality (Structure, Originality, Clarity, Cross-trade integrity)
  */
 
-import { mean, round2, weightedSum, weightedSumByKey, computeVariance } from "../lib/math-utils.ts";
+import { mean, round2, weightedSumByKey, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants
@@ -123,9 +123,6 @@ const PNL_NORMALIZATION_DIVISOR = 5;
 /** Minimum Sharpe ratio for normalization range (score = 0 at Sharpe = -2) */
 const SHARPE_NORMALIZATION_MIN = -2;
 
-/** Maximum Sharpe ratio for normalization range (score = 1 at Sharpe = 3+) */
-const SHARPE_NORMALIZATION_MAX = 3;
-
 /** Range divisor for Sharpe normalization: (sharpe - min) / range */
 const SHARPE_NORMALIZATION_RANGE = 5;
 
@@ -146,12 +143,6 @@ const CALIBRATION_BUCKET_DIVISOR = 10;
  *
  * These constants control cross-regime consistency measurement.
  */
-
-/** Minimum sample size for adaptability analysis (prevents statistical noise) */
-const ADAPTABILITY_MIN_SAMPLES = 10;
-
-/** Standard deviation multiplier for consistency score normalization */
-const ADAPTABILITY_SD_MULTIPLIER = 2;
 
 /**
  * Trend Detection Parameters
