@@ -244,18 +244,7 @@ async function refreshLeaderboard(): Promise<void> {
     .where(eq(trades.status, "confirmed"))
     .groupBy(trades.agentId);
 
-  // Step 5: Aggregate deposit/withdrawal stats per agent (single SQL query)
-  const depositStats = await db
-    .select({
-      agentId: transactions.agentId,
-      totalDeposited: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'deposit' AND ${transactions.tokenType} = 'USDC' THEN ${transactions.amount}::numeric ELSE 0 END), 0)`,
-      totalWithdrawn: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.type} = 'withdrawal' AND ${transactions.tokenType} = 'USDC' THEN ${transactions.amount}::numeric ELSE 0 END), 0)`,
-    })
-    .from(transactions)
-    .where(eq(transactions.status, "confirmed"))
-    .groupBy(transactions.agentId);
-
-  // Step 6: Fetch all active theses (single query)
+  // Step 5: Fetch all active theses (single query)
   const allActiveTheses = await db
     .select()
     .from(agentTheses)

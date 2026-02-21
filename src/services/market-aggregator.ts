@@ -168,9 +168,6 @@ const SPREAD_ESTIMATION_VOLUME_BASELINE = 1_000_000;
 /** Cache duration for price data before considering stale (2 minutes) */
 const PRICE_CACHE_DURATION_MS = 120_000;
 
-/** Mock price variation range (±1% random walk from last known price) */
-const MOCK_PRICE_VARIATION_PCT = 0.01;
-
 /** Mock volume baseline + random component (10M-500M range) */
 const MOCK_VOLUME_BASE = 10_000_000;
 const MOCK_VOLUME_RANDOM_MAX = 490_000_000;
@@ -217,13 +214,6 @@ const COINGECKO_API_TIMEOUT_MS = 5_000;
  * prevents pipeline stalls during network congestion.
  */
 const DEXSCREENER_API_TIMEOUT_MS = 5_000;
-
-/**
- * Correlation Analysis Parameters
- */
-
-/** Minimum overlapping data points required for correlation calculation */
-const CORRELATION_MIN_DATA_POINTS = 10;
 
 // ---------------------------------------------------------------------------
 // Types
