@@ -174,23 +174,11 @@ const HEADLINE_CLOSE_STANDINGS_MARGIN = 1.0;
  * Determine how event streams are grouped into narrative chapters.
  */
 
-/** Max points from event density (caps at 20 to prevent long chapters from dominating). */
-const SIGNIFICANCE_EVENT_DENSITY_MAX = 20;
-
-/** Points per event for density bonus (2 points × event count, capped at max). */
-const SIGNIFICANCE_EVENT_DENSITY_MULTIPLIER = 2;
-
 /**
  * Chapter Title Classification Thresholds
  *
  * Determine which narrative title template is selected for each chapter.
  */
-
-/** Threshold for "Pendulum Swings" title (≥2 lead changes = high volatility). */
-const CHAPTER_TITLE_PENDULUM_THRESHOLD = 2;
-
-/** Threshold for "Turbulent Waters" title (≥2 failed trades = execution challenges). */
-const CHAPTER_TITLE_TURBULENT_THRESHOLD = 2;
 
 /**
  * Key Moments Impact Scoring
