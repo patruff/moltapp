@@ -25,7 +25,6 @@
 
 import { Hono } from "hono";
 import { countByCondition } from "../lib/math-utils.ts";
-import { apiError } from "../lib/errors.ts";
 
 export const mobileMarketplaceRoutes = new Hono();
 
