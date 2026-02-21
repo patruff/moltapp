@@ -15,7 +15,7 @@ import { Hono } from "hono";
 import { averageByKey, countByCondition, mean, round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { desc, sql, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   computeV25CompositeScore,
   parsePrediction,
