@@ -439,17 +439,6 @@ const STYLE_MODERATE_BASE_SCORE = 20;
  */
 const DEFAULT_SCORE = 50;
 
-/**
- * Streak discipline default: 70 points
- * Starting score for streak discipline before penalty deductions (default good behavior).
- */
-const STREAK_DISCIPLINE_DEFAULT = 70;
-
-/**
- * Streak discipline penalty: 10 points per violation
- * Penalty for high-confidence → low-confidence swings after losses (70→30 confidence swing).
- */
-const STREAK_DISCIPLINE_PENALTY = 10;
 
 /**
  * Recent Decisions Display Limit
@@ -473,23 +462,6 @@ const RECENT_DECISIONS_DISPLAY_LIMIT = 10;
  * Scaling factors for confidence stability and time consistency calculations.
  */
 
-/**
- * Decision consistency multiplier: 2
- * Converts confidence standard deviation to consistency score (100 - stdDev * 2).
- */
-const DECISION_CONSISTENCY_MULTIPLIER = 2;
-
-/**
- * Volatility score multiplier: 2
- * Converts average confidence swing to volatility score (avgSwing * 2).
- */
-const VOLATILITY_SCORE_MULTIPLIER = 2;
-
-/**
- * Time consistency multiplier: 50
- * Converts gap coefficient of variation to time consistency (100 - gapCV * 50).
- */
-const TIME_CONSISTENCY_MULTIPLIER = 50;
 
 /**
  * ELO Score Calculation Constants
