@@ -16,7 +16,7 @@ import { db } from "../db/index.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, isNull, and, lte, sql, desc } from "drizzle-orm";
+import { eq, isNull, and, lte, desc } from "drizzle-orm";
 import type { MarketData } from "../agents/base-agent.ts";
 import { round2, countByCondition } from "../lib/math-utils.ts";
 

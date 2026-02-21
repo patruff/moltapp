@@ -2,7 +2,7 @@ import { Decimal } from "decimal.js";
 import { db } from "../db/index.ts";
 import { agents, positions, trades, transactions } from "../db/schema/index.ts";
 import { agentTheses } from "../db/schema/agent-theses.ts";
-import { eq, sql, count, max, desc, and, type InferSelectModel } from "drizzle-orm";
+import { eq, sql, count, max, desc, type InferSelectModel } from "drizzle-orm";
 import { getPrices } from "./jupiter.ts";
 import { getOnChainPortfolio } from "./onchain-portfolio.ts";
 import {

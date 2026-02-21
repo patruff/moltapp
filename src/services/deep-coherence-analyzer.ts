@@ -19,7 +19,7 @@
 
 import type { MarketData } from "../agents/base-agent.ts";
 import { computeGrade } from "../lib/grade-calculator.ts";
-import { mean, round2, round3, splitSentences, weightedSum, weightedSumByKey } from "../lib/math-utils.ts";
+import { mean, round2, round3, splitSentences, weightedSumByKey } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types

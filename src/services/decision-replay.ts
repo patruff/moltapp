@@ -20,7 +20,6 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { positions } from "../db/schema/positions.ts";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
 import { getTopKey, round2, groupByKey, sortEntriesDescending, countByCondition } from "../lib/math-utils.ts";

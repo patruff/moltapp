@@ -20,8 +20,6 @@ import {
   PutItemCommand,
   GetItemCommand,
   QueryCommand,
-  UpdateItemCommand,
-  BatchWriteItemCommand,
   ScanCommand,
   type AttributeValue,
 } from "@aws-sdk/client-dynamodb";
