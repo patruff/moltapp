@@ -20,10 +20,7 @@
  * - Beta exposure analysis
  */
 
-import { db } from "../db/index.ts";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
-import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
