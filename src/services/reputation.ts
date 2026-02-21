@@ -16,7 +16,7 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, gte, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { countByCondition, clamp, averageByKey, computeVariance } from "../lib/math-utils.ts";
@@ -192,14 +192,6 @@ const MIN_DECISIONS_FOR_CONSISTENCY = 3;
  * Used in time consistency scoring (lines 807).
  */
 const MAX_TIME_GAPS_FOR_CONSISTENCY = 2;
-
-/**
- * Minimum decisions for calibration: 1 decision
- * Empty arrays skip calibration bin calculations, but 1+ decisions trigger full analysis.
- * Currently used implicitly (decisions.length > 0 checks).
- */
-const MIN_DECISIONS_FOR_CALIBRATION = 1;
-
 /**
  * Accuracy Trend Detection Thresholds
  *
