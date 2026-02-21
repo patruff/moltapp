@@ -24,7 +24,7 @@ import {
   benchmarkRoundSnapshotsV24,
 } from "../db/schema/benchmark-v24.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { round2 } from "../lib/math-utils.ts";
 import {
   analyzeReasoningDepthV24,

@@ -21,7 +21,7 @@ import { z } from "zod";
 import { db } from "../db/index.ts";
 import { copyFollowers, copyTrades } from "../db/schema/copy-trading.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, sql, and, gt } from "drizzle-orm";
+import { eq, desc, sql, and } from "drizzle-orm";
 import { getAgentConfig, getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { clamp, countByCondition, round2 } from "../lib/math-utils.ts";

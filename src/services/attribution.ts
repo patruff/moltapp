@@ -13,7 +13,7 @@ import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, gte, and, sql } from "drizzle-orm";
+import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { clamp, findMax, findMin, findMaxBy, findMinBy, MS_PER_DAY, computeVariance } from "../lib/math-utils.ts";

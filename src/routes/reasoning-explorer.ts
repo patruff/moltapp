@@ -19,7 +19,7 @@
 import { Hono } from "hono";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { desc, sql, eq, and, gte, lte } from "drizzle-orm";
+import { desc, sql, eq, and, gte } from "drizzle-orm";
 import { apiError } from "../lib/errors.ts";
 import { parseQueryInt } from "../lib/query-params.ts";
 import { countWords, getFilteredWords, round2, round3, splitSentences } from "../lib/math-utils.ts";

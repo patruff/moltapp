@@ -20,7 +20,7 @@ import {
   calibrationSnapshots,
   benchmarkLeaderboardV23,
 } from "../db/schema/benchmark-v23.ts";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import {
   runOutcomeResolution,
   computeV23CompositeScore,

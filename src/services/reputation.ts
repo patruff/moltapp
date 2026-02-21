@@ -16,7 +16,7 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, gte, sql, and } from "drizzle-orm";
+import { eq, desc, gte, sql } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import type { MarketData } from "../agents/base-agent.ts";
 import { countByCondition, clamp, averageByKey, computeVariance } from "../lib/math-utils.ts";
