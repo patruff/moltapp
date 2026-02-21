@@ -261,7 +261,6 @@ const BYTES_PER_MB = 1024;
  * Balances monitoring granularity with memory overhead (360 snapshots × 60s = 6h).
  */
 const DEFAULT_SNAPSHOT_QUERY_LIMIT = 60;
-const DEFAULT_COLLECTOR_INTERVAL_MS = 60_000;
 
 /** Rolling latency window for percentile calculations */
 const latencyWindow: number[] = [];

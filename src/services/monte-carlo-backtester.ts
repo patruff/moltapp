@@ -767,10 +767,6 @@ export function runComparativeSimulation(
   // Build rankings
   const rankings = agentReports
     .map((report) => {
-      const sharpeValues = report.distributionBuckets.length > 0
-        ? report.mean  // Already have this from the report
-        : 0;
-
       return {
         rank: 0,
         agentId: report.agentId,

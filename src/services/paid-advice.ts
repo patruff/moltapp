@@ -292,7 +292,6 @@ export function generateMarketAnalysis(symbol?: string): AdviceResponse {
  * Generates meeting-of-minds consensus summary.
  */
 export function generateMeetingSummary(): AdviceResponse {
-  const topAgent = getTopAgent();
   const meeting = latestRoundData?.meeting ?? getLatestMeeting() ?? null;
 
   if (!meeting) {
@@ -339,7 +338,6 @@ export function generateMeetingSummary(): AdviceResponse {
  * Generates portfolio musings summary.
  */
 export function generateMusingsSummary(): AdviceResponse {
-  const topAgent = getTopAgent();
   const musings = latestRoundData?.musings ?? getLatestMusings() ?? null;
 
   if (!musings) {
