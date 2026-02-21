@@ -24,33 +24,6 @@ import { HASH_DISPLAY_LENGTH } from "../config/constants.ts";
 // Verification Helper Functions
 // ---------------------------------------------------------------------------
 
-/**
- * Create a simple verification result with a reason message.
- *
- * Standardizes verification result structure for dataset fingerprint checks.
- * Used by: verifyDatasetFingerprint
- *
- * @param valid - Whether verification passed
- * @param reason - Human-readable explanation of the result
- * @returns Verification result with reason
- *
- * @example
- * // Invalid verification (hash mismatch)
- * createVerificationResult(false, "Dataset hash mismatch: computed abc..., expected def...")
- * // => { valid: false, reason: "Dataset hash mismatch..." }
- *
- * @example
- * // Valid verification (hash matches)
- * createVerificationResult(true, "Dataset hash matches fingerprint")
- * // => { valid: true, reason: "Dataset hash matches fingerprint" }
- */
-function createVerificationResult(
-  valid: boolean,
-  reason: string,
-): { valid: boolean; reason: string } {
-  return { valid, reason };
-}
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

@@ -574,7 +574,6 @@ export function arbitrate(
   } else {
     const winnerScores = winner === agentA ? scoresA : scoresB;
     const loserScores = winner === agentA ? scoresB : scoresA;
-    const loser = winner === agentA ? agentB : agentA;
 
     // Find strongest dimension advantage
     const dimensions: [string, number][] = [

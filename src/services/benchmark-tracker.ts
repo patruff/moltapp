@@ -329,7 +329,6 @@ function computeAgentComparison(
   const agentCumulativeReturn = sumByKey(agentReturns, "returnPercent");
 
   // Get matching benchmark returns
-  const benchmarkDates = new Set(benchmarkHistory.map((s) => s.date));
   const matchedReturns: Array<{ agentReturn: number; benchmarkReturn: number }> = [];
 
   for (const ar of agentReturns) {
