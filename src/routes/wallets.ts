@@ -56,7 +56,7 @@ async function getAtaAddress(
   return pda;
 }
 
-function getSolanaRpc() {
+function getSolanaRpc(): ReturnType<typeof createSolanaRpc> {
   const rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
   return createSolanaRpc(rpcUrl);
 }
