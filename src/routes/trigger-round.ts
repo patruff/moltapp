@@ -13,7 +13,7 @@
  */
 
 import { Hono } from "hono";
-import { withTradingLock, getLockStatus } from "../services/trading-lock.ts";
+import { getLockStatus } from "../services/trading-lock.ts";
 import {
   checkCircuitBreakers,
   recordTradeExecution,

@@ -24,7 +24,6 @@ import {
   getRound,
   getPersisterStats,
   type PersistedRound,
-  type PersistedAgentResult,
 } from "../services/dynamo-round-persister.ts";
 
 const roundHistory = new Hono();

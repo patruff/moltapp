@@ -21,7 +21,6 @@ import { executeDemoBuy, executeDemoSell } from "../services/demo-trading.ts";
 import { env } from "../config/env.ts";
 import { apiError, errorMessage, handleError } from "../lib/errors.ts";
 import {
-  tradeWithReasoningSchema,
   tradingIntentEnum,
   normalizeConfidence,
   extractSourcesFromReasoning,
