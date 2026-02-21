@@ -21,8 +21,7 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { positions } from "../db/schema/positions.ts";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { round2, countByCondition } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -151,46 +150,7 @@ const SENTIMENT_MIN_TRADES = 3;
  */
 const TIMING_PATTERN_WIN_RATE_THRESHOLD = 60;
 
-/**
- * Minimum sector avg return (as percentage) to classify as "hot sector"
- * @example
- * - Tech sector: +2.5% avg return over 10 trades → hot sector pattern (2.5 > 1)
- * - Finance sector: +0.8% avg return over 8 trades → no pattern (below threshold)
- */
-const HOT_SECTOR_MIN_RETURN_THRESHOLD = 1;
 
-/**
- * Minimum absolute difference (as percentage) between high-conf and low-conf win rates
- * to classify as "well-calibrated confidence"
- * @example
- * - High-conf: 70% win rate, Low-conf: 45% win rate → |70-45| = 25 > 15 → well-calibrated
- * - High-conf: 62% win rate, Low-conf: 54% win rate → |62-54| = 8 < 15 → poorly calibrated
- */
-const CONFIDENCE_CALIBRATION_MIN_DIFF = 15;
-
-/**
- * Confidence Bucket Thresholds
- *
- * These thresholds split trades into "high confidence" and "low confidence" buckets
- * for calibration analysis. Used to measure if agents' confidence predictions
- * actually correlate with trade outcomes.
- */
-
-/**
- * Minimum confidence (as percentage) to classify as "high confidence" trade
- * @example
- * - 75% confidence trade → high-conf bucket (75 >= 70)
- * - 65% confidence trade → neither bucket (middle ground)
- */
-const CONFIDENCE_HIGH_THRESHOLD = 70;
-
-/**
- * Maximum confidence (as percentage) to classify as "low confidence" trade
- * @example
- * - 45% confidence trade → low-conf bucket (45 < 50)
- * - 55% confidence trade → neither bucket (middle ground)
- */
-const CONFIDENCE_LOW_THRESHOLD = 50;
 
 /**
  * Memory Retention Limits
@@ -377,29 +337,6 @@ const MIN_PATTERN_OCCURRENCES_FOR_LESSON = 3;
  */
 const MIN_PATTERN_SUCCESS_RATE_FOR_LESSON = 60;
 
-/**
- * Confidence Detection Thresholds (for detectConfidencePattern)
- *
- * These thresholds split trades into high/low confidence buckets for calibration analysis,
- * separate from the main CONFIDENCE_HIGH_THRESHOLD/CONFIDENCE_LOW_THRESHOLD which are
- * used throughout the codebase.
- */
-
-/**
- * Minimum trades in high-confidence bucket for calibration pattern detection
- * @example
- * - 6 high-conf trades → sufficient for calibration analysis (6 >= 5)
- * - 3 high-conf trades → not enough data for reliable pattern
- */
-const MIN_HIGH_CONFIDENCE_TRADES_FOR_PATTERN = 5;
-
-/**
- * Minimum trades in low-confidence bucket for calibration pattern detection
- * @example
- * - 5 low-conf trades → sufficient for calibration analysis (5 >= 5)
- * - 4 low-conf trades → not enough data for reliable pattern
- */
-const MIN_LOW_CONFIDENCE_TRADES_FOR_PATTERN = 5;
 
 /**
  * Minimum total closed trades for confidence calibration pattern detection
@@ -455,27 +392,6 @@ const MIN_PATTERN_SUCCESS_RATE_FOR_DISPLAY = 50;
  * These parameters control how much historical data is loaded from the database
  * when bootstrapping agent memory on startup.
  */
-
-/**
- * Number of days of historical data to load from database
- * @example
- * - Load decisions and trades from last 30 days to initialize memory
- */
-const MEMORY_LOAD_DAYS_LOOKBACK = 30;
-
-/**
- * Maximum number of historical decisions to load per agent
- * @example
- * - Load up to 200 most recent decisions from database
- */
-const MEMORY_LOAD_MAX_DECISIONS = 200;
-
-/**
- * Maximum number of historical trades to load per agent
- * @example
- * - Load up to 200 most recent trades from database
- */
-const MEMORY_LOAD_MAX_TRADES = 200;
 
 /**
  * Maximum time difference (in milliseconds) between decision and trade to match them
