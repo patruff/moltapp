@@ -33,7 +33,7 @@ import {
   SYSTEM_PROGRAM_ADDRESS,
 } from "../config/constants.ts";
 
-function getSolanaRpc() {
+function getSolanaRpc(): ReturnType<typeof createSolanaRpc> {
   const rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
   return createSolanaRpc(rpcUrl);
 }

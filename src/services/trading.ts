@@ -73,7 +73,7 @@ function getUsdcMint(): string {
   return env.NODE_ENV === "production" ? USDC_MINT_MAINNET : USDC_MINT_DEVNET;
 }
 
-function getSolanaRpc() {
+function getSolanaRpc(): ReturnType<typeof createSolanaRpc> {
   const rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
   return createSolanaRpc(rpcUrl);
 }

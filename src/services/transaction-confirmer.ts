@@ -198,7 +198,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function getSolanaRpc() {
+function getSolanaRpc(): ReturnType<typeof createSolanaRpc> {
   const rpcUrl = env.SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
   return createSolanaRpc(rpcUrl);
 }
