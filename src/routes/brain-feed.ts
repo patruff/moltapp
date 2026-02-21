@@ -15,7 +15,7 @@
 import { Hono } from "hono";
 import { round2 } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
-import { tradeJustifications, benchmarkSnapshots } from "../db/schema/trade-reasoning.ts";
+import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import {
