@@ -37,7 +37,6 @@ import { streamSSE } from "hono/streaming";
 import {
   eventBus,
   EventBus,
-  EVENT_TYPES,
 } from "../services/event-stream.ts";
 import type {
   EventType,
