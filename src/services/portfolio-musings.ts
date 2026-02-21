@@ -98,12 +98,6 @@ const STARTING_CAPITAL = 20;
 const MAX_MUSINGS_HISTORY = 50;
 
 /**
- * Estimated cost per LLM message in USD (rough tracking).
- * @default 0.01 - Approximate cost for 500-token response
- */
-const COST_PER_MESSAGE_USD = 0.01;
-
-/**
  * Minimum number of agents that must pick a stock for it to be "consensus".
  * @default 2 - Majority of 3 agents
  */

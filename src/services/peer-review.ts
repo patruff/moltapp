@@ -25,7 +25,7 @@
 // ---------------------------------------------------------------------------
 
 import { normalizeConfidence } from "../schemas/trade-reasoning.ts";
-import { clamp, countWords, mean, splitSentences, round2, computeVariance } from "../lib/math-utils.ts";
+import { countWords, mean, splitSentences, round2, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration Constants

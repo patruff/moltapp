@@ -1042,7 +1042,6 @@ export async function getRiskParityPortfolio(): Promise<RiskParityPortfolio> {
   const minRiskContrib = findMin(riskContribObjects, 'contrib')?.contrib ?? 0;
 
   // Risk parity score: 100 = perfect parity, lower = more concentrated risk
-  const avgRisk = totalRisk / allocations.length;
   const riskVariance = computeVariance(riskContribs, true); // population variance
   const riskParityScore = Math.max(0, Math.min(100, Math.round(100 - riskVariance * RISK_PARITY_VARIANCE_MULTIPLIER)));
 

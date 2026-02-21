@@ -283,9 +283,7 @@ export async function calculatePortfolioMetrics(
   const { realizedPnl, tradeOutcomes } = calculateRealizedPnl(tradeRecords);
 
   // Calculate unrealized P&L from open positions
-  const unrealizedPnl = currentPositions.reduce((sum: number, pos: Position) => {
-    const costBasis = parseFloat(pos.averageCostBasis);
-    const qty = parseFloat(pos.quantity);
+  const unrealizedPnl = currentPositions.reduce((sum: number, _pos: Position) => {
     // We don't have current prices here, so unrealized is estimated at 0
     // unless position has a cost basis (meaning it was bought)
     return sum + 0; // Will be enriched by caller with market prices
