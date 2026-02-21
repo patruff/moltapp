@@ -21,10 +21,10 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
+import { eq, desc, sql, and, type InferSelectModel } from "drizzle-orm";
 import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
-import { round2, averageByCondition, countByCondition } from "../lib/math-utils.ts";
+import { round2, countByCondition } from "../lib/math-utils.ts";
 
 type AgentDecisionRow = InferSelectModel<typeof agentDecisions>;
 

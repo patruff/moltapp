@@ -35,11 +35,6 @@ import { countByCondition, clamp } from "../lib/math-utils.ts";
 /** Standard quorum for strategy changes, new pairs, rule changes (67% participation) */
 const QUORUM_THRESHOLD_STANDARD = 67;
 
-/** Emergency action quorum (75% participation - higher bar for urgent changes) */
-const QUORUM_THRESHOLD_EMERGENCY = 75;
-
-/** Rule change quorum (50% participation - lower bar for governance evolution) */
-const QUORUM_THRESHOLD_RULE_CHANGE = 50;
 
 /**
  * Voting Duration
