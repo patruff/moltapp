@@ -14,7 +14,7 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, round4, calculateAverage, averageByKey, sumByKey, countByCondition, computeVariance, computeDownsideVariance, MS_PER_DAY } from "../lib/math-utils.ts";

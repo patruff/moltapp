@@ -22,7 +22,7 @@
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { round2, round3, countByCondition, findMax, computeStdDev } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------

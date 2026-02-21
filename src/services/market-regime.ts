@@ -16,7 +16,7 @@
 import { round2, computeStdDev, averageByKey, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, sql, and, gte, type InferSelectModel } from "drizzle-orm";
+import { eq, desc, and, gte, type InferSelectModel } from "drizzle-orm";
 import { getAgentConfigs, getMarketData } from "../agents/orchestrator.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import type { MarketData } from "../agents/base-agent.ts";

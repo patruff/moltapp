@@ -26,7 +26,7 @@
 import { db } from "../db/index.ts";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getAgentConfigs, getAgentConfig, getMarketData } from "../agents/orchestrator.ts";
 import { countByCondition, getTopKey, round2, sortEntriesDescending } from "../lib/math-utils.ts";
 import type { MarketData } from "../agents/base-agent.ts";
