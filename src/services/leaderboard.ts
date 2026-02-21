@@ -264,7 +264,6 @@ async function refreshLeaderboard(): Promise<void> {
 
   // Build lookup maps for O(1) access
   type TradeStatsRow = typeof tradeStats[number];
-  type DepositStatsRow = typeof depositStats[number];
   type ThesisRow = typeof allActiveTheses[number];
 
   const tradeStatsMap = new Map<string, TradeStatsRow>(tradeStats.map((t: TradeStatsRow) => [t.agentId, t]));

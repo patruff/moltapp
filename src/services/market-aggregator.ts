@@ -138,12 +138,6 @@ const MARKET_SNAPSHOT_TOP_MOVERS_LIMIT = 5;
  * Based on Jupiter DEX typical pool depths.
  */
 
-/** Liquidity >= $300K = "good" tier (tight spreads, minimal slippage) */
-const LIQUIDITY_TIER_GOOD_THRESHOLD = 300_000;
-
-/** Liquidity >= $50K = "moderate" tier (acceptable for smaller trades) */
-const LIQUIDITY_TIER_MODERATE_THRESHOLD = 50_000;
-
 /** Minimum tradeable liquidity (USD) — below this, execution quality poor */
 const MIN_TRADEABLE_LIQUIDITY_USD = 50_000;
 
