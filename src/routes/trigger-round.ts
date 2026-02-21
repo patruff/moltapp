@@ -17,15 +17,12 @@ import { getLockStatus } from "../services/trading-lock.ts";
 import {
   checkCircuitBreakers,
   recordTradeExecution,
-  getCircuitBreakerStatus,
   type CircuitBreakerActivation,
 } from "../services/circuit-breaker.ts";
-import { applyTradeJitter } from "../services/rate-limiter.ts";
 import {
   getCachedNews,
   formatNewsForPrompt,
 } from "../services/search-cache.ts";
-import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { errorMessage } from "../lib/errors.ts";
 import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { recordRoundForComparison } from "../services/agent-comparison.ts";
@@ -332,11 +329,10 @@ app.post("/trigger", async (c) => {
     }));
 
     // Step 2: Fetch news (cached)
-    let newsContext = "";
     try {
       const symbols = marketData.map((d) => d.symbol);
       const cachedNews = await getCachedNews(symbols);
-      newsContext = formatNewsForPrompt(cachedNews);
+      formatNewsForPrompt(cachedNews);
     } catch {
       // Non-critical
     }

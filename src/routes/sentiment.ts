@@ -70,7 +70,6 @@ sentimentRoutes.get("/", async (c) => {
       filtered = filtered.filter((s) => s.signal === signalFilter);
     }
 
-    const total = filtered.length;
     const sentiments = filtered.slice(0, limit);
 
     // Summary stats

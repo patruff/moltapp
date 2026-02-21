@@ -28,7 +28,6 @@ import {
   createStrategy,
   forkStrategy,
   adoptStrategy,
-  stopStrategy,
   rateStrategy,
   getStrategyCatalog,
   getStrategyById,
