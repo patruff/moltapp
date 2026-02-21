@@ -802,7 +802,7 @@ function parseAnalysisResponse(
  */
 function expireOldJobs(): void {
   const now = Date.now();
-  for (const [id, job] of jobs) {
+  for (const [, job] of jobs) {
     if (job.status === "open" && now - new Date(job.postedAt).getTime() > JOB_EXPIRY_MS) {
       job.status = "expired";
     }

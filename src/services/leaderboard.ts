@@ -268,9 +268,6 @@ async function refreshLeaderboard(): Promise<void> {
   type ThesisRow = typeof allActiveTheses[number];
 
   const tradeStatsMap = new Map<string, TradeStatsRow>(tradeStats.map((t: TradeStatsRow) => [t.agentId, t]));
-  const depositStatsMap = new Map<string, DepositStatsRow>(
-    depositStats.map((d: DepositStatsRow) => [d.agentId, d])
-  );
   // Group theses by agent (already sorted by most recent first)
   const thesesByAgent = new Map<string, ThesisRow[]>();
   for (const thesis of allActiveTheses) {

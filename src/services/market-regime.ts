@@ -1299,9 +1299,6 @@ export async function getMarketBreadth(): Promise<MarketBreadth> {
   let newHighs = 0;
   let newLows = 0;
 
-  // Accumulate advance/decline data for McClellan
-  const recentAdvDeclineSeries: number[] = [];
-
   for (const stock of XSTOCKS_CATALOG) {
     const prices = await reconstructPriceHistory(stock.symbol, 50);
     if (prices.length < 5) continue;

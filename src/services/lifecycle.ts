@@ -458,7 +458,7 @@ function createDependencyHealth(
 async function checkDatabase(): Promise<DependencyHealth> {
   const start = Date.now();
   try {
-    const result = await Promise.race([
+    await Promise.race([
       db.execute(sql`SELECT 1 as health_check`),
       new Promise<never>((_, reject) =>
         setTimeout(

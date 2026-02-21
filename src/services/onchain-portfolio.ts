@@ -159,8 +159,6 @@ export async function getOnChainPortfolio(agentId: string): Promise<OnChainPortf
 
   // Build positions from on-chain xStock holdings
   const positionList = walletStatus.xStockHoldings.map(holding => {
-    const stockInfo = XSTOCKS_CATALOG.find(s => s.mintAddress === holding.mintAddress);
-
     // Get cost basis from trades
     const costData = costBasisMap.get(holding.symbol);
     const avgCostBasis = costData && costData.totalQty > 0

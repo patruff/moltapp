@@ -51,14 +51,8 @@ const VOTING_DURATION_HOURS_DEFAULT = 72;
  * Constitutional constraints on agent trading behavior to prevent excessive risk.
  */
 
-/** Maximum portfolio allocation to single position (50% limit per constitutional rule cr_001) */
-const MAX_POSITION_ALLOCATION = 50;
-
 /** Proposed maximum allocation increase for specific high-conviction positions (25% limit) */
 const MAX_ALLOCATION_PROPOSAL = 25;
-
-/** Minimum cash reserve requirement as % of portfolio (10% per constitutional rule cr_005) */
-const MIN_CASH_RESERVE = 10;
 
 /** Initial allocation percentage for new position proposals (20% starting limit) */
 const INITIAL_ALLOCATION = 20;
@@ -81,14 +75,6 @@ const VOTING_POWER_ALLOCATION = 33;
  * Governance participation and voting alignment measurement parameters.
  */
 
-/** Voting power adjustment factor for performance-weighted systems (1.0 = equal weight baseline) */
-const VOTING_POWER_ADJUSTMENT_FACTOR = 1.0;
-
-/** Minimum trades required for agent to cast valid vote (2 trades = established track record) */
-const MIN_TRADES_FOR_VALID_VOTE = 2;
-
-/** Minimum participation threshold for active governance engagement (60% of eligible proposals) */
-const AGENT_PARTICIPATION_THRESHOLD = 60;
 
 /**
  * Passing Thresholds
@@ -108,11 +94,6 @@ const PASSING_THRESHOLD_EMERGENCY = 60;
  * Configuration for initial sample proposals and votes created on first load.
  */
 
-/** Number of sample proposals to create during seedProposals() (3 diverse examples) */
-const SAMPLE_PROPOSAL_COUNT = 3;
-
-/** Number of agents that vote in sample proposals (3 agents = full participation example) */
-const SAMPLE_VOTE_AGENT_COUNT = 3;
 
 /**
  * Percentage Calculation Constants
@@ -321,7 +302,6 @@ export interface ConstitutionalRule {
 // ---------------------------------------------------------------------------
 
 const proposals: Proposal[] = [];
-const delegations: Delegation[] = [];
 
 // Constitutional rules — immutable platform constraints
 const constitutionalRules: ConstitutionalRule[] = [
