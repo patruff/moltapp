@@ -18,7 +18,7 @@
 
 import type { MarketData, TradingDecision } from "../agents/base-agent.ts";
 import type { AgentTradeConfig } from "./coherence-analyzer.ts";
-import { clamp, round3, splitSentences, weightedSum, weightedSumByKey, countByCondition, computeVariance } from "../lib/math-utils.ts";
+import { clamp, round3, splitSentences, weightedSumByKey, countByCondition, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -218,24 +218,8 @@ const CALIBRATION_LOW_CONF_TRADE_THRESHOLD = 0.2; // <20% confidence on trade = 
 const CALIBRATION_LOW_CONF_TRADE_PENALTY = 0.20; // 20% penalty for very low confidence trade
 
 /**
- * Action-Reasoning Alignment Scoring — Sentiment word counts and alignment thresholds.
- */
-const ALIGNMENT_BASE_SCORE = 0.5; // Neutral starting score
-const ALIGNMENT_STRONG_MATCH_SCORE = 0.85; // Reasoning strongly supports action
-const ALIGNMENT_WEAK_MATCH_SCORE = 0.5; // Mixed signals, some support
-const ALIGNMENT_CONTRARIAN_SCORE = 0.7; // Valid contrarian reasoning (oversold bounce, etc.)
-const ALIGNMENT_MISMATCH_SCORE = 0.25; // Reasoning contradicts action
-const ALIGNMENT_PROFIT_TAKING_SCORE = 0.7; // Valid profit-taking reasoning for selling on bullish signals
-const ALIGNMENT_RISK_MGMT_SCORE = 0.75; // Valid risk management reasoning for holding on strong signals
-const ALIGNMENT_HOLD_NEUTRAL_SCORE = 0.8; // Hold with low directional signals = good alignment
-const ALIGNMENT_HOLD_STRONG_SIGNALS_SCORE = 0.45; // Hold with strong directional signals = questionable
-
-/**
  * Risk Awareness Scoring Parameters — Risk mention counts for buy/sell vs hold actions.
  */
-const RISK_BASE_SCORE_HOLD = 0.5; // Hold actions don't need much risk discussion
-const RISK_MENTION_WEIGHT_HOLD = 0.15; // 15% bonus per risk mention for hold
-const RISK_NO_MENTION_SCORE = 0.2; // 20% score if no risk factors mentioned (for buy/sell)
 const RISK_EXCELLENT_THRESHOLD = 3; // 3+ risk mentions = 1.0 score
 const RISK_GOOD_THRESHOLD = 2; // 2 risk mentions = 0.8 score
 const RISK_ADEQUATE_SCORE = 0.5; // 1 risk mention = 0.5 score
