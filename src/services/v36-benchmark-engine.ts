@@ -46,7 +46,7 @@ import {
   scoreInformationAsymmetry,
   scoreTemporalReasoningQuality,
 } from "./v35-benchmark-engine.ts";
-import { countByCondition, computeStdDev, computeVariance } from "../lib/math-utils.ts";
+import { countByCondition, computeVariance } from "../lib/math-utils.ts";
 import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 
 // ---------------------------------------------------------------------------

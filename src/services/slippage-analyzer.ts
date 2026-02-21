@@ -17,7 +17,7 @@
  * Production would persist to DynamoDB.
  */
 
-import { round2, averageByKey, averageAbsoluteByKey, countByCondition, findMax } from "../lib/math-utils.ts";
+import { round2, averageAbsoluteByKey, countByCondition, findMax } from "../lib/math-utils.ts";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@
 
 import { createHash } from "crypto";
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT, INTEGRITY_SCORE_BASE, INTEGRITY_SCORE_VARIANCE } from "../config/constants.ts";
-import { countByCondition, computeStdDev, computeVariance, clamp } from "../lib/math-utils.ts";
+import { countByCondition, computeVariance, clamp } from "../lib/math-utils.ts";
 import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 
 // Re-export inherited scoring functions from v34
