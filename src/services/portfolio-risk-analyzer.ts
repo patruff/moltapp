@@ -1124,13 +1124,6 @@ function computeDailyReturns(
   return returns;
 }
 
-function computeVolatility(returns: number[]): number {
-  if (returns.length < 2) return VOLATILITY_DEFAULT; // Default estimate
-
-  const variance = computeVariance(returns);
-  return round2(Math.sqrt(variance));
-}
-
 function estimateStockVolatility(symbol: string): number {
   // Heuristic volatility estimates based on stock type
   const volatilityMap: Record<string, number> = {

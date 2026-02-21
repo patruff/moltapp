@@ -396,16 +396,6 @@ const LEADERBOARD_CONSISTENCY_PER_PREDICTION = 0.5;
 const MAX_QUERY_LIMIT = 100;
 
 /**
- * Default predictions per page when limit not specified.
- *
- * Standard page size for pagination in getPredictionHistory(). Balances UX
- * (showing meaningful results) vs performance (avoiding large query overhead).
- *
- * @example getPredictionHistory() with no limit → returns 20 predictions
- */
-const DEFAULT_QUERY_LIMIT = 20;
-
-/**
  * Maximum hot predictions displayed.
  *
  * Top N predictions by pool volume shown in getHotPredictions(). Focuses on

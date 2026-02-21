@@ -23,7 +23,7 @@
  * - Can be bypassed for paper trades
  */
 
-import { getPrice, getAggregatedPrice, type PricePoint } from "./realtime-prices.ts";
+import { getPrice, getAggregatedPrice } from "./realtime-prices.ts";
 import { logTradeEvent } from "./audit-log.ts";
 import { round2, countByCondition, findMax, findMin } from "../lib/math-utils.ts";
 
