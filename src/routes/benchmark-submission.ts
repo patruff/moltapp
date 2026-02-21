@@ -26,7 +26,6 @@ import { z } from "zod";
 import {
   analyzeCoherence,
   detectHallucinations,
-  runFullAnalysis,
 } from "../services/coherence-analyzer.ts";
 import {
   analyzeDeepCoherence,
@@ -37,8 +36,6 @@ import {
 } from "../middleware/reasoning-gate.ts";
 import {
   normalizeConfidence,
-  classifyIntent,
-  extractSourcesFromReasoning,
 } from "../schemas/trade-reasoning.ts";
 import { getMarketData } from "../agents/orchestrator.ts";
 import { round2, countByCondition } from "../lib/math-utils.ts";
