@@ -1248,7 +1248,6 @@ function computeSentimentProfile(
     bullishPct > SENTIMENT_BULLISH_THRESHOLD ? "bullish" : bearishPct > SENTIMENT_BULLISH_THRESHOLD ? "bearish" : "neutral";
 
   // Sentiment consistency: how clustered are confidence values
-  const avgConf = actionDecisions.length > 0 ? averageByKey(actionDecisions, 'confidence') : 50;
   const confidenceValues = actionDecisions.map(d => d.confidence);
   const confVariance = actionDecisions.length > 1 ? computeVariance(confidenceValues) : 0;
   const sentimentConsistency = 100 - Math.min(100, Math.sqrt(confVariance));
