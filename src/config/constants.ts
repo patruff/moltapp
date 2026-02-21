@@ -22,13 +22,49 @@ export const RATE_LIMIT_WINDOW_MS = 60_000;
 /** Jupiter API base URL (all endpoints) */
 export const JUPITER_API_BASE_URL = "https://api.jup.ag";
 
-/** Token-2022 (Token Extensions) program address -- used by xStocks tokens */
+/**
+ * Standard SPL Token program address.
+ *
+ * This is the original SPL Token program for fungible tokens on Solana.
+ * Most tokens use this program, but xStocks use Token-2022 instead.
+ *
+ * Used for: Token transfers, balance queries, standard SPL operations
+ */
+export const TOKEN_PROGRAM_ADDRESS =
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+/**
+ * Token-2022 (Token Extensions) program address.
+ *
+ * This is the upgraded Token Extensions program with additional features.
+ * xStocks tokens use this program instead of the standard SPL Token program.
+ *
+ * Used for: xStocks transfers, xStocks balance queries, Token-2022 operations
+ */
 export const TOKEN_2022_PROGRAM_ADDRESS =
   "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
-/** Associated Token Account program address */
+/**
+ * Associated Token Account program address.
+ *
+ * Creates deterministic token accounts owned by wallet addresses.
+ * Ensures each wallet has at most one account per token mint.
+ *
+ * Used for: Creating ATAs, deriving ATA addresses, token account initialization
+ */
 export const ATA_PROGRAM_ADDRESS =
   "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+
+/**
+ * Solana System Program address.
+ *
+ * The native Solana program for core system operations like creating accounts,
+ * transferring SOL, and allocating account space.
+ *
+ * Used for: SOL transfers, account creation, rent calculations
+ */
+export const SYSTEM_PROGRAM_ADDRESS =
+  "11111111111111111111111111111111";
 
 // ---------------------------------------------------------------------------
 // Token Precision & Instruction Constants
@@ -63,6 +99,22 @@ export const USDC_DECIMALS = 6;
  * Example: amount.toFixed(SOL_DECIMALS) produces "1.234567890"
  */
 export const SOL_DECIMALS = 9;
+
+/**
+ * Inter-transaction delay for batch verification (milliseconds).
+ *
+ * When verifying multiple transactions in batchVerifyRound, this delay is
+ * inserted between sequential RPC calls to prevent rate limiting (HTTP 429).
+ *
+ * Purpose: Solana RPC endpoints have rate limits (~50-100 req/s depending on
+ * provider). Batching 10-20 verification calls without delay can trigger
+ * throttling. A 200ms delay = max 5 calls/second, well under typical limits.
+ *
+ * Formula: await new Promise(r => setTimeout(r, BATCH_VERIFY_INTER_TX_DELAY_MS))
+ *
+ * Used in: chain-verifier.ts batchVerifyRound function
+ */
+export const BATCH_VERIFY_INTER_TX_DELAY_MS = 200;
 
 /**
  * SPL Token Transfer instruction buffer size (in bytes).

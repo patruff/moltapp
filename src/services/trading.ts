@@ -16,6 +16,8 @@ import {
   SOL_DECIMALS,
   USDC_DECIMALS,
   SOL_LAMPORTS_PER_SOL,
+  TOKEN_PROGRAM_ADDRESS,
+  ATA_PROGRAM_ADDRESS,
 } from "../config/constants.ts";
 import { env } from "../config/env.ts";
 import {
@@ -31,9 +33,6 @@ import { recordTransactionCost } from "./transaction-cost-tracker.ts";
 // ---------------------------------------------------------------------------
 // Constants (same patterns as wallets.ts / withdrawal.ts)
 // ---------------------------------------------------------------------------
-
-const TOKEN_PROGRAM_ADDRESS = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-const ATA_PROGRAM_ADDRESS = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
 /** Minimum SOL balance required to pay transaction fees (0.01 SOL) */
 const MIN_SOL_FOR_FEES = 10_000_000n; // 0.01 SOL in lamports

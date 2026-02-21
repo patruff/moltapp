@@ -23,6 +23,14 @@ import {
 } from "@solana/kit";
 import { errorMessage } from "../lib/errors.ts";
 import { countByCondition } from "../lib/math-utils.ts";
+import {
+  TOKEN_PROGRAM_ADDRESS,
+  TOKEN_2022_PROGRAM_ADDRESS,
+  ATA_PROGRAM_ADDRESS,
+  SOL_LAMPORTS_PER_SOL,
+  SOL_DECIMALS,
+  BATCH_VERIFY_INTER_TX_DELAY_MS,
+} from "../config/constants.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,9 +108,18 @@ export interface TradeProof {
 // Constants
 // ---------------------------------------------------------------------------
 
-const TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-const TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
-const ATA_PROGRAM_ID = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+// Blockchain program addresses imported from config/constants.ts:
+// - TOKEN_PROGRAM_ADDRESS (standard SPL Token)
+// - TOKEN_2022_PROGRAM_ADDRESS (Token Extensions, used by xStocks)
+// - ATA_PROGRAM_ADDRESS (Associated Token Account)
+// - SOL_LAMPORTS_PER_SOL (conversion factor)
+// - SOL_DECIMALS (display precision)
+// - BATCH_VERIFY_INTER_TX_DELAY_MS (batch verification rate limiting)
+
+// Rename imported constants to match local naming convention (ID suffix)
+const TOKEN_PROGRAM_ID = TOKEN_PROGRAM_ADDRESS;
+const TOKEN_2022_PROGRAM_ID = TOKEN_2022_PROGRAM_ADDRESS;
+const ATA_PROGRAM_ID = ATA_PROGRAM_ADDRESS;
 
 const EXPLORER_BASE = "https://explorer.solana.com";
 const SOLSCAN_BASE = "https://solscan.io";
@@ -146,46 +163,12 @@ const RETRY_JITTER_MAX_MS = 500;
  */
 const DISPLAY_TRUNCATION_CHARS = 8;
 
-/**
- * Number of lamports in one SOL: 1 SOL = 1,000,000,000 lamports (10^9).
- *
- * Purpose: Converts raw lamport balances returned by the Solana RPC into human-readable
- * SOL amounts.  The same factor controls the `.toFixed()` display precision so both
- * the divisor and the decimal-place count stay in sync.
- *
- * Formula: solAmount = lamports / SOL_LAMPORTS_PER_SOL
- * Example: 500_000_000 lamports / 1_000_000_000 = 0.5 SOL
- *
- * Used in:
- * - getTransactionDetails (fee → feeSol)
- * - getOnChainBalance    (solBalance → solBalanceFormatted)
- */
-const SOL_LAMPORTS_PER_SOL = 1_000_000_000;
+// SOL conversion constants imported from config/constants.ts:
+// - SOL_LAMPORTS_PER_SOL = 1_000_000_000 (lamports to SOL conversion)
+// - SOL_DECIMALS = 9 (display precision for SOL amounts)
+// - BATCH_VERIFY_INTER_TX_DELAY_MS = 200 (batch verification rate limiting)
 
-/**
- * Number of decimal places used when displaying SOL amounts as strings.
- *
- * Must match the exponent of SOL_LAMPORTS_PER_SOL (10^9 → 9 decimals) so that
- * the formatted string shows full lamport precision without scientific notation.
- *
- * Example: (500_000_000 / 1e9).toFixed(SOL_DISPLAY_DECIMALS) → "0.500000000"
- */
-const SOL_DISPLAY_DECIMALS = 9;
-
-/**
- * Milliseconds to wait between sequential transaction verifications in
- * batchVerifyRound(), preventing RPC rate-limit errors when verifying a full
- * trading round.
- *
- * Purpose: Solana public RPC nodes throttle rapid sequential requests.  A short
- * pause between verifications is enough to stay well below typical rate limits
- * (usually 100 req/s) while keeping batch verification fast.
- *
- * Trade-off: 200ms × N transactions = total batch time.  For a round with 9
- * trades (3 agents × 3 decisions) the delay adds ~1.6 s to the verification.
- * Increase to 500ms if seeing 429 responses; decrease to 50ms on a private RPC.
- */
-const BATCH_VERIFY_INTER_TX_DELAY_MS = 200;
+const SOL_DISPLAY_DECIMALS = SOL_DECIMALS; // Alias for backwards compatibility
 
 // Cache for RPC client
 let rpcClient: ReturnType<typeof createSolanaRpc> | null = null;

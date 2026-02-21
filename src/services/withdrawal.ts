@@ -28,16 +28,10 @@ import {
   SPL_CREATE_IDEMPOTENT_DISCRIMINATOR,
   SOL_TRANSFER_FEE_LAMPORTS,
   USDC_ATA_CREATION_FEE_LAMPORTS,
+  TOKEN_PROGRAM_ADDRESS,
+  ATA_PROGRAM_ADDRESS,
+  SYSTEM_PROGRAM_ADDRESS,
 } from "../config/constants.ts";
-
-/** Token Program address (SPL Token) */
-const TOKEN_PROGRAM_ADDRESS = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
-
-/** Associated Token Account Program address */
-const ATA_PROGRAM_ADDRESS = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
-
-/** System Program address */
-const SYSTEM_PROGRAM_ADDRESS = "11111111111111111111111111111111";
 
 function getSolanaRpc() {
   const rpcUrl = env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
