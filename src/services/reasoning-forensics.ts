@@ -117,18 +117,6 @@ const OVERCONFIDENCE_THRESHOLD = 0.75;
 const HALLUCINATION_TYPES_LIMIT = 5;
 
 /**
- * Intelligence score component weight: vocabulary richness and reasoning variety.
- * 25% of total score — rewards rich, varied vocabulary.
- */
-const INTELLIGENCE_WEIGHT_PATTERN = 25;
-
-/**
- * Vocabulary score scaling multiplier.
- * vocabularyRichness * 50 maps 0.5 richness → 25 points (max).
- */
-const VOCAB_SCORE_MULTIPLIER = 50;
-
-/**
  * Template penalty deducted from pattern score.
  * 10 points penalty for detected template reasoning.
  */

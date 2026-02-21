@@ -62,9 +62,6 @@ const DEPTH_CONNECTIVE_DENSITY_MAX = 0.8;
 /** Vocabulary richness normalization (0.6 type-token ratio = max score) */
 const DEPTH_VOCABULARY_RICHNESS_MAX = 0.6;
 
-/** Step count normalization (5+ substantive steps = perfect score) */
-const DEPTH_STEP_COUNT_PERFECT = 5;
-
 /**
  * Threshold Constants for Depth Scoring
  *
