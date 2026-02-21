@@ -17,7 +17,7 @@ import { Hono } from "hono";
 import { parseQueryInt } from "../lib/query-params.ts";
 import { db } from "../db/index.ts";
 import { tradeJustifications } from "../db/schema/trade-reasoning.ts";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { apiError, handleError } from "../lib/errors.ts";
 import { countByCondition, round2 } from "../lib/math-utils.ts";
 
