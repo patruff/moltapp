@@ -38,15 +38,12 @@ const INCOHERENCE_PATTERN_MIN_OCCURRENCES = 3; // Low-coherence reasoning on sam
  * Defines what qualifies as "low coherence" for pattern detection.
  */
 const COHERENCE_LOW_THRESHOLD = 0.4; // Below 40% = incoherent reasoning
-const COHERENCE_IMPROVEMENT_THRESHOLD = 0.03; // 3% improvement = building knowledge
-const COHERENCE_TREND_THRESHOLD = 0.05; // 5% change = improving/declining trend
 
 /**
  * Confidence adjustment thresholds for lesson retention.
  * Determines when confidence changes qualify as "learning from mistakes".
  */
 const CONFIDENCE_ADJUSTMENT_THRESHOLD = 0.05; // 5-point confidence drop = agent adapted
-const CONFIDENCE_OVERCONFIDENT_THRESHOLD = 0.6; // >60% confidence before miss = overconfident
 
 /**
  * Strategy evolution entropy thresholds.
@@ -62,7 +59,6 @@ const COHERENCE_IMPROVEMENT_STRONG = 0.1; // +10% coherence = strong reasoning i
  * Prevents spurious conclusions from insufficient data.
  */
 const MIN_ENTRIES_FOR_EVOLUTION = 10; // Strategy evolution needs 10+ trades
-const MIN_TRADES_FOR_SYMBOL_KNOWLEDGE = 3; // Symbol knowledge tracking needs 3+ trades per symbol
 
 /**
  * Learning curve window parameters.
