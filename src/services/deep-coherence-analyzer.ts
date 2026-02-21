@@ -62,6 +62,23 @@ export interface TextMetrics {
   quantitativeClaimCount: number;
 }
 
+export interface AgentDeepCoherenceStats {
+  agentId: string;
+  totalAnalyzed: number;
+  avgOverallScore: number;
+  avgGrade: string;
+  dimensionAverages: {
+    logicalStructure: number;
+    evidenceGrounding: number;
+    riskAwareness: number;
+    temporalReasoning: number;
+    counterfactualThinking: number;
+    quantitativeRigor: number;
+  } | null;
+  strengthFrequency: Array<{ text: string; count: number }>;
+  weaknessFrequency: Array<{ text: string; count: number }>;
+}
+
 // ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
@@ -716,7 +733,7 @@ export function recordDeepAnalysis(agentId: string, result: DeepCoherenceResult)
 /**
  * Get aggregate deep coherence stats for an agent.
  */
-export function getAgentDeepCoherenceStats(agentId: string) {
+export function getAgentDeepCoherenceStats(agentId: string): AgentDeepCoherenceStats {
   const history = analysisHistory.get(agentId) ?? [];
   if (history.length === 0) {
     return {
@@ -774,7 +791,7 @@ export function getAgentDeepCoherenceStats(agentId: string) {
 /**
  * Get comparative deep coherence stats across all agents.
  */
-export function getAllAgentsDeepCoherenceStats() {
+export function getAllAgentsDeepCoherenceStats(): AgentDeepCoherenceStats[] {
   const agents = Array.from(analysisHistory.keys());
   return agents.map((agentId) => getAgentDeepCoherenceStats(agentId));
 }
