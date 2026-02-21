@@ -23,7 +23,7 @@ import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
 import { eq, type InferSelectModel } from "drizzle-orm";
 import { getWalletBalances, type TokenBalance } from "./solana-tracker.ts";
-import { XSTOCKS_CATALOG, TOKEN_2022_PROGRAM_ADDRESS } from "../config/constants.ts";
+import { XSTOCKS_CATALOG } from "../config/constants.ts";
 import { round2, countByCondition } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 

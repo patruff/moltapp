@@ -18,8 +18,8 @@
 
 import { db } from "../db/index.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
-import { eq, desc, gte, lte, and, InferSelectModel } from "drizzle-orm";
-import { getAgentConfig, getAgentConfigs } from "../agents/orchestrator.ts";
+import { eq, gte, lte, and, InferSelectModel } from "drizzle-orm";
+import { getAgentConfig } from "../agents/orchestrator.ts";
 import { round2, computeVariance } from "../lib/math-utils.ts";
 
 // Infer types from database schema
@@ -713,7 +713,6 @@ function calculateRiskMetrics(snapshots: DailySnapshot[], startingCapital: numbe
   let peak = startingCapital;
   let maxDD = 0;
   let maxDDPercent = 0;
-  let ddStart = 0;
   let maxDDDuration = 0;
   let currentDDStart = 0;
 

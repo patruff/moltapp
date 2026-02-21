@@ -15,13 +15,10 @@
  */
 
 import { db } from "../db/index.ts";
-import {
-  portfolioSnapshots,
-  competitionScores,
-} from "../db/schema/portfolio-snapshots.ts";
+import { portfolioSnapshots } from "../db/schema/portfolio-snapshots.ts";
 import { trades } from "../db/schema/trades.ts";
 import { positions } from "../db/schema/positions.ts";
-import { eq, desc, sql, and, gte, lte, type InferSelectModel } from "drizzle-orm";
+import { eq, desc, and, gte, lte, type InferSelectModel } from "drizzle-orm";
 import { round2, computeVariance } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 

@@ -23,9 +23,9 @@ import {
   predictionBets,
   predictionMarkets,
 } from "../db/schema/predictions.ts";
-import { eq, desc, and, lte, sql, gte } from "drizzle-orm";
+import { eq, desc, and, lte } from "drizzle-orm";
 import { getMarketData } from "../agents/orchestrator.ts";
-import { calculateAverage, averageByKey } from "../lib/math-utils.ts";
+import { averageByKey } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 
 // ---------------------------------------------------------------------------
@@ -192,16 +192,6 @@ const ODDS_DECIMAL_PRECISION = 4;
  *
  * Control how bet payouts are computed and rounded after prediction resolution.
  */
-
-/**
- * Decimal precision for payout rounding.
- *
- * All payouts are rounded to 2 decimal places (cents) to match standard token
- * display format. Prevents sub-cent payout dust in user balances.
- *
- * @example Payout calculation: 125.456 tokens → 125.46 tokens (rounded to cents)
- */
-const PAYOUT_DECIMAL_PRECISION = 2;
 
 /**
  * Bet Limits and Validation

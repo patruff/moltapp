@@ -22,8 +22,7 @@
 import { db } from "../db/index.ts";
 import { positions } from "../db/schema/positions.ts";
 import { trades } from "../db/schema/trades.ts";
-import { eq, desc, gte } from "drizzle-orm";
-import { XSTOCKS_CATALOG } from "../config/constants.ts";
+import { eq, desc } from "drizzle-orm";
 import { clamp, round2, countByCondition, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -813,8 +812,6 @@ function computePositionRisk(
   dailyReturns: number[],
   portfolioValue: number,
 ): PositionRisk[] {
-  const portfolioVol = computeVolatility(dailyReturns);
-
   return agentPositions.map((pos) => {
     const quantity = parseFloat(pos.quantity);
     const costBasis = parseFloat(pos.averageCostBasis);
