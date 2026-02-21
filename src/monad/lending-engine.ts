@@ -45,7 +45,6 @@ import {
   getTotalBorrowed,
   getTotalLentOut,
 } from "./lending-state.ts";
-import { getAgentMonadAddress } from "./monad-client.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration
