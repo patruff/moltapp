@@ -21,7 +21,7 @@
 
 import { db } from "../db/index.ts";
 import { competitionScores } from "../db/schema/portfolio-snapshots.ts";
-import { eq, desc, and, sql, gte } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import type { TradingRoundResult } from "../agents/base-agent.ts";
 import { clamp, round2, findMax, findMin } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
