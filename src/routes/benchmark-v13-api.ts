@@ -31,7 +31,6 @@ import {
 } from "../services/battle-scoring-engine.ts";
 import {
   compareReasoning,
-  compareAllReasoning,
   getReasoningProfile,
 } from "../services/reasoning-battle-engine.ts";
 

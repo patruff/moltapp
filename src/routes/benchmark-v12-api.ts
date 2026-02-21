@@ -22,7 +22,6 @@ import { Hono } from "hono";
 import {
   getAgentTaxonomyProfile,
   classifyReasoning,
-  type TaxonomyClassification,
 } from "../services/reasoning-taxonomy.ts";
 import {
   analyzeConsistency,
