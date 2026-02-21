@@ -34,7 +34,6 @@ import {
   detectTemplateUsage,
 } from "../services/reasoning-pattern-detector.ts";
 import {
-  getAllIntegrityScores,
   analyzeCrossAgentIntegrity,
 } from "../services/reasoning-integrity-engine.ts";
 import {
