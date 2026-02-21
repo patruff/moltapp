@@ -18,7 +18,6 @@ import {
   integer,
   numeric,
   timestamp,
-  boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 

@@ -411,15 +411,6 @@ const CROSS_AGENT_RECENT_ACTIONS_DISPLAY_LIMIT = 3;
 /** Recent outcomes window for agent snapshot generation (last 10 trades) */
 const SNAPSHOT_RECENT_OUTCOMES_WINDOW = 10;
 
-/**
- * Metrics Aggregation Parameters
- *
- * These control minimum data requirements for system-wide learning metrics calculation.
- * Ensures statistical significance when calculating overall system performance.
- */
-
-/** Minimum trades per agent required for inclusion in system-wide metrics (3+ for basic statistics) */
-const METRICS_MIN_TRADES_FOR_AGGREGATION = 3;
 
 /**
  * Pattern Confidence Score Constants
