@@ -26,7 +26,6 @@ import {
   isTradingHalted,
   checkHealth,
   getHardeningMetrics,
-  resetHardeningMetrics,
   getTimeoutConfig,
   configureTimeouts,
   checkMarketDataFreshness,

@@ -17,7 +17,6 @@ import { html } from "hono/html";
 import { errorMessage } from "../lib/errors.ts";
 import { getAgentConfigs, getTradingInfraStatus } from "../agents/orchestrator.ts";
 import {
-  calculatePortfolioMetrics,
   compareAgents,
   generateEquityCurve,
 } from "../services/portfolio-analytics.ts";

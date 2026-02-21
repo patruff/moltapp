@@ -16,8 +16,6 @@ import {
   retryFailedTrade,
   getTradingMode,
   isLiveTrading,
-  executeDecision,
-  executePipeline,
 } from "../services/trade-executor.ts";
 import {
   getRecoveryReport,
