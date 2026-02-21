@@ -25,7 +25,6 @@ import {
   getTrackedAgents,
   getAgentWindow,
   type TradeScoreInput,
-  type V9Snapshot,
 } from "../services/benchmark-v9-scorer.ts";
 import {
   analyzeIntegrity,

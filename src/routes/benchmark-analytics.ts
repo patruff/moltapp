@@ -220,7 +220,6 @@ benchmarkAnalyticsRoutes.get("/patterns/:agentId/template", (c) => {
 benchmarkAnalyticsRoutes.get("/health", (c) => {
   const leaderboard = getV9Leaderboard();
   const snapshot = exportV9Snapshot("sideways");
-  const integrityScores = getAllIntegrityScores();
   const crossAgent = analyzeCrossAgentIntegrity();
   const calibration = getCalibrationSummary();
 

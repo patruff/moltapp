@@ -29,7 +29,6 @@ import { getAgentConfigs } from "../agents/orchestrator.ts";
 import { round2 } from "../lib/math-utils.ts";
 import {
   generateBenchmarkSnapshot,
-  buildAgentProfile,
 } from "../services/benchmark-evidence-collector.ts";
 
 export const benchmarkLeaderboardRoutes = new Hono();
