@@ -696,7 +696,7 @@ export async function runBacktest(params: {
     : 0;
 
   // Compute risk metrics
-  const metrics = computeBacktestMetrics(dailyReturns, tradeLog, tradingDaysCount, totalReturnPercent, annualizedReturn);
+  const metrics = computeBacktestMetrics(dailyReturns, tradeLog, annualizedReturn);
 
   // Best and worst trades
   const sellTrades = tradeLog.filter((t) => t.action === "sell" && t.pnl !== 0);
@@ -1118,8 +1118,6 @@ export async function getHistoricalPerformance(
 function computeBacktestMetrics(
   dailyReturns: number[],
   tradeLog: BacktestResult["tradeLog"],
-  tradingDays: number,
-  totalReturnPercent: number,
   annualizedReturn: number,
 ): BacktestResult["metrics"] {
   // Filter to realized trades (sells with P&L)
