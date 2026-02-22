@@ -27,7 +27,6 @@ import type {
   StrategyParameters,
   SignalMetadata,
 } from "../db/schema/strategies.ts";
-import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and, sql } from "drizzle-orm";
 import { round2, findMax, findMin } from "../lib/math-utils.ts";
 
@@ -343,13 +342,11 @@ const RATING_MAX = 5;
  * At least 2 strategies are needed for a meaningful side-by-side comparison;
  * capping at 5 keeps the response payload manageable.
  *
- * Formula: valid if COMPARISON_MIN_STRATEGIES ≤ ids.length ≤ COMPARISON_MAX_STRATEGIES
+ * Formula: valid if 2 ≤ ids.length ≤ 5
  * Example: 3 strategy IDs → valid; 1 ID → rejected ("must compare between 2 and 5")
  *
- * Used in: getStrategyComparison() input validation
+ * Used in: getStrategyComparison() input validation (hardcoded values used)
  */
-const COMPARISON_MIN_STRATEGIES = 2;
-const COMPARISON_MAX_STRATEGIES = 5;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1510,9 +1507,6 @@ export async function getStrategyComparison(
   )[0];
   const bestByRating = [...comparisonData].sort(
     (a, b) => parseFloat(b.avgRating) - parseFloat(a.avgRating),
-  )[0];
-  const bestByAdopters = [...comparisonData].sort(
-    (a, b) => b.totalAdopters - a.totalAdopters,
   )[0];
 
   let recommendation: string;
