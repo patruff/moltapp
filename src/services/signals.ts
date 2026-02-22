@@ -15,7 +15,6 @@ import { ID_RANDOM_START, ID_RANDOM_LENGTH_SHORT } from "../config/constants.ts"
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { getMarketData, getAgentConfigs } from "../agents/orchestrator.ts";
-import type { MarketData } from "../agents/base-agent.ts";
 import { round2, round3, computeVariance } from "../lib/math-utils.ts";
 
 // ---------------------------------------------------------------------------
@@ -90,35 +89,11 @@ const MACD_SIGNAL_PERIOD = 9;
 // ===== Bollinger Bands Parameters =====
 
 /**
- * Bollinger Bands period (moving average lookback)
- * Standard: 20 periods
- */
-const BOLLINGER_PERIOD = 20;
-
-/**
- * Bollinger Bands standard deviation multiplier
- * Standard: 2 (upper/lower bands are 2σ from middle)
- */
-const BOLLINGER_STDDEV_MULTIPLIER = 2;
-
-/**
  * Bollinger Bands squeeze threshold (bandwidth % below this = squeeze)
  * Squeeze: Low volatility, typically precedes big move
  * Standard: 4% bandwidth
  */
 const BOLLINGER_SQUEEZE_THRESHOLD = 4;
-
-/**
- * Bollinger Bands %B lower threshold (price at or below lower band)
- * Used for breakout detection
- */
-const BOLLINGER_PERCENT_B_LOWER = 0;
-
-/**
- * Bollinger Bands %B upper threshold (price at or above upper band)
- * Used for breakout detection
- */
-const BOLLINGER_PERCENT_B_UPPER = 1.0;
 
 /**
  * Bollinger Bands %B near lower threshold (price near lower band)
@@ -132,28 +107,7 @@ const BOLLINGER_PERCENT_B_NEAR_LOWER = 0.1;
  */
 const BOLLINGER_PERCENT_B_NEAR_UPPER = 0.9;
 
-/**
- * Bollinger Bands %B neutral position (price at middle band)
- */
-const BOLLINGER_PERCENT_B_NEUTRAL = 0.5;
-
-/**
- * Bollinger position classification lower threshold (< 0.2 = near lower)
- */
-const BOLLINGER_POSITION_LOWER_THRESHOLD = 0.2;
-
-/**
- * Bollinger position classification upper threshold (> 0.8 = near upper)
- */
-const BOLLINGER_POSITION_UPPER_THRESHOLD = 0.8;
-
 // ===== Volume Profile Parameters =====
-
-/**
- * Volume spike threshold (current/average ratio)
- * Spike when volume > 2.0× average
- */
-const VOLUME_SPIKE_THRESHOLD = 2.0;
 
 /**
  * Volume trend increase threshold (ratio > this = increasing)

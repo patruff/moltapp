@@ -808,7 +808,6 @@ function getSectorBias(sector: string): number {
  */
 function generateSingleHeadline(symbol: string, marketData: MarketData, sentimentScore: number): string {
   const name = marketData.name ?? symbol.replace("x", "");
-  const change = marketData.change24h ?? 0;
 
   if (sentimentScore > 50) {
     const templates = [
@@ -1743,7 +1742,6 @@ export async function getSentimentTimeline(
 export async function getMarketMoodIndex(): Promise<MarketMoodIndex> {
   try {
     const allSentiments = await getAllSentiments();
-    const allMarket = await getMarketData();
 
     if (allSentiments.length === 0) {
       return {

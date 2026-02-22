@@ -660,11 +660,6 @@ export function computeAgentTrends(windowSize = 20): AgentPerformanceTrend[] {
     }
   }
 
-  // Also get names from decisions
-  for (const analytics of roundHistory) {
-    // We don't store names in analytics, so use agentId as name fallback
-  }
-
   const trends: AgentPerformanceTrend[] = [];
 
   for (const agentId of agentIds) {
