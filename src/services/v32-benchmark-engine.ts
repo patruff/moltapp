@@ -104,113 +104,11 @@ const CONSENSUS_INDEPENDENCE_PER_MATCH = 7;
 /** Bonus for unique information contribution */
 const CONSENSUS_UNIQUE_INFO_BONUS = 10;
 
-/**
- * Transparency Scoring Thresholds
- *
- * Measures clarity of reasoning process and uncertainty acknowledgment.
- */
 
-/** Maximum score for step-by-step reasoning structure */
-const TRANSPARENCY_STEPS_MAX = 25;
-/** Points per step marker ("first", "then", "1.", etc.) */
-const TRANSPARENCY_STEPS_PER_MATCH = 5;
 
-/** Maximum score for source citations */
-const TRANSPARENCY_SOURCES_MAX = 20;
-/** Points per source cited */
-const TRANSPARENCY_SOURCES_PER_MATCH = 5;
 
-/** Maximum score for uncertainty acknowledgment */
-const TRANSPARENCY_UNCERTAINTY_MAX = 15;
-/** Points per uncertainty marker ("may", "uncertain", "risk", etc.) */
-const TRANSPARENCY_UNCERTAINTY_PER_MATCH = 3;
 
-/** Maximum score for causal reasoning connectors */
-const TRANSPARENCY_CAUSAL_MAX = 20;
-/** Points per causal connector ("because", "therefore", "thus", etc.) */
-const TRANSPARENCY_CAUSAL_PER_MATCH = 4;
 
-/** Maximum score for quantitative reasoning */
-const TRANSPARENCY_QUANT_MAX = 20;
-/** Points per quantitative marker */
-const TRANSPARENCY_QUANT_PER_MATCH = 3;
-
-/**
- * Accountability Scoring Thresholds
- *
- * Measures willingness to reference past decisions and acknowledge errors.
- */
-
-/** Specificity divisor for accountability score normalization */
-const ACCOUNTABILITY_SPECIFICITY_DIVISOR = 10;
-/** Maximum bonus for specificity */
-const ACCOUNTABILITY_SPECIFICITY_MAX = 15;
-
-/** Maximum score for past decision references */
-const ACCOUNTABILITY_PAST_REFS_MAX = 25;
-/** Points per past decision reference */
-const ACCOUNTABILITY_PAST_REFS_PER_MATCH = 8;
-
-/** Maximum score for error acknowledgments */
-const ACCOUNTABILITY_ERROR_ACK_MAX = 25;
-/** Points per error acknowledgment */
-const ACCOUNTABILITY_ERROR_ACK_PER_MATCH = 8;
-
-/**
- * Reasoning Depth Scoring Parameters
- *
- * Measures analysis detail through word count and clause complexity.
- */
-
-/** Maximum score from word count (50% of depth score) */
-const DEPTH_WORD_COUNT_MAX = 50;
-/** Word count divisor for scoring (wordCount / 2 = score contribution) */
-const DEPTH_WORD_COUNT_DIVISOR = 2;
-
-/** Maximum score from clause count (50% of depth score) */
-const DEPTH_CLAUSE_COUNT_MAX = 50;
-/** Points per independent clause */
-const DEPTH_CLAUSE_COUNT_MULTIPLIER = 8;
-
-/**
- * Source Quality Scoring Parameters
- */
-
-/** Base score for having any sources */
-const SOURCE_QUALITY_BASE = 10;
-/** Points per source cited */
-const SOURCE_QUALITY_PER_SOURCE = 15;
-
-/**
- * Financial Scoring Parameters
- *
- * Converts P&L, Sharpe, and drawdown metrics to 0-100 scores.
- */
-
-/** P&L scoring: baseline score (50 = breakeven) */
-const FINANCIAL_PNL_BASELINE = 50;
-/** P&L scoring: multiplier (converts percent to score points) */
-const FINANCIAL_PNL_MULTIPLIER = 2;
-
-/** Sharpe scoring: baseline score (50 = neutral) */
-const FINANCIAL_SHARPE_BASELINE = 50;
-/** Sharpe scoring: multiplier (converts ratio to score points) */
-const FINANCIAL_SHARPE_MULTIPLIER = 20;
-
-/** Drawdown scoring: perfect score (no drawdown) */
-const FINANCIAL_DRAWDOWN_PERFECT = 100;
-/** Drawdown scoring: multiplier (converts percent to penalty) */
-const FINANCIAL_DRAWDOWN_MULTIPLIER = 2;
-
-/**
- * Hallucination Penalty Parameters
- */
-
-/** Penalty per hallucination flag (25% reduction per flag) */
-const HALLUCINATION_PENALTY_PER_FLAG = 0.25;
-
-/** Alternative hallucination penalty for dimension scoring (25 points per flag) */
-const HALLUCINATION_PENALTY_POINTS = 25;
 
 /**
  * Behavioral Intelligence Scoring Parameters
