@@ -151,26 +151,19 @@ const REVERSIBILITY_SOURCE_MAX_SCORE = 25; // Category ceiling
 
 // 3. Hedging-Confidence Coherence (0-20 points total)
 const REVERSIBILITY_HEDGING_WORDS_PER_UNIT = 50; // Words per hedging density unit (for normalization)
-const REVERSIBILITY_HEDGING_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (limited hedging expected)
 const REVERSIBILITY_HEDGING_HIGH_CONF_MIN_DENSITY = 0.2; // Min hedging density for good score
 const REVERSIBILITY_HEDGING_HIGH_CONF_MAX_DENSITY = 1; // Max hedging density for good score
 const REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with high confidence
-const REVERSIBILITY_HEDGING_HIGH_CONF_GOOD_MAX_DENSITY = 1; // Max hedging density for 18 points
 const REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_MAX_DENSITY = 2; // Max hedging density for 14 points
 const REVERSIBILITY_HEDGING_HIGH_CONF_MODERATE_SCORE = 14; // Score for moderate hedging with high confidence
 const REVERSIBILITY_HEDGING_HIGH_CONF_EXCESSIVE_SCORE = 6; // Score for too much hedging
-const REVERSIBILITY_HEDGING_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
 const REVERSIBILITY_HEDGING_MODERATE_CONF_MIN_DENSITY = 0.5; // Min hedging for good score
 const REVERSIBILITY_HEDGING_MODERATE_CONF_MAX_DENSITY = 3; // Max hedging for good score
 const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with moderate confidence
-const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MIN_DENSITY = 0.5; // Min hedging for 18 points
-const REVERSIBILITY_HEDGING_MODERATE_CONF_GOOD_MAX_DENSITY = 3; // Max hedging for 18 points
 const REVERSIBILITY_HEDGING_MODERATE_CONF_EXCESSIVE_SCORE = 12; // Score for too much hedging
 const REVERSIBILITY_HEDGING_MODERATE_CONF_LOW_SCORE = 14; // Score for less hedging than ideal
-const REVERSIBILITY_HEDGING_MODERATE_CONF_NONE_SCORE = 10; // Score for no hedging (slightly off)
 const REVERSIBILITY_HEDGING_LOW_CONF_MIN_DENSITY = 1; // Min hedging density for good score with low confidence
 const REVERSIBILITY_HEDGING_LOW_CONF_GOOD_SCORE = 18; // Score for appropriate hedging with low confidence
-const REVERSIBILITY_HEDGING_LOW_CONF_GOOD_MIN_DENSITY = 1; // Min hedging for 18 points (low conf)
 const REVERSIBILITY_HEDGING_LOW_CONF_SOME_SCORE = 14; // Score for some hedging
 const REVERSIBILITY_HEDGING_LOW_CONF_NONE_SCORE = 6; // Score for no hedging (inconsistent)
 const REVERSIBILITY_HEDGING_UNCERTAINTY_QUANT_BONUS = 3; // Bonus for explicit % probability mentions
@@ -179,46 +172,32 @@ const REVERSIBILITY_HEDGING_MAX_SCORE = 20; // Category ceiling
 // 4. Historical Accuracy Match (0-15 points total)
 const REVERSIBILITY_ACCURACY_MIN_OUTCOMES = 3; // Minimum outcomes needed for calibration analysis
 const REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER = 0.7; // >= 70% confidence = high (filter threshold)
-const REVERSIBILITY_ACCURACY_HIGH_CONF_FILTER_THRESHOLD = 0.7; // >= 70% confidence = high
 const REVERSIBILITY_ACCURACY_LOW_CONF_FILTER = 0.4; // < 40% confidence = low (filter threshold)
-const REVERSIBILITY_ACCURACY_LOW_CONF_FILTER_THRESHOLD = 0.4; // < 40% confidence = low
 const REVERSIBILITY_ACCURACY_GOOD_CALIBRATION_SCORE = 12; // Score when high conf > low conf accuracy
 const REVERSIBILITY_ACCURACY_NEUTRAL_CALIBRATION_SCORE = 8; // Score when high conf = low conf accuracy
 const REVERSIBILITY_ACCURACY_INVERTED_CALIBRATION_SCORE = 3; // Score when high conf < low conf accuracy
 const REVERSIBILITY_ACCURACY_OVERALL_TOLERANCE = 0.2; // Tolerance for overall accuracy match (20%)
-const REVERSIBILITY_ACCURACY_CALIBRATION_TOLERANCE = 0.2; // Tolerance for overall accuracy match (20%)
 const REVERSIBILITY_ACCURACY_CALIBRATION_BONUS = 3; // Bonus for well-calibrated overall accuracy
 const REVERSIBILITY_ACCURACY_INSUFFICIENT_DATA_SCORE = 8; // Partial credit when < 3 outcomes
 const REVERSIBILITY_ACCURACY_MAX_SCORE = 15; // Category ceiling
 
 // 5. Reasoning Depth Proportionality (0-15 points total)
-const REVERSIBILITY_DEPTH_HIGH_CONF_THRESHOLD = 0.8; // >= 80% confidence = high (deep reasoning required)
 const REVERSIBILITY_DEPTH_HIGH_CONF_WORD_COUNT = 80; // >= 80 words for deep reasoning (alias for DEEP_WORD_COUNT)
 const REVERSIBILITY_DEPTH_HIGH_CONF_CLAUSE_COUNT = 5; // >= 5 clauses for deep reasoning (alias for DEEP_CLAUSE_COUNT)
-const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_WORD_COUNT = 80; // >= 80 words for deep reasoning
-const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_CLAUSE_COUNT = 5; // >= 5 clauses for deep reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_DEEP_SCORE = 15; // Score for deep reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_WORD_COUNT = 50; // >= 50 words for moderate reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_CLAUSE_COUNT = 3; // >= 3 clauses for moderate reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_MODERATE_SCORE = 10; // Score for moderate reasoning
 const REVERSIBILITY_DEPTH_HIGH_CONF_SHALLOW_SCORE = 4; // Score for shallow reasoning + high confidence
-const REVERSIBILITY_DEPTH_MODERATE_CONF_THRESHOLD = 0.5; // >= 50% confidence = moderate
 const REVERSIBILITY_DEPTH_MODERATE_CONF_WORD_COUNT = 40; // >= 40 words for good reasoning (alias for GOOD_WORD_COUNT)
 const REVERSIBILITY_DEPTH_MODERATE_CONF_CLAUSE_COUNT = 3; // >= 3 clauses for good reasoning (alias for GOOD_CLAUSE_COUNT)
 const REVERSIBILITY_DEPTH_MODERATE_CONF_MIN_WORD_COUNT = 25; // >= 25 words for adequate reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_BRIEF_SCORE = 7; // Score for brief reasoning with moderate confidence
-const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_WORD_COUNT = 40; // >= 40 words for good reasoning
-const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_CLAUSE_COUNT = 3; // >= 3 clauses for good reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_GOOD_SCORE = 13; // Score for good reasoning
-const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_WORD_COUNT = 25; // >= 25 words for adequate reasoning
-const REVERSIBILITY_DEPTH_MODERATE_CONF_ADEQUATE_SCORE = 10; // Score for adequate reasoning
 const REVERSIBILITY_DEPTH_MODERATE_CONF_BASELINE_SCORE = 7; // Score for brief reasoning
 const REVERSIBILITY_DEPTH_LOW_CONF_MIN_WORD_COUNT = 20; // >= 20 words for low conf (brief OK)
 const REVERSIBILITY_DEPTH_LOW_CONF_GOOD_SCORE = 12; // Score for adequate low-conf reasoning
 const REVERSIBILITY_DEPTH_LOW_CONF_BRIEF_SCORE = 8; // Score for very brief low-conf reasoning
-const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_WORD_COUNT = 20; // >= 20 words for low conf (brief OK)
-const REVERSIBILITY_DEPTH_LOW_CONF_ADEQUATE_SCORE = 12; // Score for adequate low-conf reasoning
-const REVERSIBILITY_DEPTH_LOW_CONF_BASELINE_SCORE = 8; // Score for very brief low-conf reasoning
 const REVERSIBILITY_DEPTH_COHERENCE_BONUS_THRESHOLD = 0.7; // >= 70% coherence = bonus
 const REVERSIBILITY_DEPTH_COHERENCE_BONUS = 2; // Bonus points for high coherence
 const REVERSIBILITY_DEPTH_MAX_SCORE = 15; // Category ceiling
@@ -320,47 +299,28 @@ const PREDICTIVE_EDGE_COHERENCE_WEIGHT = 60; // Points for coherent trades ratio
 const PREDICTIVE_EDGE_INSUFFICIENT_DATA_SCORE = 50; // Score when < 3 trades
 
 // 7. Governance/RQI Scoring
-const GOVERNANCE_RQI_NORMALIZATION_DIVISOR = 100; // Normalize RQI components to 0-1 range
-const GOVERNANCE_RQI_SCALE_MULTIPLIER = 100; // Scale RQI back to 0-100 range
-const GOVERNANCE_DEFAULT_COMPOSITE_FALLBACK = 50; // Fallback when dimension missing
+// (No constants needed - RQI uses dimension scores directly)
 
 /**
  * Tier Classification Thresholds
  *
- * These constants control how composite scores (0-100) are mapped to letter tiers
- * (S, A, B, C, D) for agent leaderboard ranking. Adjusting these changes tier
- * boundaries without affecting underlying scoring logic.
+ * Tier classification is handled by getTier() function from benchmark-grading-utils.ts.
+ * No local constants needed - thresholds defined in centralized grading utilities.
  */
-const TIER_S_THRESHOLD = 85; // >= 85 composite score = S tier (elite)
-const TIER_A_THRESHOLD = 70; // >= 70 composite score = A tier (excellent)
-const TIER_B_THRESHOLD = 55; // >= 55 composite score = B tier (good)
-const TIER_C_THRESHOLD = 40; // >= 40 composite score = C tier (acceptable)
-// < 40 = D tier (needs improvement)
 
 /**
  * Grade Classification Thresholds
  *
- * These constants control how individual trade scores (0-100) are mapped to letter grades
- * (A+ through F) for trade quality assessment. Adjusting these changes grading
- * strictness without affecting underlying scoring logic.
+ * Grade classification is handled by getGrade() function from benchmark-grading-utils.ts.
+ * No local constants needed - thresholds defined in centralized grading utilities.
  */
-const GRADE_A_PLUS_THRESHOLD = 95; // >= 95 score = A+ (exceptional)
-const GRADE_A_THRESHOLD = 85; // >= 85 score = A (excellent)
-const GRADE_B_PLUS_THRESHOLD = 75; // >= 75 score = B+ (very good)
-const GRADE_B_THRESHOLD = 65; // >= 65 score = B (good)
-const GRADE_C_PLUS_THRESHOLD = 55; // >= 55 score = C+ (above average)
-const GRADE_C_THRESHOLD = 45; // >= 45 score = C (average)
-const GRADE_D_THRESHOLD = 30; // >= 30 score = D (below average)
-// < 30 = F (failing)
 
 /**
  * Query and Display Limits
  *
- * These constants control default limits for API query results to prevent
- * overwhelming responses and ensure reasonable pagination.
+ * No query limit constants needed - functions accept limit parameters directly
+ * rather than using default constants.
  */
-const QUERY_DEFAULT_TRADE_LIMIT = 50; // Default max trades returned by getTradeGrades/getTradeGradesByAgent
-const QUERY_DEFAULT_ROUND_SUMMARY_FALLBACK = 50; // Fallback value for round summary aggregations
 
 // ---------------------------------------------------------------------------
 // Types for the 32 dimensions
