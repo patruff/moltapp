@@ -167,24 +167,6 @@ const DIMENSION_WEIGHTS: Record<keyof V33DimensionScores, number> = {
 // Score Classification Thresholds
 // ---------------------------------------------------------------------------
 
-/**
- * Tier classification thresholds for composite scores
- */
-const TIER_S_THRESHOLD = 85; // >= 85 composite score = S tier (elite)
-const TIER_A_THRESHOLD = 70; // >= 70 composite score = A tier (excellent)
-const TIER_B_THRESHOLD = 55; // >= 55 composite score = B tier (good)
-const TIER_C_THRESHOLD = 40; // >= 40 composite score = C tier (acceptable)
-
-/**
- * Grade boundaries for dimension scores
- */
-const GRADE_A_PLUS_THRESHOLD = 95; // >= 95 score = A+ (exceptional)
-const GRADE_A_THRESHOLD = 85; // >= 85 score = A (excellent)
-const GRADE_B_PLUS_THRESHOLD = 75; // >= 75 score = B+ (very good)
-const GRADE_B_THRESHOLD = 65; // >= 65 score = B (good)
-const GRADE_C_PLUS_THRESHOLD = 55; // >= 55 score = C+ (above average)
-const GRADE_C_THRESHOLD = 45; // >= 45 score = C (average)
-const GRADE_D_THRESHOLD = 30; // >= 30 score = D (below average), < 30 = F (failing)
 
 // ---------------------------------------------------------------------------
 // Consensus Quality Scoring Parameters
