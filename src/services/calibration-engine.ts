@@ -339,7 +339,6 @@ function detectTrend(samples: CalibrationSample[]): "improving" | "degrading" | 
  * Diagnose overall calibration pattern.
  */
 function diagnose(
-  buckets: CalibrationBucket[],
   overconfidenceRate: number,
   underconfidenceRate: number,
   ece: number,
