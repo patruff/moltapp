@@ -254,63 +254,31 @@ const ACCOUNTABILITY_SPECIFICITY_DIVISOR = 10;
 const ACCOUNTABILITY_QUANTITATIVE_PREDICTION = 15;
 
 /** Maximum past reference bonus */
-const ACCOUNTABILITY_PAST_REF_MAX = 25;
 /** Points per past reference (previously, last time, learned) */
-const ACCOUNTABILITY_PAST_REF_PER_MATCH = 8;
-
 /** Maximum error acknowledgment bonus */
-const ACCOUNTABILITY_ERROR_ACK_MAX = 25;
 /** Points per error acknowledgment (mistake, wrong, lesson) */
-const ACCOUNTABILITY_ERROR_ACK_PER_MATCH = 8;
-
 /** Maximum accuracy bonus from resolved predictions */
-const ACCOUNTABILITY_ACCURACY_MAX = 20;
-
 // --- Causal Reasoning Score Parameters (scoreCausalReasoning) ---
 
 /** Maximum chain structure bonus */
-const CAUSAL_CHAIN_MAX = 25;
 /** Points per unique step indicator */
-const CAUSAL_CHAIN_PER_STEP = 5;
-
 /** Maximum evidence connector bonus */
-const CAUSAL_EVIDENCE_MAX = 25;
 /** Points per evidence connector (because, therefore, thus) */
-const CAUSAL_EVIDENCE_PER_MATCH = 5;
-
 /** Maximum conditional reasoning bonus */
-const CAUSAL_CONDITIONAL_MAX = 20;
 /** Points per conditional pattern (if X then Y) */
-const CAUSAL_CONDITIONAL_PER_MATCH = 7;
-
 /** Maximum data-to-action bridge bonus */
-const CAUSAL_BRIDGE_MAX = 15;
 /** Maximum bridge pattern bonus (so I buy, therefore I recommend) */
-const CAUSAL_BRIDGE_PATTERN_MAX = 10;
 /** Points per bridge pattern */
-const CAUSAL_BRIDGE_PATTERN_PER_MATCH = 5;
 /** Maximum data-action link bonus (X% suggests Y) */
-const CAUSAL_BRIDGE_DATA_ACTION_MAX = 10;
 /** Points per data-action link */
-const CAUSAL_BRIDGE_DATA_ACTION_PER_MATCH = 5;
-
 /** Maximum multi-factor analysis bonus */
-const CAUSAL_MULTI_FACTOR_MAX = 15;
 /** Maximum multi-factor pattern bonus */
-const CAUSAL_MULTI_FACTOR_PATTERN_MAX = 10;
 /** Points per multi-factor pattern (combining, together with) */
-const CAUSAL_MULTI_FACTOR_PATTERN_PER_MATCH = 5;
 /** Minimum factors for bonus eligibility */
-const CAUSAL_MULTI_FACTOR_MIN_COUNT = 3;
 /** Points per factor above minimum ((count - 2) * X) */
-const CAUSAL_MULTI_FACTOR_PER_EXTRA = 2;
 /** Minimum sources for multi-factor bonus */
-const CAUSAL_MULTI_FACTOR_MIN_SOURCES = 2;
 /** Minimum evidence connectors for multi-factor bonus */
-const CAUSAL_MULTI_FACTOR_MIN_EVIDENCE = 2;
 /** Bonus when both sources and evidence present */
-const CAUSAL_MULTI_FACTOR_COMBINED_BONUS = 3;
-
 // --- Epistemic Humility Score Parameters (scoreEpistemicHumility) ---
 
 // Specificity scoring (0-30)
@@ -563,26 +531,6 @@ const DIMENSION_WEIGHTS: Record<keyof V34DimensionScores, number> = {
 // Configuration Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Tier classification thresholds based on composite benchmark score.
- * Tiers are used for agent ranking and reputation in UI/leaderboards.
- */
-const TIER_S_THRESHOLD = 85; // S tier: Elite performance (top 5%)
-const TIER_A_THRESHOLD = 70; // A tier: Strong performance
-const TIER_B_THRESHOLD = 55; // B tier: Above average
-const TIER_C_THRESHOLD = 40; // C tier: Average
-
-/**
- * Grade boundaries for individual dimension scores (0-100 scale).
- * Grades appear in trade quality assessment and dimension breakdowns.
- */
-const GRADE_A_PLUS_THRESHOLD = 95; // A+: Near-perfect execution
-const GRADE_A_THRESHOLD = 85; // A: Excellent quality
-const GRADE_B_PLUS_THRESHOLD = 75; // B+: Very good
-const GRADE_B_THRESHOLD = 65; // B: Good
-const GRADE_C_PLUS_THRESHOLD = 55; // C+: Above average
-const GRADE_C_THRESHOLD = 45; // C: Average
-const GRADE_D_THRESHOLD = 30; // D: Below average (< 30 = F)
 
 // ---------------------------------------------------------------------------
 // Dimension Score Precision Rounding Constants
