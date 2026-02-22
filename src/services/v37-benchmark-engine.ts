@@ -1283,12 +1283,8 @@ const OPTIMAL_WEIGHT_MIN_AGENTS = 3;
  *   Formula: Math.round(weight * 10000) / 10000 → 0.0625
  *   Extra precision needed: with 34 dimensions averaging ~0.03 each, 2 decimals → all weights round to 0.03
  */
-/** 2-decimal precision for dimension scores: Math.round(score × 100) / 100 */
-const SCORE_PRECISION_MULTIPLIER = 100;
 /** 3-decimal precision for correlation values: Math.round(r × 1000) / 1000 */
 const CORRELATION_PRECISION_MULTIPLIER = 1000;
-/** 4-decimal precision for suggested weights: Math.round(weight × 10000) / 10000 */
-const WEIGHT_PRECISION_MULTIPLIER = 10000;
 
 // ---------------------------------------------------------------------------
 // Optimal Weight Computation
