@@ -21,32 +21,7 @@ import { getTier, getGrade } from "../lib/benchmark-grading-utils.ts";
 // Configuration Constants
 // ============================================================================
 
-/**
- * Tier Classification Thresholds
- *
- * Composite score boundaries for S/A/B/C/D tier assignment.
- * These control leaderboard presentation and agent rankings.
- */
-const TIER_THRESHOLD_S = 85; // >= 85 = S tier (exceptional performance)
-const TIER_THRESHOLD_A = 70; // >= 70 = A tier (excellent performance)
-const TIER_THRESHOLD_B = 55; // >= 55 = B tier (good performance)
-const TIER_THRESHOLD_C = 40; // >= 40 = C tier (acceptable performance)
-// < 40 = D tier (below average)
 
-/**
- * Grade Boundaries for Individual Trade Scoring
- *
- * Score thresholds for A+/A/B+/B/C+/C/D/F grading of individual trades.
- * Lower grade boundaries enable stricter quality filtering for dataset exports.
- */
-const GRADE_THRESHOLD_A_PLUS = 95; // >= 95 = A+ (nearly perfect)
-const GRADE_THRESHOLD_A = 85; // >= 85 = A (excellent)
-const GRADE_THRESHOLD_B_PLUS = 75; // >= 75 = B+ (very good)
-const GRADE_THRESHOLD_B = 65; // >= 65 = B (good)
-const GRADE_THRESHOLD_C_PLUS = 55; // >= 55 = C+ (above average)
-const GRADE_THRESHOLD_C = 45; // >= 45 = C (acceptable)
-const GRADE_THRESHOLD_D = 30; // >= 30 = D (below average)
-// < 30 = F (failing)
 
 /**
  * Transparency Scoring Parameters
@@ -229,30 +204,8 @@ const LEARNING_MAX_SCORE = 100; // Maximum learning score
 const REGIME_AWARENESS_SCORE_WITH_REFERENCE = 75; // Score when regime language detected
 const REGIME_AWARENESS_SCORE_NO_REFERENCE = 40; // Score when no regime language
 
-/**
- * Edge Consistency Scoring
- *
- * Controls how high-grade trade count affects edge consistency.
- */
-const EDGE_CONSISTENCY_BASE_SCORE = 50; // Base edge consistency score
-const EDGE_CONSISTENCY_POINTS_PER_HIGH_GRADE = 5; // Points per A/B grade trade
-const EDGE_CONSISTENCY_MAX_SCORE = 100; // Maximum edge consistency score
 
-/**
- * Trade Accountability Scoring
- *
- * Fixed scores for discipline-based accountability.
- */
-const TRADE_ACCOUNTABILITY_SCORE_PASSED = 85; // Score when discipline passed
-const TRADE_ACCOUNTABILITY_SCORE_FAILED = 35; // Score when discipline failed
 
-/**
- * Reasoning Quality Index Normalization
- *
- * Controls how reasoning quality dimensions are combined.
- */
-const REASONING_QUALITY_INDEX_MULTIPLIER = 0.01; // Divisor for normalizing average (÷ 100)
-const REASONING_QUALITY_INDEX_PERCENTAGE_MULTIPLIER = 100; // Convert to percentage
 
 /**
  * Consensus Calculation Parameters
@@ -261,12 +214,6 @@ const REASONING_QUALITY_INDEX_PERCENTAGE_MULTIPLIER = 100; // Convert to percent
  */
 const CONSENSUS_VARIANCE_DIVISOR = 50; // Divisor for normalizing variance to 0-1 range
 
-/**
- * Fairness Index Calculation
- *
- * Controls standard deviation threshold for fairness assessment.
- */
-const FAIRNESS_STDDEV_DIVISOR = 30; // Divisor for normalizing stddev to 0-1 fairness index
 
 /**
  * Safety Dimension Scoring Parameters
