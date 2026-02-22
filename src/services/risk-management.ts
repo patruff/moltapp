@@ -97,9 +97,6 @@ const HHI_MODERATE_MAX = 2500;
 /** HHI 2,500-5,000: Concentrated portfolio (e.g., 40% + 30% + 30% = HHI 3,400) */
 const HHI_CONCENTRATED_MAX = 5000;
 
-/** HHI > 5,000: Highly concentrated (single-stock risk, e.g., 70% + 30% = HHI 5,800) */
-const HHI_HIGHLY_CONCENTRATED = 10000; // Max value (100% in one position)
-
 /**
  * Correlation Classification Thresholds
  *
@@ -673,7 +670,6 @@ export function calculateRiskAdjustedMetrics(
 
   // Standard deviation
   const variance = computeVariance(returns, true); // population variance
-  const stdDev = Math.sqrt(variance);
 
   // Downside deviation (for Sortino)
   const downsideReturns = returns.filter((r) => r < riskFreeRate);
@@ -1100,7 +1096,6 @@ export async function getAgentRiskDashboard(
   const concentration = calculateConcentrationRisk(portfolio);
   const riskAdjustedMetrics = calculateRiskAdjustedMetrics(portfolio, agentId);
   const activeStopRules = getStopRules(agentId, "active");
-  const alerts = getAlerts(agentId, undefined, 20);
 
   // Generate alerts based on current state
   if (concentration.level === "highly_concentrated") {
