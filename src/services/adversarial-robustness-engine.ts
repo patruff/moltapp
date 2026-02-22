@@ -491,7 +491,6 @@ export function measureFramingConsistency(
  * Run the complete adversarial robustness analysis for a trade decision.
  */
 export function analyzeAdversarialRobustness(
-  agentId: string,
   reasoning: string,
   action: string,
   symbol: string,
@@ -575,7 +574,6 @@ export function recordAdversarialResult(
     edgeCaseScore: number;
     framingScore: number;
   },
-  roundId: string,
 ): void {
   const tests = testHistory.get(agentId) ?? [];
   tests.push({

@@ -2551,7 +2551,6 @@ async function executeTradingRound(
 
       // 1. Adversarial robustness analysis
       const adversarial = analyzeAdversarialRobustness(
-        r.agentId,
         r.decision.reasoning,
         r.decision.action,
         r.decision.symbol,
@@ -2576,7 +2575,6 @@ async function executeTradingRound(
           edgeCaseScore: adversarial.edgeCases.score,
           framingScore: adversarial.framing.score,
         },
-        roundId,
       );
 
       recordReasoningForAdversarial({
