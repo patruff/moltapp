@@ -18,8 +18,6 @@
  * MoltApp AI Trading Benchmark.
  */
 
-import type { MarketData } from "../agents/base-agent.ts";
-
 // ---------------------------------------------------------------------------
 // Configuration Constants
 // ---------------------------------------------------------------------------
@@ -43,25 +41,6 @@ const CONFIDENCE_PREDICTION_LOW = 0.4;
 /** Default confidence (50%): neutral/ambiguous language */
 const CONFIDENCE_PREDICTION_DEFAULT = 0.5;
 
-/**
- * Outcome Prediction Scoring Weights
- *
- * These weights determine how directional accuracy, magnitude accuracy,
- * confidence, and timeframe specification contribute to overall prediction quality.
- */
-
-/** Weight for directional accuracy in prediction quality (60%): most important component */
-const PREDICTION_WEIGHT_DIRECTIONAL = 0.6;
-
-/** Weight for magnitude accuracy in prediction quality (30%): quantitative precision */
-const PREDICTION_WEIGHT_MAGNITUDE = 0.3;
-
-/** Weight for confidence component in prediction quality (10%): reward making predictions */
-const PREDICTION_WEIGHT_CONFIDENCE = 0.1;
-
-/** Bonus for specifying timeframe (5%): additional precision for time-bound predictions */
-const PREDICTION_TIMEFRAME_BONUS = 0.05;
-
 /** Partial directional accuracy score (30%): when prediction is close but not exact */
 const PREDICTION_PARTIAL_ACCURACY = 0.3;
 
@@ -70,97 +49,6 @@ const PREDICTION_UNSPECIFIED_NEUTRAL = 0.5;
 
 /** Penalty for not making a prediction (30%): encourage agents to make predictions */
 const PREDICTION_UNSPECIFIED_PENALTY = 0.3;
-
-/**
- * Consensus Intelligence Scoring Weights
- *
- * These weights determine how reasoning uniqueness and contrarian behavior
- * contribute to the independent thinking score.
- */
-
-/** Weight for reasoning uniqueness in independent thinking (70%): primary component */
-const CONSENSUS_WEIGHT_UNIQUENESS = 0.7;
-
-/** Weight for contrarian behavior in independent thinking (30%): bonus for disagreement */
-const CONSENSUS_WEIGHT_CONTRARIAN = 0.3;
-
-/** Contrarian bonus multiplier (30%): additional credit when agent disagrees with majority */
-const CONSENSUS_CONTRARIAN_BONUS = 0.3;
-
-/**
- * v25 Composite Score Grade Boundaries
- *
- * These thresholds classify agent performance into letter grades.
- * Used by computeV25CompositeScore() to assign S/A/B/C/D/F grades.
- */
-
-/** S-tier threshold (85+): exceptional performance across all 10 dimensions */
-const GRADE_THRESHOLD_S = 85;
-
-/** A-tier threshold (75-84): excellent performance */
-const GRADE_THRESHOLD_A = 75;
-
-/** B-tier threshold (60-74): good performance */
-const GRADE_THRESHOLD_B = 60;
-
-/** C-tier threshold (45-59): average performance */
-const GRADE_THRESHOLD_C = 45;
-
-/** D-tier threshold (30-44): below average, F-tier < 30 */
-const GRADE_THRESHOLD_D = 30;
-
-/**
- * v25 Composite Score Dimension Weights
- *
- * These weights determine how each of the 10 dimensions contributes to the
- * overall composite score. Total must equal 100%.
- */
-
-/** Weight for P&L dimension (15%): financial performance */
-const COMPOSITE_WEIGHT_PNL = 15;
-
-/** Weight for coherence dimension (12%): reasoning quality */
-const COMPOSITE_WEIGHT_COHERENCE = 12;
-
-/** Weight for hallucination-free dimension (12%): data accuracy */
-const COMPOSITE_WEIGHT_HALLUCINATION_FREE = 12;
-
-/** Weight for discipline dimension (10%): rules compliance */
-const COMPOSITE_WEIGHT_DISCIPLINE = 10;
-
-/** Weight for calibration dimension (8%): confidence accuracy */
-const COMPOSITE_WEIGHT_CALIBRATION = 8;
-
-/** Weight for prediction dimension (8%): forward-looking analysis */
-const COMPOSITE_WEIGHT_PREDICTION = 8;
-
-/** Weight for reasoning depth dimension (10%): analysis thoroughness */
-const COMPOSITE_WEIGHT_REASONING_DEPTH = 10;
-
-/** Weight for source quality dimension (8%): evidence quality */
-const COMPOSITE_WEIGHT_SOURCE_QUALITY = 8;
-
-/** Weight for outcome prediction dimension (9%): D9 prediction accuracy */
-const COMPOSITE_WEIGHT_OUTCOME_PREDICTION = 9;
-
-/** Weight for consensus intelligence dimension (8%): D10 independent thinking */
-const COMPOSITE_WEIGHT_CONSENSUS_INTELLIGENCE = 8;
-
-/**
- * P&L Normalization Parameters
- *
- * These values control how P&L percentages are normalized to 0-1 scale.
- * Formula: pnlNorm = max(0, min(1, (pnl + 50) / 150))
- */
-
-/** P&L normalization floor (-50%): worst-case P&L for normalization */
-const PNL_NORMALIZATION_FLOOR = -50;
-
-/** P&L normalization ceiling (+100%): best-case P&L for normalization */
-const PNL_NORMALIZATION_CEILING = 100;
-
-/** P&L normalization range (150%): total range from floor to ceiling */
-const PNL_NORMALIZATION_RANGE = 150;
 
 // ---------------------------------------------------------------------------
 // Types
