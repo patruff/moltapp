@@ -65,39 +65,6 @@ import {
 // Configuration Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Tier Classification Thresholds
- * Used by getTier() to classify composite scores into performance tiers.
- */
-/** Minimum composite score for S-tier (elite performance) */
-const TIER_S_THRESHOLD = 85;
-/** Minimum composite score for A-tier (excellent performance) */
-const TIER_A_THRESHOLD = 70;
-/** Minimum composite score for B-tier (good performance) */
-const TIER_B_THRESHOLD = 55;
-/** Minimum composite score for C-tier (average performance) */
-const TIER_C_THRESHOLD = 40;
-// Below 40 = D-tier (below average)
-
-/**
- * Trade Grade Boundaries
- * Used by getGrade() to convert 0-100 scores into letter grades.
- */
-/** Minimum score for A+ grade (outstanding) */
-const GRADE_A_PLUS_THRESHOLD = 95;
-/** Minimum score for A grade (excellent) */
-const GRADE_A_THRESHOLD = 85;
-/** Minimum score for B+ grade (very good) */
-const GRADE_B_PLUS_THRESHOLD = 75;
-/** Minimum score for B grade (good) */
-const GRADE_B_THRESHOLD = 65;
-/** Minimum score for C+ grade (above average) */
-const GRADE_C_PLUS_THRESHOLD = 55;
-/** Minimum score for C grade (average) */
-const GRADE_C_THRESHOLD = 45;
-/** Minimum score for D grade (below average) */
-const GRADE_D_THRESHOLD = 30;
-// Below 30 = F grade (failing)
 
 /**
  * Reasoning Composability Scoring Constants
