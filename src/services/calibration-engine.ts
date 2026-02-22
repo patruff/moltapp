@@ -388,7 +388,7 @@ export function generateCalibrationReport(agentId: string): CalibrationReport {
   const overconfidenceRate = nonEmptyBuckets.length > 0 ? overconfident.length / nonEmptyBuckets.length : 0;
   const underconfidenceRate = nonEmptyBuckets.length > 0 ? underconfident.length / nonEmptyBuckets.length : 0;
 
-  const diagnosis = diagnose(buckets, overconfidenceRate, underconfidenceRate, ece);
+  const diagnosis = diagnose(overconfidenceRate, underconfidenceRate, ece);
 
   // Compute aggregate score: 1.0 = perfect, 0.0 = terrible
   // Factors: low ECE, low Brier, monotonic, not erratic
