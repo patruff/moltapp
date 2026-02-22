@@ -90,14 +90,6 @@ export interface V30RoundSummary {
 // ============================================================================
 
 /**
- * Tier classification thresholds for composite scores (0-100 scale)
- */
-const TIER_S_THRESHOLD = 85;  // >= 85 = S tier (elite performance)
-const TIER_A_THRESHOLD = 70;  // >= 70 = A tier (strong performance)
-const TIER_B_THRESHOLD = 55;  // >= 55 = B tier (above average)
-const TIER_C_THRESHOLD = 40;  // >= 40 = C tier (below average, < 40 = D tier)
-
-/**
  * Grade boundaries for trade grading (0-1 scale)
  */
 const GRADE_THRESHOLD_A_PLUS = 0.95;   // >= 0.95 = A+ (exceptional reasoning)
@@ -172,8 +164,6 @@ const HALLUCINATION_PENALTY_PER_FLAG = 0.25;
  * Prevents unbounded memory growth in long-running benchmarks
  */
 const STORAGE_LIMIT_TRADES = 200;        // Max 200 trade grades stored
-const STORAGE_LIMIT_ROUNDS = 50;         // Max 50 round summaries stored
-const STORAGE_LIMIT_BEST_WORST = 20;     // Max 20 best/worst trades tracked
 
 /**
  * Depth factor analysis parameters
@@ -218,19 +208,12 @@ const SCORE_ROUNDING_PRECISION = 100;                  // Round to 2 decimal pla
  */
 const QUERY_LIMIT_TRADE_GRADES_DEFAULT = 50;           // Default trades returned by getV30TradeGrades()
 const QUERY_LIMIT_ROUND_SUMMARIES_DEFAULT = 20;        // Default round summaries returned by getV30RoundSummaries()
-const QUERY_LIMIT_EXPORT_TRADES = 100;                 // Trade count in HuggingFace dataset export
 
 /**
  * Storage retention limits for round summaries
- * Complements STORAGE_LIMIT_ROUNDS for in-memory circular buffer management
+ * Fallback limit for recordV30RoundSummary() (same as trade limit)
  */
-const STORAGE_LIMIT_ROUND_SUMMARIES_FALLBACK = 200;    // Fallback limit for recordV30RoundSummary() (same as trade limit)
-
-/**
- * Metadata constants
- * Fixed values for benchmark version identification
- */
-const METADATA_DIMENSION_COUNT = 20;                   // Total dimensions in v30 benchmark (20-dimension framework)
+const STORAGE_LIMIT_ROUND_SUMMARIES_FALLBACK = 200;
 
 // ============================================================================
 // In-memory storage for benchmark data
