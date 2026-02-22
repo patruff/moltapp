@@ -122,80 +122,22 @@ const RQI_LOGICAL_CHAIN_MINIMAL = 1;
 const RQI_LOGICAL_CHAIN_POOR_SCORE = 0.1;
 
 // 2. Evidence Density Thresholds (evidence-to-claims ratio)
-/** Evidence density ratio for excellent score (2.0+ evidence per claim) */
-const RQI_EVIDENCE_RATIO_EXCELLENT = 2.0;
-/** Evidence density ratio for very good score (1.5+ evidence per claim) */
-const RQI_EVIDENCE_RATIO_VERY_GOOD = 1.5;
-/** Evidence density ratio for good score (1.0+ evidence per claim) */
-const RQI_EVIDENCE_RATIO_GOOD = 1.0;
-/** Evidence density ratio for moderate score (0.5+ evidence per claim) */
-const RQI_EVIDENCE_RATIO_MODERATE = 0.5;
-/** Score when no claims detected but evidence exists */
-const RQI_EVIDENCE_NO_CLAIMS_WITH_EVIDENCE = 0.5;
-/** Score when no claims and no evidence detected */
-const RQI_EVIDENCE_NO_CLAIMS_NO_EVIDENCE = 0.2;
+// Implementation uses inline values: 2.0, 1.5, 1.0, 0.5 (lines 567-577)
 
 // 3. Counter-Argument Quality Thresholds
-/** Counter-argument count for excellent score (4+ opposing views considered) */
-const RQI_COUNTER_ARG_EXCELLENT = 4;
-/** Counter-argument count for good score (3 opposing views) */
-const RQI_COUNTER_ARG_GOOD = 3;
-/** Counter-argument count for moderate score (2 opposing views) */
-const RQI_COUNTER_ARG_MODERATE = 2;
-/** Counter-argument count for minimal score (1 opposing view) */
-const RQI_COUNTER_ARG_MINIMAL = 1;
-/** Score when no counter-arguments considered (poor) */
-const RQI_COUNTER_ARG_POOR_SCORE = 0.1;
+// Implementation uses inline values: 4, 3, 2, 1, 0.1 (lines 584-594)
 
 // 4. Conclusion Clarity Thresholds
-/** Conclusion marker count for excellent clarity (2+ clear conclusion statements) */
-const RQI_CONCLUSION_EXCELLENT = 2;
-/** Conclusion marker count for good clarity (1 clear conclusion statement) */
-const RQI_CONCLUSION_GOOD = 1;
-/** Score when conclusion markers exist */
-const RQI_CONCLUSION_GOOD_SCORE = 0.7;
-/** Score when action stated but no clear conclusion markers */
-const RQI_CONCLUSION_ACTION_STATED_SCORE = 0.4;
-/** Score when no conclusion or action stated (poor) */
-const RQI_CONCLUSION_POOR_SCORE = 0.1;
+// Implementation uses inline values: 2, 1, 0.7, 0.4, 0.1 (lines 605-614)
 
 // 5. Quantitative Rigor Thresholds
-/** Quantified claim count for excellent rigor (6+ specific numbers) */
-const RQI_QUANT_RIGOR_EXCELLENT = 6;
-/** Quantified claim count for good rigor (4+ specific numbers) */
-const RQI_QUANT_RIGOR_GOOD = 4;
-/** Quantified claim count for moderate rigor (2+ specific numbers) */
-const RQI_QUANT_RIGOR_MODERATE = 2;
-/** Quantified claim count for minimal rigor (1 specific number) */
-const RQI_QUANT_RIGOR_MINIMAL = 1;
-/** Score when no quantified claims detected (poor) */
-const RQI_QUANT_RIGOR_POOR_SCORE = 0.1;
+// Implementation uses inline values: 6, 4, 2, 1, 0.1 (lines 620-630)
 
 // 6. Conditional Reasoning Thresholds
-/** Conditional count for excellent reasoning (4+ if/then statements) */
-const RQI_CONDITIONAL_EXCELLENT = 4;
-/** Conditional count for good reasoning (3 if/then statements) */
-const RQI_CONDITIONAL_GOOD = 3;
-/** Conditional count for moderate reasoning (2 if/then statements) */
-const RQI_CONDITIONAL_MODERATE = 2;
-/** Conditional count for minimal reasoning (1 if/then statement) */
-const RQI_CONDITIONAL_MINIMAL = 1;
-/** Score when no conditional logic detected (poor) */
-const RQI_CONDITIONAL_POOR_SCORE = 0.15;
+// Implementation uses inline values: 4, 3, 2, 1, 0.15 (lines 636-646)
 
 // 7. Composite RQI Weights
-/** Weight for logical chain length dimension (20%) */
-const RQI_WEIGHT_LOGICAL_CHAIN = 0.20;
-/** Weight for evidence density dimension (20%) */
-const RQI_WEIGHT_EVIDENCE_DENSITY = 0.20;
-/** Weight for counter-argument quality dimension (18%) */
-const RQI_WEIGHT_COUNTER_ARG = 0.18;
-/** Weight for conclusion clarity dimension (15%) */
-const RQI_WEIGHT_CONCLUSION = 0.15;
-/** Weight for quantitative rigor dimension (15%) */
-const RQI_WEIGHT_QUANT_RIGOR = 0.15;
-/** Weight for conditional reasoning dimension (12%) */
-const RQI_WEIGHT_CONDITIONAL = 0.12;
+// Implementation uses inline values: 0.20, 0.20, 0.18, 0.15, 0.15, 0.12 (lines 652-657)
 
 /**
  * v28 Composite Scoring Configuration
@@ -342,8 +284,6 @@ export function analyzeTradeAccountability(
     coherenceScore: number;
   }>,
 ): TradeAccountabilityResult {
-  const lower = reasoning.toLowerCase();
-
   // -----------------------------------------------------------------------
   // 1. Loss Acknowledgment — does the agent mention past losses/errors?
   // -----------------------------------------------------------------------
