@@ -313,12 +313,6 @@ export function recordSlippage(params: {
     slippageUsd = expectedPrice - actualPrice;
   }
 
-  const slippageBps =
-    expectedPrice > 0
-      ? Math.round((Math.abs(slippageUsd) / expectedPrice) * BPS_MULTIPLIER)
-      : 0;
-
-  // Positive bps = unfavorable, negative not possible (we use absolute for bps)
   // favorable = got a better price than expected
   const favorable = slippageUsd < 0;
 

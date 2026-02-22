@@ -342,7 +342,7 @@ async function withTimeout<T>(
 async function checkDatabase(): Promise<HealthCheck> {
   const start = Date.now();
   try {
-    const result = await withTimeout(async () => {
+    await withTimeout(async () => {
       return await db.execute(sql`SELECT 1 as ok, NOW() as server_time`);
     }, DATABASE_CHECK_TIMEOUT_MS);
 

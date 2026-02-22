@@ -25,7 +25,6 @@ import {
 } from "../db/schema/strategies.ts";
 import type {
   StrategyParameters,
-  BacktestResults,
   SignalMetadata,
 } from "../db/schema/strategies.ts";
 import { agentDecisions } from "../db/schema/agent-decisions.ts";
