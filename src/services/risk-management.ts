@@ -21,7 +21,6 @@
  */
 
 import { ID_RANDOM_START, ID_RANDOM_LENGTH_STANDARD } from "../config/constants.ts";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { getAgentConfigs, getMarketData, getPortfolioContext } from "../agents/orchestrator.ts";
 import type { PortfolioContext, AgentPosition } from "../agents/base-agent.ts";
 import { round2, round3, sumByKey, averageByKey, mean, computeVariance } from "../lib/math-utils.ts";
