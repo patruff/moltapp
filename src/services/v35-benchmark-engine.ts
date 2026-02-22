@@ -50,27 +50,6 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Tier classification thresholds based on composite benchmark score.
- * Tiers are used for agent ranking and reputation in UI/leaderboards.
- */
-const TIER_S_THRESHOLD = 85; // S tier: Elite performance (top 5%)
-const TIER_A_THRESHOLD = 70; // A tier: Strong performance
-const TIER_B_THRESHOLD = 55; // B tier: Above average
-const TIER_C_THRESHOLD = 40; // C tier: Average
-
-/**
- * Grade boundaries for individual dimension scores (0-100 scale).
- * Grades appear in trade quality assessment and dimension breakdowns.
- */
-const GRADE_A_PLUS_THRESHOLD = 95; // A+: Near-perfect execution
-const GRADE_A_THRESHOLD = 85; // A: Excellent quality
-const GRADE_B_PLUS_THRESHOLD = 75; // B+: Very good
-const GRADE_B_THRESHOLD = 65; // B: Good
-const GRADE_C_PLUS_THRESHOLD = 55; // C+: Above average
-const GRADE_C_THRESHOLD = 45; // C: Average
-const GRADE_D_THRESHOLD = 30; // D: Below average (< 30 = F)
-
-/**
  * Information Asymmetry divergent source detection thresholds.
  * Controls bonus points awarded when agents cite multiple uncommon data sources.
  */
@@ -154,54 +133,6 @@ const HORIZON_MODERATE_TIME_POINTS_NO_SPECIFIC = 3; // Points per moderate (no s
 const HORIZON_NO_TIME_PENALTY = 5; // Penalty for complete absence of time references
 const HORIZON_SCORE_MIN = 0; // Minimum horizon score
 const HORIZON_SCORE_MAX = 25; // Maximum horizon score
-
-/**
- * Catalyst Timing Scoring Parameters (0-25 max)
- * Measures whether agent identifies specific upcoming events.
- */
-const CATALYST_PATTERN_MAX = 15; // Max points from catalyst patterns
-const CATALYST_PATTERN_POINTS_PER_MATCH = 5; // Points per catalyst pattern
-const CATALYST_DATED_EVENT_MAX = 10; // Max points from dated event references
-const CATALYST_DATED_EVENT_POINTS_PER_MATCH = 4; // Points per dated event
-const CATALYST_VAGUE_PENALTY = 5; // Penalty for vague catalysts without specifics
-const CATALYST_SCORE_MIN = 0; // Minimum catalyst score
-const CATALYST_SCORE_MAX = 25; // Maximum catalyst score
-
-/**
- * Decay Awareness Scoring Parameters (0-20 max)
- * Measures whether agent understands time-limited signal value.
- */
-const DECAY_PATTERN_MAX = 12; // Max points from decay language patterns
-const DECAY_PATTERN_POINTS_PER_MATCH = 4; // Points per decay pattern match
-const DECAY_FRESHNESS_MAX = 8; // Max points from signal freshness awareness
-const DECAY_FRESHNESS_POINTS_PER_MATCH = 4; // Points per freshness pattern
-const DECAY_SCORE_MAX = 20; // Overall max for decay awareness scoring
-
-/**
- * Sequence Reasoning Scoring Parameters (0-15 max)
- * Measures whether agent reasons about ORDER of events.
- */
-const SEQUENCE_PATTERN_MAX = 10; // Max points from sequence language patterns
-const SEQUENCE_PATTERN_POINTS_PER_MATCH = 4; // Points per sequence pattern
-const SEQUENCE_ORDER_MAX = 5; // Max points from temporal ordering language
-const SEQUENCE_ORDER_POINTS_PER_MATCH = 3; // Points per order pattern
-const SEQUENCE_SCORE_MAX = 15; // Overall max for sequence reasoning scoring
-
-/**
- * Temporal Consistency Scoring Parameters (0-15 max)
- * Measures whether timeframe is consistent with action.
- */
-const CONSISTENCY_BUY_SHORT_BULLISH_BONUS = 10; // Buy + short-term bullish = consistent
-const CONSISTENCY_BUY_SHORT_BEARISH_PENALTY = 5; // Buy + short bearish = inconsistent
-const CONSISTENCY_BUY_DIP_BONUS = 8; // Buy + short bearish + long bullish = buying dip
-const CONSISTENCY_SELL_SHORT_BEARISH_BONUS = 10; // Sell + short-term bearish = consistent
-const CONSISTENCY_SELL_PROFIT_TAKING_BONUS = 8; // Sell + taking profits = consistent
-const CONSISTENCY_SELL_SHORT_BULLISH_PENALTY = 5; // Sell + short bullish = inconsistent
-const CONSISTENCY_HOLD_BONUS = 5; // Hold is somewhat consistent
-const CONSISTENCY_TEMPORAL_RATIONALE_MAX = 5; // Max points from explicit timing rationale
-const CONSISTENCY_TEMPORAL_RATIONALE_POINTS = 3; // Points per temporal rationale pattern
-const CONSISTENCY_SCORE_MIN = 0; // Minimum consistency score
-const CONSISTENCY_SCORE_MAX = 15; // Maximum consistency score
 
 /**
  * Number of hex characters kept from the SHA-256 digest for the trade integrity hash.
@@ -627,8 +558,6 @@ export function scoreTemporalReasoningQuality(
   // 5. Temporal Consistency (0-15)
   // Is the agent's timeframe consistent with its action?
   let consistencyScore = 0;
-
-  const actionLower = reasoning.toLowerCase();
 
   // Detect the agent's action
   const isBuy = /\b(?:buy|long|accumulate|enter)\b/i.test(reasoning);
