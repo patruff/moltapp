@@ -745,7 +745,7 @@ export async function getAgentAnalytics(
 
   // Compute all analytics
   const performance = computePerformance(decisions, portfolio);
-  const riskMetrics = computeRiskMetrics(decisions, portfolio);
+  const riskMetrics = computeRiskMetrics(decisions);
   const tradingPatterns = computeTradingPatterns(decisions);
   const sectorAllocation = computeSectorAllocation(decisions);
   const streaks = computeStreaks(decisions);
@@ -979,7 +979,6 @@ function computePerformance(
 
 function computeRiskMetrics(
   decisions: Array<{ confidence: number; action: string; quantity: string; symbol: string }>,
-  portfolio: { totalPnl: number; totalPnlPercent: number; totalValue: number; positions: Array<{ currentPrice: number; quantity: number }> },
 ): RiskMetrics {
   // Use confidence values as a proxy for returns (since we have decision data, not price history)
   const actionDecisions = decisions.filter((d) => d.action !== "hold");
