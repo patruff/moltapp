@@ -114,31 +114,6 @@ const CONSENSUS_UNIQUE_INFO_BONUS = 10;
  * Behavioral Intelligence Scoring Parameters
  */
 
-/** Adaptability: baseline score */
-const ADAPTABILITY_BASELINE = 50;
-/** Adaptability: confidence stddev multiplier (higher variance = more adaptive) */
-const ADAPTABILITY_STDDEV_MULTIPLIER = 200;
-
-/** Calibration: target confidence level (60% optimal) */
-const CALIBRATION_TARGET_CONFIDENCE = 0.6;
-/** Calibration: penalty multiplier for deviation from target */
-const CALIBRATION_DEVIATION_MULTIPLIER = 200;
-
-/** Learning: baseline score */
-const LEARNING_BASELINE = 40;
-/** Learning: points per trade (cumulative experience) */
-const LEARNING_PER_TRADE = 5;
-
-/**
- * Outcome Accuracy Scoring Parameters
- */
-
-/** Baseline score when coherence > 60% */
-const OUTCOME_ACCURACY_BASELINE = 40;
-/** Success rate multiplier (percentage of high-coherence trades correct) */
-const OUTCOME_ACCURACY_SUCCESS_MULTIPLIER = 60;
-/** Coherence threshold for outcome tracking (60%) */
-const OUTCOME_COHERENCE_THRESHOLD = 0.6;
 
 /**
  * Score Display Precision Rounding
@@ -307,32 +282,11 @@ const DIMENSION_WEIGHTS: Record<keyof V32DimensionScores, number> = {
 // Configuration Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Tier classification thresholds based on composite benchmark score.
- * Tiers are used for agent ranking and reputation in UI/leaderboards.
- */
-const TIER_S_THRESHOLD = 85; // S tier: Elite performance (top 5%)
-const TIER_A_THRESHOLD = 70; // A tier: Strong performance
-const TIER_B_THRESHOLD = 55; // B tier: Above average
-const TIER_C_THRESHOLD = 40; // C tier: Average
-
-/**
- * Grade boundaries for individual dimension scores (0-100 scale).
- * Grades appear in trade quality assessment and dimension breakdowns.
- */
-const GRADE_A_PLUS_THRESHOLD = 95; // A+: Near-perfect execution
-const GRADE_A_THRESHOLD = 85; // A: Excellent quality
-const GRADE_B_PLUS_THRESHOLD = 75; // B+: Very good
-const GRADE_B_THRESHOLD = 65; // B: Good
-const GRADE_C_PLUS_THRESHOLD = 55; // C+: Above average
-const GRADE_C_THRESHOLD = 45; // C: Average
-const GRADE_D_THRESHOLD = 30; // D: Below average (< 30 = F)
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Tier and grade functions now imported from ../lib/benchmark-grading-utils.ts
+// Tier and grade functions imported from ../lib/benchmark-grading-utils.ts
 
 // ---------------------------------------------------------------------------
 // NEW v32: Reasoning Grounding Scoring
