@@ -204,17 +204,6 @@ const REASONING_EVOLUTION_DECLINING_SCORE = 0.4;
 /** Score when reasoning significantly shorter (< 0.6× = major decline) */
 const REASONING_EVOLUTION_MAJOR_DECLINE_SCORE = 0.2;
 
-/**
- * Cross-Round Learning Component Weights
- * Total = 1.0 (100%). These weights determine relative importance of each
- * learning dimension in the composite score.
- */
-const LEARNING_WEIGHT_LESSON_APPLICATION = 0.25; // 25% - HIGHEST, applying past lessons
-const LEARNING_WEIGHT_MISTAKE_REPETITION = 0.20; // 20% - avoiding failed patterns
-const LEARNING_WEIGHT_STRATEGY_ADAPTATION = 0.20; // 20% - adapting strategy to outcomes
-const LEARNING_WEIGHT_OUTCOME_INTEGRATION = 0.20; // 20% - integrating P&L results
-const LEARNING_WEIGHT_REASONING_EVOLUTION = 0.15; // 15% - reasoning depth growth
-
 // ---------------------------------------------------------------------------
 // In-memory stores (for quick reads)
 // ---------------------------------------------------------------------------
