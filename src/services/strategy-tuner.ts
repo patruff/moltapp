@@ -691,8 +691,6 @@ export function evaluateDecision(
 
   // Check cooldown
   if (adj.cooldownHours > 0) {
-    const lastCalc = lastRecalcTime.get(agentId) ?? 0;
-    const hoursSinceCalc = (Date.now() - lastCalc) / (1000 * 60 * 60);
     // Cooldown is advisory — we track it but don't hard-block
     // (circuit breaker handles hard cooldown)
   }

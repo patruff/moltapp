@@ -847,10 +847,6 @@ function generateRoundRobinMatchups(
             ? p2
             : null; // tie
 
-      // Find common symbols traded
-      const p1Symbols = new Set<string>(); // Would need decision data for full analysis
-      const p2Symbols = new Set<string>();
-
       matchups.push({
         id: `match_${p1.agentId}_vs_${p2.agentId}`,
         agent1Id: p1.agentId,

@@ -27,10 +27,10 @@ import { eq, and, sql } from "drizzle-orm";
 import { executeBuy, executeSell, type TradeResult } from "./trading.ts";
 import { getStockBySymbol } from "./stocks.ts";
 import { eventBus } from "./event-stream.ts";
-import { emitTradeAlert, emitCircuitBreakerAlert } from "./alert-webhooks.ts";
+import { emitTradeAlert } from "./alert-webhooks.ts";
 import { registerFailedTrade, recordRetryAttempt } from "./trade-recovery.ts";
 import { logTradeEvent, logTradeFailure } from "./audit-log.ts";
-import type { TradingDecision, TradingRoundResult } from "../agents/base-agent.ts";
+import type { TradingDecision } from "../agents/base-agent.ts";
 import { round2, countByCondition } from "../lib/math-utils.ts";
 import { errorMessage } from "../lib/errors.ts";
 

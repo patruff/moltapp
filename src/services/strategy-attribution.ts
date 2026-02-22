@@ -13,7 +13,6 @@
  * 5. COHERENCE BY INTENT: Which strategies produce the most coherent reasoning?
  */
 
-import type { TradingIntent } from "../schemas/trade-reasoning.ts";
 import { getTopKey, round2, averageByKey, countByCondition } from "../lib/math-utils.ts";
 import { TOP_ANALYSIS_ITEMS_LIMIT, TOP_AGENT_INTENT_COMBINATIONS_LIMIT } from "../config/constants.ts";
 

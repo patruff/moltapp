@@ -86,12 +86,6 @@ const DRIFT_DETECTION_THRESHOLD = 0.1;
 const DRIFT_DIMENSION_THRESHOLD = 0.15;
 
 /**
- * Entropy calculation minimum value for maxEntropy denominator.
- * Prevents division by zero when calculating consistency score.
- */
-const ENTROPY_MIN_INTENTS = 2;
-
-/**
  * DNA comparison display limit.
  * Show top 3 biggest differences and top 3 most similar dimensions.
  */

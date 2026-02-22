@@ -15,7 +15,7 @@
  * - Slippage validation against quoted amounts
  */
 
-import { createSolanaRpc, signature as toSignature, address } from "@solana/kit";
+import { createSolanaRpc, signature as toSignature } from "@solana/kit";
 import { env } from "../config/env.ts";
 import { errorMessage } from "../lib/errors.ts";
 

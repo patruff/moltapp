@@ -154,9 +154,6 @@ export interface FlowTimelineOptions {
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Known agent IDs in the MoltApp trading arena. */
-const AGENT_IDS = ["claude-trader", "gpt-momentum", "grok-contrarian"] as const;
-
 /** Maximum number of flows retained in the ring buffer. */
 const MAX_FLOWS = 5000;
 
