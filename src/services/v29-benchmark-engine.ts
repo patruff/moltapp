@@ -24,7 +24,6 @@ import {
 import {
   normalizeConfidence,
   extractSourcesFromReasoning,
-  classifyIntent,
 } from "../schemas/trade-reasoning.ts";
 import { findMax } from "../lib/math-utils.ts";
 
