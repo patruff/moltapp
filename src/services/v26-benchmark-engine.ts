@@ -103,12 +103,6 @@ const DISCIPLINE_WEIGHT_CONCENTRATION = 0.10; // 10% - Portfolio diversification
 const DISCIPLINE_ROUNDING_PRECISION = 100; // Round to 2 decimal places (0.78)
 
 /**
- * RISK-REWARD RATIO ROUNDING PRECISION
- * Controls decimal precision for implied risk-reward ratio extraction.
- */
-const RISK_REWARD_ROUNDING_PRECISION = 100; // Round to 2 decimal places (2.50)
-
-/**
  * STRATEGY DETECTION SCORING POINTS
  * Points awarded when reasoning text contains strategy-specific keywords.
  * Higher points = stronger signal for that strategy type.
