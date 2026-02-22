@@ -107,39 +107,7 @@ const BOLLINGER_PERCENT_B_NEAR_LOWER = 0.1;
  */
 const BOLLINGER_PERCENT_B_NEAR_UPPER = 0.9;
 
-// ===== Volume Profile Parameters =====
-
-/**
- * Volume trend increase threshold (ratio > this = increasing)
- * Standard: 1.3× average
- */
-const VOLUME_TREND_INCREASE = 1.3;
-
-/**
- * Volume trend decrease threshold (ratio < this = decreasing)
- * Standard: 0.7× average
- */
-const VOLUME_TREND_DECREASE = 0.7;
-
 // ===== Momentum Parameters =====
-
-/**
- * Short-term momentum period (5 periods back)
- * Used for momentum shift detection
- */
-const MOMENTUM_SHORT_TERM_PERIOD = 5;
-
-/**
- * Medium-term momentum period (14 periods back)
- * Used for momentum shift detection and trend comparison
- */
-const MOMENTUM_MEDIUM_TERM_PERIOD = 14;
-
-/**
- * Long-term momentum period (30 periods back)
- * Used for overall trend strength
- */
-const MOMENTUM_LONG_TERM_PERIOD = 30;
 
 /**
  * Momentum acceleration threshold (|acceleration| > this = shift signal)
@@ -197,11 +165,6 @@ const SIGNAL_MACD_STRENGTH_MULTIPLIER = 500;
  */
 const SIGNAL_BOLLINGER_SQUEEZE_MULTIPLIER = 25;
 
-/**
- * Bollinger breakout strength divisor (percentB distance from center)
- * strength = |percentB - 0.5| * 100
- */
-const SIGNAL_BOLLINGER_BREAKOUT_DIVISOR = 0.5;
 
 /**
  * MACD rounding precision (4 decimal places)
@@ -229,11 +192,6 @@ const SIGNAL_MOMENTUM_STRENGTH_MULTIPLIER = 10;
  */
 const SIGNAL_BREAKOUT_STRENGTH_MULTIPLIER = 10;
 
-/**
- * Strong signal threshold (strength >= this = strong buy/sell)
- * Used for dashboard filtering
- */
-const SIGNAL_STRONG_THRESHOLD = 70;
 
 /**
  * Display Limit Constants
@@ -298,11 +256,6 @@ const CONSENSUS_MIN_AGENTS_DIVERGENCE = 2;
  */
 const CONSENSUS_HIGH_CONFIDENCE_THRESHOLD = 85;
 
-/**
- * Agent consensus lookback window (milliseconds)
- * Look at last 24 hours of decisions
- */
-const CONSENSUS_LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
 /**
  * High-confidence trade lookback window (milliseconds)
@@ -479,23 +432,6 @@ const DASHBOARD_SENTIMENT_BULLISH_RATIO = 1.5;
  */
 const STRONG_SIGNAL_STRENGTH_THRESHOLD = 70;
 
-/**
- * Dashboard top opportunities/risks limit
- * Show top N bullish/bearish signals
- */
-const DASHBOARD_TOP_SIGNALS_LIMIT = 5;
-
-/**
- * Dashboard technical summary stock limit
- * Show technical indicators for top N stocks
- */
-const DASHBOARD_TECHNICAL_SUMMARY_LIMIT = 10;
-
-/**
- * Dashboard trending stocks limit
- * Show top N stocks by signal count
- */
-const DASHBOARD_TRENDING_LIMIT = 5;
 
 // ===== Price History Parameters =====
 
@@ -533,11 +469,6 @@ const SYNTHETIC_PRICE_VOLATILITY = 0.02;
  */
 const SYNTHETIC_FALLBACK_PRICE = 100;
 
-/**
- * Volume profile lookback window (days)
- * Calculate average from last N days
- */
-const VOLUME_LOOKBACK_DAYS = 7;
 
 /**
  * Signal strength maximum value: 100.
