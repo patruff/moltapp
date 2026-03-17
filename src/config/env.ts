@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -101,6 +102,23 @@ function loadEnv(): Env {
       .map((issue) => `  ${issue.path.join(".")}: ${issue.message}`)
       .join("\n");
     throw new Error(`Environment validation failed:\n${issues}`);
+  }
+
+  // Warn about critical missing values that have empty defaults
+  if (!result.data.DATABASE_URL) {
+    console.warn("DATABASE_URL not set — database queries will fail");
+  }
+
+  // Log which AI agents are available based on API keys
+  const availableAgents: string[] = [];
+  if (result.data.ANTHROPIC_API_KEY) availableAgents.push("Claude");
+  if (result.data.OPENAI_API_KEY) availableAgents.push("GPT");
+  if (result.data.XAI_API_KEY) availableAgents.push("Grok");
+
+  if (availableAgents.length > 0) {
+    console.log(`[Env] AI agents available: ${availableAgents.join(", ")}`);
+  } else {
+    console.warn("[Env] No AI agent API keys configured — all agents disabled");
   }
 
   return result.data;
