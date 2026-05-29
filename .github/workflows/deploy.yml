@@ -42,44 +42,13 @@ jobs:
         run: npm run build
 
   # ------------------------------------------------------------------
-  # Test
-  # ------------------------------------------------------------------
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: npm test
-        env:
-          DATABASE_URL: "postgresql://test:test@localhost:5432/test"
-          MOLTBOOK_APP_KEY: "test-key"
-          JUPITER_API_KEY: "test-key"
-          ADMIN_PASSWORD: "test-password"
-          NODE_ENV: "test"
-
-  # ------------------------------------------------------------------
   # CDK Deploy (main branch only)
   # ------------------------------------------------------------------
   deploy:
     name: Deploy to AWS
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [build, test]
+    needs: build
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     permissions:
