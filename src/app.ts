@@ -177,6 +177,7 @@ import { benchmarkV36Routes } from "./routes/benchmark-v36.tsx";
 import { benchmarkV36ApiRoutes } from "./routes/benchmark-v36-api.ts";
 import { benchmarkV37Routes } from "./routes/benchmark-v37.tsx";
 import { benchmarkV37ApiRoutes } from "./routes/benchmark-v37-api.ts";
+import { evarianDemoRoutes } from "./routes/evarian-demo.ts";
 import { mobileDashboardRoutes } from "./routes/mobile-dashboard.tsx";
 import { joinRoutes } from "./routes/join.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
@@ -722,6 +723,9 @@ app.route("/compete", competitionRoutes);
 
 // External Agent Onboarding Wizard (public -- self-registration)
 app.route("/join", joinRoutes);
+
+// Evarian client demo (public -- replaces old root demo on patgpt.us)
+app.route("/", evarianDemoRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);
