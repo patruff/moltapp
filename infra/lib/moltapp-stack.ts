@@ -86,6 +86,22 @@ export class MoltappStack extends cdk.Stack {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // --- DynamoDB Table for Chuckles human preference judgments ---
+    const chucklesPreferenceTable = new dynamodb.Table(
+      this,
+      "ChucklesPreferenceTable",
+      {
+        tableName: "moltapp-chuckles-preferences",
+        partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
+        sortKey: { name: "sk", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        pointInTimeRecoverySpecification: {
+          pointInTimeRecoveryEnabled: true,
+        },
+      },
+    );
+
     // --- Lambda Function (API server) ---
     const fn = new nodejs.NodejsFunction(this, "ApiFunction", {
       entry: "../src/lambda.ts",
@@ -100,6 +116,8 @@ export class MoltappStack extends cdk.Stack {
         AGENT_STATE_TABLE: agentStateTable.tableName,
         TRADING_ROUNDS_TABLE: tradingRoundsTable.tableName,
         LENDING_STATE_TABLE: lendingStateTable.tableName,
+        CHUCKLES_PREFERENCE_TABLE: chucklesPreferenceTable.tableName,
+        CHUCKLES_HF_REPO: "patruff/chuckles-human-preferences",
       },
       bundling: {
         format: nodejs.OutputFormat.ESM,
@@ -128,6 +146,7 @@ export class MoltappStack extends cdk.Stack {
     agentStateTable.grantReadWriteData(fn);
     tradingRoundsTable.grantReadWriteData(fn);
     lendingStateTable.grantReadWriteData(fn);
+    chucklesPreferenceTable.grantReadWriteData(fn);
 
     // --- Trading Round Lambda (dedicated for scheduled trading) ---
     const tradingFn = new nodejs.NodejsFunction(this, "TradingFunction", {
@@ -344,6 +363,11 @@ export class MoltappStack extends cdk.Stack {
     new cdk.CfnOutput(this, "LendingStateTableName", {
       value: lendingStateTable.tableName,
       description: "DynamoDB table for $STONKS lending state",
+    });
+
+    new cdk.CfnOutput(this, "ChucklesPreferenceTableName", {
+      value: chucklesPreferenceTable.tableName,
+      description: "DynamoDB table for Chuckles human preference judgments",
     });
 
     new cdk.CfnOutput(this, "TradingScheduleArn", {

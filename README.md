@@ -6,13 +6,71 @@ MoltApp is the **open benchmark for frontier reasoning models** trading **real s
 
 Every tool call is traced. Every reasoning chain is captured. Every trade settles on-chain. **Three sources of truth: the models, the benchmark, the blockchain.**
 
-**The Molt Index** tracks the world's best AI reasoners at [patgpt.us](https://www.patgpt.us).
+The root app at [patgpt.us](https://www.patgpt.us) is now the private Chuckles Preference Lab. The Molt Index benchmark remains available at [patgpt.us/benchmark](https://www.patgpt.us/benchmark).
 
-[![Live Benchmark](https://img.shields.io/badge/Benchmark-LIVE-brightgreen?style=for-the-badge)](https://www.patgpt.us)
+[![Live Benchmark](https://img.shields.io/badge/Benchmark-LIVE-brightgreen?style=for-the-badge)](https://www.patgpt.us/benchmark)
 [![HuggingFace Dataset](https://img.shields.io/badge/HuggingFace-molt--benchmark-yellow?style=for-the-badge&logo=huggingface)](https://huggingface.co/datasets/patruff/molt-benchmark)
 [![Solana](https://img.shields.io/badge/Solana-Mainnet-purple?style=for-the-badge&logo=solana)](https://solana.com/)
 [![Colosseum Hackathon](https://img.shields.io/badge/Colosseum-Agent_Hackathon_2026-gold?style=for-the-badge)](https://www.colosseum.org/)
 [![Demo Video](https://img.shields.io/badge/Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://youtu.be/eAbOViPXrNs?si=5rZOeYsyb934LtyI)
+
+---
+
+## Chuckles Preference Lab
+
+`/` serves a small private app for turning Chuckles parody candidates into a human preference dataset:
+
+1. Log in with the configured review credentials.
+2. Paste a JSON array or JSONL batch of candidate pairs.
+3. Compare two parody outputs side by side for the same input.
+4. Click the better output.
+5. Export the judged rows as DPO-ready JSONL to Hugging Face.
+
+Candidate rows should include:
+
+```json
+{
+  "input": "The Godfather",
+  "outputA": "The Codfather",
+  "outputB": "The Oddfather",
+  "modelA": "baseline",
+  "modelB": "candidate",
+  "sourceDataset": "manual_batch"
+}
+```
+
+Judged rows are stored in DynamoDB (`moltapp-chuckles-preferences`) and exported with the standard DPO columns:
+
+```json
+{
+  "prompt": "Create a funny parody title or phrase for this input:\nThe Godfather",
+  "chosen": "The Codfather",
+  "rejected": "The Oddfather",
+  "input_text": "The Godfather",
+  "chosen_model": "baseline",
+  "rejected_model": "candidate"
+}
+```
+
+### Chuckles Secrets
+
+Production secrets are loaded from the existing `moltapp/production` Secrets Manager JSON. Add these keys there, or use `.env` locally:
+
+```bash
+CHUCKLES_REVIEW_USERNAME=patruff
+CHUCKLES_REVIEW_PASSWORD_HASH=<sha256-of-review-password>
+CHUCKLES_SESSION_SECRET=<random-long-session-secret>
+CHUCKLES_HF_REPO=patruff/chuckles-human-preferences
+HF_TOKEN=<huggingface-write-token>
+```
+
+Generate the password hash locally without storing the plaintext password in git:
+
+```bash
+node -e 'const crypto=require("crypto"); const p=process.argv[1]; console.log(crypto.createHash("sha256").update(p).digest("hex"))' 'your-password-here'
+```
+
+CDK provisions the DynamoDB table and passes its name to Lambda as `CHUCKLES_PREFERENCE_TABLE`.
 
 ---
 
@@ -730,6 +788,10 @@ XAI_API_KEY=...                   # For Grok 4
 GOOGLE_API_KEY=...                # For Gemini 2.5 Flash
 BRAVE_API_KEY=...                 # For news search tool
 HF_TOKEN=...                      # HuggingFace dataset sync
+CHUCKLES_REVIEW_USERNAME=patruff  # Private Chuckles review app login user
+CHUCKLES_REVIEW_PASSWORD_HASH=... # SHA-256 hash, not plaintext
+CHUCKLES_SESSION_SECRET=...       # Random session signing secret
+CHUCKLES_HF_REPO=patruff/chuckles-human-preferences
 JUPITER_API_KEY=...               # For execution quotes
 
 # Agent wallets (one per agent)

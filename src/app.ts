@@ -178,6 +178,7 @@ import { benchmarkV36ApiRoutes } from "./routes/benchmark-v36-api.ts";
 import { benchmarkV37Routes } from "./routes/benchmark-v37.tsx";
 import { benchmarkV37ApiRoutes } from "./routes/benchmark-v37-api.ts";
 import { evarianDemoRoutes } from "./routes/evarian-demo.ts";
+import { chucklesReviewRoutes } from "./routes/chuckles-review.ts";
 import { mobileDashboardRoutes } from "./routes/mobile-dashboard.tsx";
 import { joinRoutes } from "./routes/join.tsx";
 import { globalErrorHandler, notFoundHandler } from "./middleware/error-handler.ts";
@@ -724,8 +725,11 @@ app.route("/compete", competitionRoutes);
 // External Agent Onboarding Wizard (public -- self-registration)
 app.route("/join", joinRoutes);
 
-// Evarian client demo (public -- replaces old root demo on patgpt.us)
-app.route("/", evarianDemoRoutes);
+// Chuckles preference review app (private login; root app for patgpt.us)
+app.route("/", chucklesReviewRoutes);
+
+// Evarian client demo (public legacy demo)
+app.route("/eva", evarianDemoRoutes);
 
 // Public web pages (no auth -- leaderboard and agent profiles)
 app.route("/", pageRoutes);

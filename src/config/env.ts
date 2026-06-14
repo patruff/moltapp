@@ -51,6 +51,18 @@ const envSchema = z.object({
   HELIUS_API_KEY: z.string().optional(),
   HELIUS_WEBHOOK_SECRET: z.string().optional(),
   APP_URL: z.string().optional(),
+
+  // Chuckles preference review app
+  CHUCKLES_REVIEW_USERNAME: z.string().default("patruff"),
+  CHUCKLES_REVIEW_PASSWORD_HASH: z.string().optional(),
+  CHUCKLES_SESSION_SECRET: z.string().optional(),
+  CHUCKLES_PREFERENCE_TABLE: z.string().optional(),
+  CHUCKLES_HF_REPO: z
+    .string()
+    .default("patruff/chuckles-human-preferences"),
+  CHUCKLES_HF_TOKEN: z.string().optional(),
+  HF_TOKEN: z.string().optional(),
+  HUGGINGFACE_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
